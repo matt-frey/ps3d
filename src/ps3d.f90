@@ -10,7 +10,7 @@ program ps3d
     use field_diagnostics_netcdf, only : field_stats_io_timer
     use inversion_mod, only : vor2vel_timer, vtend_timer
     use inversion_utils, only : init_fft
-    use ls_rk4, only : ls_rk4_alloc, ls_rk4_dealloc, ls_rk4_step, rk4_timer
+    use advance, only : advance, advance_timer
     use utils, only : write_last_step, setup_output_files,       &
                       setup_restart, setup_domain_and_parameters
     implicit none
@@ -36,8 +36,6 @@ program ps3d
                               , field_tol           &
                               , output              &
                               , read_config_file    &
-                              , l_restart           &
-                              , restart_file        &
                               , time
             character(len=16) :: file_type
 
@@ -47,7 +45,7 @@ program ps3d
             call register_timer('field diagnostics I/O', field_stats_io_timer)
             call register_timer('vor2vel', vor2vel_timer)
             call register_timer('vorticity tendency', vtend_timer)
-            call register_timer('parcel push', rk4_timer)
+            call register_timer('advance', advance_timer)
 
             call start_timer(ps_timer)
 
@@ -56,17 +54,9 @@ program ps3d
             call read_config_file
 
             ! read domain dimensions
-            if (l_restart) then
-                call setup_domain_and_parameters(trim(restart_file))
-            else
-                call setup_domain_and_parameters(trim(field_file))
-            endif
+            call setup_domain_and_parameters(trim(field_file))
 
-            if (l_restart) then
-                call setup_restart(trim(restart_file), time%initial, file_type)
-            else
-                time%initial = zero ! make sure user cannot start at arbirtrary time
-            endif
+            time%initial = zero ! make sure user cannot start at arbirtrary time
 
             call init_fft
 
@@ -78,23 +68,13 @@ program ps3d
 
 
         subroutine run
-            use options, only : time, parcel
-#ifdef ENABLE_VERBOSE
-            use options, only : verbose
-#endif
+            use options, only : time
             double precision :: t = zero    ! current time
 
             t = time%initial
 
             do while (t < time%limit)
-
-#ifdef ENABLE_VERBOSE
-                if (verbose) then
-                    print "(a15, f0.4)", "time:          ", t
-                endif
-#endif
-                call ls_rk4_step(t)
-
+                call advance(t)
             enddo
 
             ! write final step (we only write if we really advanced in time)
@@ -106,9 +86,7 @@ program ps3d
 
         subroutine post_run
             use options, only : output
-            call ls_rk4_dealloc
             call stop_timer(ps_timer)
-
             call write_time_to_csv(output%basename)
             call print_timer
         end subroutine
