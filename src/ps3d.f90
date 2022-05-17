@@ -10,7 +10,7 @@ program ps3d
     use inversion_utils, only : init_fft
     use advance, only : advance, advance_timer
     use utils, only : write_last_step, setup_output_files,       &
-                      setup_restart, setup_domain_and_parameters
+                      setup_domain_and_parameters
     implicit none
 
     integer          :: ps_timer
@@ -90,7 +90,7 @@ program ps3d
 
     ! Get the file name provided via the command line
     subroutine parse_command_line
-        use options, only : filename, l_restart, restart_file
+        use options, only : filename
 #ifdef ENABLE_VERBOSE
         use options, only : verbose
 #endif
@@ -98,7 +98,6 @@ program ps3d
         character(len=512)               :: arg
 
         filename = ''
-        restart_file = ''
         i = 0
         do
             call get_command_argument(i, arg)
@@ -113,11 +112,6 @@ program ps3d
             else if (arg == '--help') then
                 print *, 'Run code with "./ps3d --config [config file]"'
                 stop
-            else if (arg == '--restart') then
-                l_restart = .true.
-                i = i + 1
-                call get_command_argument(i, arg)
-                restart_file = trim(arg)
 #ifdef ENABLE_VERBOSE
             else if (arg == '--verbose') then
                 verbose = .true.
@@ -131,20 +125,10 @@ program ps3d
             stop
         endif
 
-        if (l_restart .and. (restart_file == '')) then
-            print *, 'No restart file provided. Run code with "./ps3d --config [config file]' // &
-                     ' --restart [restart file]"'
-            stop
-        endif
-
 #ifdef ENABLE_VERBOSE
         ! This is the main application of PS
         if (verbose) then
-            if (l_restart) then
-                print *, 'Restarting PS3D with "', trim(filename), '" and "', trim(restart_file), "'"
-            else
-                print *, 'Running PS3D with "', trim(filename), '"'
-            endif
+            print *, 'Running PS3D with "', trim(filename), '"'
         endif
 #endif
     end subroutine parse_command_line
