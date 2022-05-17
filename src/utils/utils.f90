@@ -2,8 +2,6 @@ module utils
     use constants, only : one
     use options, only : output, verbose
     use field_netcdf
-    use field_diagnostics_netcdf
-    use field_diagnostics, only : calculate_field_diagnostics
     use inversion_mod, only : vor2vel, vorticity_tendency
     use netcdf_reader, only : get_file_type, get_num_steps, get_time, get_netcdf_box
     use parameters, only : lower, extent, update_parameters
@@ -11,26 +9,18 @@ module utils
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
-    integer :: nsfw = 0    ! number of field diagnostics writes
 
-    private :: nfw, nsfw
+    private :: nfw
 
     contains
 
         ! Create NetCDF files and set the step number
         subroutine setup_output_files
-            use options, only : output, l_restart
+            use options, only : output
 
             if (output%write_fields) then
                 call create_netcdf_field_file(trim(output%basename), &
-                                              output%overwrite,   &
-                                              l_restart)
-            endif
-
-            if (output%write_field_stats) then
-                call create_netcdf_field_stats_file(trim(output%basename),   &
-                                                    output%overwrite,        &
-                                                    l_restart)
+                                              output%overwrite)
             endif
 
         end subroutine setup_output_files
@@ -45,9 +35,7 @@ module utils
             ! this is also needed for the first ls-rk4 substep
             call vor2vel(vortg, velog, velgradg)
 
-            call vorticity_tendency(vortg, velog, tbuoyg, vtend)
-
-            call calculate_field_diagnostics
+            call vorticity_tendency(vortg, velog, buoyg, vtend)
 
             call write_step(t, .true.)
         end subroutine write_last_step
@@ -74,29 +62,7 @@ module utils
             endif
 
 
-            if (output%write_field_stats .and. &
-                (t + epsilon(zero) >= neg * dble(nsfw) * output%field_stats_freq)) then
-                call write_netcdf_field_stats(t)
-                nsfw = nsfw + 1
-            endif
         end subroutine write_step
-
-        subroutine setup_restart(restart_file, t, file_type)
-            character(*),     intent(in)  :: restart_file
-            double precision, intent(out) :: t
-            character(*),     intent(out) :: file_type
-            integer                       :: ncid
-
-            call open_netcdf_file(restart_file, NF90_NOWRITE, ncid)
-            call get_file_type(ncid, file_type)
-            call get_time(ncid, t)
-            call close_netcdf_file(ncid)
-
-            ! set counters (we nee to increment by 1 since
-            ! we want to write the next time
-            nfw = int(t / output%field_freq) + 1
-            nsfw = int(t / output%field_stats_freq) + 1
-        end subroutine setup_restart
 
         subroutine setup_domain_and_parameters(fname)
             character(*), intent(in) :: fname

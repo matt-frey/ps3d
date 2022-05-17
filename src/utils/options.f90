@@ -12,18 +12,8 @@ module options
     ! print more info if true
     logical :: verbose = .false.
 
-    ! if a restarted simulation
-    logical :: l_restart = .false.
-
     ! configuration file
     character(len=512) :: filename = ''
-
-    ! restart file
-    character(len=512) :: restart_file = ''
-
-    ! field input file
-    character(len=512)  :: field_file = ''
-    double precision    :: field_tol  = 1.0d-10
 
     !
     ! output options
@@ -31,13 +21,7 @@ module options
     type info
         double precision    :: field_freq         = one
         logical             :: write_fields       = .true.
-        double precision    :: parcel_freq        = one
         logical             :: overwrite          = .false.
-        logical             :: write_parcels      = .true.
-        double precision    :: parcel_stats_freq  = one
-        logical             :: write_parcel_stats = .true.
-        double precision    :: field_stats_freq   = one
-        logical             :: write_field_stats  = .true.
         character(len=512)  :: basename           = ''
     end type info
 
@@ -47,23 +31,6 @@ module options
     ! domain options
     !
     logical :: allow_larger_anisotropy = .false.
-
-    !
-    ! parcel options
-    !
-    type parcel_type
-        double precision :: size_factor      = 1.0d0    ! factor to increase max. number of parcels
-        integer          :: n_per_cell       = 9        ! number of parcels per cell (need to be a square)
-        double precision :: lambda_max       = four     ! max. ellipse aspect ratio a/b
-        double precision :: min_vratio       = 40.0d0   ! minimum ratio of grid cell volume / parcel volume
-        integer          :: correction_iters = 2        ! parcel correction iterations
-        double precision :: gradient_pref    = 1.8d0    ! prefactor for gradient descent
-        double precision :: max_compression  = 0.5d0    ! parameter for gradient descent (limits the shift in parcel position)
-        double precision :: max_vratio       = 4.913d0  ! maximum ratio of grid cell volume / parcel volume (1.7^3)
-
-    end type parcel_type
-
-    type(parcel_type) :: parcel
 
     ! time limit
     type time_info_type
@@ -86,7 +53,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /EPIC/ field_file, field_tol, output, parcel, time
+            namelist /EPIC/ output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -124,30 +91,12 @@ module options
 #ifdef ENABLE_VERBOSE
             call write_netcdf_attribute(ncid, "verbose", verbose)
 #endif
-            call write_netcdf_attribute(ncid, "field_file", field_file)
-            call write_netcdf_attribute(ncid, "field_tol", field_tol)
-
             call write_netcdf_attribute(ncid, "allow_larger_anisotropy", &
                                                allow_larger_anisotropy)
 
-            call write_netcdf_attribute(ncid, "size_factor", parcel%size_factor)
-            call write_netcdf_attribute(ncid, "n_per_cell", parcel%n_per_cell)
-            call write_netcdf_attribute(ncid, "lambda_max", parcel%lambda_max)
-            call write_netcdf_attribute(ncid, "min_vratio", parcel%min_vratio)
-            call write_netcdf_attribute(ncid, "correction_iters", parcel%correction_iters)
-            call write_netcdf_attribute(ncid, "gradient_pref", parcel%gradient_pref)
-            call write_netcdf_attribute(ncid, "max_compression", parcel%max_compression)
-            call write_netcdf_attribute(ncid, "max_vratio", parcel%max_vratio)
-
-            call write_netcdf_attribute(ncid, "parcel_freq", output%parcel_freq)
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
-            call write_netcdf_attribute(ncid, "parcel_stats_freq", output%parcel_stats_freq)
-            call write_netcdf_attribute(ncid, "write_parcel_stats", output%write_parcel_stats)
-            call write_netcdf_attribute(ncid, "field_stats_freq", output%field_stats_freq)
-            call write_netcdf_attribute(ncid, "write_field_stats", output%write_field_stats)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
             call write_netcdf_attribute(ncid, "overwrite", output%overwrite)
-            call write_netcdf_attribute(ncid, "write_parcels", output%write_parcels)
             call write_netcdf_attribute(ncid, "basename", trim(output%basename))
 
             call write_netcdf_attribute(ncid, "limit", time%limit)
