@@ -17,6 +17,7 @@ module fields
     double precision, allocatable, dimension(:, :, :, :) :: &
         velog,     &   ! velocity vector field (u, v, w)
         vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz)
+        svortg,    &   ! vorticity vector field in spectral space
         vtend,     &   ! vorticity tendency
         velgradg       ! velocity gradient tensor
                        ! ordering: du/dx, du/dy,
@@ -32,7 +33,8 @@ module fields
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
-        sbuoyg         ! buoyancy (spectral)
+        sbuoyg,    &   ! buoyancy (spectral)
+        diss           ! dissipation operator (spectral)
 
     contains
 
@@ -42,14 +44,17 @@ module fields
                 return
             endif
 
-            allocate(velog(-1:nz+1, 0:ny-1, 0:nx-1, 3))
-            allocate(velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5))
+            allocate(velog(0:nz, 0:ny-1, 0:nx-1, 3))
+            allocate(velgradg(0:nz, 0:ny-1, 0:nx-1, 5))
 
-            allocate(vortg(-1:nz+1, 0:ny-1, 0:nx-1, 3))
+            allocate(vortg(0:nz, 0:ny-1, 0:nx-1, 3))
 
-            allocate(vtend(-1:nz+1, 0:ny-1, 0:nx-1, 3))
+            allocate(vtend(0:nz, 0:ny-1, 0:nx-1, 3))
 
-            allocate(buoyg(-1:nz+1, 0:ny-1, 0:nx-1))
+            allocate(buoyg(0:nz, 0:ny-1, 0:nx-1))
+            allocate(sbuoyg(0:nz, 0:nx-1, 0:ny-1))
+
+            allocate(diss(0:nz, 0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
 
@@ -62,6 +67,8 @@ module fields
             vortg    = zero
             vtend    = zero
             buoyg    = zero
-        end subroutine
+            sbuoyg   = zero
+            diss     = zero
+        end subroutine field_default
 
 end module fields

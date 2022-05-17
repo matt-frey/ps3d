@@ -46,4 +46,6 @@ module constants
     !For controlling numerical stability (CFL_max <= 0.8 recommended):
     double precision, parameter :: cflmax = 0.8d0
 
+    double precision, parameter :: small=1.d-12
+
 end module

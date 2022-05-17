@@ -55,7 +55,11 @@ module inversion_utils
             , yfactors  &
             , xtrig     &
             , ytrig     &
-            , k2l2i
+            , k2l2i     &
+            , rkx       &
+            , rky       &
+            , hrkx      &
+            , hrky
 
     contains
 

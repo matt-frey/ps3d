@@ -32,6 +32,20 @@ module options
     !
     logical :: allow_larger_anisotropy = .false.
 
+    !(Hyper)viscosity parameters:
+    integer :: nnu
+    double precision :: prediss
+    ! If nnu = 1, this is the molecular viscosity case.  Then, we
+    ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
+    ! where k_{x_max} is the maximum x wavenumber.
+    ! Note: prediss = 2 is recommended.
+    ! ----------------------------------------------------------------
+    ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
+    ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
+    ! where k_max is the maximum x or y wavenumber and zeta_char is
+    ! a characteristic vorticity (see subroutine adapt of strat.f90).
+    ! Note: nnu = 3 and prediss = 10 are recommended.
+
     ! time limit
     type time_info_type
         double precision :: initial     = zero       ! initial time

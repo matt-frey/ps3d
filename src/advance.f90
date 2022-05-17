@@ -10,8 +10,11 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module advance_mod
-    use parameters, only : nx, ny, nz, glmin, cflpf
+    use options, only : time, nnu
+    use constants
+    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel
+    use inversion_utils
     use fields
     implicit none
 
@@ -43,7 +46,7 @@ module advance_mod
             call vor2vel(vortg,  velog,  velgradg)  !call main_invert(zs,uu,vv,zz) !zs is spectral here
 
             !Adapt the time step and save various diagnostics each time step:
-            call adapt
+            call adapt(t)
 
 !             !Possibly save field data (gsave is set by adapt):
 !             if (gsave) call savegrid
@@ -51,17 +54,17 @@ module advance_mod
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
 
-            !Calculate the source terms (sbs,szs) for buoyancy (bs) and
-            !vorticity (zs) in spectral space:
+            !Calculate the source terms (sbs, szs) for buoyancy (sbuoyg) and
+            !vorticity (svortg) in spectral space:
             call source(sbs, szs)
 
             !Initialise iteration (dt = dt/4 below):
-            bsi = bs
-            bsm = bs + dt4 * sbs
-            bs =diss*(bsm + dt4 * sbs) - bsi
-            zsi = zs
-            zsm = zs + dt4 * szs
-            zs = diss * (zsm + dt4 * szs) - zsi
+            bsi = sbuoyg
+            bsm = sbuoyg + dt4 * sbs
+            sbuoyg = diss * (bsm + dt4 * sbs) - bsi
+            zsi = svortg(:, :, :, 1)
+            zsm = svortg(:, :, :, 1) + dt4 * szs
+            svortg(:, :, :, 1) = diss * (zsm + dt4 * szs) - zsi
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
             !------------------------------------------------------------------
@@ -74,8 +77,8 @@ module advance_mod
                 call source(sbs, szs)
 
                 !Update fields:
-                bs = diss * (bsm + dt4 * sbs) - bsi
-                zs = diss * (zsm + dt4 * szs) - zsi
+                sbuoyg = diss * (bsm + dt4 * sbs) - bsi
+                svortg(:, :, :, 1) = diss * (zsm + dt4 * szs) - zsi
             enddo
 
             !Advance time:
@@ -84,7 +87,7 @@ module advance_mod
 
 
         ! Gets the source terms for vorticity and buoyancy in spectral space.
-        ! The spectral fields bs and zs are all spectrally truncated.
+        ! The spectral fields sbuoyg and svortg are all spectrally truncated.
         ! Note, uu and vv obtained by main_invert before calling this
         ! routine are spectrally truncated as well.
         subroutine source(sbs, szs)
@@ -99,14 +102,14 @@ module advance_mod
             !Buoyancy source bb_t = -(u,v)*grad(bb):
 
             !Obtain x & y derivatives of buoyancy -> px, py (physical):
-            call xderiv_fc(nx, ny, hrkx, bs, sx)
+            call xderiv_fc(nx, ny, hrkx, sbuoyg, sx)
 
             !Store spectral db/dx in szs for use in vorticity source below:
             szs = sx
 
             call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
 
-            call yderiv_fc(nx, ny, rky, bs, sy)
+            call yderiv_fc(nx, ny, rky, sbuoyg, sy)
 
             call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
 
@@ -120,35 +123,42 @@ module advance_mod
 
             !Convert to spectral space as sbs and apply de-aliasing filter:
             call ptospc_fc(nx, ny, px, sbs, xfactors, yfactors, xtrig, ytrig)
-            sbs = -filt * sbs
+
+            do iz = 0, nz
+                sbs(iz, :, :) = -filt * sbs(iz, :, :)
+            enddo
 
             !--------------------------------------------------------------
             !Vorticity source zz_t = bb_x - (u, v)*grad(zz):
 
             !Obtain x & y derivatives of vorticity:
-            call xderiv_fc(nx, ny, hrkx, zs, sx)
+            call xderiv_fc(nx, ny, hrkx, svortg(:, :, :, 1), sx)
             call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
-            call yderiv_fc(nx, ny, rky, zs, sy)
+            call yderiv_fc(nx, ny, rky, svortg(:, :, :, 1), sy)
             call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
 
             !Compute (u, v)*grad(zz) -> px in physical space:
             px(0, :, :) = velog(0, :, :, 1) * px(0, :, :)
 
-            px(1:nz-1, :) = velog(1:ny-1, :, :, 1) * px(1:ny-1, :, :) &
-                          + velog(1:ny-1, :, :, 2) * py(1:ny-1, :, :)
+            px(1:nz-1, :, :) = velog(1:ny-1, :, :, 1) * px(1:ny-1, :, :) &
+                             + velog(1:ny-1, :, :, 2) * py(1:ny-1, :, :)
 
             px(nz, :, :) = velog(nz, :, :, 1) * px(nz, :, :)
 
             !Convert to spectral space as sx and apply de-aliasing filter:
             call ptospc_fc(nx, ny, px, sx, xfactors, yfactors, xtrig, ytrig)
-            szs=szs-filt*sx
+
+            do iz = 0, nz
+                szs(iz, :, :) = szs(iz, :, :) - filt * sx(iz, :, :)
+            enddo
 
         end subroutine source
 
         !=======================================================================
 
         ! Adapts the time step and computes various diagnostics
-        subroutine adapt
+        subroutine adapt(t)
+            double precision, intent(in) :: t
             !For defining the max strain & buoyancy frequency based time step:
             double precision, parameter:: alpha = 0.1d0
             !Note: EPIC-2D paper recommends alpha = 0.2 for ls-rk4 method
@@ -163,9 +173,9 @@ module advance_mod
 
             !----------------------------------------------------------
             !Obtain x & y derivatives of buoyancy -> px, py (physical):
-            call xderiv_fc(nx, ny, hrkx, bs, sx)
+            call xderiv_fc(nx, ny, hrkx, sbuoyg, sx)
             call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
-            call yderiv_fc(nx, ny, rky, bs, sy)
+            call yderiv_fc(nx, ny, rky, sbuoyg, sy)
             call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
 
             !Compute px^2 + py^2 -> px in physical space:
@@ -177,22 +187,24 @@ module advance_mod
             bfmax = sqrt(sqrt(maxval(px)))
 
             !Maximum vorticity:
-            px = zz ** 2
+            px = vortg(:, :, :, 1) ** 2
             zzmax = sqrt(maxval(px))
 
             !R.m.s. vorticity:
-            zzrms = sqrt(dsumi*(f12*sum(px(0, :, :)+px(nz, :, :))+sum(px(1:nz-1, :, :))))
+            zzrms = sqrt(ncelli*(f12*sum(px(0, :, :)+px(nz, :, :))+sum(px(1:nz-1, :, :))))
 
             !Characteristic vorticity,  <zz^2>/<|zz|> for |zz| > zz_rms:
             zzl1 = small
             zzl2 = zero
             do ix = 0, nx-1
-                do iy = 1, ny
-                    zztmp = f12 * (zz(iy-1, ix) + zz(iy, ix))
+                do iy = 0, ny-1
+                    do iz = 1, nz
+                        zztmp = f12 * (vortg(iz-1, iy, ix, 1) + vortg(iz, iy, ix, 1))
                         if (abs(zztmp) .gt. zzrms) then
                             zzl1 = zzl1 + abs(zztmp)
                             zzl2 = zzl2 + zztmp ** 2
                         endif
+                    enddo
                 enddo
             enddo
             zzch = zzl2 / zzl1
@@ -210,7 +222,7 @@ module advance_mod
             !px = v_x
 
             !Strain rate squared, u_x^2 + (v_x - zz/2)^2:
-            fp = fp ** 2 + (px - f12 * zz) ** 2
+            fp = fp ** 2 + (px - f12 * vortg(:, :, :, 1)) ** 2
 
             !Maximum strain rate:
             ggmax = sqrt(maxval(fp))
@@ -219,7 +231,7 @@ module advance_mod
             uumax = sqrt(maxval(velog(:, :, :, 1) ** 2 + velog(:, :, :, 2) ** 2))
 
             !Choose new time step:
-            dt = min(alpha / (ggmax + small), alpha / (bfmax + small), cflpf / (uumax + small), tsim - t)
+            dt = min(alpha / (ggmax + small), alpha / (bfmax + small), cflpf / (uumax + small), time%limit - t)
 
             !Update value of dt/4:
             dt4 = dt / four
