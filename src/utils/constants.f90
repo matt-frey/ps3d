@@ -43,4 +43,7 @@ module constants
     double precision, parameter :: rad2deg = 180.0d0 * fpi
     double precision, parameter :: deg2rad = one / rad2deg
 
+    !For controlling numerical stability (CFL_max <= 0.8 recommended):
+    double precision, parameter :: cflmax = 0.8d0
+
 end module

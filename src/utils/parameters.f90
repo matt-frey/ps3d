@@ -51,6 +51,12 @@ module parameters
     ! domain upper boundary
     double precision :: upper(3)
 
+    ! smallest grid length for CFL condition
+    double precision :: glmin
+
+    !For controlling numerical stability
+    double precision :: cflpf
+
     contains
 
     ! Update all parameters according to the
@@ -93,6 +99,9 @@ module parameters
         center = f12 * (lower + upper)
         hl = extent / two
         hli = one / hl
+
+        glmin = minval(dx)
+        cflpf = cflmax * glmin
 
     end subroutine update_parameters
 end module parameters

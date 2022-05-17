@@ -31,7 +31,8 @@ module fields
                        !    dw/dz = - (du/dx + dv/dy)
 
     double precision, allocatable, dimension(:, :, :) :: &
-        buoyg          ! buoyancy
+        buoyg,     &   ! buoyancy (physical)
+        sbuoyg         ! buoyancy (spectral)
 
     contains
 
