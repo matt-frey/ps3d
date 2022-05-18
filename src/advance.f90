@@ -37,13 +37,14 @@ module advance_mod
             double precision                :: bsi(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: sbs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: zsi(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: zsm(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: szs(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: zsi(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: zsm(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: szs(0:nz, 0:nx-1, 0:ny-1, 3)
+            integer                         :: nc
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
-            call vor2vel(svortg, velog, velgradg)
+            call vor2vel(svortg, velog)
 
             !Adapt the time step and save various diagnostics each time step:
             call adapt(t)
@@ -62,23 +63,29 @@ module advance_mod
             bsi = sbuoyg
             bsm = sbuoyg + dt4 * sbs
             sbuoyg = diss * (bsm + dt4 * sbs) - bsi
-            zsi = svortg(:, :, :, 1)
-            zsm = svortg(:, :, :, 1) + dt4 * szs
-            svortg(:, :, :, 1) = diss * (zsm + dt4 * szs) - zsi
+            zsi = svortg
+            zsm = svortg + dt4 * szs
+
+            do nc = 1, 3
+                svortg(:, :, :, nc) = diss * (zsm(:, :, :, nc) + dt4 * szs(:, :, :, nc)) - zsi(:, :, :, nc)
+            enddo
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
             !------------------------------------------------------------------
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(svortg, velog, velgradg)
+                call vor2vel(svortg, velog)
 
                 !Calculate the source terms (sbs,szs):
                 call source(sbs, szs)
 
                 !Update fields:
                 sbuoyg = diss * (bsm + dt4 * sbs) - bsi
-                svortg(:, :, :, 1) = diss * (zsm + dt4 * szs) - zsi
+
+                do nc = 1, 3
+                    svortg(:, :, :, nc) = diss * (zsm(:, :, :, nc) + dt4 * szs(:, :, :, nc)) - zsi(:, :, :, nc)
+                enddo
             enddo
 
             !Advance time:
@@ -91,12 +98,12 @@ module advance_mod
         ! Note, uu and vv obtained by main_invert before calling this
         ! routine are spectrally truncated as well.
         subroutine source(sbs, szs)
-            double precision, intent(inout) :: sbs(0:nz, 0:nx-1, 0:ny-1) ! in spectral space
-            double precision, intent(inout) :: szs(0:nz, 0:nx-1, 0:ny-1) ! in spectral space
-            double precision                :: px(0:nz, 0:ny-1, 0:nx-1)  ! in physical space
-            double precision                :: py(nz, 0:ny-1, 0:nx-1)    ! in physical space
-            double precision                :: sx(0:nz, 0:nx-1, 0:ny-1)  ! in spectral space
-            double precision                :: sy(nz, 0:nx-1, 0:ny-1)    ! in spectral space
+            double precision, intent(inout) :: sbs(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
+            double precision, intent(inout) :: szs(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
+            double precision                :: px(0:nz, 0:ny-1, 0:nx-1)     ! in physical space
+            double precision                :: py(nz, 0:ny-1, 0:nx-1)       ! in physical space
+            double precision                :: sx(0:nz, 0:nx-1, 0:ny-1)     ! in spectral space
+            double precision                :: sy(nz, 0:nx-1, 0:ny-1)       ! in spectral space
 
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v)*grad(bb):

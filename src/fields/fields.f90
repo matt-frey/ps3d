@@ -16,18 +16,7 @@ module fields
         svortg,    &   ! vorticity vector field in spectral space
         vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         velog,     &   ! velocity vector field (u, v, w)
-        vtend,     &   ! vorticity tendency
-        velgradg       ! velocity gradient tensor
-                       ! ordering: du/dx, du/dy,
-                       !                  dv/dy,
-                       !           dw/dx, dw/dy
-                       ! the derivatives dv/dx, du/dz, dv/dz and dw/dz
-                       ! are calculated on the fly with vorticity
-                       ! or the assumption of incompressibility (du/dx + dv/dy + dw/dz = 0):
-                       !    dv/dx = \omegaz + du/dy
-                       !    du/dz = \omegay + dw/dx
-                       !    dv/dz = dw/dy - \omegax
-                       !    dw/dz = - (du/dx + dv/dy)
+        vtend          ! vorticity tendency
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
@@ -47,8 +36,6 @@ module fields
             allocate(vortg(0:nz, 0:ny-1, 0:nx-1, 3))
             allocate(svortg(0:nz, 0:nx-1, 0:ny-1, 3))
 
-            allocate(velgradg(0:nz, 0:ny-1, 0:nx-1, 5))
-
             allocate(vtend(0:nz, 0:ny-1, 0:nx-1, 3))
 
             allocate(buoyg(0:nz, 0:ny-1, 0:nx-1))
@@ -66,7 +53,6 @@ module fields
             vortg    = zero
             svortg   = zero
 
-            velgradg = zero
             vtend    = zero
             buoyg    = zero
             sbuoyg   = zero

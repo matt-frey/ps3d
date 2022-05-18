@@ -12,13 +12,10 @@ module inversion_mod
     contains
 
         ! Given the vorticity vector field (svortg) in spectral space, this
-        ! returns the associated velocity field (velog) and the velocity
-        ! gradient tensor (velgradg).  Note: the
-        ! vorticity is modified to be solenoidal and spectrally filtered.
-        subroutine vor2vel(svortg,  velog,  velgradg)
+        ! returns the associated velocity field (velog).
+        subroutine vor2vel(svortg,  velog)
             double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out)   :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
             double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)
@@ -119,59 +116,10 @@ module inversion_mod
             !Get w in physical space:
             call fftxys2p(ds, velog(0:nz, :, :, 3))
 
-            ! compute the velocity gradient tensor
-            call vel2vgrad(svelog, velgradg)
-
             call stop_timer(vor2vel_timer)
 
         end subroutine
 
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! Compute the gridded velocity gradient tensor
-        subroutine vel2vgrad(svelog, velgradg)
-            double precision, intent(in)  :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision, intent(out) :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
-            double precision              :: ds(0:nz, 0:nx-1, 0:ny-1) ! spectral derivatives
-
-            ! x component:
-            call diffx(svelog(:, :, :, 1), ds)         ! u_x = du/dx in spectral space
-            call fftxys2p(ds, velgradg(0:nz, :, :, 1)) ! u_x in physical space
-
-            call diffy(svelog(:, :, :, 1), ds)         ! u_y = du/dy in spectral space
-            call fftxys2p(ds, velgradg(0:nz, :, :, 2)) ! u_y in physical space
-
-            call diffx(svelog(:, :, :, 3), ds)         ! w_x = dw/dx in spectral space
-            call fftxys2p(ds, velgradg(0:nz, :, :, 4)) ! w_x in physical space
-
-            ! use symmetry in du/dx and du/dy to fill z grid points outside domain:
-            velgradg(  -1, :, :, 1) =  velgradg(   1, :, :, 1) ! lower boundary du/dx
-            velgradg(nz+1, :, :, 1) =  velgradg(nz-1, :, :, 1) ! upper boundary du/dx
-            velgradg(  -1, :, :, 2) =  velgradg(   1, :, :, 2) ! lower boundary du/dy
-            velgradg(nz+1, :, :, 2) =  velgradg(nz-1, :, :, 2) ! upper boundary du/dy
-
-            ! use anti-symmetry for dw/dx to fill z grid points outside domain:
-            velgradg(  -1, :, :, 4) = -velgradg(   1, :, :, 4) ! lower boundary dw/dx
-            velgradg(nz+1, :, :, 4) = -velgradg(nz-1, :, :, 4) ! upper boundary dw/dx
-
-            ! y & z components:
-            call diffy(svelog(:, :, :, 2), ds)         ! v_y = dv/dy in spectral space
-            call fftxys2p(ds, velgradg(0:nz, :, :, 3)) ! v_y in physical space
-
-            call diffy(svelog(:, :, :, 3), ds)         ! w_y = dw/dy in spectral space
-            call fftxys2p(ds, velgradg(0:nz, :, :, 5)) ! w_y in physical space
-
-            ! use symmetry in dv/dy to fill z grid points outside domain:
-            velgradg(  -1, :, :, 3) = velgradg(   1, :, :, 3) ! lower boundary dv/dy
-            velgradg(nz+1, :, :, 3) = velgradg(nz-1, :, :, 3) ! upper boundary dv/dy
-
-            ! use anti-symmetry in dw/dy to fill z grid points outside domain:
-            ! w_y(-1) = -w_y(1) and w_y(nz+1) = -w_y(nz-1)
-            velgradg(  -1, :, :, 5) = -velgradg(   1, :, :, 5) ! lower boundary dw/dy
-            velgradg(nz+1, :, :, 5) = -velgradg(nz-1, :, :, 5) ! upper boundary dw/dy
-
-        end subroutine vel2vgrad
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -203,26 +151,6 @@ module inversion_mod
             f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 3)
 
             call divergence(f, vtend(0:nz, :, :, 3))
-
-
-!             ! Fill boundary values:
-!             ! \omegax * du/dx + \omegay * dv/dx (where dv/dx = \omegaz + du/dy)
-!             vtend(0, :, :, 1) = vortg(0, :, :, 1) * velgradg(0, :, :, 1) &
-!                               + vortg(0, :, :, 2) * (vortg(0, :, :, 3 ) + velgradg(0, :, :, 2))
-!
-!             vtend(nz, :, :, 1) = vortg(nz, :, :, 1) * velgradg(nz, :, :, 1) &
-!                                + vortg(nz, :, :, 2) * (vortg(nz, :, :, 3 ) + velgradg(nz, :, :, 2))
-!
-!             ! \omegax * du/dy + \omegay * dv/dy
-!             vtend(0, :, :, 2) = vortg(0, :, :, 1) * velgradg(0, :, :, 2) &
-!                               + vortg(0, :, :, 2) * velgradg(0, :, :, 3)
-!
-!             vtend(nz, :, :, 2) = vortg(nz, :, :, 1) * velgradg(nz, :, :, 2) &
-!                                + vortg(nz, :, :, 2) * velgradg(nz, :, :, 3)
-!
-!             ! - \omegaz * (du/dx + dv/dy)
-!             vtend(0,  :, :, 3) = - vortg(0,  :, :, 3) * (velgradg(0,  :, :, 1) + velgradg(0,  :, :, 3))
-!             vtend(nz, :, :, 3) = - vortg(nz, :, :, 3) * (velgradg(nz, :, :, 1) + velgradg(nz, :, :, 3))
 
             call stop_timer(vtend_timer)
 
