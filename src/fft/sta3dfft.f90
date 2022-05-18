@@ -19,7 +19,7 @@ module sta3dfft
         subroutine init3dfft(nx, ny, nz, extent)
             integer,          intent(in) :: nx, ny, nz
             double precision, intent(in) :: extent(3)
-            integer                      :: nwx, nwy, kx, ky, kz
+            integer                      :: nwx, nwy, kx, ky
             integer                      :: kxc, kyc
 
             if (.not. allocated(rkx)) then

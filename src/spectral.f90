@@ -1,6 +1,6 @@
 module spectral
     use constants
-    use parameters, only : nx, ny, nz
+    use parameters, only : nx, ny, nz, extent
     use sta3dfft
     implicit none
 
@@ -31,12 +31,15 @@ module spectral
 
         !=====================================================================
 
-        subroutine init_spectral(bbdif)
+        subroutine init_spectral(bbdif, nnu, prediss)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
-            double precision             :: kxmaxi, kymaxi, kzmaxi
-            integer                      :: nnu2
-!             double precision             :: fac,yg,scx,scy,rkxmax,rkymax
-!             double precision             :: delk,delki,snorm,div,visc
+            integer,          intent(in) :: nnu
+            double precision, intent(in) :: prediss
+            double precision             :: kxmaxi, kymaxi, kzmaxi, visc
+            double precision             :: rkxmax, rkymax, rkzmax
+            integer                      :: nnu2, kx, ky, kz
+!             double precision             :: fac,yg,scx,scy
+!             double precision             :: delk,delki,snorm,div
 !             integer                      :: iy, kx, kxc, ky, k
 
 
@@ -65,14 +68,17 @@ module spectral
             !Set up FFTs:
             call init3dfft(nx, ny, nz, extent)
 
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+            rkzmax = maxval(rkz)
 
             !----------------------------------------------------------
             !Define Hou and Li filter:
-            kxmaxi = one / maxval(rkx)
+            kxmaxi = one / rkxmax
             skx = -36.d0 * (kxmaxi * rkx) ** 36
-            kymaxi = one/maxval(rky)
+            kymaxi = one / rkymax
             sky = -36.d0 * (kymaxi * rky) ** 36
-            kzmaxi = one / maxval(rkz)
+            kzmaxi = one / rkzmax
             skz(0) = zero
             skz(1:nz) = -36.d0 * (kzmaxi * rkz) ** 36
             do kz = 0, nz
@@ -163,7 +169,7 @@ module spectral
                 enddo
 
                 do kz = 1, nz
-                    hdis(0, 0, kz) = visc * rky(kz) ** nnu2
+                    hdis(0, 0, kz) = visc * rkz(kz) ** nnu2
                 enddo
 
                 do kz = 1, nz
