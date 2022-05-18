@@ -8,6 +8,10 @@ module spectral
     double precision, allocatable :: filt(:, :, :)
     double precision, allocatable :: skx(:), sky(:), skz(:)
 
+
+    ! Spectral dissipation operator
+    double precision, allocatable :: hdis(:, :, :)
+
 !     !Common arrays, constants:
 !     double precision:: yh0(0:ny),yh1(0:ny),pbar(0:ny)
 !     double precision:: rkx(0:nxm1),hrkx(nx),rky(ny)
@@ -30,6 +34,7 @@ module spectral
         subroutine init_spectral(bbdif)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             double precision             :: kxmaxi, kymaxi, kzmaxi
+            integer                      :: nnu2
 !             double precision             :: fac,yg,scx,scy,rkxmax,rkymax
 !             double precision             :: delk,delki,snorm,div,visc
 !             integer                      :: iy, kx, kxc, ky, k
@@ -39,6 +44,7 @@ module spectral
             allocate(skx(nx))
             allocate(sky(ny))
             allocate(skz(0:nz))
+            allocate(hdis(0:nx-1, 0:ny-1, 0:nz))
 !
 !
 !             !---------------------------------------------------------------------
@@ -107,47 +113,68 @@ module spectral
 !                                 exp(-fac*(one+yh1(1:nym1))))*div
 !             enddo
 !
-!             !---------------------------------------------------------------------
-!             ! Damping, viscous or hyperviscous:
-!             if (nnu .eq. 1) then
-!                 !Define viscosity:
-!                 visc=prediss*sqrt(bbdif/rkxmax**3)
-!                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ',visc
-!
-!                 !Define spectral dissipation operator:
-!                 hdis(0,0)=zero
-!                 do kx=1,nxm1
-!                     hdis(kx,0)=visc*rkx(kx)**2
-!                 enddo
-!                 do ky=1,ny
-!                     hdis(0,ky)=visc*rky(ky)**2
-!                 enddo
-!                 do ky=1,ny
-!                     do kx=1,nxm1
-!                         hdis(kx,ky)=visc*(rkx(kx)**2+rky(ky)**2)
-!                     enddo
-!                 enddo
-!
-!             else
-!                 !Define hyperviscosity:
-!                 visc=prediss/max(rkxmax,rkymax)**(2*nnu)
-!                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ',visc
-!
-!                 !Define dissipation operator:
-!                 hdis(0,0)=zero
-!                 do kx=1,nxm1
-!                     hdis(kx,0)=visc*rkx(kx)**(2*nnu)
-!                 enddo
-!                 do ky=1,ny
-!                     hdis(0,ky)=visc*rky(ky)**(2*nnu)
-!                 enddo
-!                 do ky=1,ny
-!                     do kx=1,nxm1
-!                     hdis(kx,ky)=visc*(rkx(kx)**2+rky(ky)**2)**nnu
-!                     enddo
-!                 enddo
-!             endif
-!
+            !---------------------------------------------------------------------
+            ! Damping, viscous or hyperviscous:
+            if (nnu .eq. 1) then
+                !Define viscosity:
+                visc = prediss * sqrt(bbdif / rkxmax ** 3)          ! FIXME
+                write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
+
+                !Define spectral dissipation operator:
+                hdis(0, 0, 0) = zero
+
+                ! x part independent of y and z
+                do kx = 1, nx-1
+                    hdis(kx, 0, 0) = visc * rkx(kx) ** 2
+                enddo
+
+                ! y part independent of x and z
+                do ky = 1, ny-1
+                    hdis(0, ky, 0) = visc * rky(ky) ** 2
+                enddo
+
+                ! z part independent of y and z
+                do kz = 1, nz
+                    hdis(0, 0, kz) = visc * rkz(kz) ** 2
+                enddo
+
+                do kz = 1, nz
+                    do ky = 1, ny-1
+                        do kx = 1, nx-1
+                            hdis(kx, ky, kz) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2)
+                        enddo
+                    enddo
+                enddo
+
+            else
+                !Define hyperviscosity:
+                nnu2 = 2 * nnu
+                visc = prediss / max(rkxmax, rkymax, rkzmax) ** nnu2
+                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
+
+                !Define dissipation operator:
+                hdis(0, 0, 0) = zero
+                do kx = 1, nx-1
+                    hdis(kx, 0, 0) = visc * rkx(kx) ** nnu2
+                enddo
+
+                do ky = 1, ny-1
+                    hdis(0, ky, 0) = visc * rky(ky) ** nnu2
+                enddo
+
+                do kz = 1, nz
+                    hdis(0, 0, kz) = visc * rky(kz) ** nnu2
+                enddo
+
+                do kz = 1, nz
+                    do ky = 1, ny-1
+                        do kx = 1, nx-1
+                            hdis(kx, ky, kz) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz)) ** nnu
+                        enddo
+                    enddo
+                enddo
+            endif
+
         end subroutine init_spectral
 
         !=====================================================================
