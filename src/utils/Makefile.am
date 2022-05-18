@@ -8,6 +8,5 @@ libps_utils_la_SOURCES = 	\
 	constants.f90		\
 	timer.f90		\
 	config.f90		\
-	physics.f90		\
-	deriv1d.f90
+	physics.f90
 

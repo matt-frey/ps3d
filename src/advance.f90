@@ -13,7 +13,7 @@ module advance_mod
     use options, only : time, nnu
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
-    use inversion_mod, only : vor2vel
+    use spectral, only : vor2vel
     use inversion_utils
     use fields
     implicit none
