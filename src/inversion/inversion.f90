@@ -17,187 +17,187 @@ module inversion_mod
         ! returns the associated velocity field (uu, vv, ww) and the velocity
         ! gradient tensor (velgradg).  Note: the
         ! vorticity is modified to be solenoidal and spectrally filtered.
-        subroutine vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
-            double precision, intent(inout) :: xi(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(inout) :: eta(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(inout) :: zeta(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out)   :: uu(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out)   :: vv(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out)   :: ww(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out)   :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
-            double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: as(0:nz, 0:nx-1, 0:ny-1) &
-                                             , bs(0:nz, 0:nx-1, 0:ny-1) &
-                                             , cs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1) &
-                                             , es(0:nz, 0:nx-1, 0:ny-1) &
-                                             , fs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: ubar(0:nz), vbar(0:nz)
-            double precision                :: uavg, vavg
-            integer                         :: iz
-
-            call start_timer(vor2vel_timer)
-
-            !------------------------------------------------------------------
-            !Convert vorticity to semi-spectral space as (as, bs, cs): (vortg is overwritten in this operation)
-            call fftxyp2s(xi, as)
-            call fftxyp2s(eta, bs)
-            call fftxyp2s(zeta, cs)
-
-            !Add -grad(lambda) where Laplace(lambda) = div(vortg) to
-            !enforce the solenoidal condition on the vorticity field:
-            call diffx(as, ds)
-            call diffy(bs, es)
-            call diffz(cs, fs)
-
-            !Form div(vortg):
-            !$omp parallel shared(ds, es, fs, k2l2i, nz) private(iz)
-            !$omp do
-            do iz = 0, nz
-               fs(iz, :, :) = k2l2i * (ds(iz, :, :) + es(iz, :, :) + fs(iz, :, :))
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            !Remove horizontally-averaged part (plays no role):
-            fs(:, 0, 0) = zero
-
-            !Subtract grad(lambda) to enforce div(vortg) = 0:
-            call diffx(fs, ds)
-            !$omp parallel
-            !$omp workshare
-            as = as + ds
-            !$omp end workshare
-            !$omp end parallel
-
-            call diffy(fs, ds)
-            !$omp parallel
-            !$omp workshare
-            bs = bs + ds
-            !$omp end workshare
-            !$omp end parallel
-
-            !Compute spectrally filtered vorticity in physical space:
-            !$omp parallel shared(ds, es, fs, as, bs, cs, filt, nz) private(iz) default(none)
-            !$omp do
-            do iz = 0, nz
-                ds(iz, :, :) = filt * as(iz, :, :)
-                es(iz, :, :) = filt * bs(iz, :, :)
-                fs(iz, :, :) = filt * cs(iz, :, :)
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            ! ==========================================================
-            as = ds
-            bs = es
-            cs = fs
-            !! IF WE KEEP THE SOLENOIDAL CORRECTION THEN REPLACE
-            !! as WITH ds ETC., IN THE SUBSEQUENT CODDE.
-            ! ==========================================================
-
-            !Return corrected vorticity to physical space:
-            call fftxys2p(ds, xi)
-            call fftxys2p(es, eta)
-            call fftxys2p(fs, zeta)
-
-!             ! \xi and \eta anti-symmetric, \zeta symmetric
-!             vortg(  -1, :, :, 1) = - vortg(   1, :, :, 1) ! \xi
-!             vortg(  -1, :, :, 2) = - vortg(   1, :, :, 2) ! \eta
-!             vortg(  -1, :, :, 3) =   vortg(   1, :, :, 3) ! \zeta
-!             vortg(nz+1, :, :, 1) = - vortg(nz-1, :, :, 1) ! \xi
-!             vortg(nz+1, :, :, 2) = - vortg(nz-1, :, :, 2) ! \eta
-!             vortg(nz+1, :, :, 3) =   vortg(nz-1, :, :, 3) ! \zeta
-
-            !Define horizontally-averaged flow by integrating horizontal vorticity:
-            ubar(0) = zero
-            vbar(0) = zero
-            do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (bs(iz, 0, 0) + bs(iz+1, 0, 0))
-                vbar(iz+1) = vbar(iz) - dz2 * (as(iz, 0, 0) + as(iz+1, 0, 0))
-            enddo
-
-            ! remove the mean value to have zero net momentum
-            uavg = sum(ubar(1:nz-1) + f12 * ubar(nz)) / dble(nz)
-            vavg = sum(vbar(1:nz-1) + f12 * vbar(nz)) / dble(nz)
-            do iz = 0, nz
-                ubar(iz) = ubar(iz) - uavg
-                vbar(iz) = vbar(iz) - vavg
-            enddo
-
-            !Form source term for inversion of vertical velocity:
-            call diffy(as, ds)
-            call diffx(bs, es)
-
-            !$omp parallel
-            !$omp workshare
-            ds = ds - es
-            !$omp end workshare
-            !$omp end parallel
-
-            !as & bs are now free to re-use
-
-            !Invert to find vertical velocity \hat{w} (store in ds, spectrally):
-            call lapinv0(ds)
-
-            !Find \hat{w}' (store in es, spectrally):
-            call diffz(ds, es)
-
-            !Find x velocity component \hat{u}:
-            call diffx(es, as)
-            call diffy(cs, bs)
-
-            !$omp parallel do
-            do iz = 0, nz
-                as(iz, :, :) = k2l2i * (as(iz, :, :) + bs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            !Add horizontally-averaged flow:
-            as(:, 0, 0) = ubar
-
-            svelog(:, :, :, 1) = as
-
-            !Get u in physical space:
-            call fftxys2p(as, uu(0:nz, :, :))
-
-            !Find y velocity component \hat{v}:
-            call diffy(es, as)
-            call diffx(cs, bs)
-
-            !$omp parallel do
-            do iz = 0, nz
-                as(iz, :, :) = k2l2i * (as(iz, :, :) - bs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            !Add horizontally-averaged flow:
-            as(:, 0, 0) = vbar
-
-            svelog(:, :, :, 2) = as
-
-            !Get v in physical space:
-            call fftxys2p(as, vv(0:nz, :, :))
-
-            svelog(:, :, :, 3) = ds
-
-            !Get w in physical space:
-            call fftxys2p(ds, ww(0:nz, :, :))
-
-            ! compute the velocity gradient tensor
-            call vel2vgrad(svelog, velgradg)
-
-!             ! use symmetry in u and v and anti-symmetry in w to fill z grid points outside domain:
-!             velog(  -1, :, :, 1) =   velog(   1, :, :, 1) ! u
-!             velog(  -1, :, :, 2) =   velog(   1, :, :, 2) ! v
-!             velog(  -1, :, :, 3) = - velog(   1, :, :, 3) ! w
-!             velog(nz+1, :, :, 1) =   velog(nz-1, :, :, 1) ! u
-!             velog(nz+1, :, :, 2) =   velog(nz-1, :, :, 2) ! v
-!             velog(nz+1, :, :, 3) = - velog(nz-1, :, :, 3) ! w
-
-            call stop_timer(vor2vel_timer)
-
-        end subroutine
+!         subroutine vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
+!             double precision, intent(inout) :: xi(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(inout) :: eta(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(inout) :: zeta(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(out)   :: uu(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(out)   :: vv(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(out)   :: ww(0:nz, 0:ny-1, 0:nx-1)
+!             double precision, intent(out)   :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
+!             double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
+!             double precision                :: as(0:nz, 0:nx-1, 0:ny-1) &
+!                                              , bs(0:nz, 0:nx-1, 0:ny-1) &
+!                                              , cs(0:nz, 0:nx-1, 0:ny-1)
+!             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1) &
+!                                              , es(0:nz, 0:nx-1, 0:ny-1) &
+!                                              , fs(0:nz, 0:nx-1, 0:ny-1)
+!             double precision                :: ubar(0:nz), vbar(0:nz)
+!             double precision                :: uavg, vavg
+!             integer                         :: iz
+!
+!             call start_timer(vor2vel_timer)
+!
+!             !------------------------------------------------------------------
+!             !Convert vorticity to semi-spectral space as (as, bs, cs): (vortg is overwritten in this operation)
+!             call fftxyp2s(xi, as)
+!             call fftxyp2s(eta, bs)
+!             call fftxyp2s(zeta, cs)
+!
+!             !Add -grad(lambda) where Laplace(lambda) = div(vortg) to
+!             !enforce the solenoidal condition on the vorticity field:
+!             call diffx(as, ds)
+!             call diffy(bs, es)
+!             call diffz(cs, fs)
+!
+!             !Form div(vortg):
+!             !$omp parallel shared(ds, es, fs, k2l2i, nz) private(iz)
+!             !$omp do
+!             do iz = 0, nz
+!                fs(iz, :, :) = k2l2i * (ds(iz, :, :) + es(iz, :, :) + fs(iz, :, :))
+!             enddo
+!             !$omp end do
+!             !$omp end parallel
+!
+!             !Remove horizontally-averaged part (plays no role):
+!             fs(:, 0, 0) = zero
+!
+!             !Subtract grad(lambda) to enforce div(vortg) = 0:
+!             call diffx(fs, ds)
+!             !$omp parallel
+!             !$omp workshare
+!             as = as + ds
+!             !$omp end workshare
+!             !$omp end parallel
+!
+!             call diffy(fs, ds)
+!             !$omp parallel
+!             !$omp workshare
+!             bs = bs + ds
+!             !$omp end workshare
+!             !$omp end parallel
+!
+!             !Compute spectrally filtered vorticity in physical space:
+!             !$omp parallel shared(ds, es, fs, as, bs, cs, filt, nz) private(iz) default(none)
+!             !$omp do
+!             do iz = 0, nz
+!                 ds(iz, :, :) = filt * as(iz, :, :)
+!                 es(iz, :, :) = filt * bs(iz, :, :)
+!                 fs(iz, :, :) = filt * cs(iz, :, :)
+!             enddo
+!             !$omp end do
+!             !$omp end parallel
+!
+!             ! ==========================================================
+!             as = ds
+!             bs = es
+!             cs = fs
+!             !! IF WE KEEP THE SOLENOIDAL CORRECTION THEN REPLACE
+!             !! as WITH ds ETC., IN THE SUBSEQUENT CODDE.
+!             ! ==========================================================
+!
+!             !Return corrected vorticity to physical space:
+!             call fftxys2p(ds, xi)
+!             call fftxys2p(es, eta)
+!             call fftxys2p(fs, zeta)
+!
+! !             ! \xi and \eta anti-symmetric, \zeta symmetric
+! !             vortg(  -1, :, :, 1) = - vortg(   1, :, :, 1) ! \xi
+! !             vortg(  -1, :, :, 2) = - vortg(   1, :, :, 2) ! \eta
+! !             vortg(  -1, :, :, 3) =   vortg(   1, :, :, 3) ! \zeta
+! !             vortg(nz+1, :, :, 1) = - vortg(nz-1, :, :, 1) ! \xi
+! !             vortg(nz+1, :, :, 2) = - vortg(nz-1, :, :, 2) ! \eta
+! !             vortg(nz+1, :, :, 3) =   vortg(nz-1, :, :, 3) ! \zeta
+!
+!             !Define horizontally-averaged flow by integrating horizontal vorticity:
+!             ubar(0) = zero
+!             vbar(0) = zero
+!             do iz = 0, nz-1
+!                 ubar(iz+1) = ubar(iz) + dz2 * (bs(iz, 0, 0) + bs(iz+1, 0, 0))
+!                 vbar(iz+1) = vbar(iz) - dz2 * (as(iz, 0, 0) + as(iz+1, 0, 0))
+!             enddo
+!
+!             ! remove the mean value to have zero net momentum
+!             uavg = sum(ubar(1:nz-1) + f12 * ubar(nz)) / dble(nz)
+!             vavg = sum(vbar(1:nz-1) + f12 * vbar(nz)) / dble(nz)
+!             do iz = 0, nz
+!                 ubar(iz) = ubar(iz) - uavg
+!                 vbar(iz) = vbar(iz) - vavg
+!             enddo
+!
+!             !Form source term for inversion of vertical velocity:
+!             call diffy(as, ds)
+!             call diffx(bs, es)
+!
+!             !$omp parallel
+!             !$omp workshare
+!             ds = ds - es
+!             !$omp end workshare
+!             !$omp end parallel
+!
+!             !as & bs are now free to re-use
+!
+!             !Invert to find vertical velocity \hat{w} (store in ds, spectrally):
+!             call lapinv0(ds)
+!
+!             !Find \hat{w}' (store in es, spectrally):
+!             call diffz(ds, es)
+!
+!             !Find x velocity component \hat{u}:
+!             call diffx(es, as)
+!             call diffy(cs, bs)
+!
+!             !$omp parallel do
+!             do iz = 0, nz
+!                 as(iz, :, :) = k2l2i * (as(iz, :, :) + bs(iz, :, :))
+!             enddo
+!             !$omp end parallel do
+!
+!             !Add horizontally-averaged flow:
+!             as(:, 0, 0) = ubar
+!
+!             svelog(:, :, :, 1) = as
+!
+!             !Get u in physical space:
+!             call fftxys2p(as, uu(0:nz, :, :))
+!
+!             !Find y velocity component \hat{v}:
+!             call diffy(es, as)
+!             call diffx(cs, bs)
+!
+!             !$omp parallel do
+!             do iz = 0, nz
+!                 as(iz, :, :) = k2l2i * (as(iz, :, :) - bs(iz, :, :))
+!             enddo
+!             !$omp end parallel do
+!
+!             !Add horizontally-averaged flow:
+!             as(:, 0, 0) = vbar
+!
+!             svelog(:, :, :, 2) = as
+!
+!             !Get v in physical space:
+!             call fftxys2p(as, vv(0:nz, :, :))
+!
+!             svelog(:, :, :, 3) = ds
+!
+!             !Get w in physical space:
+!             call fftxys2p(ds, ww(0:nz, :, :))
+!
+!             ! compute the velocity gradient tensor
+!             call vel2vgrad(svelog, velgradg)
+!
+! !             ! use symmetry in u and v and anti-symmetry in w to fill z grid points outside domain:
+! !             velog(  -1, :, :, 1) =   velog(   1, :, :, 1) ! u
+! !             velog(  -1, :, :, 2) =   velog(   1, :, :, 2) ! v
+! !             velog(  -1, :, :, 3) = - velog(   1, :, :, 3) ! w
+! !             velog(nz+1, :, :, 1) =   velog(nz-1, :, :, 1) ! u
+! !             velog(nz+1, :, :, 2) =   velog(nz-1, :, :, 2) ! v
+! !             velog(nz+1, :, :, 3) = - velog(nz-1, :, :, 3) ! w
+!
+!             call stop_timer(vor2vel_timer)
+!
+!         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
