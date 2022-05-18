@@ -102,63 +102,57 @@ module advance_mod
         subroutine source(sbuoys, svorts)
             double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
             double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-            double precision                :: px(0:nz, 0:ny-1, 0:nx-1)     ! in physical space
-            double precision                :: py(nz, 0:ny-1, 0:nx-1)       ! in physical space
-            double precision                :: sx(0:nz, 0:nx-1, 0:ny-1)     ! in spectral space
-            double precision                :: sy(nz, 0:nx-1, 0:ny-1)       ! in spectral space
+            double precision                :: dbdxs(0:nz, 0:ny-1, 0:nx-1)     ! db/dx in spectral space
+            double precision                :: dbdys(0:nz, 0:ny-1, 0:nx-1)     ! db/dy in spectral space
+            double precision                :: dbdzs(0:nz, 0:ny-1, 0:nx-1)     ! db/dz in spectral space
+            double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+            double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+            double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
             !--------------------------------------------------------------
-            !Buoyancy source bb_t = -(u,v)*grad(bb):
+            !Buoyancy source bb_t = -(u,v,w)*grad(bb):
 
-            !Obtain x & y derivatives of buoyancy -> px, py (physical):
-            call xderiv_fc(nx, ny, hrkx, sbuoyg, sx)
+            !Obtain x, y & z derivatives of buoyancy -> dbdxs, dbdys, dbdzs
+            call diffx(sbuoys, dbdxs)
+            call diffy(sbuoys, dbdys)
+            call diffz(sbuoys, dbdzs)
 
-            !Store spectral db/dx in svorts for use in vorticity source below:
-            svorts = sx
+            !Store spectral db/dx, db/dy and db/dz in svorts for use in vorticity source below:
+            svorts(:, :, :, 1) = dbdxs
+            svorts(:, :, :, 2) = dbdys
+            svorts(:, :, :, 3) = dbdzs
 
-            call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
+            !Obtain gradient of buoyancy in physical space
+            call fftxys2p(dbdxs, dbdx)
+            call fftxys2p(dbdys, dbdy)
+            call fftxys2p(dbdzs, dbdz)
 
-            call yderiv_fc(nx, ny, rky, sbuoyg, sy)
-
-            call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
-
-            !Compute (u, v)*grad(bb) -> px in physical space:
-            px(0, :, :) = uu(0, :, :) * px(0, :, :)
-
-            px(1:nz-1, :, :) = uu(1:nz-1, :, :) * px(1:nz-1, :, :)  &
-                             + vv(1:nz-1, :, :) * py(1:nz-1, :, :)
-
-            px(nz, :, :) = uu(nz, :, :) * px(nz, :, :)
+            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+            dbdx = velog(:, :, :, 1) * dbdx &   ! u * db/dx
+                 + velog(:, :, :, 2) * dbdy &   ! v * db/dy
+                 + velog(:, :, :, 3) * dbdz     ! w * db/dz
 
             !Convert to spectral space as sbuoys and apply de-aliasing filter:
-            call ptospc_fc(nx, ny, px, sbuoys, xfactors, yfactors, xtrig, ytrig)
+            call fftxyp2s(dbdx, sbuoys)
 
             do iz = 0, nz
                 sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
             enddo
 
             !--------------------------------------------------------------
-            !Vorticity source zz_t = bb_x - (u, v)*grad(zz):
+            !Vorticity source:
 
-            !Obtain x & y derivatives of vorticity:
-            call xderiv_fc(nx, ny, hrkx, svortg(:, :, :, 1), sx)
-            call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
-            call yderiv_fc(nx, ny, rky, svortg(:, :, :, 1), sy)
-            call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
+            call vorticity_tendency(vortg, velog, buoyg, vtend)
 
-            !Compute (u, v)*grad(zz) -> px in physical space:
-            px(0, :, :) = uu(0, :, :) * px(0, :, :)
-
-            px(1:nz-1, :, :) = uu(1:nz-1, :, :) * px(1:nz-1, :, :) &
-                             + vv(1:nz-1, :, :) * py(1:nz-1, :, :)
-
-            px(nz, :, :) = uu(nz, :, :) * px(nz, :, :)
-
-            !Convert to spectral space as sx and apply de-aliasing filter:
-            call ptospc_fc(nx, ny, px, sx, xfactors, yfactors, xtrig, ytrig)
+            !Convert to spectral space and apply de-aliasing filter:
+            call fftxyp2s(vtend(:, :, :, 1), dbdxs)
+            call fftxyp2s(vtend(:, :, :, 2), dbdys)
+            call fftxyp2s(vtend(:, :, :, 3), dbdzs)
 
             do iz = 0, nz
-                svorts(iz, :, :) = svorts(iz, :, :) - filt * sx(iz, :, :)
+                svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * dbdxs(iz, :, :)
+                svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * dbdys(iz, :, :)
+                svorts(iz, :, :, 3) = svorts(iz, :, :, 3) - filt * dbdzs(iz, :, :)
             enddo
 
         end subroutine source
