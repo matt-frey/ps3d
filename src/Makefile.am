@@ -12,7 +12,7 @@ ps3d_SOURCES = 				\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	inversion/inversion_utils.f90		\
-	spectral.f90				\
+	inversion/inversion.f90			\
 	utils/utils.f90				\
 	advance.f90				\
 	ps3d.f90

@@ -7,7 +7,7 @@ program ps3d
     use fields
     use field_netcdf, only : field_io_timer
     use inversion_mod, only : vor2vel_timer, vtend_timer
-    use inversion_utils, only : init_fft
+    use inversion_utils, only : init_inversion
     use advance_mod, only : advance, advance_timer
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
@@ -34,8 +34,11 @@ program ps3d
                               , field_tol           &
                               , output              &
                               , read_config_file    &
-                              , time
+                              , time                &
+                              , nnu                 &
+                              , prediss
             character(len=16) :: file_type
+            double precision  :: bbdif
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -54,7 +57,7 @@ program ps3d
 
             time%initial = zero ! make sure user cannot start at arbirtrary time
 
-            call init_fft
+            call init_inversion(bbdif, nnu, prediss)
 
             call field_default
 

@@ -13,7 +13,7 @@ module advance_mod
     use options, only : time, nnu
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
-    use spectral, only : vor2vel
+    use inversion_mod, only : vor2vel
     use inversion_utils
     use fields
     implicit none
@@ -43,7 +43,7 @@ module advance_mod
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
-            call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)  !call main_invert(zs,uu,vv,zz) !zs is spectral here
+            call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
 
             !Adapt the time step and save various diagnostics each time step:
             call adapt(t)
@@ -71,7 +71,7 @@ module advance_mod
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg) !main_invert(zs,uu,vv,zz) !zs is spectral here
+                call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
 
                 !Calculate the source terms (sbs,szs):
                 call source(sbs, szs)

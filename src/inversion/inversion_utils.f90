@@ -32,6 +32,9 @@ module inversion_utils
     double precision, allocatable :: filt(:, :)
     double precision, allocatable :: skx(:), sky(:)
 
+    ! Spectral dissipation operator
+    double precision, allocatable :: hdis(:, :)
+
 
 
     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
@@ -39,29 +42,101 @@ module inversion_utils
 
     logical :: is_initialised = .false.
 
-    public :: init_fft  &
-            , diffx     &
-            , diffy     &
-            , diffz     &
-            , lapinv0   &
-            , lapinv1   &
-            , vertint   &
-            , fftxyp2s  &
-            , fftxys2p  &
-            , dz2       &
-            , filt      &
-            , hdzi      &
-            , xfactors  &
-            , yfactors  &
-            , xtrig     &
-            , ytrig     &
-            , k2l2i     &
-            , rkx       &
-            , rky       &
-            , hrkx      &
-            , hrky
+    public :: init_inversion &
+            , diffx          &
+            , diffy          &
+            , diffz          &
+            , lapinv0        &
+            , lapinv1        &
+            , vertint        &
+            , fftxyp2s       &
+            , fftxys2p       &
+            , dz2            &
+            , filt           &
+            , hdzi           &
+            , xfactors       &
+            , yfactors       &
+            , xtrig          &
+            , ytrig          &
+            , k2l2i          &
+            , rkx            &
+            , rky            &
+            , hrkx           &
+            , hrky           &
+            , hdis
 
     contains
+
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine init_inversion(bbdif, nnu, prediss)
+            double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
+            integer,          intent(in) :: nnu
+            double precision, intent(in) :: prediss
+            double precision             :: visc
+            double precision             :: rkxmax, rkymax
+            integer                      :: nnu2, kx, ky
+
+
+            allocate(hdis(0:nx-1, 0:ny-1))
+
+            !---------------------------------------------------------------------
+            !Set up FFTs:
+            call init_fft
+
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+
+            !---------------------------------------------------------------------
+            ! Damping, viscous or hyperviscous:
+            if (nnu .eq. 1) then
+                !Define viscosity:
+                visc = prediss * sqrt(bbdif / rkxmax ** 3)
+                write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
+
+                !Define spectral dissipation operator:
+                hdis(0, 0) = zero
+
+                ! x part independent of y
+                do kx = 1, nx-1
+                    hdis(kx, 0) = visc * rkx(kx) ** 2
+                enddo
+
+                ! y part independent of x
+                do ky = 1, ny-1
+                    hdis(0, ky) = visc * rky(ky) ** 2
+                enddo
+
+                do ky = 1, ny-1
+                    do kx = 1, nx-1
+                        hdis(kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2)
+                    enddo
+                enddo
+            else
+                !Define hyperviscosity:
+                nnu2 = 2 * nnu
+                visc = prediss / max(rkxmax, rkymax) ** nnu2
+                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
+
+                !Define dissipation operator:
+                hdis(0, 0) = zero
+                do kx = 1, nx-1
+                    hdis(kx, 0) = visc * rkx(kx) ** nnu2
+                enddo
+
+                do ky = 1, ny-1
+                    hdis(0, ky) = visc * rky(ky) ** nnu2
+                enddo
+
+                do ky = 1, ny-1
+                    do kx = 1, nx-1
+                        hdis(kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2) ** nnu
+                    enddo
+                enddo
+            endif
+
+        end subroutine init_inversion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
