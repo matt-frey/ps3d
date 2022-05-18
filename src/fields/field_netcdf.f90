@@ -2,6 +2,7 @@ module field_netcdf
     use constants, only : one
     use netcdf_utils
     use netcdf_writer
+    use netcdf_reader
     use fields
     use config, only : package_version, cf_version
     use timer, only : start_timer, stop_timer

@@ -9,6 +9,8 @@ module options
     ! global options
     !
 
+    character(len=512) :: field_file = ''
+
     ! print more info if true
     logical :: verbose = .false.
 

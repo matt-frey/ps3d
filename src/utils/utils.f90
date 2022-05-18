@@ -2,7 +2,7 @@ module utils
     use constants, only : one
     use options, only : output, verbose
     use field_netcdf
-    use inversion_mod, only : vorticity_tendency
+    use inversion_mod, only : vor2vel, vorticity_tendency
     use netcdf_reader, only : get_file_type, get_num_steps, get_time, get_netcdf_box
     use parameters, only : lower, extent, update_parameters
     use physics, only : read_physical_quantities, print_physical_quantities

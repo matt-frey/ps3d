@@ -31,13 +31,11 @@ program ps3d
 
         subroutine pre_run
             use options, only : field_file          &
-                              , field_tol           &
                               , output              &
                               , read_config_file    &
                               , time                &
                               , nnu                 &
                               , prediss
-            character(len=16) :: file_type
             double precision  :: bbdif
 
             call register_timer('ps', ps_timer)
