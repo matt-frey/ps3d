@@ -36,10 +36,10 @@ module advance_mod
             ! Spectral fields needed in time stepping:
             double precision                :: bsi(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: sbs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: zsi(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: zsm(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: szs(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1) ! source of buoyancy (spectral)
+            double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticiy (spectral)
             integer                         :: nc
 
             !-------------------------------------------------------------------
@@ -55,19 +55,20 @@ module advance_mod
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
 
-            !Calculate the source terms (sbs, szs) for buoyancy (sbuoyg) and
+            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoyg) and
             !vorticity (svortg) in spectral space:
-            call source(sbs, szs)
+            call source(sbuoys, svorts)
 
             !Initialise iteration (dt = dt/4 below):
             bsi = sbuoyg
-            bsm = sbuoyg + dt4 * sbs
-            sbuoyg = diss * (bsm + dt4 * sbs) - bsi
-            zsi = svortg
-            zsm = svortg + dt4 * szs
+            bsm = sbuoyg + dt4 * sbuoys
+            sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
+            vortsi = svortg
+            vortsm = svortg + dt4 * svorts
 
             do nc = 1, 3
-                svortg(:, :, :, nc) = diss * (zsm(:, :, :, nc) + dt4 * szs(:, :, :, nc)) - zsi(:, :, :, nc)
+                svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                    - vortsi(:, :, :, nc)
             enddo
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
@@ -77,14 +78,15 @@ module advance_mod
                 !Perform inversion at t^{n+1} from estimated quantities:
                 call vor2vel(svortg, velog)
 
-                !Calculate the source terms (sbs,szs):
-                call source(sbs, szs)
+                !Calculate the source terms (sbuoys,svorts):
+                call source(sbuoys, svorts)
 
                 !Update fields:
-                sbuoyg = diss * (bsm + dt4 * sbs) - bsi
+                sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
 
                 do nc = 1, 3
-                    svortg(:, :, :, nc) = diss * (zsm(:, :, :, nc) + dt4 * szs(:, :, :, nc)) - zsi(:, :, :, nc)
+                    svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                        - vortsi(:, :, :, nc)
                 enddo
             enddo
 
@@ -95,11 +97,11 @@ module advance_mod
 
         ! Gets the source terms for vorticity and buoyancy in spectral space.
         ! The spectral fields sbuoyg and svortg are all spectrally truncated.
-        ! Note, uu and vv obtained by main_invert before calling this
+        ! Note, velog obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
-        subroutine source(sbs, szs)
-            double precision, intent(inout) :: sbs(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
-            double precision, intent(inout) :: szs(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
+        subroutine source(sbuoys, svorts)
+            double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
+            double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
             double precision                :: px(0:nz, 0:ny-1, 0:nx-1)     ! in physical space
             double precision                :: py(nz, 0:ny-1, 0:nx-1)       ! in physical space
             double precision                :: sx(0:nz, 0:nx-1, 0:ny-1)     ! in spectral space
@@ -111,8 +113,8 @@ module advance_mod
             !Obtain x & y derivatives of buoyancy -> px, py (physical):
             call xderiv_fc(nx, ny, hrkx, sbuoyg, sx)
 
-            !Store spectral db/dx in szs for use in vorticity source below:
-            szs = sx
+            !Store spectral db/dx in svorts for use in vorticity source below:
+            svorts = sx
 
             call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
 
@@ -128,11 +130,11 @@ module advance_mod
 
             px(nz, :, :) = uu(nz, :, :) * px(nz, :, :)
 
-            !Convert to spectral space as sbs and apply de-aliasing filter:
-            call ptospc_fc(nx, ny, px, sbs, xfactors, yfactors, xtrig, ytrig)
+            !Convert to spectral space as sbuoys and apply de-aliasing filter:
+            call ptospc_fc(nx, ny, px, sbuoys, xfactors, yfactors, xtrig, ytrig)
 
             do iz = 0, nz
-                sbs(iz, :, :) = -filt * sbs(iz, :, :)
+                sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
             enddo
 
             !--------------------------------------------------------------
@@ -156,7 +158,7 @@ module advance_mod
             call ptospc_fc(nx, ny, px, sx, xfactors, yfactors, xtrig, ytrig)
 
             do iz = 0, nz
-                szs(iz, :, :) = szs(iz, :, :) - filt * sx(iz, :, :)
+                svorts(iz, :, :) = svorts(iz, :, :) - filt * sx(iz, :, :)
             enddo
 
         end subroutine source
