@@ -163,8 +163,14 @@ module advance_mod
         subroutine adapt(t)
             double precision, intent(in) :: t
             !For defining the max strain & buoyancy frequency based time step:
-            double precision, parameter:: alpha = 0.1d0
+            double precision, parameter  :: alpha = 0.1d0
             !Note: EPIC-2D paper recommends alpha = 0.2 for ls-rk4 method
+            double precision             :: dbdxs(0:nz, 0:ny-1, 0:nx-1)     ! db/dx in spectral space
+            double precision             :: dbdys(0:nz, 0:ny-1, 0:nx-1)     ! db/dy in spectral space
+            double precision             :: dbdzs(0:nz, 0:ny-1, 0:nx-1)     ! db/dz in spectral space
+            double precision             :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+            double precision             :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+            double precision             :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
             !Local variables (physical):
             double precision :: px(0:nz, 0:ny-1, 0:nx-1), py(nz, 0:ny-1, 0:nx-1)
@@ -174,20 +180,22 @@ module advance_mod
             double precision :: sx(0:nz, 0:nx-1, 0:ny-1), sy(nz, 0:nx-1, 0:ny-1)
             double precision :: fs(0:nz, 0:nx-1, 0:ny-1)
 
-            !----------------------------------------------------------
-            !Obtain x & y derivatives of buoyancy -> px, py (physical):
-            call xderiv_fc(nx, ny, hrkx, sbuoyg, sx)
-            call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
-            call yderiv_fc(nx, ny, rky, sbuoyg, sy)
-            call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
+            !Obtain x, y & z derivatives of buoyancy -> dbdxs, dbdys, dbdzs
+            call diffx(sbuoys, dbdxs)
+            call diffy(sbuoys, dbdys)
+            call diffz(sbuoys, dbdzs)
 
-            !Compute px^2 + py^2 -> px in physical space:
-            px(0, :, :) = px(0, :, :) ** 2
-            px(1:nz-1, :, :) = px(1:nz-1, :, :) ** 2 + py(1:nz-1, :, :) ** 2
-            px(nz, :, :) = px(nz, :, :) ** 2
+            !Obtain gradient of buoyancy in physical space
+            call fftxys2p(dbdxs, dbdx)
+            call fftxys2p(dbdys, dbdy)
+            call fftxys2p(dbdzs, dbdz)
+
+
+            !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> dbdx in physical space:
+            dbdx = dbdx ** 2 + dbdy ** 2 + dbdz ** 2
 
             !Maximum buoyancy frequency:
-            bfmax = sqrt(sqrt(maxval(px)))
+            bfmax = sqrt(sqrt(maxval(dbdx)))
 
             !Maximum vorticity:
             px = zeta ** 2
@@ -245,7 +253,7 @@ module advance_mod
                 dfac = dt / two
                 diss = two / (one + dfac * hdis)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
-                !(see spectral.f90 and parameters.f90).
+                !(see inversion_utils.f90 and parameters.f90).
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = zzch * dt / two
@@ -253,20 +261,9 @@ module advance_mod
                 diss = two / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
-                !prefactor (see spectral.f90 and parameters.f90 where C = prediss).
+                !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
             endif
 
-            !---------------------------------------------------------------------
-            !Save |u|_max,  N_max and gamma_max to monitor.asc:
-            write(22, '(1x,f13.6,3(1x,1p,e14.7))') t, uumax, bfmax, ggmax
-
-            !Save vorticity diagnostics to vorticity.asc:
-            write(23, '(1x,f13.6,3(1x,1p,e14.7))') t, zzmax, zzrms, zzch
-
-            !---------------------------------------------------------------------
-            !Set flag to save data:
-!             gsave=(int(t/tgsave) .eq. igrids)
-            !Gridded data will be saved at time t if gsave is true.
         end subroutine adapt
 
 end module advance_mod
