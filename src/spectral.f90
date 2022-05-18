@@ -4,6 +4,10 @@ module spectral
     use sta3dfft
     implicit none
 
+    ! Spectral filter:
+    double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: skx(:), sky(:), skz(:)
+
 !     !Common arrays, constants:
 !     double precision:: yh0(0:ny),yh1(0:ny),pbar(0:ny)
 !     double precision:: rkx(0:nxm1),hrkx(nx),rky(ny)
@@ -21,20 +25,20 @@ module spectral
 
     contains
 
-!         !=====================================================================
-!
-!         subroutine init_spectral(bbdif)
-!             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
-!             integer                      :: nwx, nwy
-!             double precision             :: dafx(0:nx),dafy(0:ny)
+        !=====================================================================
+
+        subroutine init_spectral(bbdif)
+            double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
+            double precision             :: kxmaxi, kymaxi, kzmaxi
 !             double precision             :: fac,yg,scx,scy,rkxmax,rkymax
 !             double precision             :: delk,delki,snorm,div,visc
 !             integer                      :: iy, kx, kxc, ky, k
-!
-!             !Maximum x and y wavenumber:
-!             nwx = nx / 2
-!             nwy = ny / 2
-!
+
+
+            allocate(filt(0:nz, 0:nx-1, 0:ny-1))
+            allocate(skx(nx))
+            allocate(sky(ny))
+            allocate(skz(0:nz))
 !
 !
 !             !---------------------------------------------------------------------
@@ -51,88 +55,42 @@ module spectral
 !                 pbar(iy)=f12*yg*(yg-elly)
 !             enddo
 !
-!             !---------------------------------------------------------------------
-!             !Set up FFTs:
-!             call init2dfft(nx,ny,ellx,elly,xfactors,yfactors,xtrig,ytrig,hrkx,rky)
-!
-!             !Define x wavenumbers:
-!             rkx(0)=zero
-!             do kx=1,nwx-1
-!                 kxc=nx-kx
-!                 rkx(kx )=hrkx(2*kx)
-!                 rkx(kxc)=hrkx(2*kx)
-!             enddo
-!             rkx(nwx)=hrkx(nx)
-!
-!             !Initialise arrays for computing the spectrum of any field:
-!             scx=twopi/ellx
-!             rkxmax=scx*dble(nwx)
-!             scy=pi/elly
-!             rkymax=scy*dble(ny)
-!             delk=sqrt(scx**2+scy**2)
-!             delki=one/delk
-!             kmax=nint(sqrt(rkxmax**2+rkymax**2)*delki)
-!             do k=0,kmax
-!                 spmf(k)=zero
-!             enddo
-!             do kx=0,nxm1
-!                 k=nint(rkx(kx)*delki)
-!                 kmag(kx,ky)=k
-!                 spmf(k)=spmf(k)+one
-!             enddo
-!             do ky=1,ny
-!                 do kx=0,nxm1
-!                     k=nint(sqrt(rkx(kx)**2+rky(ky)**2)*delki)
-!                     kmag(kx,ky)=k
-!                     spmf(k)=spmf(k)+one
-!                 enddo
-!             enddo
-!             !Compute spectrum multiplication factor (spmf) to account for unevenly
-!             !sampled shells and normalise spectra by 8/(nx*ny) so that the sum
-!             !of the spectrum is equal to the L2 norm of the original field:
-!             snorm=four*pi*dsumi !dsumi = 1/dble(nx*ny)
-!             spmf(0)=zero
-!             do k=1,kmax
-!                 spmf(k)=snorm*dble(k)/spmf(k)
-!                 alk(k)=log10(delk*dble(k))
-!             enddo
-!
-!             !---------------------------------------------------------------------
-!             !Define de-aliasing filter (2/3 rule):
-!             dafx(0)=one
-!             do kx=1,nxm1
-!                 if (rkx(kx) .lt. f23*rkxmax) then
-!                     dafx(kx)=one
-!                 else
-!                     dafx(kx)=zero
-!                 endif
-!             enddo
-!
-!             dafy(0)=one
-!             do ky=1,ny
-!                 if (rky(ky) .lt. f23*rkymax) then
-!                     dafy(ky)=one
-!                 else
-!                     dafy(ky)=zero
-!                 endif
-!             enddo
-!
-!             !Take product of 1d filters:
-!             do ky=0,ny
-!                 do kx=0,nxm1
-!                     filt(kx,ky)=dafx(kx)*dafy(ky)
-!                 enddo
-!             enddo
-!
+            !---------------------------------------------------------------------
+            !Set up FFTs:
+            call init3dfft(nx, ny, nz, extent)
+
+
+            !----------------------------------------------------------
+            !Define Hou and Li filter:
+            kxmaxi = one / maxval(rkx)
+            skx = -36.d0 * (kxmaxi * rkx) ** 36
+            kymaxi = one/maxval(rky)
+            sky = -36.d0 * (kymaxi * rky) ** 36
+            kzmaxi = one / maxval(rkz)
+            skz(0) = zero
+            skz(1:nz) = -36.d0 * (kzmaxi * rkz) ** 36
+            do kz = 0, nz
+                do kx = 0, nx-1
+                    do ky = 0, ny-1
+                        filt(kx, ky, kz) = dexp(skx(kx) + sky(ky) + skz(kz))
+                    enddo
+                enddo
+            enddo
+
 !             !---------------------------------------------------------------------
 !             !Define Green function:
-!             green(0,0)=zero
-!             do kx=1,nxm1
-!                 green(kx,0)=-one/rkx(kx)**2
+!             green(0, 0) = zero
+!             do kx = 1, nx-1
+!                 green(kx, 0) = -one / rkx(kx) ** 2
 !             enddo
+!
 !             do ky=1,ny
-!                 green(0,ky)=-one/rky(ky)**2
+!                 green(0, ky) = -one / rky(ky) ** 2
 !             enddo
+!
+!             do kz = 1, nz
+!                 green(kx, ky, kz) =
+!
 !             do ky=1,ny
 !                 do kx=1,nxm1
 !                     green(kx,ky)=-one/(rkx(kx)**2+rky(ky)**2)
@@ -190,7 +148,7 @@ module spectral
 !                 enddo
 !             endif
 !
-!         end subroutine init_spectral
+        end subroutine init_spectral
 
         !=====================================================================
 
