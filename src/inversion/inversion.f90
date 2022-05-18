@@ -13,13 +13,17 @@ module inversion_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Given the vorticity vector field (vortg) in physical space, this
-        ! returns the associated velocity field (velog) and the velocity
+        ! Given the vorticity vector field (xi, eta, zeta) in physical space, this
+        ! returns the associated velocity field (uu, vv, ww) and the velocity
         ! gradient tensor (velgradg).  Note: the
         ! vorticity is modified to be solenoidal and spectrally filtered.
-        subroutine vor2vel(vortg,  velog,  velgradg)
-            double precision, intent(inout) :: vortg(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+        subroutine vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
+            double precision, intent(inout) :: xi(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(inout) :: eta(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(inout) :: zeta(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out)   :: uu(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out)   :: vv(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out)   :: ww(0:nz, 0:ny-1, 0:nx-1)
             double precision, intent(out)   :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
             double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1) &
@@ -36,9 +40,9 @@ module inversion_mod
 
             !------------------------------------------------------------------
             !Convert vorticity to semi-spectral space as (as, bs, cs): (vortg is overwritten in this operation)
-            call fftxyp2s(vortg(0:nz, :, :, 1), as)
-            call fftxyp2s(vortg(0:nz, :, :, 2), bs)
-            call fftxyp2s(vortg(0:nz, :, :, 3), cs)
+            call fftxyp2s(xi, as)
+            call fftxyp2s(eta, bs)
+            call fftxyp2s(zeta, cs)
 
             !Add -grad(lambda) where Laplace(lambda) = div(vortg) to
             !enforce the solenoidal condition on the vorticity field:
@@ -93,17 +97,17 @@ module inversion_mod
             ! ==========================================================
 
             !Return corrected vorticity to physical space:
-            call fftxys2p(ds, vortg(0:nz, :, :, 1))
-            call fftxys2p(es, vortg(0:nz, :, :, 2))
-            call fftxys2p(fs, vortg(0:nz, :, :, 3))
+            call fftxys2p(ds, xi)
+            call fftxys2p(es, eta)
+            call fftxys2p(fs, zeta)
 
-            ! \xi and \eta anti-symmetric, \zeta symmetric
-            vortg(  -1, :, :, 1) = - vortg(   1, :, :, 1) ! \xi
-            vortg(  -1, :, :, 2) = - vortg(   1, :, :, 2) ! \eta
-            vortg(  -1, :, :, 3) =   vortg(   1, :, :, 3) ! \zeta
-            vortg(nz+1, :, :, 1) = - vortg(nz-1, :, :, 1) ! \xi
-            vortg(nz+1, :, :, 2) = - vortg(nz-1, :, :, 2) ! \eta
-            vortg(nz+1, :, :, 3) =   vortg(nz-1, :, :, 3) ! \zeta
+!             ! \xi and \eta anti-symmetric, \zeta symmetric
+!             vortg(  -1, :, :, 1) = - vortg(   1, :, :, 1) ! \xi
+!             vortg(  -1, :, :, 2) = - vortg(   1, :, :, 2) ! \eta
+!             vortg(  -1, :, :, 3) =   vortg(   1, :, :, 3) ! \zeta
+!             vortg(nz+1, :, :, 1) = - vortg(nz-1, :, :, 1) ! \xi
+!             vortg(nz+1, :, :, 2) = - vortg(nz-1, :, :, 2) ! \eta
+!             vortg(nz+1, :, :, 3) =   vortg(nz-1, :, :, 3) ! \zeta
 
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
@@ -155,7 +159,7 @@ module inversion_mod
             svelog(:, :, :, 1) = as
 
             !Get u in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 1))
+            call fftxys2p(as, uu(0:nz, :, :))
 
             !Find y velocity component \hat{v}:
             call diffy(es, as)
@@ -173,23 +177,23 @@ module inversion_mod
             svelog(:, :, :, 2) = as
 
             !Get v in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 2))
+            call fftxys2p(as, vv(0:nz, :, :))
 
             svelog(:, :, :, 3) = ds
 
             !Get w in physical space:
-            call fftxys2p(ds, velog(0:nz, :, :, 3))
+            call fftxys2p(ds, ww(0:nz, :, :))
 
             ! compute the velocity gradient tensor
             call vel2vgrad(svelog, velgradg)
 
-            ! use symmetry in u and v and anti-symmetry in w to fill z grid points outside domain:
-            velog(  -1, :, :, 1) =   velog(   1, :, :, 1) ! u
-            velog(  -1, :, :, 2) =   velog(   1, :, :, 2) ! v
-            velog(  -1, :, :, 3) = - velog(   1, :, :, 3) ! w
-            velog(nz+1, :, :, 1) =   velog(nz-1, :, :, 1) ! u
-            velog(nz+1, :, :, 2) =   velog(nz-1, :, :, 2) ! v
-            velog(nz+1, :, :, 3) = - velog(nz-1, :, :, 3) ! w
+!             ! use symmetry in u and v and anti-symmetry in w to fill z grid points outside domain:
+!             velog(  -1, :, :, 1) =   velog(   1, :, :, 1) ! u
+!             velog(  -1, :, :, 2) =   velog(   1, :, :, 2) ! v
+!             velog(  -1, :, :, 3) = - velog(   1, :, :, 3) ! w
+!             velog(nz+1, :, :, 1) =   velog(nz-1, :, :, 1) ! u
+!             velog(nz+1, :, :, 2) =   velog(nz-1, :, :, 2) ! v
+!             velog(nz+1, :, :, 3) = - velog(nz-1, :, :, 3) ! w
 
             call stop_timer(vor2vel_timer)
 
@@ -244,9 +248,14 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency:
-        subroutine vorticity_tendency(vortg, velog, tbuoyg, vtend)
-            double precision, intent(in)  :: vortg(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in)  :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+        subroutine vorticity_tendency(xi, eta, zeta, uu, vv, ww, tbuoyg, vtend)
+            double precision, intent(in) :: xi(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in) :: eta(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in) :: zeta(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in) :: uu(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in) :: vv(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in) :: ww(0:nz, 0:ny-1, 0:nx-1)
+
             double precision, intent(in)  :: tbuoyg(-1:nz+1, 0:ny-1, 0:nx-1)
 !             double precision, intent(in)  :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
             double precision, intent(out) :: vtend(-1:nz+1, 0:ny-1, 0:nx-1, 3)
@@ -257,21 +266,21 @@ module inversion_mod
             call start_timer(vtend_timer)
 
             ! Eqs. 10 and 11 of MPIC paper
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 1)
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 1) + tbuoyg
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 1)
+            f(:, : , :, 1) = (xi   + f_cor(1)) * uu
+            f(:, : , :, 2) = (eta  + f_cor(2)) * uu + tbuoyg
+            f(:, : , :, 3) = (zeta + f_cor(3)) * uu
 
             call divergence(f, vtend(0:nz, :, :, 1))
 
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 2) - tbuoyg
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 2)
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 2)
+            f(:, : , :, 1) = (xi   + f_cor(1)) * vv - tbuoyg
+            f(:, : , :, 2) = (eta  + f_cor(2)) * vv
+            f(:, : , :, 3) = (zeta + f_cor(3)) * vv
 
             call divergence(f, vtend(0:nz, :, :, 2))
 
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 3)
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 3)
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 3)
+            f(:, : , :, 1) = (xi   + f_cor(1)) * ww
+            f(:, : , :, 2) = (eta  + f_cor(2)) * ww
+            f(:, : , :, 3) = (zeta + f_cor(3)) * ww
 
             call divergence(f, vtend(0:nz, :, :, 3))
 
@@ -351,53 +360,5 @@ module inversion_mod
             div = div + df
 
         end subroutine divergence
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! Computes a divergent flow field (ud, vd, wd) = grad(phi) where
-        ! Lap(phi) = div (given).
-        subroutine diverge(div,  ud, vd, wd)
-            double precision, intent(inout)  :: div(0:nz, ny, nx)
-            double precision, intent(out)    :: ud(0:nz, ny, nx), vd(0:nz, ny, nx), wd(0:nz, ny, nx)
-            double precision                 :: ds(0:nz, nx, ny)
-            double precision                 :: us(0:nz, nx, ny), vs(0:nz, nx, ny), ws(0:nz, nx, ny)
-            double precision                 :: wbar(0:nz)
-
-            !------------------------------------------------------------------
-            ! Convert phi to spectral space (in x & y) as ds:
-            call fftxyp2s(div, ds)
-
-            ! Compute the x & y-independent part of ds by integration:
-            call vertint(ds(:, 1, 1), wbar)
-
-            ! Invert Laplace's operator semi-spectrally with compact differences:
-            call lapinv1(ds)
-
-            ! Compute x derivative spectrally:
-            call diffx(ds, us)
-
-            ! Reverse FFT to define x velocity component ud:
-            call fftxys2p(us, ud)
-
-            ! Compute y derivative spectrally:
-            call diffy(ds, vs)
-
-            ! Reverse FFT to define y velocity component vd:
-            call fftxys2p(vs, vd)
-
-            ! Compute z derivative by compact differences:
-            call diffz(ds, ws)
-
-            ! Set vertical boundary values to zero
-            ws(0,  :, :) = zero
-            ws(nz, :, :) = zero
-
-            ! Add on the x and y-independent part of wd:
-            ws(:, 1, 1) = ws(:, 1, 1) + wbar
-
-            ! Reverse FFT to define z velocity component wd:
-            call fftxys2p(ws, wd)
-
-        end subroutine
 
 end module inversion_mod

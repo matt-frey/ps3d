@@ -194,18 +194,18 @@ module field_netcdf
             !
             ! write fields (do not write halo cells)
             !
-            call write_netcdf_dataset(ncid, x_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 1), &
+            call write_netcdf_dataset(ncid, x_vel_id, uu(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, y_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 2), &
+            call write_netcdf_dataset(ncid, y_vel_id, vv(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, z_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 3), &
+            call write_netcdf_dataset(ncid, z_vel_id, ww(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
 
-            call write_netcdf_dataset(ncid, x_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 1), &
+            call write_netcdf_dataset(ncid, x_vor_id, xi(0:nz, 0:ny-1, 0:nx-1),     &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, y_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 2), &
+            call write_netcdf_dataset(ncid, y_vor_id, eta(0:nz, 0:ny-1, 0:nx-1),    &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, z_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
+            call write_netcdf_dataset(ncid, z_vor_id, zeta(0:nz, 0:ny-1, 0:nx-1),   &
                                       start, cnt)
 
             call write_netcdf_dataset(ncid, buoy_id, buoyg(0:nz, 0:ny-1, 0:nx-1),   &

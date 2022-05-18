@@ -33,9 +33,9 @@ module utils
 
             ! need to be called in order to set initial time step;
             ! this is also needed for the first ls-rk4 substep
-            call vor2vel(vortg, velog, velgradg)
+            call vor2vel(xi, eta, zeta, uu, vv, ww, velgradg)
 
-            call vorticity_tendency(vortg, velog, buoyg, vtend)
+            call vorticity_tendency(xi, eta, zeta, uu, vv, ww, buoyg, vtend)
 
             call write_step(t, .true.)
         end subroutine write_last_step

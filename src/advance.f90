@@ -43,7 +43,7 @@ module advance_mod
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
-            call vor2vel(vortg,  velog,  velgradg)  !call main_invert(zs,uu,vv,zz) !zs is spectral here
+            call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)  !call main_invert(zs,uu,vv,zz) !zs is spectral here
 
             !Adapt the time step and save various diagnostics each time step:
             call adapt(t)
@@ -71,7 +71,7 @@ module advance_mod
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(vortg,  velog,  velgradg) !main_invert(zs,uu,vv,zz) !zs is spectral here
+                call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg) !main_invert(zs,uu,vv,zz) !zs is spectral here
 
                 !Calculate the source terms (sbs,szs):
                 call source(sbs, szs)
@@ -114,12 +114,12 @@ module advance_mod
             call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
 
             !Compute (u, v)*grad(bb) -> px in physical space:
-            px(0, :, :) = velog(0, :, :, 1) * px(0, :, :)
+            px(0, :, :) = uu(0, :, :) * px(0, :, :)
 
-            px(1:nz-1, :, :) = velog(1:nz-1, :, :, 1) * px(1:nz-1, :, :)  &
-                             + velog(1:nz-1, :, :, 2) * py(1:nz-1, :, :)
+            px(1:nz-1, :, :) = uu(1:nz-1, :, :) * px(1:nz-1, :, :)  &
+                             + vv(1:nz-1, :, :) * py(1:nz-1, :, :)
 
-            px(nz, :, :) = velog(nz, :, :, 1) * px(nz, :, :)
+            px(nz, :, :) = uu(nz, :, :) * px(nz, :, :)
 
             !Convert to spectral space as sbs and apply de-aliasing filter:
             call ptospc_fc(nx, ny, px, sbs, xfactors, yfactors, xtrig, ytrig)
@@ -138,12 +138,12 @@ module advance_mod
             call spctop_fs(nx, ny, sy, py, xfactors, yfactors, xtrig, ytrig)
 
             !Compute (u, v)*grad(zz) -> px in physical space:
-            px(0, :, :) = velog(0, :, :, 1) * px(0, :, :)
+            px(0, :, :) = uu(0, :, :) * px(0, :, :)
 
-            px(1:nz-1, :, :) = velog(1:ny-1, :, :, 1) * px(1:ny-1, :, :) &
-                             + velog(1:ny-1, :, :, 2) * py(1:ny-1, :, :)
+            px(1:nz-1, :, :) = uu(1:nz-1, :, :) * px(1:nz-1, :, :) &
+                             + vv(1:nz-1, :, :) * py(1:nz-1, :, :)
 
-            px(nz, :, :) = velog(nz, :, :, 1) * px(nz, :, :)
+            px(nz, :, :) = uu(nz, :, :) * px(nz, :, :)
 
             !Convert to spectral space as sx and apply de-aliasing filter:
             call ptospc_fc(nx, ny, px, sx, xfactors, yfactors, xtrig, ytrig)
@@ -187,7 +187,7 @@ module advance_mod
             bfmax = sqrt(sqrt(maxval(px)))
 
             !Maximum vorticity:
-            px = vortg(:, :, :, 1) ** 2
+            px = zeta ** 2
             zzmax = sqrt(maxval(px))
 
             !R.m.s. vorticity:
@@ -199,7 +199,7 @@ module advance_mod
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
-                        zztmp = f12 * (vortg(iz-1, iy, ix, 1) + vortg(iz, iy, ix, 1))
+                        zztmp = f12 * (zeta(iz-1, iy, ix) + zeta(iz, iy, ix))
                         if (abs(zztmp) .gt. zzrms) then
                             zzl1 = zzl1 + abs(zztmp)
                             zzl2 = zzl2 + zztmp ** 2
@@ -210,25 +210,25 @@ module advance_mod
             zzch = zzl2 / zzl1
 
             !Compute x derivative of velocity components:
-            fp = velog(:, :, :, 1)
+            fp = uu
             call ptospc_fc(nx, ny, fp, fs, xfactors, yfactors, xtrig, ytrig)
             call xderiv_fc(nx, ny, hrkx, fs, sx)
             call spctop_fc(nx, ny, sx, fp, xfactors, yfactors, xtrig, ytrig)
             !fp = u_x
-            px = velog(:, :, :, 2)
+            px = vv
             call ptospc_fc(nx, ny, px, fs, xfactors, yfactors, xtrig, ytrig)
             call xderiv_fc(nx, ny, hrkx, fs, sx)
             call spctop_fc(nx, ny, sx, px, xfactors, yfactors, xtrig, ytrig)
             !px = v_x
 
             !Strain rate squared, u_x^2 + (v_x - zz/2)^2:
-            fp = fp ** 2 + (px - f12 * vortg(:, :, :, 1)) ** 2
+            fp = fp ** 2 + (px - f12 * xi) ** 2
 
             !Maximum strain rate:
             ggmax = sqrt(maxval(fp))
 
             !Maximum speed:
-            uumax = sqrt(maxval(velog(:, :, :, 1) ** 2 + velog(:, :, :, 2) ** 2))
+            uumax = sqrt(maxval(uu ** 2 + vv ** 2))
 
             !Choose new time step:
             dt = min(alpha / (ggmax + small), alpha / (bfmax + small), cflpf / (uumax + small), time%limit - t)
