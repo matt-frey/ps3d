@@ -12,10 +12,10 @@ module fields
     ! z: vertical
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
-    ! velocity vector field: (uu, vv, ww)
-    ! vorticity vector field: (xi, eta, zeta)
     double precision, allocatable, dimension(:, :, :, :) :: &
         svortg,    &   ! vorticity vector field in spectral space
+        vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
+        velog,     &   ! velocity vector field (u, v, w)
         vtend,     &   ! vorticity tendency
         velgradg       ! velocity gradient tensor
                        ! ordering: du/dx, du/dy,
@@ -30,12 +30,6 @@ module fields
                        !    dw/dz = - (du/dx + dv/dy)
 
     double precision, allocatable, dimension(:, :, :) :: &
-        uu,        &   ! velocity u component
-        vv,        &   ! velocity v component
-        ww,        &   ! velocity w component
-        xi,        &   ! vorticity x-component
-        eta,       &   ! vorticity y-component
-        zeta,      &   ! vorticity z-component
         buoyg,     &   ! buoyancy (physical)
         sbuoyg,    &   ! buoyancy (spectral)
         diss           ! dissipation operator (spectral)
@@ -44,18 +38,14 @@ module fields
 
         ! Allocate all fields
         subroutine field_alloc
-            if (allocated(uu)) then
+            if (allocated(velog)) then
                 return
             endif
 
-            allocate(uu(0:nz, 0:ny-1, 0:nx-1))
-            allocate(vv(0:nz, 0:ny-1, 0:nx-1))
-            allocate(ww(0:nz, 0:ny-1, 0:nx-1))
+            allocate(velog(0:nz, 0:ny-1, 0:nx-1, 3))
 
-            allocate(xi(0:nz, 0:ny-1, 0:nx-1))
-            allocate(eta(0:nz, 0:ny-1, 0:nx-1))
-            allocate(zeta(0:nz, 0:ny-1, 0:nx-1))
-
+            allocate(vortg(0:nz, 0:ny-1, 0:nx-1, 3))
+            allocate(svortg(0:nz, 0:nx-1, 0:ny-1, 3))
 
             allocate(velgradg(0:nz, 0:ny-1, 0:nx-1, 5))
 
@@ -72,12 +62,9 @@ module fields
         subroutine field_default
             call field_alloc
 
-            uu    = zero
-            vv    = zero
-            ww    = zero
-            xi    = zero
-            eta   = zero
-            zeta  = zero
+            velog    = zero
+            vortg    = zero
+            svortg   = zero
 
             velgradg = zero
             vtend    = zero

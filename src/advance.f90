@@ -43,7 +43,7 @@ module advance_mod
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
-            call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
+            call vor2vel(svortg, velog, velgradg)
 
             !Adapt the time step and save various diagnostics each time step:
             call adapt(t)
@@ -71,7 +71,7 @@ module advance_mod
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(xi, eta, zeta,  uu, vv, ww,  velgradg)
+                call vor2vel(svortg, velog, velgradg)
 
                 !Calculate the source terms (sbs,szs):
                 call source(sbs, szs)

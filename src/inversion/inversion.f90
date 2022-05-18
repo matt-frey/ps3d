@@ -11,19 +11,20 @@ module inversion_mod
 
     contains
 
-        ! Given the vorticity vector field (vortg) in physical space, this
+        ! Given the vorticity vector field (svortg) in spectral space, this
         ! returns the associated velocity field (velog) and the velocity
         ! gradient tensor (velgradg).  Note: the
         ! vorticity is modified to be solenoidal and spectrally filtered.
-        subroutine vor2vel(as, bs, cs,  velog,  velgradg)
-            double precision, intent(inout) :: as(0:nz, 0:nx-1, 0:ny-1)
-            double precision, intent(inout) :: bs(0:nz, 0:nx-1, 0:ny-1)
-            double precision, intent(inout) :: cs(0:nz, 0:nx-1, 0:ny-1)
+        subroutine vor2vel(svortg,  velog,  velgradg)
+            double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out)   :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
             double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1) &
-                                             , es(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: as(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
             integer                         :: iz
@@ -32,15 +33,16 @@ module inversion_mod
 
             !-------------------------------------------------------------
             ! Apply 2D Hou and Li filter:
-            !$omp parallel shared(as, bs, cs, filt, nz) private(iz) default(none)
+            !$omp parallel shared(as, bs, cs, filt, svortg, nz) private(iz) default(none)
             !$omp do
             do iz = 0, nz
-                as(iz, :, :) = filt * as(iz, :, :)
-                bs(iz, :, :) = filt * bs(iz, :, :)
-                cs(iz, :, :) = filt * cs(iz, :, :)
+                as(iz, :, :) = filt * svortg(iz, :, :, 1)
+                bs(iz, :, :) = filt * svortg(iz, :, :, 2)
+                cs(iz, :, :) = filt * svortg(iz, :, :, 3)
             enddo
             !$omp end do
             !$omp end parallel
+
 
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
@@ -120,14 +122,6 @@ module inversion_mod
             ! compute the velocity gradient tensor
             call vel2vgrad(svelog, velgradg)
 
-            ! use extrapolation in u and v and anti-symmetry in w to fill z grid points outside domain:
-            velog(-1, :, :, 1) =  two * velog(0, :, :, 1) - velog(1, :, :, 1) ! u
-            velog(-1, :, :, 2) =  two * velog(0, :, :, 2) - velog(1, :, :, 2) ! v
-            velog(-1, :, :, 3) = -velog(1, :, :, 3) ! w
-            velog(nz+1, :, :, 1) = two * velog(nz, :, :, 1) - velog(nz-1, :, :, 1) ! u
-            velog(nz+1, :, :, 2) = two * velog(nz, :, :, 2) - velog(nz-1, :, :, 2) ! v
-            velog(nz+1, :, :, 3) = -velog(nz-1, :, :, 3) ! w
-
             call stop_timer(vor2vel_timer)
 
         end subroutine
@@ -182,39 +176,31 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency:
-        subroutine vorticity_tendency(xi, eta, zeta, uu, vv, ww, tbuoyg, vtend)
-            double precision, intent(in) :: xi(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(in) :: eta(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(in) :: zeta(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(in) :: uu(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(in) :: vv(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(in) :: ww(0:nz, 0:ny-1, 0:nx-1)
-
-            double precision, intent(in)  :: tbuoyg(-1:nz+1, 0:ny-1, 0:nx-1)
-!             double precision, intent(in)  :: velgradg(-1:nz+1, 0:ny-1, 0:nx-1, 5)
-            double precision, intent(out) :: vtend(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision              :: f(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-!            double precision              :: vst(0:nz, 0:nx-1, 0:ny-1, 3)
-!            integer                       :: iz
+        subroutine vorticity_tendency(vortg, velog, buoyg, vtend)
+            double precision, intent(in)  :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(in)  :: buoyg(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out) :: vtend(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision              :: f(0:nz, 0:ny-1, 0:nx-1, 3)
 
             call start_timer(vtend_timer)
 
             ! Eqs. 10 and 11 of MPIC paper
-            f(:, : , :, 1) = (xi   + f_cor(1)) * uu
-            f(:, : , :, 2) = (eta  + f_cor(2)) * uu + tbuoyg
-            f(:, : , :, 3) = (zeta + f_cor(3)) * uu
+            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 1)
+            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 1) + buoyg
+            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 1)
 
             call divergence(f, vtend(0:nz, :, :, 1))
 
-            f(:, : , :, 1) = (xi   + f_cor(1)) * vv - tbuoyg
-            f(:, : , :, 2) = (eta  + f_cor(2)) * vv
-            f(:, : , :, 3) = (zeta + f_cor(3)) * vv
+            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 2) - buoyg
+            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 2)
+            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 2)
 
             call divergence(f, vtend(0:nz, :, :, 2))
 
-            f(:, : , :, 1) = (xi   + f_cor(1)) * ww
-            f(:, : , :, 2) = (eta  + f_cor(2)) * ww
-            f(:, : , :, 3) = (zeta + f_cor(3)) * ww
+            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 3)
+            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 3)
+            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 3)
 
             call divergence(f, vtend(0:nz, :, :, 3))
 
@@ -237,28 +223,6 @@ module inversion_mod
 !             ! - \omegaz * (du/dx + dv/dy)
 !             vtend(0,  :, :, 3) = - vortg(0,  :, :, 3) * (velgradg(0,  :, :, 1) + velgradg(0,  :, :, 3))
 !             vtend(nz, :, :, 3) = - vortg(nz, :, :, 3) * (velgradg(nz, :, :, 1) + velgradg(nz, :, :, 3))
-
-!             call fftxyp2s(vtend(0:nz, :, :, 1), vst(:, :, :, 1))
-!             call fftxyp2s(vtend(0:nz, :, :, 2), vst(:, :, :, 2))
-!             call fftxyp2s(vtend(0:nz, :, :, 3), vst(:, :, :, 3))
-!
-!             call apply_filter(vst(:, :, :, 1))
-!             call apply_filter(vst(:, :, :, 2))
-!             call apply_filter(vst(:, :, :, 3))
-!
-! !            do iz = 0, nz
-! !                vst(iz, :, :, 1) = filt * vst(iz, :, :, 1)
-! !                vst(iz, :, :, 2) = filt * vst(iz, :, :, 2)
-! !                vst(iz, :, :, 3) = filt * vst(iz, :, :, 3)
-! !            enddo
-!
-!            call fftxys2p(vst(:, :, :, 1), vtend(0:nz, :, :, 1))
-!            call fftxys2p(vst(:, :, :, 2), vtend(0:nz, :, :, 2))
-!            call fftxys2p(vst(:, :, :, 3), vtend(0:nz, :, :, 3))
-
-            ! Extrapolate to halo grid points
-            vtend(-1,   :, :, :) = two * vtend(0,  :, :, :) - vtend(1,    :, :, :)
-            vtend(nz+1, :, :, :) = two * vtend(nz, :, :, :) - vtend(nz-1, :, :, :)
 
             call stop_timer(vtend_timer)
 
