@@ -61,6 +61,20 @@ program ps3d
             bbdif = maxval(buoyg) - minval(buoyg)
 
             call init_inversion(bbdif, nnu, prediss)
+            
+            ! convert fields to spectral space
+            call fftxyp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
+            call fftxyp2s(vortg(:, :, :, 2), svortg(:, :, :, 2))
+            call fftxyp2s(vortg(:, :, :, 3), svortg(:, :, :, 3))
+            call fftxyp2s(buoyg, sbuoyg)
+            
+            ! apply Hou and Li de-aliasing filter
+            do iz = 0, nz
+                svortg(iz, :, :, 1) = filt * svortg(iz, :, :, 1)
+                svortg(iz, :, :, 2) = filt * svortg(iz, :, :, 2)
+                svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
+                sbuoyg(iz, :, :) = filt * sbuoyg(iz, :, :)
+            enddo
 
             call setup_output_files
 
