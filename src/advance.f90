@@ -50,11 +50,11 @@ module advance_mod
             !Invert vorticity for velocity at current time level, say t=t^n:
             call vor2vel(svortg, velog, svelog)
 
+            !Adapt the time step and calculate vorticity in physical space:
+            call adapt(t, sbuoys, velog, svelog)
+            
             !Write fields
             call write_step(t)
-
-            !Adapt the time step
-            call adapt(t, sbuoys, velog, svelog)
 
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
