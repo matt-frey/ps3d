@@ -48,9 +48,10 @@ module advance_mod
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
+            !Also, returns vorticity in physical space for use everywhere
             call vor2vel(svortg, velog, svelog)
 
-            !Adapt the time step and calculate vorticity in physical space:
+            !Adapt the time step
             call adapt(t, sbuoys, velog, svelog)
             
             !Write fields
@@ -200,14 +201,6 @@ module advance_mod
 
             !Maximum buoyancy frequency:
             bfmax = sqrt(sqrt(maxval(xp)))
-            
-            !Compute vorticity in physical space:
-            xs = svortg(:, :, :, 1)
-            ys = svortg(:, :, :, 2)
-            zs = svortg(:, :, :, 3)
-            call fftxys2p(xs, vortg(:, :, :, 1))
-            call fftxys2p(ys, vortg(:, :, :, 2))
-            call fftxys2p(zs, vortg(:, :, :, 3))
 
             !Compute enstrophy: (reuse xp)
             xp = vortg(:, :, :, 1) ** 2 + vortg(:, :, :, 2) ** 2 + vortg(:, :, :, 3) ** 2
