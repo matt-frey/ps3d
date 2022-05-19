@@ -12,8 +12,10 @@ module inversion_mod
     contains
 
         ! Given the vorticity vector field (svortg) in spectral space, this
-        ! returns the associated velocity field (velog).
-        subroutine vor2vel(svortg,  velog, svelog)
+        ! returns the associated velocity field (velog) as well as vorticity
+        ! in physical space (vortg)
+        subroutine vor2vel(svortg, vortg,  svelog, velog)
+            double precision, intent(out)   :: vortg(-1:nz+1, 0:ny-1, 0:nx-1, 3)
             double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
@@ -23,9 +25,15 @@ module inversion_mod
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
-            integer                         :: iz
+            integer                         :: iz, nc
 
             call start_timer(vor2vel_timer)
+            
+            !Compute vorticity in physical space:
+            do nc = 1, 3
+                as = svortg(:, :, :, nc)
+                call fftxys2p(as, vortg(:, :, :, nc))
+            enddo
 
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
