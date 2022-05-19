@@ -9,6 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
+    use inversion_utils, only : fftxyp2s
     implicit none
 
     integer :: field_io_timer
@@ -243,6 +244,7 @@ module field_netcdf
                                          vortg(0:nz, 0:ny-1, 0:nx-1, 1), &
                                          start=start, cnt=cnt)
                 write(*, *) "done"
+                call fftxyp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
             endif
 
             if (has_dataset(ncid, 'y_vorticity')) then
@@ -251,6 +253,7 @@ module field_netcdf
                                          vortg(0:nz, 0:ny-1, 0:nx-1, 2), &
                                          start=start, cnt=cnt)
                  write(*, *) "done"
+                 call fftxyp2s(vortg(:, :, :, 2), svortg(:, :, :, 2))
             endif
 
             if (has_dataset(ncid, 'z_vorticity')) then
@@ -259,6 +262,7 @@ module field_netcdf
                                          vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
                                          start=start, cnt=cnt)
                  write(*, *) "done"
+                 call fftxyp2s(vortg(:, :, :, 3), svortg(:, :, :, 3))
             endif
 
             if (has_dataset(ncid, 'buoyancy')) then
@@ -267,6 +271,7 @@ module field_netcdf
                                          buoyg(0:nz, 0:ny-1, 0:nx-1), &
                                          start=start, cnt=cnt)
                  write(*, *) "done"
+                 call fftxyp2s(buoyg, sbuoyg)
             endif
 
             call close_netcdf_file(ncid)
