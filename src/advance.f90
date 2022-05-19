@@ -49,11 +49,11 @@ module advance_mod
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
             !Also, returns vorticity in physical space for use everywhere
-            call vor2vel(svortg, velog, svelog)
+            call vor2vel(svortg, vortg, svelog, velog)
 
             !Adapt the time step
             call adapt(t, sbuoys, velog, svelog)
-            
+
             !Write fields
             call write_step(t)
 
@@ -85,7 +85,7 @@ module advance_mod
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(svortg, velog, svelog)
+                call vor2vel(svortg, vortg, svelog, velog)
 
                 !Calculate the source terms (sbuoys,svorts):
                 call source(sbuoys, svorts)
@@ -93,8 +93,8 @@ module advance_mod
                 !Update fields:
                 do iz = 0, nz
                     sbuoyg(iz, :, :) = diss * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
-                enddo 
-                
+                enddo
+
                 do nc = 1, 3
                     do iz = 0, nz
                         svortg(iz, :, :, nc) = diss * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &

@@ -2,7 +2,7 @@ module utils
     use constants, only : one
     use options, only : output, verbose
     use field_netcdf
-    use inversion_mod, only : vor2vel, vorticity_tendency
+    use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time, get_netcdf_box
     use parameters, only : lower, extent, update_parameters
     use physics, only : read_physical_quantities, print_physical_quantities
@@ -33,9 +33,7 @@ module utils
 
             ! need to be called in order to set initial time step;
             ! this is also needed for the first ls-rk4 substep
-            call vor2vel(svortg, velog)
-
-            call vorticity_tendency(vortg, velog, buoyg, vtend)
+            call vor2vel(svortg, vortg, svelog, velog)
 
             call write_step(t, .true.)
         end subroutine write_last_step
