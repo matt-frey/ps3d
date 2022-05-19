@@ -13,13 +13,12 @@ module inversion_mod
 
         ! Given the vorticity vector field (svortg) in spectral space, this
         ! returns the associated velocity field (velog).
-        subroutine vor2vel(svortg,  velog)
+        subroutine vor2vel(svortg,  velog, svelog)
             double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision                :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: ubar(0:nz), vbar(0:nz)
@@ -28,25 +27,12 @@ module inversion_mod
 
             call start_timer(vor2vel_timer)
 
-            !-------------------------------------------------------------
-            ! Apply 2D Hou and Li filter:
-            !$omp parallel shared(as, bs, cs, filt, svortg, nz) private(iz) default(none)
-            !$omp do
-            do iz = 0, nz
-                as(iz, :, :) = filt * svortg(iz, :, :, 1)
-                bs(iz, :, :) = filt * svortg(iz, :, :, 2)
-                cs(iz, :, :) = filt * svortg(iz, :, :, 3)
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
             vbar(0) = zero
             do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (bs(iz, 0, 0) + bs(iz+1, 0, 0))
-                vbar(iz+1) = vbar(iz) - dz2 * (as(iz, 0, 0) + as(iz+1, 0, 0))
+                ubar(iz+1) = ubar(iz) + dz2 * (svortg(iz, 0, 0, 2) + svortg(iz+1, 0, 0, 2))
+                vbar(iz+1) = vbar(iz) - dz2 * (svortg(iz, 0, 0, 1) + svortg(iz+1, 0, 0, 1))
             enddo
 
             ! remove the mean value to have zero net momentum
@@ -58,16 +44,14 @@ module inversion_mod
             enddo
 
             !Form source term for inversion of vertical velocity:
-            call diffy(as, ds)
-            call diffx(bs, es)
+            call diffy(svortg(:, :, :, 1), ds)
+            call diffx(svortg(:, :, :, 2), es)
 
             !$omp parallel
             !$omp workshare
             ds = ds - es
             !$omp end workshare
             !$omp end parallel
-
-            !as & bs are now free to re-use
 
             !Invert to find vertical velocity \hat{w} (store in ds, spectrally):
             call lapinv0(ds)
@@ -95,7 +79,7 @@ module inversion_mod
 
             !Find y velocity component \hat{v}:
             call diffy(es, as)
-            call diffx(cs, bs)
+            call diffx(svortg(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -123,68 +107,62 @@ module inversion_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Compute the gridded vorticity tendency:
-        subroutine vorticity_tendency(vortg, velog, buoyg, vtend)
-            double precision, intent(in)  :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
+        ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
+        subroutine vorticity_tendency(svortg, velog, svtend)
+            double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in)  :: buoyg(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out) :: vtend(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision              :: f(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
+            double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
+            double precision              :: zs(0:nz, 0:nx-1, 0:ny-1)
+            double precision              :: xp(0:nz, 0:ny-1, 0:nx-1)
+            double precision              :: yp(0:nz, 0:ny-1, 0:nx-1)
+            double precision              :: zp(0:nz, 0:ny-1, 0:nx-1)
+            integer                       :: nc
 
             call start_timer(vtend_timer)
-
-            ! Eqs. 10 and 11 of MPIC paper
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 1)
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 1) + buoyg
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 1)
-
-            call divergence(f, vtend(0:nz, :, :, 1))
-
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 2) - buoyg
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 2)
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 2)
-
-            call divergence(f, vtend(0:nz, :, :, 2))
-
-            f(:, : , :, 1) = (vortg(:, :, :, 1) + f_cor(1)) * velog(:, :, :, 3)
-            f(:, : , :, 2) = (vortg(:, :, :, 2) + f_cor(2)) * velog(:, :, :, 3)
-            f(:, : , :, 3) = (vortg(:, :, :, 3) + f_cor(3)) * velog(:, :, :, 3)
-
-            call divergence(f, vtend(0:nz, :, :, 3))
+            
+            do nc = 1, 3
+                as = svortg(:, :, :, nc)
+                call fftxys2p(as, vortg(:, :, :, nc)
+                vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
+            enddo
+            
+            ! x-component of vorticity tendency:
+            yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
+            zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
+            
+            call fftxys2p(yp, ys)
+            call fftxys2p(zp, zs)
+            
+            call diffy(ys, xs)
+            call diffz(zs, svtend(:, :, :, 1))
+            svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
+            
+            ! y-component of vorticity tendency:
+            xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
+            zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
+            
+            call fftxys2p(xp, xs)
+            call fftxys2p(zp, zs)
+            
+            call diffx(xs, ys)
+            call diffz(zs, svtend(:, :, :, 2))
+            svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
+            
+            ! z-component of vorticity tendency:
+            xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
+            yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
+            
+            call fftxys2p(xp, xs)
+            call fftxys2p(yp, ys)
+            
+            call diffx(xs, zs)
+            call diffy(ys, svtend(:, :, :, 3))
+            svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
 
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency
-
-        subroutine divergence(f, div)
-            double precision, intent(in)  :: f(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: div(0:nz, 0:ny-1, 0:nx-1)
-            double precision              :: df(0:nz, 0:ny-1, 0:nx-1)
-            integer                       :: i
-
-            ! calculate df/dx with central differencing
-            do i = 1, nx-2
-                div(0:nz, :, i) = f12 * dxi(1) * (f(0:nz, :, i+1, 1) - f(0:nz, :, i-1, 1))
-            enddo
-            div(0:nz, :, 0)    = f12 * dxi(1) * (f(0:nz, :, 1, 1) - f(0:nz, :, nx-1, 1))
-            div(0:nz, :, nx-1) = f12 * dxi(1) * (f(0:nz, :, 0, 1) - f(0:nz, :, nx-2, 1))
-
-            ! calculate df/dy with central differencing
-            do i = 1, ny-2
-                df(0:nz, i, :) = f12 * dxi(2) * (f(0:nz, i+1, :, 2) - f(0:nz, i-1, :, 2))
-            enddo
-            df(0:nz, 0,    :) = f12 * dxi(2) * (f(0:nz, 1, :, 2) - f(0:nz, ny-1, :, 2))
-            df(0:nz, ny-1, :) = f12 * dxi(2) * (f(0:nz, 0, :, 2) - f(0:nz, ny-2, :, 2))
-
-            div = div + df
-
-            ! calculate df/dz with central differencing
-            do i = 0, nz
-                df(i, :, :) = f12 * dxi(3) * (f(i+1, :, :, 3) - f(i-1, :, :, 3))
-            enddo
-
-            div = div + df
-
-        end subroutine divergence
 
 end module inversion_mod
