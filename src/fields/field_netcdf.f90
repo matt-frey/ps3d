@@ -221,4 +221,54 @@ module field_netcdf
 
         end subroutine write_netcdf_fields
 
+
+        subroutine read_netcdf_fields(ncfname)
+            character(*), intent(in)  :: ncfname
+            integer                   :: n_steps, start(4), cnt(4)
+
+            call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+
+            call get_num_steps(ncid, n_steps)
+
+            cnt  =  (/ nx, ny, nz+1, 1       /)
+            start = (/ 1,  1,  1,    n_steps /)
+
+            if (has_dataset(ncid, 'x_vorticity')) then
+                ! 19 May 2022
+                ! https://stackoverflow.com/questions/45984672/print-values-without-new-line
+                write(*, "(a42)", advance="no") "Found x-vorticity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'x_vorticity',            &
+                                         vortg(0:nz, 0:ny-1, 0:nx-1, 1), &
+                                         start=start, cnt=cnt)
+                write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'y_vorticity')) then
+                write(*, "(a42)", advance="no") "Found y-vorticity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'y_vorticity',            &
+                                         vortg(0:nz, 0:ny-1, 0:nx-1, 2), &
+                                         start=start, cnt=cnt)
+                 write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'z_vorticity')) then
+                write(*, "(a42)", advance="no") "Found z-vorticity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'z_vorticity',            &
+                                         vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
+                                         start=start, cnt=cnt)
+                 write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'buoyancy')) then
+                write(*, "(a39)", advance="no") "Found buoyancy field input, reading ..."
+                call read_netcdf_dataset(ncid, 'buoyancy',            &
+                                         buoyg(0:nz, 0:ny-1, 0:nx-1), &
+                                         start=start, cnt=cnt)
+                 write(*, *) "done"
+            endif
+
+            call close_netcdf_file(ncid)
+
+        end subroutine read_netcdf_fields
+
 end module field_netcdf

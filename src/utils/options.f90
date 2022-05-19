@@ -52,7 +52,7 @@ module options
     type time_info_type
         double precision :: initial     = zero       ! initial time
         double precision :: limit       = zero       ! time limit
-        double precision :: alpha       = 0.2d0      ! factor for adaptive time stepping with strain and buoyancy
+        double precision :: alpha       = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
                                                      ! gradient
         logical          :: precise_stop = .false.   ! stop at the exact limit
     end type time_info_type
@@ -69,7 +69,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /EPIC/ output, time
+            namelist /EPIC/ field_file, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -109,6 +109,16 @@ module options
 #endif
             call write_netcdf_attribute(ncid, "allow_larger_anisotropy", &
                                                allow_larger_anisotropy)
+
+
+            if (nnu == 1) then
+                call write_netcdf_attribute(ncid, "viscosity", "molecular")
+            else
+                call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
+            endif
+
+            call write_netcdf_attribute(ncid, "nnu", nnu)
+            call write_netcdf_attribute(ncid, "prediss", prediss)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)

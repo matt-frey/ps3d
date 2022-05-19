@@ -5,7 +5,7 @@ program ps3d
     use constants, only : zero
     use timer
     use fields
-    use field_netcdf, only : field_io_timer
+    use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer
     use inversion_utils, only : init_inversion
     use advance_mod, only : advance, advance_timer
@@ -58,6 +58,8 @@ program ps3d
             call init_inversion(bbdif, nnu, prediss)
 
             call field_default
+
+            call read_netcdf_fields(trim(field_file))
 
             call setup_output_files
 
