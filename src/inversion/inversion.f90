@@ -15,9 +15,9 @@ module inversion_mod
         ! returns the associated velocity field (velog) as well as vorticity
         ! in physical space (vortg)
         subroutine vor2vel(svortg, vortg,  svelog, velog)
-            double precision, intent(out)   :: vortg(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(out)   :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision, intent(out)   :: velog(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(out)   :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)
