@@ -70,7 +70,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /EPIC/ field_file, output, time
+            namelist /EPIC/ field_file, nnu, prediss, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
