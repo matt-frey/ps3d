@@ -149,20 +149,30 @@ module advance_mod
             !Convert to spectral space and apply de-aliasing filter:
             call fftxyp2s(dbdx, sbuoys)
 
-            do iz = 0, nz
-                sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
-            enddo
+            sbuoys = -sbuoys
+            call apply_filter(sbuoys)
+!             do iz = 0, nz
+!                 sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
+!             enddo
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
 
             call vorticity_tendency(svortg, velog, vortg, svtend)
 
-            do iz = 0, nz
-                svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * svtend(iz, :, :, 1)
-                svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * svtend(iz, :, :, 2)
-                svorts(iz, :, :, 3) =                     - filt * svtend(iz, :, :, 3)
-            enddo
+            call apply_filter(svtend(:, :, :, 1))
+            call apply_filter(svtend(:, :, :, 2))
+            call apply_filter(svtend(:, :, :, 3))
+
+            svorts(:, :, :, 1) = svorts(:, :, :, 1) - svtend(:, :, :, 1)
+            svorts(:, :, :, 2) = svorts(:, :, :, 2) - svtend(:, :, :, 2)
+            svorts(:, :, :, 3) =                    - svtend(:, :, :, 3)
+
+!             do iz = 0, nz
+!                 svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * svtend(iz, :, :, 1)
+!                 svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * svtend(iz, :, :, 2)
+!                 svorts(iz, :, :, 3) =                     - filt * svtend(iz, :, :, 3)
+!             enddo
 
         end subroutine source
 

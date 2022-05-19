@@ -3,6 +3,7 @@ module inversion_utils
     use parameters, only : nx, ny, nz, dx, dxi, extent
     use stafft
     use sta2dfft
+    use sta3dfft, only : init3dfft, ztrig, zfactors, filt
     implicit none
 
     private
@@ -29,8 +30,8 @@ module inversion_utils
     integer :: nxsub
 
     !De-aliasing filter:
-    double precision, allocatable :: filt(:, :)
-    double precision, allocatable :: skx(:), sky(:)
+!     double precision, allocatable :: filt(:, :)
+!     double precision, allocatable :: skx(:), sky(:)
 
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :)
@@ -61,7 +62,8 @@ module inversion_utils
             , rky            &
             , hrkx           &
             , hrky           &
-            , hdis
+            , hdis           &
+            , apply_filter
 
     contains
 
@@ -138,13 +140,37 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        subroutine apply_filter(fs)
+            double precision, intent(inout) :: fs(0:nz, nx, ny)
+            integer                         :: kx, ky
+
+            !Carry out z FFT for each kx and ky:
+            do ky = 1, ny
+                do kx = 1, nx
+                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+            fs = filt * fs
+
+            !Carry out z FFT for each kx and ky:
+            do ky = 1, ny
+                do kx = 1, nx
+                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+        end subroutine apply_filter
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
             double precision, allocatable  :: a0(:, :), ksq(:, :)
             double precision               :: rkxmax, rkymax
             double precision               :: rksqmax
-            double precision               :: kxmaxi, kymaxi
+!             double precision               :: kxmaxi, kymaxi
             integer                        :: kx, ky, iz, isub, ib_sub, ie_sub
 
             if (is_initialised) then
@@ -167,8 +193,8 @@ module inversion_utils
 
             allocate(a0(nx, ny))
             allocate(ksq(nx, ny))
-            allocate(skx(nx))
-            allocate(sky(ny))
+!             allocate(skx(nx))
+!             allocate(sky(ny))
             allocate(k2l2i(nx, ny))
 
             allocate(etdh(nz-1, nx, ny))
@@ -181,13 +207,15 @@ module inversion_utils
             allocate(hrky(ny))
             allocate(xtrig(2 * nx))
             allocate(ytrig(2 * ny))
-            allocate(filt(nx, ny))
+!             allocate(filt(nx, ny))
 
             nxsub = nx / nsubs_tri
 
             !----------------------------------------------------------------------
             ! Initialise FFTs and wavenumber arrays:
             call init2dfft(nx, ny, extent(1), extent(2), xfactors, yfactors, xtrig, ytrig, hrkx, hrky)
+
+            call init3dfft(nx, ny, nz, extent)
 
             !Define x wavenumbers:
             rkx(1) = zero
@@ -221,17 +249,17 @@ module inversion_utils
             k2l2i = one / ksq
             ksq(1, 1) = zero
 
-            !--------------------------------------------------------------------
-            ! Define Hou and Li filter:
-            kxmaxi = one / maxval(rkx)
-            skx = -36.d0 * (kxmaxi * rkx) ** 36
-            kymaxi = one/maxval(rky)
-            sky = -36.d0 * (kymaxi * rky) ** 36
-            do ky = 1, ny
-                do kx = 1, nx
-                    filt(kx, ky) = dexp(skx(kx) + sky(ky))
-                enddo
-            enddo
+!             !--------------------------------------------------------------------
+!             ! Define Hou and Li filter:
+!             kxmaxi = one / maxval(rkx)
+!             skx = -36.d0 * (kxmaxi * rkx) ** 36
+!             kymaxi = one/maxval(rky)
+!             sky = -36.d0 * (kymaxi * rky) ** 36
+!             do ky = 1, ny
+!                 do kx = 1, nx
+!                     filt(kx, ky) = dexp(skx(kx) + sky(ky))
+!                 enddo
+!             enddo
 
             !-----------------------------------------------------------------------
             ! Fixed coefficients used in the tridiagonal problems:

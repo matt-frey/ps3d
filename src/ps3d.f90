@@ -7,7 +7,7 @@ program ps3d
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer
-    use inversion_utils, only : init_inversion, filt, fftxyp2s
+    use inversion_utils, only : init_inversion, fftxyp2s, apply_filter
     use advance_mod, only : advance, advance_timer
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
@@ -37,7 +37,7 @@ program ps3d
                               , nnu                 &
                               , prediss
             double precision  :: bbdif
-            integer           :: iz
+!             integer           :: iz
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -70,12 +70,16 @@ program ps3d
             call fftxyp2s(buoyg, sbuoyg)
 
             ! apply Hou and Li de-aliasing filter
-            do iz = 0, nz
-                svortg(iz, :, :, 1) = filt * svortg(iz, :, :, 1)
-                svortg(iz, :, :, 2) = filt * svortg(iz, :, :, 2)
-                svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
-                sbuoyg(iz, :, :) = filt * sbuoyg(iz, :, :)
-            enddo
+            call apply_filter(svortg(:, :, :, 1))
+            call apply_filter(svortg(:, :, :, 2))
+            call apply_filter(svortg(:, :, :, 3))
+            call apply_filter(sbuoyg)
+!             do iz = 0, nz
+!                 svortg(iz, :, :, 1) = filt * svortg(iz, :, :, 1)
+!                 svortg(iz, :, :, 2) = filt * svortg(iz, :, :, 2)
+!                 svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
+!                 sbuoyg(iz, :, :) = filt * sbuoyg(iz, :, :)
+!             enddo
 
             call setup_output_files
 
