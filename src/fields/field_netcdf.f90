@@ -226,6 +226,8 @@ module field_netcdf
             character(*), intent(in)  :: ncfname
             integer                   :: n_steps, start(4), cnt(4)
 
+            call start_timer(field_io_timer)
+
             call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
 
             call get_num_steps(ncid, n_steps)
@@ -268,6 +270,8 @@ module field_netcdf
             endif
 
             call close_netcdf_file(ncid)
+
+            call stop_timer(field_io_timer)
 
         end subroutine read_netcdf_fields
 

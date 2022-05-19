@@ -46,7 +46,6 @@ program ps3d
 
             call start_timer(ps_timer)
 
-
             ! parse the config file
             call read_config_file
 
@@ -55,11 +54,13 @@ program ps3d
 
             time%initial = zero ! make sure user cannot start at arbirtrary time
 
-            call init_inversion(bbdif, nnu, prediss)
-
             call field_default
 
             call read_netcdf_fields(trim(field_file))
+
+            bbdif = maxval(buoyg) - minval(buoyg)
+
+            call init_inversion(bbdif, nnu, prediss)
 
             call setup_output_files
 

@@ -15,6 +15,7 @@ module advance_mod
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, vorticity_tendency
     use inversion_utils
+    use utils, only : write_step
     use fields
     use jacobi, only : jacobi_eigenvalues
     implicit none
@@ -36,24 +37,24 @@ module advance_mod
         subroutine advance(t)
             double precision, intent(inout) :: t
             integer                         :: iter
+            integer                         :: nc
             ! Spectral fields needed in time stepping:
             double precision                :: bsi(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1) ! source of buoyancy (spectral)
+            double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticiy (spectral)
-            integer                         :: nc
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
             call vor2vel(svortg, velog)
 
-            !Adapt the time step and save various diagnostics each time step:
-            call adapt(t, sbuoys, velog)
+            !Write fields
+            call write_step(t)
 
-!             !Possibly save field data (gsave is set by adapt):
-!             if (gsave) call savegrid
+            !Adapt the time step
+            call adapt(t, sbuoys, velog)
 
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
@@ -105,9 +106,9 @@ module advance_mod
         subroutine source(sbuoys, svorts)
             double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
             double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-            double precision                :: dbdxs(0:nz, 0:ny-1, 0:nx-1)     ! db/dx in spectral space
-            double precision                :: dbdys(0:nz, 0:ny-1, 0:nx-1)     ! db/dy in spectral space
-            double precision                :: dbdzs(0:nz, 0:ny-1, 0:nx-1)     ! db/dz in spectral space
+            double precision                :: xs(0:nz, 0:ny-1, 0:nx-1)        ! db/dx or x-vtend in spectral space
+            double precision                :: ys(0:nz, 0:ny-1, 0:nx-1)        ! db/dy or y-vtend in spectral space
+            double precision                :: zs(0:nz, 0:ny-1, 0:nx-1)        ! db/dz or z-vtend in spectral space
             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
@@ -115,27 +116,27 @@ module advance_mod
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v,w)*grad(bb):
 
-            !Obtain x, y & z derivatives of buoyancy -> dbdxs, dbdys, dbdzs
-            call diffx(sbuoys, dbdxs)
-            call diffy(sbuoys, dbdys)
-            call diffz(sbuoys, dbdzs)
+            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+            call diffx(sbuoys, xs)
+            call diffy(sbuoys, ys)
+            call diffz(sbuoys, zs)
 
             !Store spectral db/dx, db/dy and db/dz in svorts for use in vorticity source below:
-            svorts(:, :, :, 1) = dbdxs
-            svorts(:, :, :, 2) = dbdys
-            svorts(:, :, :, 3) = dbdzs
+            svorts(:, :, :, 1) = xs
+            svorts(:, :, :, 2) = ys
+            svorts(:, :, :, 3) = zs
 
             !Obtain gradient of buoyancy in physical space
-            call fftxys2p(dbdxs, dbdx)
-            call fftxys2p(dbdys, dbdy)
-            call fftxys2p(dbdzs, dbdz)
+            call fftxys2p(xs, dbdx)
+            call fftxys2p(ys, dbdy)
+            call fftxys2p(zs, dbdz)
 
             !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
             dbdx = velog(:, :, :, 1) * dbdx &   ! u * db/dx
                  + velog(:, :, :, 2) * dbdy &   ! v * db/dy
                  + velog(:, :, :, 3) * dbdz     ! w * db/dz
 
-            !Convert to spectral space as sbuoys and apply de-aliasing filter:
+            !Convert to spectral space xs sbuoys and apply de-aliasing filter:
             call fftxyp2s(dbdx, sbuoys)
 
             do iz = 0, nz
@@ -148,14 +149,14 @@ module advance_mod
             call vorticity_tendency(vortg, velog, buoyg, vtend)
 
             !Convert to spectral space and apply de-aliasing filter:
-            call fftxyp2s(vtend(:, :, :, 1), dbdxs)
-            call fftxyp2s(vtend(:, :, :, 2), dbdys)
-            call fftxyp2s(vtend(:, :, :, 3), dbdzs)
+            call fftxyp2s(vtend(:, :, :, 1), xs)
+            call fftxyp2s(vtend(:, :, :, 2), ys)
+            call fftxyp2s(vtend(:, :, :, 3), zs)
 
             do iz = 0, nz
-                svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * dbdxs(iz, :, :)
-                svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * dbdys(iz, :, :)
-                svorts(iz, :, :, 3) = svorts(iz, :, :, 3) - filt * dbdzs(iz, :, :)
+                svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * xs(iz, :, :)
+                svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * ys(iz, :, :)
+                svorts(iz, :, :, 3) = svorts(iz, :, :, 3) - filt * zs(iz, :, :)
             enddo
 
         end subroutine source
@@ -168,45 +169,45 @@ module advance_mod
             double precision, intent(in) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)
             double precision, intent(in) :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision             :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision             :: dbdxs(0:nz, 0:nx-1, 0:ny-1)     ! db/dx in spectral space
-            double precision             :: dbdys(0:nz, 0:nx-1, 0:ny-1)     ! db/dy in spectral space
-            double precision             :: dbdzs(0:nz, 0:nx-1, 0:ny-1)     ! db/dz in spectral space
-            double precision             :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-            double precision             :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-            double precision             :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
+            double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
+            double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
+            double precision             :: zs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in z in spectral space
+            double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
+            double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
+            double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
             double precision             :: strain(3, 3), eigs(3)
-            double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)
-            double precision             :: dudy(0:nz, 0:ny-1, 0:nx-1)
-            double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)
-            double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)
-            double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)
+            double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
+            double precision             :: dudy(0:nz, 0:ny-1, 0:nx-1)      ! du/dy in physical space
+            double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
+            double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
+            double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
 
-            !Obtain x, y & z derivatives of buoyancy -> dbdxs, dbdys, dbdzs
-            call diffx(sbuoys, dbdxs)
-            call diffy(sbuoys, dbdys)
-            call diffz(sbuoys, dbdzs)
+            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+            call diffx(sbuoys, xs)
+            call diffy(sbuoys, ys)
+            call diffz(sbuoys, zs)
 
-            !Obtain gradient of buoyancy in physical space
-            call fftxys2p(dbdxs, dbdx)
-            call fftxys2p(dbdys, dbdy)
-            call fftxys2p(dbdzs, dbdz)
+            !Obtain gradient of buoyancy in physical space -> xp, yp, zp
+            call fftxys2p(xs, xp)
+            call fftxys2p(ys, yp)
+            call fftxys2p(zs, zp)
 
 
-            !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> dbdx in physical space:
-            dbdx = dbdx ** 2 + dbdy ** 2 + dbdz ** 2
+            !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
+            xp = xp ** 2 + yp ** 2 + zp ** 2
 
             !Maximum buoyancy frequency:
-            bfmax = sqrt(sqrt(maxval(dbdx)))
+            bfmax = sqrt(sqrt(maxval(xp)))
 
-            !Maximum vorticity: (reuse dbdx)
-            dbdx = vortg(:, :, :, 1) ** 2 &
-                 + vortg(:, :, :, 2) ** 2 &
-                 + vortg(:, :, :, 3) ** 2
+            !Maximum vorticity: (reuse xp)
+            xp = vortg(:, :, :, 1) ** 2 &
+               + vortg(:, :, :, 2) ** 2 &
+               + vortg(:, :, :, 3) ** 2
 
-            vortmax = sqrt(maxval(dbdx))
+            vortmax = sqrt(maxval(xp))
 
             !R.m.s. vorticity:
-            vortrms = sqrt(ncelli*(f12*sum(dbdx(0, :, :)+dbdx(nz, :, :))+sum(dbdx(1:nz-1, :, :))))
+            vortrms = sqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
@@ -226,38 +227,36 @@ module advance_mod
             enddo
             vorch = vorl2 / vorl1
 
-            !Compute x derivative of velocity components:
-
             !
             ! velocity strain
             !
-            dbdx = velog(:, :, :, 1)
-            call fftxyp2s(dbdx, svelog(:, :, :, 1))
-            dbdx = velog(:, :, :, 2)
-            call fftxyp2s(dbdx, svelog(:, :, :, 2))
-            dbdx = velog(:, :, :, 3)
-            call fftxyp2s(dbdx, svelog(:, :, :, 3))
+            xp = velog(:, :, :, 1)
+            call fftxyp2s(xp, svelog(:, :, :, 1))
+            xp = velog(:, :, :, 2)
+            call fftxyp2s(xp, svelog(:, :, :, 2))
+            xp = velog(:, :, :, 3)
+            call fftxyp2s(xp, svelog(:, :, :, 3))
 
 
             ! du/dx
-            call diffx(svelog(:, :, :, 1), dbdxs)
-            call fftxys2p(dbdxs, dudx)
+            call diffx(svelog(:, :, :, 1), xs)
+            call fftxys2p(xs, dudx)
 
             ! du/dy
-            call diffy(svelog(:, :, :, 1), dbdys)
-            call fftxys2p(dbdys, dudy)
+            call diffy(svelog(:, :, :, 1), ys)
+            call fftxys2p(ys, dudy)
 
             ! dw/dx
-            call diffx(svelog(:, :, :, 3), dbdxs)
-            call fftxys2p(dbdxs, dwdx)
+            call diffx(svelog(:, :, :, 3), xs)
+            call fftxys2p(xs, dwdx)
 
             ! dv/dy
-            call diffy(svelog(:, :, :, 2), dbdys)
-            call fftxys2p(dbdys, dvdy)
+            call diffy(svelog(:, :, :, 2), ys)
+            call fftxys2p(ys, dvdy)
 
             ! dw/dy
-            call diffy(svelog(:, :, :, 3), dbdys)
-            call fftxys2p(dbdys, dwdy)
+            call diffy(svelog(:, :, :, 3), ys)
+            call fftxys2p(ys, dwdy)
 
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
@@ -294,7 +293,7 @@ module advance_mod
                         strain(1, 3) = dwdx(iz, iy, ix) + f12 * vortg(iz, iy, ix, 2) ! S13
                         strain(2, 2) = dvdy(iz, iy, ix)                              ! S22
                         strain(2, 3) = dwdy(iz, iy, ix) - f12 * vortg(iz, iy, ix, 1) ! S23
-                        strain(3, 3) = -(dudx(iz, iy, ix) + dvdy(iz, iy, ix)) ! S33
+                        strain(3, 3) = -(dudx(iz, iy, ix) + dvdy(iz, iy, ix))        ! S33
 
                         ! calculate its eigenvalues. The Jacobi solver
                         ! requires the upper triangular matrix only.
