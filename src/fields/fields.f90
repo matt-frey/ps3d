@@ -16,12 +16,13 @@ module fields
         svortg,    &   ! vorticity vector field in spectral space
         vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         velog,     &   ! velocity vector field (u, v, w)
+        svelog,    &   ! velocity vector field (u, v, w)
         vtend          ! vorticity tendency
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
         sbuoyg         ! buoyancy (spectral)
-        
+
     double precision, allocatable, dimension(:, :) :: &
         diss           ! dissipation operator (spectral)
 
@@ -34,6 +35,7 @@ module fields
             endif
 
             allocate(velog(0:nz, 0:ny-1, 0:nx-1, 3))
+            allocate(svelog(0:nz, 0:nx-1, 0:ny-1, 3))
 
             allocate(vortg(0:nz, 0:ny-1, 0:nx-1, 3))
             allocate(svortg(0:nz, 0:nx-1, 0:ny-1, 3))

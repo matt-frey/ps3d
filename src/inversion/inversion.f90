@@ -28,7 +28,7 @@ module inversion_mod
             integer                         :: iz, nc
 
             call start_timer(vor2vel_timer)
-            
+
             !Compute vorticity in physical space:
             do nc = 1, 3
                 as = svortg(:, :, :, nc)
@@ -69,7 +69,7 @@ module inversion_mod
 
             !Find x velocity component \hat{u}:
             call diffx(es, as)
-            call diffy(cs, bs)
+            call diffy(svortg(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -116,9 +116,10 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
-        subroutine vorticity_tendency(svortg, velog, svtend)
+        subroutine vorticity_tendency(svortg, velog, vortg, svtend)
             double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision, intent(out) :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
             double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
@@ -129,42 +130,42 @@ module inversion_mod
             integer                       :: nc
 
             call start_timer(vtend_timer)
-            
+
             do nc = 1, 3
-                as = svortg(:, :, :, nc)
-                call fftxys2p(as, vortg(:, :, :, nc)
+                xs = svortg(:, :, :, nc)
+                call fftxys2p(xs, vortg(:, :, :, nc))
                 vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
             enddo
-            
+
             ! x-component of vorticity tendency:
             yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
             zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
-            
+
             call fftxys2p(yp, ys)
             call fftxys2p(zp, zs)
-            
+
             call diffy(ys, xs)
             call diffz(zs, svtend(:, :, :, 1))
             svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
-            
+
             ! y-component of vorticity tendency:
             xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
             zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
-            
+
             call fftxys2p(xp, xs)
             call fftxys2p(zp, zs)
-            
+
             call diffx(xs, ys)
             call diffz(zs, svtend(:, :, :, 2))
             svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
-            
+
             ! z-component of vorticity tendency:
             xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
             yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
-            
+
             call fftxys2p(xp, xs)
             call fftxys2p(yp, ys)
-            
+
             call diffx(xs, zs)
             call diffy(ys, svtend(:, :, :, 3))
             svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
