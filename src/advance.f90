@@ -127,9 +127,9 @@ module advance_mod
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoys, xs)
-            call diffy(sbuoys, ys)
-            call diffz(sbuoys, zs)
+            call diffx(sbuoyg, xs)
+            call diffy(sbuoyg, ys)
+            call diffz(sbuoyg, zs)
 
             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
             svorts(:, :, :, 1) = ys
