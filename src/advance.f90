@@ -52,7 +52,7 @@ module advance_mod
             call vor2vel(svortg, vortg, svelog, velog)
 
             !Adapt the time step
-            call adapt(t, sbuoys, velog, svelog)
+            call adapt(t, sbuoyg, velog, svelog)
 
             !Write fields
             call write_step(t)
@@ -168,9 +168,9 @@ module advance_mod
         !=======================================================================
 
         ! Adapts the time step and computes various diagnostics
-        subroutine adapt(t, sbuoys, velog, svelog)
+        subroutine adapt(t, sbuoyg, velog, svelog)
             double precision, intent(in) :: t
-            double precision, intent(in) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)
+            double precision, intent(in) :: sbuoyg(0:nz, 0:nx-1, 0:ny-1)
             double precision, intent(in) :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(in) :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
@@ -187,9 +187,9 @@ module advance_mod
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoys, xs)
-            call diffy(sbuoys, ys)
-            call diffz(sbuoys, zs)
+            call diffx(sbuoyg, xs)
+            call diffy(sbuoyg, ys)
+            call diffz(sbuoyg, zs)
 
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
             call fftxys2p(xs, xp)
