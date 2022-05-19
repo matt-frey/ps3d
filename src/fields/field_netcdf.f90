@@ -9,6 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
+    use inversion_utils, only : fftxys2p
     implicit none
 
     integer :: field_io_timer
@@ -176,6 +177,7 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
+            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in spectral space (temporary)
 
             call start_timer(field_io_timer)
 
@@ -209,6 +211,8 @@ module field_netcdf
             call write_netcdf_dataset(ncid, z_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
                                       start, cnt)
 
+            bs = sbuoyg
+            call fftxys2p(bs, buoyg)
             call write_netcdf_dataset(ncid, buoy_id, buoyg(0:nz, 0:ny-1, 0:nx-1),   &
                                       start, cnt)
 
