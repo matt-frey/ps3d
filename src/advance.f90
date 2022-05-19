@@ -168,9 +168,6 @@ module advance_mod
             double precision, intent(in) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)
             double precision, intent(in) :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision             :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
-            !For defining the max strain & buoyancy frequency based time step:
-            double precision, parameter  :: alpha = 0.1d0
-            !Note: EPIC-2D paper recommends alpha = 0.2 for ls-rk4 method
             double precision             :: dbdxs(0:nz, 0:nx-1, 0:ny-1)     ! db/dx in spectral space
             double precision             :: dbdys(0:nz, 0:nx-1, 0:ny-1)     ! db/dy in spectral space
             double precision             :: dbdzs(0:nz, 0:nx-1, 0:ny-1)     ! db/dz in spectral space
@@ -315,9 +312,9 @@ module advance_mod
                                + velog(:, :, :, 3) ** 2))
 
             !Choose new time step:
-            dt = min(alpha / (ggmax + small),  &
-                     alpha / (bfmax + small),  &
-                     cflpf / (velmax + small), &
+            dt = min(time%alpha / (ggmax + small),  &
+                     time%alpha / (bfmax + small),  &
+                     cflpf / (velmax + small),      &
                      time%limit - t)
 
             !Update value of dt/4:
