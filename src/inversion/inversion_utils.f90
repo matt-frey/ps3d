@@ -352,9 +352,10 @@ module inversion_utils
             double precision, intent(out) :: ds(0:nz, nx, ny)
             integer                       :: iz
 
-            ! forward and backward differencing for boundary cells
+            ! linear extrapolation to fill boundary cells:
             ! iz = 0:  (fs(1) - fs(0)) / dz
             ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+            ! could try other method: one-sided differencing
             ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
             ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
 
