@@ -47,8 +47,6 @@ module inversion_utils
             , diffy          &
             , diffz          &
             , lapinv0        &
-            , lapinv1        &
-            , vertint        &
             , fftxyp2s       &
             , fftxys2p       &
             , dz2            &
@@ -412,87 +410,6 @@ module inversion_utils
             !$omp end do
             !$omp end parallel
         end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Inverts Laplace's operator on fs in semi-spectral space.
-        !Here dfs/dz = 0 on the z boundaries.
-        !Uses 2nd-order differencing
-        !*** Overwrites fs ***
-        subroutine lapinv1(fs)
-            double precision, intent(inout) :: fs(0:nz, nx, ny)
-            double precision                :: rs(0:nz, nx, ny)
-            integer                         :: iz, isub, ib_sub, ie_sub
-
-            rs = fs
-            fs(0, :, :) = rs(0, :, :) * htdv(0, :, :)
-
-            !$omp parallel shared(rs, fs, ap, htdv, nz, nxsub) private(isub, ib_sub, ie_sub, iz) default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = 1, nz-1
-                    fs(iz, ib_sub:ie_sub, :) = (rs(iz, ib_sub:ie_sub, :) &
-                                             - ap * fs(iz-1, ib_sub:ie_sub, :)) &
-                                             * htdv(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            fs(nz, :, :) = (rs(nz, :, :) - two * ap * fs(nz-1, :, :)) * htdv(nz, :, :)
-
-            !$omp parallel shared(fs, etdv, nz, nxsub) private(isub, ib_sub, ie_sub, iz) default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = nz-1, 0, -1
-                    fs(iz, ib_sub:ie_sub, :) = etdv(iz, ib_sub:ie_sub, :) &
-                                             * fs(iz+1, ib_sub:ie_sub, :) + fs(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-             !Zero horizontal wavenumber in x & y treated separately:
-             fs(:, 1, 1) = zero
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Finds f by integrating df/dz = d, ensuring f = 0 at the boundaries
-        !using trapezoidal rule.  Here ds = df/dz and fs = f.
-        subroutine vertint(ds, fs)
-            double precision, intent(in)  :: ds(0:nz)
-            double precision, intent(out) :: fs(0:nz)
-            double precision              :: c
-            integer                       :: iz
-
-            ! set lower boundary value
-            fs(0)  = zero
-
-            do iz = 1, nz
-                fs(iz) = fs(iz-1) + dz2 * (ds(iz) + ds(iz-1))
-            enddo
-
-            ! shift to adjust f(nz) to be zero
-            c = fs(nz) / dble(nz)
-
-            !$omp parallel private(iz)
-            !$omp do
-            do iz = 1, nz-1
-                fs(iz) = fs(iz) - c * dble(iz)
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            ! set upper boundary value
-            fs(nz)  = zero
-
-        end subroutine
-
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
