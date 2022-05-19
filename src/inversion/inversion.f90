@@ -141,8 +141,8 @@ module inversion_mod
             yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
             zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
 
-            call fftxys2p(yp, ys)
-            call fftxys2p(zp, zs)
+            call fftxyp2s(yp, ys)
+            call fftxyp2s(zp, zs)
 
             call diffy(ys, xs)
             call diffz(zs, svtend(:, :, :, 1))
@@ -152,8 +152,8 @@ module inversion_mod
             xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
             zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
 
-            call fftxys2p(xp, xs)
-            call fftxys2p(zp, zs)
+            call fftxyp2s(xp, xs)
+            call fftxyp2s(zp, zs)
 
             call diffx(xs, ys)
             call diffz(zs, svtend(:, :, :, 2))
@@ -163,8 +163,8 @@ module inversion_mod
             xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
             yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
 
-            call fftxys2p(xp, xs)
-            call fftxys2p(yp, ys)
+            call fftxyp2s(xp, xs)
+            call fftxyp2s(yp, ys)
 
             call diffx(xs, zs)
             call diffy(ys, svtend(:, :, :, 3))
