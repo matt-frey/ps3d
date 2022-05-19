@@ -104,6 +104,7 @@ module advance_mod
             enddo
 
             !Advance time:
+            print *, "At time", t, "and time step", dt
             t = t + dt
         end subroutine advance
 
