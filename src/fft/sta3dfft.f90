@@ -180,8 +180,8 @@ module sta3dfft
             integer                       :: kx, ky, nzval, nxval, nyval
 
             nzval = size(fp, 1)
-            nyval = size(fp, 2)
-            nxval = size(fp, 3)
+            nxval = size(fp, 2)
+            nyval = size(fp, 3)
 
             !Carry out z FFT for each kx and ky:
             do ky = 1, nyval
