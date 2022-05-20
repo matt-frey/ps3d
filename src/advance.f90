@@ -15,6 +15,7 @@ module advance_mod
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, vorticity_tendency
     use inversion_utils
+    use sta3dfft, only : fftfs2ss, fftss2fs, fftczp2s
     use utils, only : write_step
     use fields
     use jacobi, only : jacobi_eigenvalues
@@ -123,18 +124,22 @@ module advance_mod
             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
             double precision                :: svtend(0:nz, 0:nx-1, 0:ny-1, 3) ! vtend in spectral space
+            double precision                :: bs(0:nz, 0:ny-1, 0:nx-1)        ! buoyancy in semi-spectral space
 
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
+            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
+            call fftfs2ss(sbuoyg, bs)
+
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoyg, xs)
-            call diffy(sbuoyg, ys)
-            call diffz(sbuoyg, zs)
+            call diffx(bs, xs)
+            call diffy(bs, ys)
+            call diffz(bs, zs)
 
             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
-            svorts(:, :, :, 1) = ys
-            svorts(:, :, :, 2) = -xs
+            call fftss2fs(ys, svorts(:, :, :, 1))
+            call fftss2fs(-xs, svorts(:, :, :, 2))
 
             !Obtain gradient of buoyancy in physical space
             call fftxys2p(xs, dbdx)
@@ -146,33 +151,20 @@ module advance_mod
                  + velog(:, :, :, 2) * dbdy &   ! v * db/dy
                  + velog(:, :, :, 3) * dbdz     ! w * db/dz
 
-            !Convert to spectral space and apply de-aliasing filter:
-            call fftxyp2s(dbdx, sbuoys)
+            !Convert to fully spectral space and apply de-aliasing filter:
+            call fftczp2s(dbdx, sbuoys)
 
-            sbuoys = -sbuoys
-            call apply_filter(sbuoys)
-!             do iz = 0, nz
-!                 sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
-!             enddo
+            sbuoys = -filt * sbuoys
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
 
             call vorticity_tendency(svortg, velog, vortg, svtend)
 
-            call apply_filter(svtend(:, :, :, 1))
-            call apply_filter(svtend(:, :, :, 2))
-            call apply_filter(svtend(:, :, :, 3))
-
-            svorts(:, :, :, 1) = svorts(:, :, :, 1) - svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = svorts(:, :, :, 2) - svtend(:, :, :, 2)
-            svorts(:, :, :, 3) =                    - svtend(:, :, :, 3)
-
-!             do iz = 0, nz
-!                 svorts(iz, :, :, 1) = svorts(iz, :, :, 1) - filt * svtend(iz, :, :, 1)
-!                 svorts(iz, :, :, 2) = svorts(iz, :, :, 2) - filt * svtend(iz, :, :, 2)
-!                 svorts(iz, :, :, 3) =                     - filt * svtend(iz, :, :, 3)
-!             enddo
+            !Add filtered vorticity tendency to vorticity source:
+            svorts(:, :, :, 1) = svorts(:, :, :, 1) - filt * svtend(:, :, :, 1)
+            svorts(:, :, :, 2) = svorts(:, :, :, 2) - filt * svtend(:, :, :, 2)
+            svorts(:, :, :, 3) =                    - filt * svtend(:, :, :, 3)
 
         end subroutine source
 
@@ -196,11 +188,16 @@ module advance_mod
             double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
+            double precision             :: bs(0:nz, 0:ny-1, 0:nx-1)        ! buoyancy in semi-spectral space
+
+
+            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
+            call fftfs2ss(sbuoyg, bs)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoyg, xs)
-            call diffy(sbuoyg, ys)
-            call diffz(sbuoyg, zs)
+            call diffx(bs, xs)
+            call diffy(bs, ys)
+            call diffz(bs, zs)
 
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
             call fftxys2p(xs, xp)

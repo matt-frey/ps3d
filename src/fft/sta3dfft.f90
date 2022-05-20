@@ -92,53 +92,6 @@ module sta3dfft
                 enddo
             enddo
 
-!             !Define filter:
-!
-!             !kz > 0:
-!             do ky = 1, ny
-!                 do kx = 1, nx
-!                     do kz = 1, nz
-!                         filt(kz, kx, ky) = rkx(kx)**2 + rky(ky)**2 + rkz(kz)**2
-!                     enddo
-!                 enddo
-!             enddo
-!
-!             !kz = 0:
-!             do ky = 1, ny
-!                 do kx = 1, nx
-!                     filt(0, kx, ky) = rkx(kx)**2 + rky(ky)**2
-!                 enddo
-!             enddo
-!
-!             kmax = dsqrt(maxval(filt))
-! !             write(*,*)
-! !             write(*,'(a,f9.3)') '  Note, kx_max = ',rkx(nwx+1)
-! !             write(*,'(a,f9.3)') '        ky_max = ',rky(nwy+1)
-! !             write(*,'(a,f9.3)') '        kz_max = ',rkz(nz)
-! !             write(*,'(a,f9.3)') '   and  k_max = ',kmax
-! !             write(*,*)
-! !             write(*,*) ' Enter k_c/k_max:'
-! !             read(*,*) kc
-!
-!             kc =  0.827133988d0 !2.0d0/3.0d0 !0.389d0  !FIXME
-!             kc = kc * kmax
-! !             cfilt = -one / kc**2
-!
-!             print *, "kmax = ", kmax
-!             print *, "kc * kmax = ", kc
-!
-!              filt = 0.0d0
-!             do ky = 1, ny
-!                 do kx = 1, nx
-!                     do kz = 0, nz
-!                         if (filt(kz, kx, ky) < kc ** 2) then
-!                              filt(kz, kx, ky) = 1.0d0
-!                          endif
-! !                          filt(kz, kx, ky) = dexp(cfilt * filt(kz, kx, ky))
-!                     enddo
-!                 enddo
-!             enddo
-! !             print *, "max. cfilt*filt", maxval(filt * filt)
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -148,29 +101,32 @@ module sta3dfft
         !fp is generally non-zero at the z boundaries (so a cosine
         !transform is used in z).
         !*** fp is destroyed upon exit ***
-        subroutine fftczp2s(fp, fs, nx, ny, nz)
-            integer,          intent(in)    :: nx, ny, nz
-            double precision, intent(inout) :: fp(0:nz, ny, nx)  !Physical
-            double precision, intent(out)   :: fs(0:nz, nx, ny)  !Spectral
-            integer                         :: kx, ky, iy
+        subroutine fftczp2s(fp, fs)
+            double precision, intent(inout) :: fp(:, :, :)  !Physical
+            double precision, intent(out)   :: fs(:, :, :)  !Spectral
+            integer                         :: kx, ky, iy, nzval, nxval, nyval
+
+            nzval = size(fp, 1)
+            nyval = size(fp, 2)
+            nxval = size(fp, 3)
 
             !Carry out a full x transform first:
-            call forfft((nz+1)*ny, nx, fp, xtrig, xfactors)
+            call forfft(nzval * nyval, nxval, fp, xtrig, xfactors)
 
             !Transpose array:
-            do kx = 1, nx
-                do iy = 1, ny
+            do kx = 1, nxval
+                do iy = 1, nyval
                     fs(:, kx, iy) = fp(:, iy, kx)
                 enddo
             enddo
 
             !Carry out a full y transform on transposed array:
-            call forfft((nz+1)*nx, ny, fs, ytrig, yfactors)
+            call forfft(nzval * nxval, nyval, fs, ytrig, yfactors)
 
             !Carry out z FFT for each kx and ky:
-            do ky = 1, ny
-                do kx = 1, nx
-                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+            do ky = 1, nyval
+                do kx = 1, nxval
+                    call dct(1, nzval, fs(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
@@ -182,29 +138,80 @@ module sta3dfft
         !fp is generally non-zero at the z boundaries (so a cosine
         !transform is used in z).
         !*** fs is destroyed upon exit ***
-        subroutine fftczs2p(fs, fp, nx, ny, nz)
-            integer,          intent(in)    :: nx, ny, nz
-            double precision, intent(inout) :: fs(0:nz, nx, ny)  !Spectral
-            double precision, intent(out)   :: fp(0:nz, ny, nx)  !Physical
-            integer                         :: ix, iy, kx
+        subroutine fftczs2p(fs, fp)
+            double precision, intent(inout) :: fs(:, :, :)  !Spectral
+            double precision, intent(out)   :: fp(:, :, :)  !Physical
+            integer                         :: ix, iy, kx, nzval, nxval, nyval
+
+            nzval = size(fs, 1)
+            nxval = size(fs, 2)
+            nyval = size(fs, 3)
 
             !Carry out a full inverse y transform first:
-            call revfft((nz+1)*nx,ny,fs,ytrig,yfactors)
+            call revfft(nzval * nxval, nyval,fs,ytrig,yfactors)
 
             !Transpose array:
-            do kx = 1, nx
-                do iy = 1, ny
+            do kx = 1, nxval
+                do iy = 1, nyval
                     fp(:, iy, kx) = fs(:, kx, iy)
                 enddo
             enddo
 
             !Carry out a full inverse x transform:
-            call revfft((nz+1)*ny, nx, fp, xtrig, xfactors)
+            call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
 
             !Carry out z FFT for each ix and iy:
-            do ix = 1, nx
-                do iy = 1, ny
-                    call dct(1, nz, fp(:, iy, ix), ztrig, zfactors)
+            do ix = 1, nxval
+                do iy = 1, nyval
+                    call dct(1, nzval, fp(:, iy, ix), ztrig, zfactors)
+                enddo
+            enddo
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Computes a 3D FFT of an array fp in semi-spectral space and
+        !returns the result as fs in fully spectral space.  It is assumed that
+        !fp is generally non-zero at the z boundaries (so a cosine
+        !transform is used in z).
+        subroutine fftss2fs(fp, fs)
+            double precision, intent(in)  :: fp(:, :, :)  !semi-spectral
+            double precision, intent(out) :: fs(:, :, :)  !fully-spectral
+            integer                       :: kx, ky, nzval, nxval, nyval
+
+            nzval = size(fp, 1)
+            nyval = size(fp, 2)
+            nxval = size(fp, 3)
+
+            !Carry out z FFT for each kx and ky:
+            do ky = 1, nyval
+                do kx = 1, nxval
+                    fs(:, kx, ky) = fp(:, kx, ky)
+                    call dct(1, nzval, fs(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Computes an *inverse* 3D FFT of an array fs in fully spectral space and
+        !returns the result as fp in semi-spectral space.  It is assumed that
+        !fp is generally non-zero at the z boundaries (so a cosine
+        !transform is used in z).
+        subroutine fftfs2ss(fs, fp)
+            double precision, intent(in)  :: fs(:, :, :)  !fully spectral
+            double precision, intent(out) :: fp(:, :, :)  !semi-spectral
+            integer                       :: ix, iy, nzval, nxval, nyval
+
+            nzval = size(fs, 1)
+            nxval = size(fs, 2)
+            nyval = size(fs, 3)
+
+            !Carry out z FFT for each ix and iy:
+            do ix = 1, nxval
+                do iy = 1, nyval
+                    fp(:, iy, iy) = fs(:, iy, iy)
+                    call dct(1, nzval, fp(:, iy, ix), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
