@@ -54,11 +54,13 @@ program test_fft3d
 
     call fftxys2p(ds, fp)
 
-    print *, "max. abs. error = ", maxval(abs(ref - fs))
-    print *, "min. abs. error = ", minval(abs(ref - fs))
+    print *, "max. abs. error = ", maxval(abs(ref - fp))
+    print *, "min. abs. error = ", minval(abs(ref - fp))
 
     deallocate(fp)
     deallocate(fs)
+    deallocate(ss)
+    deallocate(ds)
     deallocate(ref)
 
 end program test_fft3d
