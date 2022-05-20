@@ -3,7 +3,7 @@ module inversion_utils
     use parameters, only : nx, ny, nz, dx, dxi, extent
     use stafft
     use sta2dfft
-    use sta3dfft, only : init3dfft, ztrig, zfactors, filt
+    use sta3dfft, only : init3dfft, ztrig, zfactors, filt, rkz
     implicit none
 
     private
@@ -34,7 +34,7 @@ module inversion_utils
 !     double precision, allocatable :: skx(:), sky(:)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :)
+    double precision, allocatable :: hdis(:, :, :)
 
 
 
@@ -75,11 +75,11 @@ module inversion_utils
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
             double precision             :: visc
-            double precision             :: rkxmax, rkymax
-            integer                      :: nnu2, kx, ky
+            double precision             :: rkxmax, rkymax,rkzmax
+            integer                      :: nnu2, kx, ky, kz
 
 
-            allocate(hdis(0:nx-1, 0:ny-1))
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Set up FFTs:
@@ -87,6 +87,7 @@ module inversion_utils
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
+            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
@@ -96,42 +97,55 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
-                hdis(0, 0) = zero
+                hdis(0, 0, 0) = zero
 
-                ! x part independent of y
+                ! x part independent of y an z
                 do kx = 1, nx-1
-                    hdis(kx, 0) = visc * rkx(kx) ** 2
+                    hdis(0, kx, 0) = visc * rkx(kx) ** 2
                 enddo
 
-                ! y part independent of x
+                ! y part independent of x and z
                 do ky = 1, ny-1
-                    hdis(0, ky) = visc * rky(ky) ** 2
+                    hdis(0, 0, ky) = visc * rky(ky) ** 2
+                enddo
+
+                ! z part independent of y and z
+                do kz = 1, nz
+                    hdis(kz, 0, 0) = visc * rkz(kz) ** 2
                 enddo
 
                 do ky = 1, ny-1
                     do kx = 1, nx-1
-                        hdis(kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2)
+                        do kz = 1, nz
+                            hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2)
+                        enddo
                     enddo
                 enddo
             else
                 !Define hyperviscosity:
                 nnu2 = 2 * nnu
-                visc = prediss / max(rkxmax, rkymax) ** nnu2
+                visc = prediss / max(rkxmax, rkymax, rkzmax) ** nnu2
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
 
                 !Define dissipation operator:
-                hdis(0, 0) = zero
+                hdis(0, 0, 0) = zero
                 do kx = 1, nx-1
-                    hdis(kx, 0) = visc * rkx(kx) ** nnu2
+                    hdis(0, kx, 0) = visc * rkx(kx) ** nnu2
                 enddo
 
                 do ky = 1, ny-1
-                    hdis(0, ky) = visc * rky(ky) ** nnu2
+                    hdis(0, 0, ky) = visc * rky(ky) ** nnu2
+                enddo
+
+                do kz = 0, nz
+                    hdis(kz, 0, 0) = visc * rkz(kz) ** nnu2
                 enddo
 
                 do ky = 1, ny-1
                     do kx = 1, nx-1
-                        hdis(kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2) ** nnu
+                        do kz = 1, nz
+                            hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2) ** nnu
+                        enddo
                     enddo
                 enddo
             endif

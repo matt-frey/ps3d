@@ -19,7 +19,7 @@ module sta3dfft
     double precision, allocatable :: skx(:), sky(:), skz(:)
 
     private :: xtrig, ytrig, xfactors, yfactors,   &
-               rkx, hrkx, rky, hrky, rkz
+               rkx, hrkx, rky, hrky
 
     contains
 
