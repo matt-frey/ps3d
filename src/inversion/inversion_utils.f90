@@ -137,7 +137,7 @@ module inversion_utils
                     hdis(0, 0, ky) = visc * rky(ky) ** nnu2
                 enddo
 
-                do kz = 0, nz
+                do kz = 1, nz
                     hdis(kz, 0, 0) = visc * rkz(kz) ** nnu2
                 enddo
 

@@ -37,7 +37,7 @@ module sta3dfft
                 allocate(hrkx(nx))
                 allocate(rky(ny))
                 allocate(hrky(ny))
-                allocate(rkz(0:nz))
+                allocate(rkz(nz))
                 allocate(xtrig(2*nx))
                 allocate(ytrig(2*ny))
                 allocate(ztrig(2*nz))
@@ -72,8 +72,7 @@ module sta3dfft
             rky(nwy+1) = hrky(ny)
 
             !Define z wavenumbers:
-            rkz(0) = zero
-            call init_deriv(nz, extent(3), rkz(1:nz))
+            call init_deriv(nz, extent(3), rkz)
 
 
             !----------------------------------------------------------
@@ -84,7 +83,7 @@ module sta3dfft
             sky = -36.d0 * (kymaxi * rky) ** 36
             kzmaxi = one / maxval(rkz)
             skz(0) = zero
-            skz(1:nz)=-36.d0 * (kzmaxi * rkz(1:nz)) ** 36
+            skz(1:nz)=-36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
                     do kz = 0, nz
