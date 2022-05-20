@@ -181,7 +181,7 @@ module advance_mod
             double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
-            double precision             :: bs(0:nz, 0:ny-1, 0:nx-1)        ! buoyancy in semi-spectral space
+            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
 
 
             !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz

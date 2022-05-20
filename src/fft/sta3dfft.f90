@@ -126,7 +126,7 @@ module sta3dfft
             !Carry out z FFT for each kx and ky:
             do ky = 1, nyval
                 do kx = 1, nxval
-                    call dct(1, nzval, fs(:, kx, ky), ztrig, zfactors)
+                    call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
@@ -163,7 +163,7 @@ module sta3dfft
             !Carry out z FFT for each ix and iy:
             do ix = 1, nxval
                 do iy = 1, nyval
-                    call dct(1, nzval, fp(:, iy, ix), ztrig, zfactors)
+                    call dct(1, nzval-1, fp(:, iy, ix), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
@@ -187,7 +187,7 @@ module sta3dfft
             do ky = 1, nyval
                 do kx = 1, nxval
                     fs(:, kx, ky) = fp(:, kx, ky)
-                    call dct(1, nzval, fs(:, kx, ky), ztrig, zfactors)
+                    call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
@@ -211,7 +211,7 @@ module sta3dfft
             do iy = 1, nyval
                 do ix = 1, nxval
                     fp(:, ix, iy) = fs(:, ix, iy)
-                    call dct(1, nzval, fp(:, ix, iy), ztrig, zfactors)
+                    call dct(1, nzval-1, fp(:, ix, iy), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
