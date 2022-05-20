@@ -132,7 +132,7 @@ module advance_mod
 
             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
             call fftss2fs(ys, svorts(:, :, :, 1))
-            call fftss2fs(-xs, svorts(:, :, :, 2))
+            call fftss2fs(xs, svorts(:, :, :, 2))
 
             !Obtain gradient of buoyancy in physical space
             call fftxys2p(xs, dbdx)
@@ -155,9 +155,9 @@ module advance_mod
             call vorticity_tendency(svortg, velog, vortg, svtend)
 
             !Add filtered vorticity tendency to vorticity source:
-            svorts(:, :, :, 1) = svorts(:, :, :, 1) - filt * svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = svorts(:, :, :, 2) - filt * svtend(:, :, :, 2)
-            svorts(:, :, :, 3) =                    - filt * svtend(:, :, :, 3)
+            svorts(:, :, :, 1) =   svorts(:, :, :, 1) - filt * svtend(:, :, :, 1)
+            svorts(:, :, :, 2) = - svorts(:, :, :, 2) - filt * svtend(:, :, :, 2)
+            svorts(:, :, :, 3) =                      - filt * svtend(:, :, :, 3)
 
         end subroutine source
 
