@@ -209,10 +209,10 @@ module sta3dfft
             nyval = size(fs, 3)
 
             !Carry out z FFT for each ix and iy:
-            do ix = 1, nxval
-                do iy = 1, nyval
-                    fp(:, iy, iy) = fs(:, iy, iy)
-                    call dct(1, nzval, fp(:, iy, ix), ztrig, zfactors)
+            do iy = 1, nyval
+                do ix = 1, nxval
+                    fp(:, ix, iy) = fs(:, ix, iy)
+                    call dct(1, nzval, fp(:, ix, iy), ztrig, zfactors)
                 enddo
             enddo
         end subroutine
