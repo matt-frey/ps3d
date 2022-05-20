@@ -110,14 +110,14 @@ module advance_mod
         subroutine source(sbuoys, svorts)
             double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
             double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-            double precision                :: xs(0:nz, 0:ny-1, 0:nx-1)        ! db/dx or x-vtend in spectral space
-            double precision                :: ys(0:nz, 0:ny-1, 0:nx-1)        ! db/dy or y-vtend in spectral space
-            double precision                :: zs(0:nz, 0:ny-1, 0:nx-1)        ! db/dz or z-vtend in spectral space
+            double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
+            double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
+            double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
             double precision                :: svtend(0:nz, 0:nx-1, 0:ny-1, 3) ! vtend in spectral space
-            double precision                :: bs(0:nz, 0:ny-1, 0:nx-1)        ! buoyancy in semi-spectral space
+            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
 
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
