@@ -1,7 +1,6 @@
 program test_fft3d
     use constants
-    use inversion_utils, only : init_inversion, fftxys2p, diffz
-    use sta3dfft, only : fftczp2s, fftfs2ss
+    use inversion_utils, only : init_inversion, fftxys2p, diffz, fftczp2s, fftfs2ss
     use parameters, only : update_parameters, dx, nx, ny, nz, lower, extent
     implicit none
 
@@ -9,9 +8,9 @@ program test_fft3d
     integer            :: ix, iy, iz
     double precision   :: x, y, z, k, l, m
 
-    nx = 32
-    ny = 32
-    nz = 32
+    nx = 16
+    ny = 16
+    nz = 16
     lower = (/-pi, -pi, -pi/)
     extent = (/twopi, twopi, twopi/)
 

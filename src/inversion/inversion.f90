@@ -4,7 +4,6 @@ module inversion_mod
     use physics, only : f_cor
     use constants, only : zero, two, f12
     use timer, only : start_timer, stop_timer
-    use sta3dfft, only : fftczs2p, fftfs2ss, fftss2fs
     implicit none
 
     integer :: vor2vel_timer,   &

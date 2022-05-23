@@ -7,8 +7,7 @@ program ps3d
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer
-    use inversion_utils, only : init_inversion
-    use sta3dfft, only : fftczp2s, filt
+    use inversion_utils, only : init_inversion, fftczp2s, filt
     use advance_mod, only : advance, advance_timer
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
