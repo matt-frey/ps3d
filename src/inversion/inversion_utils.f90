@@ -99,8 +99,8 @@ module inversion_utils
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2)
+                        do kz = 0, nz-1
+                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz+1) ** 2)
                         enddo
                     enddo
                 enddo
@@ -113,8 +113,8 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2) ** nnu
+                        do kz = 0, nz-1
+                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz+1) ** 2) ** nnu
                         enddo
                     enddo
                 enddo
