@@ -98,7 +98,7 @@ module inversion_utils
                 do ky = 0, ny-1
                     do kx = 0, nx-1
                         do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz+1) ** 2)
+                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
                         enddo
                     enddo
                 enddo
@@ -112,7 +112,7 @@ module inversion_utils
                 do ky = 0, ny-1
                     do kx = 0, nx-1
                         do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz+1) ** 2) ** nnu
+                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
                         enddo
                     enddo
                 enddo
@@ -187,7 +187,7 @@ module inversion_utils
             allocate(hrkx(nx))
             allocate(rky(ny))
             allocate(hrky(ny))
-            allocate(rkz(nz))
+            allocate(rkz(0:nz))
             allocate(xtrig(2 * nx))
             allocate(ytrig(2 * ny))
             allocate(ztrig(2*nz))
@@ -218,7 +218,8 @@ module inversion_utils
             rkymax = hrky(ny)
 
             !Define z wavenumbers:
-            call init_deriv(nz, extent(3), rkz)
+            rkz(0) = zero
+            call init_deriv(nz, extent(3), rkz(1:nz))
 
             !Squared maximum total wavenumber:
             rksqmax = rkxmax ** 2 + rkymax ** 2
@@ -241,8 +242,7 @@ module inversion_utils
             kymaxi = one/maxval(rky)
             sky = -36.d0 * (kymaxi * rky) ** 36
             kzmaxi = one / maxval(rkz)
-            skz(0) = zero
-            skz(1:nz)=-36.d0 * (kzmaxi * rkz) ** 36
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
                     do kz = 0, nz
