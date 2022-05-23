@@ -97,26 +97,9 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
-                hdis(0, 0, 0) = zero
-
-                ! x part independent of y an z
-                do kx = 1, nx-1
-                    hdis(0, kx, 0) = visc * rkx(kx) ** 2
-                enddo
-
-                ! y part independent of x and z
-                do ky = 1, ny-1
-                    hdis(0, 0, ky) = visc * rky(ky) ** 2
-                enddo
-
-                ! z part independent of y and z
-                do kz = 1, nz
-                    hdis(kz, 0, 0) = visc * rkz(kz) ** 2
-                enddo
-
-                do ky = 1, ny-1
-                    do kx = 1, nx-1
-                        do kz = 1, nz
+                do ky = 0, ny-1
+                    do kx = 0, nx-1
+                        do kz = 0, nz
                             hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2)
                         enddo
                     enddo
@@ -128,22 +111,9 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
 
                 !Define dissipation operator:
-                hdis(0, 0, 0) = zero
-                do kx = 1, nx-1
-                    hdis(0, kx, 0) = visc * rkx(kx) ** nnu2
-                enddo
-
-                do ky = 1, ny-1
-                    hdis(0, 0, ky) = visc * rky(ky) ** nnu2
-                enddo
-
-                do kz = 1, nz
-                    hdis(kz, 0, 0) = visc * rkz(kz) ** nnu2
-                enddo
-
-                do ky = 1, ny-1
-                    do kx = 1, nx-1
-                        do kz = 1, nz
+                do ky = 0, ny-1
+                    do kx = 0, nx-1
+                        do kz = 0, nz
                             hdis(kz, kx, ky) = visc * (rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2) ** nnu
                         enddo
                     enddo
