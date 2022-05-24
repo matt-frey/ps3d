@@ -58,12 +58,14 @@ module inversion_mod
             wbot = ds(0,  :, :)
             wtop = ds(nz, :, :)
             
-            ! Define the interior semi-spectral field:
-            do iz = 0, nz
+            ! Define the complete vertical velocity in semi-spectral space:
+            do iz = 1, nz-1
                 ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(iz, :, :) + wtop * decz(iz, :, :))
             enddo
+            ds(0,  :, :) = zero
+            ds(nz, :, :) = zero
             
-            ! FFT to fully spectral space (sine transform):
+            ! FFT to fully spectral space (sine transform) as the array ss:
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     ss(:, kx, ky) = ds(1:nz, kx, ky)
@@ -71,7 +73,7 @@ module inversion_mod
                 enddo
             enddo
             
-            ! Derivative in z:
+            ! Derivative in z (dw/dz in fully spectral space):
             do kz = 1, nz
                 es(kz, :, :) = rkz(kz) * ss(kz, :, :)
             enddo
