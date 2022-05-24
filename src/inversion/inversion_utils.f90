@@ -28,7 +28,7 @@ module inversion_utils
     integer :: xfactors(5), yfactors(5), zfactors(5)
     integer, parameter :: nsubs_tri = 8 !number of blocks for openmp
     integer :: nxsub
-    
+
     double precision, allocatable :: green(:, :, :)
     double precision, allocatable :: decz(:, :, :)
 
@@ -38,8 +38,8 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
 
-    private :: xtrig, ytrig, xfactors, yfactors, zfactors, &
-               rkx, hrkx, rky, hrky, rkz
+    private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
+               rkx, hrkx, rky, hrky!, rkz
 
 
 
@@ -66,7 +66,10 @@ module inversion_utils
             , fftss2fs       &
             , fftfs2ss       &
             , green          &
-            , decz
+            , decz           &
+            , zfactors       &
+            , ztrig          &
+            , rkz
 
     contains
 
@@ -125,7 +128,7 @@ module inversion_utils
                     enddo
                 enddo
             endif
-            
+
             !---------------------------------------------------------------------
             !Define Green function
             do ky = 0, ny-1
@@ -135,21 +138,21 @@ module inversion_utils
                     enddo
                 enddo
             enddo
-            
+
             do ky = 0, ny-1
                 do kx = 1, nx-1
                     green(0, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
                 enddo
             enddo
-            
+
             do ky = 1, ny-1
                 green(0, 0, ky) = - one / rky(ky+1) ** 2
             enddo
-            
+
             green(0, 0, 0) = zero
-            
+
             !---------------------------------------------------------------------
-            !Fractional y grid values: 
+            !Fractional y grid values:
             fac = one / dble(nz)
             do iz = 0, nz
                 zh1(iz) = fac * dble(iz)
@@ -165,14 +168,14 @@ module inversion_utils
                                              exp(-fac*(one + zh1)))
                 enddo
             enddo
-            
+
             do kx = 1, nx-1
                 fac = rkx(kx+1) * extent(3)
                 div = one / (one - dexp(-two * fac))
                 decz(:, kx, 0) = div * (exp(-fac*(one - zh1)) - &
                                         exp(-fac*(one + zh1)))
             enddo
-            
+
             decz(:, 0, 0) = zero
 
         end subroutine init_inversion

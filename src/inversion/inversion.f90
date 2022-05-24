@@ -3,6 +3,7 @@ module inversion_mod
     use parameters, only : nx, ny, nz, dxi
     use physics, only : f_cor
     use constants, only : zero, two, f12
+    use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
     implicit none
 
@@ -28,7 +29,7 @@ module inversion_mod
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
             double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
-            integer                         :: iz, nc
+            integer                         :: iz, nc, kx, ky, kz
 
             call start_timer(vor2vel_timer)
 
@@ -37,7 +38,7 @@ module inversion_mod
                 as = svortg(:, :, :, nc)
                 call fftczs2p(as, vortg(:, :, :, nc))
             enddo
-            
+
             !Form source term for inversion of vertical velocity:
             call diffy(svortg(:, :, :, 1), ds)
             call diffx(svortg(:, :, :, 2), es)
@@ -47,24 +48,24 @@ module inversion_mod
             ds = green * (ds - es)
             !$omp end workshare
             !$omp end parallel
-            
+
             ! FFT back the particular solution to semi-spectral space:
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
-            
+
             wbot = ds(0,  :, :)
             wtop = ds(nz, :, :)
-            
+
             ! Define the complete vertical velocity in semi-spectral space:
             do iz = 1, nz-1
                 ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(iz, :, :) + wtop * decz(iz, :, :))
             enddo
             ds(0,  :, :) = zero
             ds(nz, :, :) = zero
-            
+
             ! FFT to fully spectral space (sine transform) as the array ss:
             do ky = 0, ny-1
                 do kx = 0, nx-1
@@ -72,14 +73,14 @@ module inversion_mod
                     call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
-            
+
             ! Derivative in z (dw/dz in fully spectral space):
             do kz = 1, nz
                 es(kz, :, :) = rkz(kz) * ss(kz, :, :)
             enddo
             es(0,  :, :) = zero
             es(nz, :, :) = zero
-            
+
             ! FFT back to semi-spectral space:
             do ky = 0, ny-1
                 do kx = 0, nx-1
