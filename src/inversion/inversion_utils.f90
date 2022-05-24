@@ -28,6 +28,9 @@ module inversion_utils
     integer :: xfactors(5), yfactors(5), zfactors(5)
     integer, parameter :: nsubs_tri = 8 !number of blocks for openmp
     integer :: nxsub
+    
+    double precision, allocatable :: green(:, :, :)
+    double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :, :)
@@ -61,7 +64,9 @@ module inversion_utils
             , fftczp2s       &
             , fftczs2p       &
             , fftss2fs       &
-            , fftfs2ss
+            , fftfs2ss       &
+            , green          &
+            , decz
 
     contains
 
@@ -72,12 +77,15 @@ module inversion_utils
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
-            double precision             :: visc
+            double precision             :: visc, fac, div
             double precision             :: rkxmax, rkymax,rkzmax
-            integer                      :: nnu2, kx, ky, kz
+            integer                      :: nnu2, kx, ky, kz, iz
+            double precision             :: zh1(0:nz), zh0(0:nz)
 
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(green(0:nz, 0:nx-1, 0:ny-1))
+            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Set up FFTs:
@@ -117,6 +125,55 @@ module inversion_utils
                     enddo
                 enddo
             endif
+            
+            !---------------------------------------------------------------------
+            !Define Green function
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    do kz = 1, nz
+                        green(kz, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
+                    enddo
+                enddo
+            enddo
+            
+            do ky = 0, ny-1
+                do kx = 1, nx-1
+                    green(0, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
+                enddo
+            enddo
+            
+            do ky = 1, ny-1
+                green(0, 0, ky) = - one / rky(ky+1) ** 2
+            enddo
+            
+            green(0, 0, 0) = zero
+            
+            !---------------------------------------------------------------------
+            !Fractional y grid values: 
+            fac = one / dble(nz)
+            do iz = 0, nz
+                zh1(iz) = fac * dble(iz)
+                zh0(iz) = one - zh1(iz)
+            enddo
+
+            !Hyperbolic functions used for solutions of Laplace's equation:
+            do ky = 1, ny-1
+                do kx = 0, nx-1
+                    fac = dsqrt(rky(ky+1) ** 2 + rkx(kx+1) ** 2) * extent(3)
+                    div = one / (one - dexp(-two * fac))
+                    decz(:, kx, ky) = div * (exp(-fac*(one - zh1)) - &
+                                             exp(-fac*(one + zh1)))
+                enddo
+            enddo
+            
+            do kx = 1, nx-1
+                fac = rkx(kx+1) * extent(3)
+                div = one / (one - dexp(-two * fac))
+                decz(:, kx, 0) = div * (exp(-fac*(one - zh1)) - &
+                                        exp(-fac*(one + zh1)))
+            enddo
+            
+            decz(:, 0, 0) = zero
 
         end subroutine init_inversion
 
