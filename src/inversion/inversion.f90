@@ -24,8 +24,10 @@ module inversion_mod
             double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
+            double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
             integer                         :: iz, nc
 
             call start_timer(vor2vel_timer)
@@ -34,6 +36,53 @@ module inversion_mod
             do nc = 1, 3
                 as = svortg(:, :, :, nc)
                 call fftczs2p(as, vortg(:, :, :, nc))
+            enddo
+            
+            !Form source term for inversion of vertical velocity:
+            call diffy(svortg(:, :, :, 1), ds)
+            call diffx(svortg(:, :, :, 2), es)
+
+            !$omp parallel
+            !$omp workshare
+            ds = green * (ds - es)
+            !$omp end workshare
+            !$omp end parallel
+            
+            ! FFT back the particular solution to semi-spectral space:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            
+            wbot = ds(0,  :, :)
+            wtop = ds(nz, :, :)
+            
+            ! Define the interior semi-spectral field:
+            do iz = 0, nz
+                ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(iz, :, :) + wtop * decz(iz, :, :))
+            enddo
+            
+            ! FFT to fully spectral space (sine transform):
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    ss(:, kx, ky) = ds(1:nz, kx, ky)
+                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            
+            ! Derivative in z:
+            do kz = 1, nz
+                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
+            enddo
+            es(0,  :, :) = zero
+            es(nz, :, :) = zero
+            
+            ! FFT back to semi-spectral space:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
+                enddo
             enddo
 
             !Convert vorticity components to semi-spectral space
@@ -56,22 +105,6 @@ module inversion_mod
                 ubar(iz) = ubar(iz) - uavg
                 vbar(iz) = vbar(iz) - vavg
             enddo
-
-            !Form source term for inversion of vertical velocity:
-            call diffy(as, ds)
-            call diffx(bs, es)
-
-            !$omp parallel
-            !$omp workshare
-            ds = ds - es
-            !$omp end workshare
-            !$omp end parallel
-
-            !Invert to find vertical velocity \hat{w} (store in ds, spectrally):
-            call lapinv0(ds)
-
-            !Find \hat{w}' (store in es, spectrally):
-            call diffz(ds, es)
 
             !Find x velocity component \hat{u}:
             call diffx(es, as)
