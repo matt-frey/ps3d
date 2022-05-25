@@ -20,7 +20,9 @@ module fields
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
-        sbuoyg,    &   ! buoyancy (fully spectral)
+        sbuoyg         ! buoyancy (fully spectral)
+
+    double precision, allocatable, dimension(:, :) :: &
         diss           ! dissipation operator (spectral)
 
 
@@ -41,7 +43,7 @@ module fields
             allocate(buoyg(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoyg(0:nz, 0:nx-1, 0:ny-1))
 
-            allocate(diss(0:nz, 0:nx-1, 0:ny-1))
+            allocate(diss(0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
 

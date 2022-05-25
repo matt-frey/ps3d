@@ -33,10 +33,10 @@ module inversion_utils
     double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :, :)
+    double precision, allocatable :: hdis(:, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: filt(:, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                rkx, hrkx, rky, hrky!, rkz
@@ -60,7 +60,7 @@ module inversion_utils
             , hdzi           &
             , k2l2i          &
             , hdis           &
-            , apply_filter   &
+!             , apply_filter   &
             , fftczp2s       &
             , fftczs2p       &
             , fftss2fs       &
@@ -86,7 +86,7 @@ module inversion_utils
             double precision             :: zh1(0:nz), zh0(0:nz)
 
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(hdis(0:nx-1, 0:ny-1))
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
@@ -108,9 +108,7 @@ module inversion_utils
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
-                        enddo
+                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
                     enddo
                 enddo
             else
@@ -122,9 +120,7 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
-                        enddo
+                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2) ** nnu
                     enddo
                 enddo
             endif
@@ -180,29 +176,29 @@ module inversion_utils
 
         end subroutine init_inversion
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine apply_filter(fs)
-            double precision, intent(inout) :: fs(0:nz, nx, ny)
-            integer                         :: kx, ky
-
-            !Carry out z FFT for each kx and ky:
-            do ky = 1, ny
-                do kx = 1, nx
-                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
-            fs = filt * fs
-
-            !Carry out z FFT for each kx and ky:
-            do ky = 1, ny
-                do kx = 1, nx
-                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
-        end subroutine apply_filter
+!         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+!
+!         subroutine apply_filter(fs)
+!             double precision, intent(inout) :: fs(0:nz, nx, ny)
+!             integer                         :: kx, ky
+!
+!             !Carry out z FFT for each kx and ky:
+!             do ky = 1, ny
+!                 do kx = 1, nx
+!                     call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+!                 enddo
+!             enddo
+!
+!             fs = filt * fs
+!
+!             !Carry out z FFT for each kx and ky:
+!             do ky = 1, ny
+!                 do kx = 1, nx
+!                     call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+!                 enddo
+!             enddo
+!
+!         end subroutine apply_filter
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -214,7 +210,7 @@ module inversion_utils
             double precision              :: rksqmax
             double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz, iz, isub, ib_sub, ie_sub
-            double precision              :: skx(nx), sky(ny), skz(0:nz)
+            double precision              :: skx(nx), sky(ny)
 
             if (is_initialised) then
                 return
@@ -238,7 +234,7 @@ module inversion_utils
             allocate(ksq(nx, ny))
             allocate(k2l2i(nx, ny))
 
-            allocate(filt(0:nz, nx, ny))
+            allocate(filt(nx, ny))
             allocate(etdh(nz-1, nx, ny))
             allocate(htdh(nz-1, nx, ny))
             allocate(etdv(0:nz, nx, ny))
@@ -301,13 +297,9 @@ module inversion_utils
             skx = -36.d0 * (kxmaxi * rkx) ** 36
             kymaxi = one/maxval(rky)
             sky = -36.d0 * (kymaxi * rky) ** 36
-            kzmaxi = one / maxval(rkz)
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
-                    do kz = 0, nz
-                        filt(kz, kx, ky) = dexp(skx(kx) + sky(ky) + skz(kz))
-                    enddo
+                    filt(kx, ky) = dexp(skx(kx) + sky(ky))
                 enddo
             enddo
 
