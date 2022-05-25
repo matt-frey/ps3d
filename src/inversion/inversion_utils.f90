@@ -82,7 +82,7 @@ module inversion_utils
             double precision, intent(in) :: prediss
             double precision             :: visc, fac, div
             double precision             :: rkxmax, rkymax,rkzmax
-            integer                      :: nnu2, kx, ky, kz, iz
+            integer                      :: nnu2, kx, ky, iz, kz
             double precision             :: zh1(0:nz), zh0(0:nz)
 
 
@@ -208,8 +208,8 @@ module inversion_utils
             double precision, allocatable :: a0(:, :), ksq(:, :)
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
-            double precision              :: kxmaxi, kymaxi, kzmaxi
-            integer                       :: kx, ky, kz, iz, isub, ib_sub, ie_sub
+            double precision              :: kxmaxi, kymaxi
+            integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
             double precision              :: skx(nx), sky(ny)
 
             if (is_initialised) then
