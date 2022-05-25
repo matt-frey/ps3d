@@ -61,7 +61,7 @@ module inversion_mod
 
             ! Define the complete vertical velocity in semi-spectral space:
             do iz = 1, nz-1
-                ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(iz, :, :) + wtop * decz(iz, :, :))
+                ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(nz-iz, :, :) + wtop * decz(iz, :, :))
             enddo
             ds(0,  :, :) = zero
             ds(nz, :, :) = zero

@@ -152,7 +152,7 @@ module inversion_utils
             green(0, 0, 0) = zero
 
             !---------------------------------------------------------------------
-            !Fractional y grid values:
+            !Fractional z grid values:
             fac = one / dble(nz)
             do iz = 0, nz
                 zh1(iz) = fac * dble(iz)
@@ -164,16 +164,16 @@ module inversion_utils
                 do kx = 0, nx-1
                     fac = dsqrt(rky(ky+1) ** 2 + rkx(kx+1) ** 2) * extent(3)
                     div = one / (one - dexp(-two * fac))
-                    decz(:, kx, ky) = div * (exp(-fac*(one - zh1)) - &
-                                             exp(-fac*(one + zh1)))
+                    decz(:, kx, ky) = div * (exp(-fac * (one - zh1)) - &
+                                             exp(-fac * (one + zh1)))
                 enddo
             enddo
 
             do kx = 1, nx-1
                 fac = rkx(kx+1) * extent(3)
                 div = one / (one - dexp(-two * fac))
-                decz(:, kx, 0) = div * (exp(-fac*(one - zh1)) - &
-                                        exp(-fac*(one + zh1)))
+                decz(:, kx, 0) = div * (exp(-fac * (one - zh1)) - &
+                                        exp(-fac * (one + zh1)))
             enddo
 
             decz(:, 0, 0) = zero
