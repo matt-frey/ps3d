@@ -13,18 +13,17 @@ module fields
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
     double precision, allocatable, dimension(:, :, :, :) :: &
-        svortg,    &   ! vorticity vector field in spectral space
+        svortg,    &   ! vorticity vector field in fully spectral space
         vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         velog,     &   ! velocity vector field (u, v, w)
-        svelog,    &   ! velocity vector field (u, v, w)
-        vtend          ! vorticity tendency
+        svelog,    &   ! velocity vector field (u, v, w) (semi-spectral)
+        svtend
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
-        sbuoyg         ! buoyancy (spectral)
-
-    double precision, allocatable, dimension(:, :) :: &
+        sbuoyg,    &   ! buoyancy (fully spectral)
         diss           ! dissipation operator (spectral)
+
 
     contains
 
@@ -40,12 +39,12 @@ module fields
             allocate(vortg(0:nz, 0:ny-1, 0:nx-1, 3))
             allocate(svortg(0:nz, 0:nx-1, 0:ny-1, 3))
 
-            allocate(vtend(0:nz, 0:ny-1, 0:nx-1, 3))
+            allocate(svtend(0:nz, 0:nx-1, 0:ny-1, 3))
 
             allocate(buoyg(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoyg(0:nz, 0:nx-1, 0:ny-1))
 
-            allocate(diss(0:nx-1, 0:ny-1))
+            allocate(diss(0:nz, 0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
 
@@ -56,8 +55,8 @@ module fields
             velog    = zero
             vortg    = zero
             svortg   = zero
+            svtend   = zero
 
-            vtend    = zero
             buoyg    = zero
             sbuoyg   = zero
             diss     = zero

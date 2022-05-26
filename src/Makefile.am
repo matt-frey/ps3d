@@ -5,7 +5,7 @@ AM_FCFLAGS =				\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
 
-bin_PROGRAMS = ps3d
+bin_PROGRAMS = ps3d test_fft3d
 ps3d_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
@@ -21,6 +21,20 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/utils/libps_utils.la 	\
 	$(top_builddir)/src/fft/libps_fft.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
+
+test_fft3d_SOURCES = 				\
+	utils/options.f90			\
+	utils/parameters.f90			\
+	inversion/inversion_utils.f90		\
+	inversion/inversion.f90			\
+	fields/fields.f90			\
+	test_fft3d.f90
+
+test_fft3d_LDADD = 					\
+	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/netcdf/libps_netcdf.la
+
 
 clean-local:
 	rm -f *.mod
