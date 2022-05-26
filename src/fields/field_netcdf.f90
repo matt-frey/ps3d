@@ -9,7 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : fftxys2p
+    use inversion_utils, only : fftxys2p, fftczs2p
     implicit none
 
     integer :: field_io_timer
@@ -22,15 +22,17 @@ module field_netcdf
 
     integer            :: x_vel_id, y_vel_id, z_vel_id, &
                           x_vor_id, y_vor_id, z_vor_id, &
-                          buoy_id, diss_id, n_writes
+                          buoy_id, n_writes,            &
+                          xvtend_id, yvtend_id, zvtend_id
 
     private :: ncid, ncfname,                   &
                dimids,                          &
                coord_ids, t_axis_id,            &
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
-               buoy_id, diss_id, n_writes
-
+               buoy_id, n_writes,               &
+               xvtend_id, yvtend_id, zvtend_id
+    
     contains
 
         ! Create the field file.
@@ -132,13 +134,31 @@ module field_netcdf
                                        varid=buoy_id)
 
             call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='dissipation',                  &
-                                       long_name='dissipation operator',    &
+                                       name='x_vorticity_tendency',         &
+                                       long_name='x vort. tend. component', &
                                        std_name='',                         &
-                                       unit='1',                            &
+                                       unit='',                             &
                                        dtype=NF90_DOUBLE,                   &
                                        dimids=dimids,                       &
-                                       varid=diss_id)
+                                       varid=xvtend_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='y_vorticity_tendency',         &
+                                       long_name='y vort. tend. component', &
+                                       std_name='',                         &
+                                       unit='',                             &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=yvtend_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='z_vorticity_tendency',         &
+                                       long_name='z vort. tend. component', &
+                                       std_name='',                         &
+                                       unit='',                             &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=zvtend_id)
 
             call close_definition(ncid)
 
@@ -178,7 +198,11 @@ module field_netcdf
 
             call get_var_id(ncid, 'buoyancy', buoy_id)
 
-            call get_var_id(ncid, 'dissipation', diss_id)
+            call get_var_id(ncid, 'x_vorticity_tendency', xvtend_id)
+
+            call get_var_id(ncid, 'y_vorticity_tendency', yvtend_id)
+
+            call get_var_id(ncid, 'z_vorticity_tendency', zvtend_id)
 
         end subroutine read_netcdf_field_content
 
@@ -189,7 +213,8 @@ module field_netcdf
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in spectral space (temporary)
-
+            double precision             :: vtend(0:nz, 0:ny-1, 0:nx-1)
+            
             call start_timer(field_io_timer)
 
             call open_netcdf_file(ncfname, NF90_WRITE, ncid)
@@ -222,15 +247,26 @@ module field_netcdf
             call write_netcdf_dataset(ncid, z_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
                                       start, cnt)
 
-            ! Attention: x and y are revers!
-            call write_netcdf_dataset(ncid, diss_id, diss(0:nz, 0:nx-1, 0:ny-1),   &
-                                      start, cnt)
-
             bs = sbuoyg
             call fftxys2p(bs, buoyg)
             call write_netcdf_dataset(ncid, buoy_id, buoyg(0:nz, 0:ny-1, 0:nx-1),   &
-                                      start, cnt)
+                 start, cnt)
 
+            bs = svtend(:, :, :, 1)
+            call fftczs2p(bs, vtend)
+            call write_netcdf_dataset(ncid, xvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+            bs = svtend(:, :, :, 2)
+            call fftczs2p(bs, vtend)
+            call write_netcdf_dataset(ncid, yvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+            bs = svtend(:, :, :, 3)
+            call fftczs2p(bs, vtend)
+            call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+            
             ! increment counter
             n_writes = n_writes + 1
 

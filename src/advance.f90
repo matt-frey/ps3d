@@ -73,8 +73,8 @@ module advance_mod
             vortsm = svortg + dt4 * svorts
 
             do nc = 1, 3
-                svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                    - vortsi(:, :, :, nc)
+               svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                   - vortsi(:, :, :, nc)
             enddo
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
@@ -89,10 +89,10 @@ module advance_mod
 
                 !Update fields:
                 sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
-
+                
                 do nc = 1, 3
-                    svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                        - vortsi(:, :, :, nc)
+                   svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                       - vortsi(:, :, :, nc)
                 enddo
             enddo
 
@@ -146,7 +146,9 @@ module advance_mod
             !Convert to fully spectral space and apply de-aliasing filter:
             call fftczp2s(dbdx, sbuoys)
 
-            sbuoys = -filt * sbuoys
+            do iz = 0, nz
+                sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
+            enddo
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
@@ -154,9 +156,11 @@ module advance_mod
             call vorticity_tendency(svortg, velog, vortg, svtend)
 
             !Add filtered vorticity tendency to vorticity source:
-            svorts(:, :, :, 1) =   svorts(:, :, :, 1) - filt * svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = - svorts(:, :, :, 2) - filt * svtend(:, :, :, 2)
-            svorts(:, :, :, 3) =                      - filt * svtend(:, :, :, 3)
+            do iz = 0, nz
+                svorts(iz, :, :, 1) =   svorts(iz, :, :, 1) - filt * svtend(iz, :, :, 1)
+                svorts(iz, :, :, 2) = - svorts(iz, :, :, 2) - filt * svtend(iz, :, :, 2)
+                svorts(iz, :, :, 3) =                       - filt * svtend(iz, :, :, 3)
+            enddo
 
         end subroutine source
 

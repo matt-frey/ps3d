@@ -37,7 +37,7 @@ program ps3d
                               , nnu                 &
                               , prediss
             double precision  :: bbdif
-!             integer           :: iz
+            integer           :: iz
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -70,10 +70,12 @@ program ps3d
             call fftczp2s(buoyg, sbuoyg)
 
             ! apply Hou and Li de-aliasing filter
-            svortg(:, :, :, 1) = filt * svortg(:, :, :, 1)
-            svortg(:, :, :, 2) = filt * svortg(:, :, :, 2)
-            svortg(:, :, :, 3) = filt * svortg(:, :, :, 3)
-            sbuoyg             = filt * sbuoyg
+            do iz = 0, nz
+                svortg(iz, :, :, 1) = filt * svortg(iz, :, :, 1)
+                svortg(iz, :, :, 2) = filt * svortg(iz, :, :, 2)
+                svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
+                sbuoyg(iz, :, :)    = filt * sbuoyg(iz, :, :)
+            enddo
 
             call setup_output_files
 

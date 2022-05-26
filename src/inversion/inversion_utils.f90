@@ -29,14 +29,17 @@ module inversion_utils
     integer, parameter :: nsubs_tri = 8 !number of blocks for openmp
     integer :: nxsub
 
+    double precision, allocatable :: green(:, :, :)
+    double precision, allocatable :: decz(:, :, :)
+
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: filt(:, :)
 
-    private :: xtrig, ytrig, xfactors, yfactors, zfactors, &
-               rkx, hrkx, rky, hrky, rkz
+    private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
+               rkx, hrkx, rky, hrky!, rkz
 
 
 
@@ -57,11 +60,15 @@ module inversion_utils
             , hdzi           &
             , k2l2i          &
             , hdis           &
-            , apply_filter   &
             , fftczp2s       &
             , fftczs2p       &
             , fftss2fs       &
-            , fftfs2ss
+            , fftfs2ss       &
+            , green          &
+            , decz           &
+            , zfactors       &
+            , ztrig          &
+            , rkz
 
     contains
 
@@ -72,12 +79,15 @@ module inversion_utils
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
-            double precision             :: visc
+            double precision             :: visc, fac, div
             double precision             :: rkxmax, rkymax,rkzmax
-            integer                      :: nnu2, kx, ky, kz
+            integer                      :: nnu2, kx, ky, iz, kz
+            double precision             :: zh1(0:nz), zh0(0:nz)
 
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(green(0:nz, 0:nx-1, 0:ny-1))
+            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Set up FFTs:
@@ -96,11 +106,11 @@ module inversion_utils
 
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
-                        enddo
-                    enddo
+                   do kx = 0, nx-1
+                      do kz = 0, nz
+                         hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
+                      enddo
+                   enddo
                 enddo
             else
                 !Define hyperviscosity:
@@ -111,38 +121,63 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
-                        enddo
+                       do kz = 0, nz
+                          hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
+                       enddo
                     enddo
                 enddo
             endif
 
-        end subroutine init_inversion
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine apply_filter(fs)
-            double precision, intent(inout) :: fs(0:nz, nx, ny)
-            integer                         :: kx, ky
-
-            !Carry out z FFT for each kx and ky:
-            do ky = 1, ny
-                do kx = 1, nx
-                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+            !---------------------------------------------------------------------
+            !Define Green function
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    do kz = 1, nz
+                        green(kz, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
+                    enddo
                 enddo
             enddo
 
-            fs = filt * fs
-
-            !Carry out z FFT for each kx and ky:
-            do ky = 1, ny
-                do kx = 1, nx
-                    call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
+            do ky = 0, ny-1
+                do kx = 1, nx-1
+                    green(0, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
                 enddo
             enddo
 
-        end subroutine apply_filter
+            do ky = 1, ny-1
+                green(0, 0, ky) = - one / rky(ky+1) ** 2
+            enddo
+
+            green(0, 0, 0) = zero
+
+            !---------------------------------------------------------------------
+            !Fractional z grid values:
+            fac = one / dble(nz)
+            do iz = 0, nz
+                zh1(iz) = fac * dble(iz)
+                zh0(iz) = one - zh1(iz)
+            enddo
+
+            !Hyperbolic functions used for solutions of Laplace's equation:
+            do ky = 1, ny-1
+                do kx = 0, nx-1
+                    fac = dsqrt(rky(ky+1) ** 2 + rkx(kx+1) ** 2) * extent(3)
+                    div = one / (one - dexp(-two * fac))
+                    decz(:, kx, ky) = div * (exp(-fac * (one - zh1)) - &
+                                             exp(-fac * (one + zh1)))
+                enddo
+            enddo
+
+            do kx = 1, nx-1
+                fac = rkx(kx+1) * extent(3)
+                div = one / (one - dexp(-two * fac))
+                decz(:, kx, 0) = div * (exp(-fac * (one - zh1)) - &
+                                        exp(-fac * (one + zh1)))
+            enddo
+
+            decz(:, 0, 0) = zero
+
+          end subroutine init_inversion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -152,9 +187,9 @@ module inversion_utils
             double precision, allocatable :: a0(:, :), ksq(:, :)
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
-            double precision              :: kxmaxi, kymaxi, kzmaxi
-            integer                       :: kx, ky, kz, iz, isub, ib_sub, ie_sub
-            double precision              :: skx(nx), sky(ny), skz(0:nz)
+            double precision              :: kxmaxi, kymaxi
+            integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
+            double precision              :: skx(nx), sky(ny)
 
             if (is_initialised) then
                 return
@@ -178,7 +213,7 @@ module inversion_utils
             allocate(ksq(nx, ny))
             allocate(k2l2i(nx, ny))
 
-            allocate(filt(0:nz, nx, ny))
+            allocate(filt(nx, ny))
             allocate(etdh(nz-1, nx, ny))
             allocate(htdh(nz-1, nx, ny))
             allocate(etdv(0:nz, nx, ny))
@@ -241,13 +276,9 @@ module inversion_utils
             skx = -36.d0 * (kxmaxi * rkx) ** 36
             kymaxi = one/maxval(rky)
             sky = -36.d0 * (kymaxi * rky) ** 36
-            kzmaxi = one / maxval(rkz)
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
-                    do kz = 0, nz
-                        filt(kz, kx, ky) = dexp(skx(kx) + sky(ky) + skz(kz))
-                    enddo
+                    filt(kx, ky) = dexp(skx(kx) + sky(ky))
                 enddo
             enddo
 
