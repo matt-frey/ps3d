@@ -67,18 +67,14 @@ module advance_mod
             !Initialise iteration (dt = dt/4 below):
             bsi = sbuoyg
             bsm = sbuoyg + dt4 * sbuoys
-            do iz = 0, nz
-                sbuoyg(iz, :, :) = diss * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
-            enddo
+            sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
 
             vortsi = svortg
             vortsm = svortg + dt4 * svorts
 
             do nc = 1, 3
-                do iz = 0, nz
-                    svortg(iz, :, :, nc) = diss * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
-                                         - vortsi(iz, :, :, nc)
-                enddo
+               svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                   - vortsi(:, :, :, nc)
             enddo
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
@@ -92,15 +88,11 @@ module advance_mod
                 call source(sbuoys, svorts)
 
                 !Update fields:
-                do iz = 0, nz
-                    sbuoyg(iz, :, :) = diss * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
-                enddo
-
+                sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
+                
                 do nc = 1, 3
-                    do iz = 0, nz
-                        svortg(iz, :, :, nc) = diss * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
-                                             - vortsi(iz, :, :, nc)
-                    enddo
+                   svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                       - vortsi(:, :, :, nc)
                 enddo
             enddo
 

@@ -66,27 +66,37 @@ module inversion_mod
             ds(0,  :, :) = zero
             ds(nz, :, :) = zero
 
-            ! FFT to fully spectral space (sine transform) as the array ss:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    ss(:, kx, ky) = ds(1:nz, kx, ky)
-                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
+!            ! FFT to fully spectral space (sine transform) as the array ss:
+!            do ky = 0, ny-1
+!                do kx = 0, nx-1
+!                    ss(:, kx, ky) = ds(1:nz, kx, ky)
+!                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
+!                enddo
+!            enddo
+!
+!            ! Derivative in z (dw/dz in fully spectral space):
+!            do kz = 1, nz
+!                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
+!            enddo
+            
+!            es(0,  :, :) = zero
+!            es(nz, :, :) = zero
 
-            ! Derivative in z (dw/dz in fully spectral space):
-            do kz = 1, nz
-                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
-            enddo
+            call diffz(ds, es)
+
             es(0,  :, :) = zero
             es(nz, :, :) = zero
 
-            ! FFT back to semi-spectral space:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
+            !! FFT back to semi-spectral space:
+            !do ky = 0, ny-1
+            !    do kx = 0, nx-1
+            !        call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
+            !    enddo
+            ! enddo
+
+            !print *, 'x-svort', minval(abs(svortg(:, :, :, 1)))
+            !print *, 'y-svort', minval(abs(svortg(:, :, :, 2)))
+            !print *, 'z-svort', minval(abs(svortg(:, :, :, 3))) 
 
             !Convert vorticity components to semi-spectral space
             call fftfs2ss(svortg(:, :, :, 1), as)

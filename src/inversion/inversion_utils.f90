@@ -33,7 +33,7 @@ module inversion_utils
     double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :)
+    double precision, allocatable :: hdis(:, :, :)
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :)
@@ -60,7 +60,6 @@ module inversion_utils
             , hdzi           &
             , k2l2i          &
             , hdis           &
-!             , apply_filter   &
             , fftczp2s       &
             , fftczs2p       &
             , fftss2fs       &
@@ -86,7 +85,7 @@ module inversion_utils
             double precision             :: zh1(0:nz), zh0(0:nz)
 
 
-            allocate(hdis(0:nx-1, 0:ny-1))
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
@@ -107,9 +106,11 @@ module inversion_utils
 
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
-                    enddo
+                   do kx = 0, nx-1
+                      do kz = 0, nz
+                         hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
+                      enddo
+                   enddo
                 enddo
             else
                 !Define hyperviscosity:
@@ -120,7 +121,9 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2) ** nnu
+                       do kz = 0, nz
+                          hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
+                       enddo
                     enddo
                 enddo
             endif
@@ -174,31 +177,7 @@ module inversion_utils
 
             decz(:, 0, 0) = zero
 
-        end subroutine init_inversion
-
-!         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!         subroutine apply_filter(fs)
-!             double precision, intent(inout) :: fs(0:nz, nx, ny)
-!             integer                         :: kx, ky
-!
-!             !Carry out z FFT for each kx and ky:
-!             do ky = 1, ny
-!                 do kx = 1, nx
-!                     call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
-!                 enddo
-!             enddo
-!
-!             fs = filt * fs
-!
-!             !Carry out z FFT for each kx and ky:
-!             do ky = 1, ny
-!                 do kx = 1, nx
-!                     call dct(1, nz, fs(:, kx, ky), ztrig, zfactors)
-!                 enddo
-!             enddo
-!
-!         end subroutine apply_filter
+          end subroutine init_inversion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
