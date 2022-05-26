@@ -1,15 +1,22 @@
 program genspec
-    use constants, only : pi, twopi, f14, f12, zero, one, four
+    use constants
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
     use parameters, only : nx, ny, nz
+    use field_netcdf, only : field_io_timer, read_netcdf_fields
+    use utils, only : setup_domain_and_parameters
+    use fields
     use timer
     implicit none
 
-    character(len=512) :: filename
-    integer            :: step
-    integer            :: iz
+    character(len=512)            :: filename
+    integer, allocatable          :: kmag(:, :, :)
+    double precision, allocatable :: spec(:)
+    integer, allocatable          :: num(:)
+    double precision, allocatable :: dV(:)
+    integer                       :: iz, nc, kx, ky, kz, m
+    double precision              :: kmax, dk, k, prefactor
 
     call register_timer('field I/O', field_io_timer)
 
@@ -17,6 +24,11 @@ program genspec
 
     ! read domain dimensions
     call setup_domain_and_parameters(trim(filename))
+
+    allocate(kmag(0:nz, 0:ny-1, 0:nx-1))
+    allocate(spec(0:max(nz, ny-1, nx-1)))
+    allocate(num(0:max(nz, ny-1, nx-1)))
+    allocate(dV(0:max(nz, ny-1, nx-1)))
 
     call field_default
 
@@ -26,6 +38,53 @@ program genspec
 
     ! use some dummy values for bbdif, nnu and prediss
     call init_inversion(zero, 3, 10.0d0)
+
+    ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
+    do nc = 1, 3
+        call fftczp2s(vortg(:, :, :, nc), svortg(:, :, :, nc))
+    enddo
+
+    ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
+    do ky = 0, ny-1
+        do kx = 0, nx-1
+            do kz = 0, nz
+                kmag(kz, ky, kx) = nint(dsqrt(rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2))
+            enddo
+        enddo
+    enddo
+
+    kmax = kmag(nz, ny-1, nx-1)
+
+    ! spacing of the shells
+    dk = kmax / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+
+    ! (3) accumulate spectrum
+    spec = zero
+    num = 0
+    dV = zero
+
+    prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
+
+    do ky = 0, ny-1
+        do kx = 0, nx-1
+            do kz = 0, nz
+                k = kmag(kz, ky, kx) / dk
+                m = int(k)
+                spec(m) = k
+                num(m) = num(m) + 1
+                dV(m) = prefactor * ((m+1) ** 3 - m ** 3)
+            enddo
+        enddo
+    enddo
+
+    do m = 0, size(spec)
+        if (num(m) > 0) then
+            spec(m) = spec(m) * dV(m) / num(m)
+        else
+            print *, "Empty bin!"
+            stop
+        endif
+    enddo
 
 
     contains
@@ -56,9 +115,9 @@ program genspec
                 write(1235, *) '#         k   P(k)'
             endif
 
-            do k = 1, kmax
-                write(1235, *) k * delk, spec(k)
-            enddo
+!             do k = 1, kmax
+! !                 write(1235, *) k * delk, spec(k)
+!             enddo
 
             close(1235)
 
@@ -71,7 +130,6 @@ program genspec
             character(len=512) :: arg
             logical            :: exists
 
-            step = -1
             filename = ''
             i = 0
             do
@@ -84,27 +142,16 @@ program genspec
                     i = i + 1
                     call get_command_argument(i, arg)
                     filename = trim(arg)
-                else if (arg == '--step') then
-                    i = i + 1
-                    call get_command_argument(i, arg)
-
-                    ! 1 October 2021
-                    ! https://stackoverflow.com/questions/24071722/converting-a-string-to-an-integer-in-fortran-90
-                    read(arg, *, iostat=stat)  step
-                    if (stat .ne. 0) then
-                        print *, 'Error conversion failed.'
-                        stop
-                    endif
                 else if (arg == '--help') then
                     print *, 'This program computes the power spectrum and writes it to file.'
-                    print *, 'A PS3D field output must be provided with the step number to analyse.'
-                    print *, 'Run code with "genspec --filename [field file]" --step [step number]'
+                    print *, 'A PS3D field output must be provided.'
+                    print *, 'Run code with "genspec --filename [field file]"'
                     stop
                 endif
                 i = i+1
             enddo
 
-            if ((filename == '') .or. (step == -1) ) then
+            if (filename == '') then
                 print *, 'No file or step provided. Run code with "genspec --help"'
                 stop
             endif

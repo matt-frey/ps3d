@@ -39,7 +39,7 @@ module inversion_utils
     double precision, allocatable :: filt(:, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
-               rkx, hrkx, rky, hrky!, rkz
+               hrkx, hrky!, rkz
 
 
 
@@ -68,6 +68,8 @@ module inversion_utils
             , decz           &
             , zfactors       &
             , ztrig          &
+            , rkx            &
+            , rky            &
             , rkz
 
     contains
