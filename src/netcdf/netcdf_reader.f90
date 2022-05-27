@@ -108,7 +108,7 @@ module netcdf_reader
             character(*), intent(out) :: file_type
 
             if (.not. has_attribute(ncid, 'file_type')) then
-                print *, 'Not a proper EPIC NetCDF file.'
+                print *, 'Not a proper PS3D NetCDF file.'
                 stop
             endif
 

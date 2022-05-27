@@ -345,12 +345,12 @@ module netcdf_writer
             call write_netcdf_dataset(ncid, dimids(3), z_axis)
         end subroutine write_netcdf_axis_3d
 
-        subroutine write_netcdf_info(ncid, epic_version, file_type, cf_version)
+        subroutine write_netcdf_info(ncid, ps3d_version, file_type, cf_version)
             integer,      intent(in) :: ncid
-            character(*), intent(in) :: epic_version
+            character(*), intent(in) :: ps3d_version
             character(*), intent(in) :: file_type
             character(*), intent(in) :: cf_version
-            call write_netcdf_attribute(ncid=ncid, name='EPIC_version', val=epic_version)
+            call write_netcdf_attribute(ncid=ncid, name='PS3D_version', val=ps3d_version)
             call write_netcdf_attribute(ncid=ncid, name='file_type', val=file_type)
             call write_netcdf_attribute(ncid=ncid, name='Conventions', val=cf_version)
             call write_netcdf_timestamp(ncid)

@@ -70,7 +70,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /EPIC/ field_file, nnu, prediss, output, time
+            namelist /PS3D/ field_file, nnu, prediss, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -83,7 +83,7 @@ module options
             ! open and read Namelist file.
             open(action='read', file=filename, iostat=ios, newunit=fn)
 
-            read(nml=EPIC, iostat=ios, unit=fn)
+            read(nml=PS3D, iostat=ios, unit=fn)
 
             if (ios /= 0) then
                 print *, 'Error: invalid Namelist format.'

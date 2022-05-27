@@ -179,7 +179,7 @@ module physics
                 call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
 #ifdef ENABLE_VERBOSE
             else
-                print *, "WARNING: No physical constants found! EPIC uses default values."
+                print *, "WARNING: No physical constants found! PS3D uses default values."
 #endif
             endif
 
