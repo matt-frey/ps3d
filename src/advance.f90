@@ -23,6 +23,7 @@ module advance_mod
     integer :: advance_timer
 
     integer, parameter :: WRITE_VOR = 1234
+    integer, parameter :: WRITE_ECOMP = 1235
 
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
@@ -187,6 +188,7 @@ module advance_mod
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
+            double precision             :: ke, en
 
 
             !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
@@ -238,6 +240,11 @@ module advance_mod
 
             ! Save vorticity diagnostics to vorticity.asc:
             write(WRITE_VOR, '(1x,f13.6,3(1x,1p,e14.7))') t , vortmax, vortrms, vorch
+
+            ! Save energy and enstrophy
+            ke = get_kinetic_energy()
+            en = get_enstrophy()
+            write(WRITE_ECOMP, '(1x,f13.6,3(1x,1p,e14.7))') t , ke, en
 
             !
             ! velocity strain

@@ -8,7 +8,7 @@ program ps3d
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer
     use inversion_utils, only : init_inversion, fftczp2s, filt
-    use advance_mod, only : advance, advance_timer, WRITE_VOR
+    use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
     implicit none
@@ -83,7 +83,10 @@ program ps3d
             call setup_output_files
 
             open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a2, a4, a4, a5)') '# ', 't ', 'max ', 'rms ', 'char '
+            write(WRITE_VOR, '(a2, a2, a4, a4, a4)') '# ', 't ', 'max ', 'rms ', 'char'
+
+            open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
+            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrohpy'
 
         end subroutine
 
@@ -109,6 +112,7 @@ program ps3d
             use options, only : output
 
             close(WRITE_VOR)
+            close(WRITE_ECOMP)
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)
