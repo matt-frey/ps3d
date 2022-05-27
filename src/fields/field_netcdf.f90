@@ -277,15 +277,24 @@ module field_netcdf
         end subroutine write_netcdf_fields
 
 
-        subroutine read_netcdf_fields(ncfname)
-            character(*), intent(in)  :: ncfname
-            integer                   :: n_steps, start(4), cnt(4)
+        subroutine read_netcdf_fields(ncfname, step)
+            character(*),      intent(in) :: ncfname
+            integer, optional, intent(in) :: step
+            integer                       :: n_steps, start(4), cnt(4)
 
             call start_timer(field_io_timer)
 
             call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
 
             call get_num_steps(ncid, n_steps)
+
+            if (present(step)) then
+                if (step > n_steps) then
+                    print *, "Warning: NetCDF file has not enough records. The last step is chosen."
+                else
+                    n_steps = step
+                endif
+            endif
 
             cnt  =  (/ nx, ny, nz+1, 1       /)
             start = (/ 1,  1,  1,    n_steps /)

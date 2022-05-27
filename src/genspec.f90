@@ -17,6 +17,7 @@ program genspec
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, k, prefactor, snorm
     double precision              :: ens ! enstrophy
+    integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
 
@@ -29,7 +30,7 @@ program genspec
 
     call field_default
 
-    call read_netcdf_fields(trim(filename))
+    call read_netcdf_fields(trim(filename), step)
 
     print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
 
@@ -166,10 +167,19 @@ program genspec
                     i = i + 1
                     call get_command_argument(i, arg)
                     filename = trim(arg)
+                else if (arg == '--step') then
+                    i = i + 1
+                    call get_command_argument(i, arg)
+
+                    read(arg, *, iostat=stat)  step
+                    if (stat .ne. 0) then
+                        print *, 'Error conversion failed.'
+                        stop
+                    endif
                 else if (arg == '--help') then
                     print *, 'This program computes the power spectrum and writes it to file.'
-                    print *, 'A PS3D field output must be provided.'
-                    print *, 'Run code with "genspec --filename [field file]"'
+                    print *, 'A PS3D field output must be provided with the step number to analyse.'
+                    print *, 'Run code with "genspec --filename [field file] --step [step number]"'
                     stop
                 endif
                 i = i+1
