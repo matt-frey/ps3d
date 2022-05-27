@@ -86,7 +86,7 @@ program ps3d
             write(WRITE_VOR, '(a2, a2, a4, a4, a4)') '# ', 't ', 'max ', 'rms ', 'char'
 
             open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
-            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrohpy'
+            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
 
         end subroutine
 
