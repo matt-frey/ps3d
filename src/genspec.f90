@@ -15,8 +15,8 @@ program genspec
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
     double precision, allocatable :: dV(:)
-    integer                       :: iz, nc, kx, ky, kz, m
-    double precision              :: kmax, dk, k, prefactor
+    integer                       :: iz, nc, kx, ky, kz, m, kmax
+    double precision              :: dk, k, prefactor, snorm
     double precision              :: ens ! enstrophy
 
     call register_timer('field I/O', field_io_timer)
@@ -101,6 +101,13 @@ program genspec
     ! note: ngrid = nx * ny * (nz+1) and vcell = dx * dy * dz
     ens = ens * ngrid * vcell
 
+    ! calculate spectrum normalisation factor (snorm)
+    ! that ensures Parceval's identity, so that the spectrum S(K)
+    ! has the property that its integral over K gives the total enstrophy
+    snorm = ens / sum(spec * dk)
+
+    ! normalise the spectrum
+    spec = spec * snorm
 
 
     contains
@@ -108,7 +115,7 @@ program genspec
         subroutine write_spectrum
             logical                   :: exists = .false.
             character(:), allocatable :: fname
-            integer                   :: pos
+            integer                   :: pos, k
 
             ! 1 October 2021
             ! https://stackoverflow.com/questions/36731707/fortran-how-to-remove-file-extension-from-character
@@ -131,9 +138,9 @@ program genspec
                 write(1235, *) '#         k   P(k)'
             endif
 
-!             do k = 1, kmax
-! !                 write(1235, *) k * delk, spec(k)
-!             enddo
+            do k = 0, kmax
+                write(1235, *) k * dk, spec(k)
+            enddo
 
             close(1235)
 
