@@ -77,7 +77,7 @@ module fields
                          + velog(nz, :, :, 3) ** 2)
 
             ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
-            ke = ke * vcell * ngrid
+            ke = ke * vcell * dble(ngrid)
         end function get_kinetic_energy
 
         function get_enstrophy() result(en)
@@ -94,7 +94,7 @@ module fields
                          + vortg(nz, :, :, 3) ** 2)
 
             ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
-            en = en * vcell * ngrid
+            en = en * vcell * dble(ngrid)
 
         end function get_enstrophy
 
