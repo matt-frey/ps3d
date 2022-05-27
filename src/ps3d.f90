@@ -36,7 +36,7 @@ program ps3d
                               , time                &
                               , nnu                 &
                               , prediss
-            double precision  :: bbdif
+            double precision  :: bbdif, ke, en
             integer           :: iz
 
             call register_timer('ps', ps_timer)
@@ -61,7 +61,10 @@ program ps3d
 
             bbdif = maxval(buoyg) - minval(buoyg)
 
-            call init_inversion(bbdif, nnu, prediss)
+            ke = get_kinetic_energy()
+            en = get_enstrophy()
+
+            call init_inversion(bbdif, nnu, prediss, ke, en)
 
             ! convert fields to fully spectral space
             call fftczp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))

@@ -17,6 +17,7 @@ program genspec
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, k, prefactor, snorm
     double precision              :: ens ! enstrophy
+    double precision              :: ke  ! kinetic energy
     integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
@@ -35,7 +36,9 @@ program genspec
     print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
 
     ! use some dummy values for bbdif, nnu and prediss
-    call init_inversion(zero, 3, 10.0d0)
+    ke = get_kinetic_energy()
+    ens = get_enstrophy()
+    call init_inversion(zero, 3, 10.0d0, ke, ens)
 
     ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
     do nc = 1, 3
@@ -85,18 +88,7 @@ program genspec
     enddo
 
     ! calculate enstrohpy
-    ens = f12 * sum(vortg(1:nz-1, :, :, 1) ** 2     &
-                  + vortg(1:nz-1, :, :, 2) ** 2     &
-                  + vortg(1:nz-1, :, :, 3) ** 2)    &
-        + f14 * sum(vortg(0,      :, :, 1) ** 2     &
-                  + vortg(0,      :, :, 2) ** 2     &
-                  + vortg(0,      :, :, 3) ** 2)    &
-        + f14 * sum(vortg(nz,     :, :, 1) ** 2     &
-                  + vortg(nz,     :, :, 2) ** 2     &
-                  + vortg(nz,     :, :, 3) ** 2)
-
-    ! note: ngrid = nx * ny * (nz+1) and vcell = dx * dy * dz
-    ens = ens * ngrid * vcell
+    ens = get_enstrophy()
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)

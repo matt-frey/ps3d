@@ -3,8 +3,8 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz
-    use constants, only : zero
+    use parameters, only : nx, ny, nz, vcell, ngrid
+    use constants, only : zero, f12, f14
     implicit none
 
     ! x: zonal
@@ -61,5 +61,41 @@ module fields
             sbuoyg   = zero
             diss     = zero
         end subroutine field_default
+
+
+        function get_kinetic_energy() result(ke)
+            double precision :: ke
+
+            ke = f12 * sum(velog(1:nz-1, :, :, 1) ** 2      &
+                         + velog(1:nz-1, :, :, 2) ** 2      &
+                         + velog(1:nz-1, :, :, 3) ** 2)     &
+               + f14 * sum(velog(0,  :, :, 1) ** 2          &
+                         + velog(0,  :, :, 2) ** 2          &
+                         + velog(0,  :, :, 3) ** 2)         &
+               + f14 * sum(velog(nz, :, :, 1) ** 2          &
+                         + velog(nz, :, :, 2) ** 2          &
+                         + velog(nz, :, :, 3) ** 2)
+
+            ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
+            ke = ke * vcell * ngrid
+        end function get_kinetic_energy
+
+        function get_enstrophy() result(en)
+            double precision :: en
+
+            en = f12 * sum(vortg(1:nz-1, :, :, 1) ** 2      &
+                         + vortg(1:nz-1, :, :, 2) ** 2      &
+                         + vortg(1:nz-1, :, :, 3) ** 2)     &
+               + f14 * sum(vortg(0,  :, :, 1) ** 2          &
+                         + vortg(0,  :, :, 2) ** 2          &
+                         + vortg(0,  :, :, 3) ** 2)         &
+               + f14 * sum(vortg(nz, :, :, 1) ** 2          &
+                         + vortg(nz, :, :, 2) ** 2          &
+                         + vortg(nz, :, :, 3) ** 2)
+
+            ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
+            en = en * vcell * ngrid
+
+        end function get_enstrophy
 
 end module fields

@@ -23,7 +23,7 @@ program test_fft3d
 
     call update_parameters
 
-    call init_inversion(bbdif=zero, nnu=3, prediss=10.0d0)
+    call init_inversion(bbdif=zero, nnu=3, prediss=10.0d0, ke=1.0d0, en=1.0d0)
 
 
     fp = zero
