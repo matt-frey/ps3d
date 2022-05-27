@@ -1,6 +1,6 @@
 &MODELS
 
- ncfname    = 'test.nc'
+ ncfname    = 'beltrami_16x16x16.nc'
 
  box%ncells = 16, 16, 16
 
