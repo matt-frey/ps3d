@@ -46,15 +46,15 @@ program genspec
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
-    do ky = 0, ny-1
-        do kx = 0, nx-1
+    do kx = 0, nx-1
+        do ky = 0, ny-1
             do kz = 0, nz
                 kmag(kz, ky, kx) = nint(dsqrt(rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
     enddo
 
-    kmax = kmag(nz, ny-1, nx-1)
+    kmax = maxval(kmag)
 
     ! spacing of the shells
     dk = kmax / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
@@ -66,8 +66,8 @@ program genspec
 
     prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
 
-    do ky = 0, ny-1
-        do kx = 0, nx-1
+    do kx = 0, nx-1
+        do ky = 0, ny-1
             do kz = 0, nz
                 k = kmag(kz, ky, kx) / dk
                 m = int(k)
