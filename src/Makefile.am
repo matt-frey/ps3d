@@ -5,7 +5,7 @@ AM_FCFLAGS =				\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
 
-bin_PROGRAMS = ps3d genspec test_fft3d
+bin_PROGRAMS = ps3d genspec beltrami test_fft3d
 ps3d_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
@@ -35,6 +35,18 @@ genspec_SOURCES = 				\
 genspec_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
 	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/netcdf/libps_netcdf.la
+
+beltrami_SOURCES = 				\
+	utils/options.f90			\
+	utils/parameters.f90			\
+	fields/fields.f90			\
+	fields/field_netcdf.f90			\
+	utils/utils.f90				\
+	beltrami.f90
+
+beltrami_LDADD = 					\
+	$(top_builddir)/src/utils/libps_utils.la 	\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 test_fft3d_SOURCES = 				\
