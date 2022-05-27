@@ -77,13 +77,15 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_inversion(bbdif, nnu, prediss)
+        subroutine init_inversion(bbdif, nnu, prediss, ke, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
+            double precision, intent(in) :: ke ! kinetic energy
+            double precision, intent(in) :: en ! enstrophy
             double precision             :: visc, fac, div
-            double precision             :: rkxmax, rkymax,rkzmax
-            integer                      :: nnu2, kx, ky, iz, kz
+            double precision             :: rkxmax, K2max, K2
+            integer                      :: kx, ky, iz, kz
             double precision             :: zh1(0:nz), zh0(0:nz)
 
 
@@ -96,8 +98,6 @@ module inversion_utils
             call init_fft
 
             rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
-            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
@@ -116,19 +116,23 @@ module inversion_utils
                 enddo
             else
                 !Define hyperviscosity:
-                nnu2 = 2 * nnu
-                visc = prediss / max(rkxmax, rkymax, rkzmax) ** nnu2
+                visc = prediss *  (ke / en) ** f23
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
 
                 !Define dissipation operator:
+                K2max = zero
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                       do kz = 0, nz
-                          hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
-                       enddo
+                        do kz = 0, nz
+                            K2 = rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2
+                            K2max = max(K2max, K2)
+                            hdis(kz, kx, ky) = visc * K2 ** nnu
+                        enddo
                     enddo
                 enddo
             endif
+
+            hdis = hdis / (K2max ** (nnu - f13))
 
             !---------------------------------------------------------------------
             !Define Green function
