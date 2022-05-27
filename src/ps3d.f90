@@ -8,7 +8,7 @@ program ps3d
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer
     use inversion_utils, only : init_inversion, fftczp2s, filt
-    use advance_mod, only : advance, advance_timer
+    use advance_mod, only : advance, advance_timer, WRITE_VOR
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
     implicit none
@@ -79,6 +79,8 @@ program ps3d
 
             call setup_output_files
 
+            open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
+
         end subroutine
 
 
@@ -101,6 +103,9 @@ program ps3d
 
         subroutine post_run
             use options, only : output
+
+            close(WRITE_VOR)
+
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)
             call print_timer

@@ -70,7 +70,7 @@ program beltrami
 
             ! define global attributes
             call write_netcdf_info(ncid=ncid,                    &
-                                   epic_version=package_version, &
+                                   ps3d_version=package_version, &
                                    file_type='fields',           &
                                    cf_version=cf_version)
 

@@ -22,6 +22,8 @@ module advance_mod
 
     integer :: advance_timer
 
+    integer, parameter :: WRITE_VOR = 1234
+
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
 
@@ -89,7 +91,7 @@ module advance_mod
 
                 !Update fields:
                 sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
-                
+
                 do nc = 1, 3
                    svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
                                        - vortsi(:, :, :, nc)
@@ -233,6 +235,9 @@ module advance_mod
                 enddo
             enddo
             vorch = vorl2 / vorl1
+
+            ! Save vorticity diagnostics to vorticity.asc:
+            write(WRITE_VOR, '(1x,f13.6,3(1x,1p,e14.7))') t , vortmax, vortrms, vorch
 
             !
             ! velocity strain

@@ -32,7 +32,7 @@ module field_netcdf
                x_vor_id, y_vor_id, z_vor_id,    &
                buoy_id, n_writes,               &
                xvtend_id, yvtend_id, zvtend_id
-    
+
     contains
 
         ! Create the field file.
@@ -50,7 +50,7 @@ module field_netcdf
 
             ! define global attributes
             call write_netcdf_info(ncid=ncid,                    &
-                                   epic_version=package_version, &
+                                   ps3d_version=package_version, &
                                    file_type='fields',           &
                                    cf_version=cf_version)
 
@@ -214,7 +214,7 @@ module field_netcdf
             integer                      :: cnt(4), start(4)
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in spectral space (temporary)
             double precision             :: vtend(0:nz, 0:ny-1, 0:nx-1)
-            
+
             call start_timer(field_io_timer)
 
             call open_netcdf_file(ncfname, NF90_WRITE, ncid)
@@ -266,7 +266,7 @@ module field_netcdf
             call fftczs2p(bs, vtend)
             call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
-            
+
             ! increment counter
             n_writes = n_writes + 1
 
