@@ -80,7 +80,7 @@ program ps3d
             call setup_output_files
 
             open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a1, a3, a3, a4))') '# ', 't', 'max', 'rms', 'char'
+            write(WRITE_VOR, '(a2, a1, a3, a3, a4)') '# ', 't', 'max', 'rms', 'char'
 
         end subroutine
 
