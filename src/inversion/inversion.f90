@@ -25,12 +25,12 @@ module inversion_mod
             double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
+!            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
             double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
-            integer                         :: iz, nc, kx, ky, kz
-
+            integer                         :: iz, nc, kx, ky
+            
             call start_timer(vor2vel_timer)
 
             !Compute vorticity in physical space:

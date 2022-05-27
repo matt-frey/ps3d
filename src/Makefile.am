@@ -40,6 +40,8 @@ genspec_LDADD = 					\
 beltrami_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
+	inversion/inversion_utils.f90           \
+        inversion/inversion.f90                 \
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	utils/utils.f90				\
@@ -47,6 +49,7 @@ beltrami_SOURCES = 				\
 
 beltrami_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_fft.la            \
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 test_fft3d_SOURCES = 				\

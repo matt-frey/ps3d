@@ -14,7 +14,7 @@ program genspec
     integer, allocatable          :: kmag(:, :, :)
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
-    integer                       :: iz, nc, kx, ky, kz, m, kmax
+    integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, k, prefactor, snorm
     double precision              :: ens ! enstrophy
 
@@ -26,8 +26,6 @@ program genspec
     call setup_domain_and_parameters(trim(filename))
 
     allocate(kmag(0:nz, 0:ny-1, 0:nx-1))
-    allocate(spec(0:max(nz, ny-1, nx-1)))
-    allocate(num(0:max(nz, ny-1, nx-1)))
 
     call field_default
 
@@ -50,9 +48,12 @@ program genspec
                 kmag(kz, ky, kx) = nint(dsqrt(rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
-    enddo
+     enddo
 
     kmax = maxval(kmag)
+
+    allocate(spec(0:kmax))
+    allocate(num(0:kmax))
 
     ! spacing of the shells
     dk = kmax / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
@@ -70,16 +71,15 @@ program genspec
                 num(m) = num(m) + 1
             enddo
         enddo
-    enddo
+     enddo
 
     prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
 
-    do m = 0, size(spec)
+    do m = 0, kmax
         if (num(m) > 0) then
             spec(m) = spec(m) * prefactor * ((m+1) ** 3 - m ** 3) / num(m)
         else
-            print *, "Empty bin!"
-            stop
+            print *, "Bin", m, " is empty!"
         endif
     enddo
 
@@ -105,6 +105,11 @@ program genspec
     ! normalise the spectrum
     spec = spec * snorm
 
+    call write_spectrum
+
+    deallocate(kmag)
+    deallocate(num)
+    deallocate(spec)
 
     contains
 
