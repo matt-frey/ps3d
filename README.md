@@ -2,7 +2,7 @@
 In order to compile perform following steps
 ```
 $ cd $PS3D_ROOT
-$ autoreconf -ivf
+$ ./bootstrap
 $ mkdir build
 $ cd build
 $ ../configure --prefix=$PS3D_PREFIX
