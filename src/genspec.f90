@@ -66,7 +66,7 @@ program genspec
             do kz = 0, nz
                 k = kmag(kz, ky, kx) / dk
                 m = int(k)
-                spec(m) = k
+                spec(m) = svortg(kz, kx, ky, 1) ** 2 + svortg(kz, kx, ky, 2) ** 2 + svortg(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo
