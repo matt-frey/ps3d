@@ -14,7 +14,6 @@ program genspec
     integer, allocatable          :: kmag(:, :, :)
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
-    double precision, allocatable :: dV(:)
     integer                       :: iz, nc, kx, ky, kz, m, kmax
     double precision              :: dk, k, prefactor, snorm
     double precision              :: ens ! enstrophy
@@ -29,7 +28,6 @@ program genspec
     allocate(kmag(0:nz, 0:ny-1, 0:nx-1))
     allocate(spec(0:max(nz, ny-1, nx-1)))
     allocate(num(0:max(nz, ny-1, nx-1)))
-    allocate(dV(0:max(nz, ny-1, nx-1)))
 
     call field_default
 
@@ -62,9 +60,6 @@ program genspec
     ! (3) accumulate spectrum
     spec = zero
     num = 0
-    dV = zero
-
-    prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
 
     do kx = 0, nx-1
         do ky = 0, ny-1
@@ -73,14 +68,15 @@ program genspec
                 m = int(k)
                 spec(m) = k
                 num(m) = num(m) + 1
-                dV(m) = prefactor * ((m+1) ** 3 - m ** 3)
             enddo
         enddo
     enddo
 
+    prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
+
     do m = 0, size(spec)
         if (num(m) > 0) then
-            spec(m) = spec(m) * dV(m) / num(m)
+            spec(m) = spec(m) * prefactor * ((m+1) ** 3 - m ** 3) / num(m)
         else
             print *, "Empty bin!"
             stop
