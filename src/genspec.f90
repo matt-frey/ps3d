@@ -3,7 +3,7 @@ program genspec
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
-    use parameters, only : nx, ny, nz
+    use parameters, only : nx, ny, nz, ngrid, vcell
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
@@ -17,6 +17,7 @@ program genspec
     double precision, allocatable :: dV(:)
     integer                       :: iz, nc, kx, ky, kz, m
     double precision              :: kmax, dk, k, prefactor
+    double precision              :: ens ! enstrophy
 
     call register_timer('field I/O', field_io_timer)
 
@@ -85,6 +86,21 @@ program genspec
             stop
         endif
     enddo
+
+    ! calculate enstrohpy
+    ens = f12 * sum(vortg(1:nz-1, :, :, 1) ** 2     &
+                  + vortg(1:nz-1, :, :, 2) ** 2     &
+                  + vortg(1:nz-1, :, :, 3) ** 2)    &
+        + f14 * sum(vortg(0,      :, :, 1) ** 2     &
+                  + vortg(0,      :, :, 2) ** 2     &
+                  + vortg(0,      :, :, 3) ** 2)    &
+        + f14 * sum(vortg(nz,     :, :, 1) ** 2     &
+                  + vortg(nz,     :, :, 2) ** 2     &
+                  + vortg(nz,     :, :, 3) ** 2)
+
+    ! note: ngrid = nx * ny * (nz+1) and vcell = dx * dy * dz
+    ens = ens * ngrid * vcell
+
 
 
     contains
