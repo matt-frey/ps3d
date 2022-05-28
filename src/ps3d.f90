@@ -6,8 +6,8 @@ program ps3d
     use timer
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
-    use inversion_mod, only : vor2vel_timer, vtend_timer
-    use inversion_utils, only : init_inversion, fftczp2s, filt
+    use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
+    use inversion_utils, only : init_inversion, fftczp2s, filt, init_hyperdiffusion
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
@@ -59,8 +59,7 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
-
-            call init_fft
+            call init_inversion
 
             ! convert fields to fully spectral space
             call fftczp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
@@ -80,7 +79,7 @@ program ps3d
             bbdif = maxval(buoyg) - minval(buoyg)
             ke = get_kinetic_energy()
             en = get_enstrophy()
-            call init_inversion(bbdif, nnu, prediss, ke, en)
+            call init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
 
             call setup_output_files
 

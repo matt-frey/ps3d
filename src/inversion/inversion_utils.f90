@@ -48,29 +48,29 @@ module inversion_utils
 
     logical :: is_fft_initialised = .false.
 
-    public :: init_inversion &
-            , init_fft       &
-            , diffx          &
-            , diffy          &
-            , diffz          &
-            , lapinv0        &
-            , fftxyp2s       &
-            , fftxys2p       &
-            , dz2            &
-            , filt           &
-            , hdzi           &
-            , k2l2i          &
-            , hdis           &
-            , fftczp2s       &
-            , fftczs2p       &
-            , fftss2fs       &
-            , fftfs2ss       &
-            , green          &
-            , decz           &
-            , zfactors       &
-            , ztrig          &
-            , rkx            &
-            , rky            &
+    public :: init_inversion        &
+            , init_hyperdiffusion   &
+            , diffx                 &
+            , diffy                 &
+            , diffz                 &
+            , lapinv0               &
+            , fftxyp2s              &
+            , fftxys2p              &
+            , dz2                   &
+            , filt                  &
+            , hdzi                  &
+            , k2l2i                 &
+            , hdis                  &
+            , fftczp2s              &
+            , fftczs2p              &
+            , fftss2fs              &
+            , fftfs2ss              &
+            , green                 &
+            , decz                  &
+            , zfactors              &
+            , ztrig                 &
+            , rkx                   &
+            , rky                   &
             , rkz
 
     contains
@@ -78,16 +78,14 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_inversion(bbdif, nnu, prediss, ke, en)
+        subroutine init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: visc, fac, div
-            double precision             :: rkxmax, rkymax, rkzmax, K2max
+            double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
             integer                      :: kx, ky, iz, kz
-            double precision             :: zh1(0:nz), zh0(0:nz)
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -95,11 +93,9 @@ module inversion_utils
                 stop
             endif
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
-            allocate(green(0:nz, 0:nx-1, 0:ny-1))
-            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
-
             rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
@@ -131,6 +127,21 @@ module inversion_utils
                     enddo
                 enddo
             endif
+        end subroutine init_hyperdiffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine init_inversion
+            double precision             :: fac, div
+            integer                      :: kx, ky, iz, kz
+            double precision             :: zh1(0:nz), zh0(0:nz)
+
+            call init_fft
+
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(green(0:nz, 0:nx-1, 0:ny-1))
+            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
+
 
             !---------------------------------------------------------------------
             !Define Green function
