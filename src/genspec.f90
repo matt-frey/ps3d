@@ -36,10 +36,8 @@ program genspec
     print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
 
     ! use some dummy values for bbdif, nnu and prediss
-    ke = get_kinetic_energy()
-    ens = get_enstrophy()
-    call init_inversion(zero, 3, 10.0d0, ke, ens)
-
+    call init_inversion
+    
     ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
     do nc = 1, 3
         call fftczp2s(vortg(:, :, :, nc), svortg(:, :, :, nc))
