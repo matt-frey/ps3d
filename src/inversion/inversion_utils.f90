@@ -46,9 +46,10 @@ module inversion_utils
     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
     integer :: nwx, nwy, nxp2, nyp2
 
-    logical :: is_initialised = .false.
+    logical :: is_fft_initialised = .false.
 
     public :: init_inversion &
+            , init_fft       &
             , diffx          &
             , diffy          &
             , diffz          &
@@ -88,14 +89,15 @@ module inversion_utils
             integer                      :: kx, ky, iz, kz
             double precision             :: zh1(0:nz), zh0(0:nz)
 
+            ! check if FFT is initialised
+            if (.not. is_fft_initialised)
+                print *, "Error: FFT not initialised!"
+                stop
+            endif
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
-
-            !---------------------------------------------------------------------
-            !Set up FFTs:
-            call init_fft
 
             rkxmax = maxval(rkx)
 
@@ -193,11 +195,11 @@ module inversion_utils
             integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
             double precision              :: skx(nx), sky(ny)
 
-            if (is_initialised) then
+            if (is_fft_initialised) then
                 return
             endif
 
-            is_initialised = .true.
+            is_fft_initialised = .true.
 
             dz = dx(3)
             dzi = dxi(3)

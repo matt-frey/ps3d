@@ -59,12 +59,8 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
-            bbdif = maxval(buoyg) - minval(buoyg)
 
-            ke = get_kinetic_energy()
-            en = get_enstrophy()
-
-            call init_inversion(bbdif, nnu, prediss, ke, en)
+            call init_fft
 
             ! convert fields to fully spectral space
             call fftczp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
@@ -79,6 +75,12 @@ program ps3d
                 svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
                 sbuoyg(iz, :, :)    = filt * sbuoyg(iz, :, :)
             enddo
+
+            call vor2vel(svortg, vortg,  svelog, velog)
+            bbdif = maxval(buoyg) - minval(buoyg)
+            ke = get_kinetic_energy()
+            en = get_enstrophy()
+            call init_inversion(bbdif, nnu, prediss, ke, en)
 
             call setup_output_files
 
