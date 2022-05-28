@@ -3,7 +3,7 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, vcell, ngrid
+    use parameters, only : nx, ny, nz, vcell, ncell
     use constants, only : zero, f12, f14
     implicit none
 
@@ -76,8 +76,8 @@ module fields
                          + velog(nz, :, :, 2) ** 2          &
                          + velog(nz, :, :, 3) ** 2)
 
-            ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
-            ke = ke * vcell * dble(ngrid)
+            ! multiply with total volume
+            ke = ke * vcell * dble(ncell)
         end function get_kinetic_energy
 
         function get_enstrophy() result(en)
@@ -93,8 +93,8 @@ module fields
                          + vortg(nz, :, :, 2) ** 2          &
                          + vortg(nz, :, :, 3) ** 2)
 
-            ! note: ngrid = nx * ny * (nz+1), vcell = dx * dy * dz
-            en = en * vcell * dble(ngrid)
+            ! multiply with total volume
+            en = en * vcell * dble(ncell)
 
         end function get_enstrophy
 
