@@ -90,7 +90,7 @@ module inversion_utils
             double precision             :: zh1(0:nz), zh0(0:nz)
 
             ! check if FFT is initialised
-            if (.not. is_fft_initialised)
+            if (.not. is_fft_initialised) then
                 print *, "Error: FFT not initialised!"
                 stop
             endif
