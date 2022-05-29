@@ -47,7 +47,7 @@ module advance_mod
             double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticiy (spectral)
+            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -340,7 +340,7 @@ module advance_mod
                 !(see inversion_utils.f90 and parameters.f90).
             else
                 !Update hyperdiffusion operator used in time stepping:
-                dfac = (vortmax ** f13) * dt / two
+                dfac = vorch * dt / two
                 diss = two / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless

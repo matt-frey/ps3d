@@ -78,11 +78,12 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_hyperdiffusion(bbdif, nnu, prediss, ke)
+        subroutine init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
             double precision, intent(in) :: ke ! kinetic energy
+            double precision, intent(in) :: en ! enstrophy
             double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
             integer                      :: kx, ky, iz, kz
 
@@ -115,7 +116,7 @@ module inversion_utils
                 !Define hyperviscosity:
                 K2max = rkxmax ** 2 + rkymax ** 2 + rkzmax ** 2
                 ! multiply ke with ncelli to make it the mean kinetic energy
-                visc = prediss *  (ke * ncelli) ** f13 / (K2max ** nnu)
+                visc = prediss *  (K2max * ke /en) ** f13 / (K2max ** nnu)
                 !visc = prediss / max(rkxmax, rkymax, rkzmax) ** (2 * nnu)
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
 
