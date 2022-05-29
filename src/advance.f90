@@ -340,7 +340,7 @@ module advance_mod
                 !(see inversion_utils.f90 and parameters.f90).
             else
                 !Update hyperdiffusion operator used in time stepping:
-                dfac = vortrms * dt / two
+                dfac = (vortmax ** f13) * dt / two
                 diss = two / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless

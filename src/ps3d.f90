@@ -36,7 +36,7 @@ program ps3d
                               , time                &
                               , nnu                 &
                               , prediss
-            double precision  :: bbdif, ke, en
+            double precision  :: bbdif, ke!, en
             integer           :: iz
 
             call register_timer('ps', ps_timer)
@@ -78,8 +78,8 @@ program ps3d
             call vor2vel(svortg, vortg,  svelog, velog)
             bbdif = maxval(buoyg) - minval(buoyg)
             ke = get_kinetic_energy()
-            en = get_enstrophy()
-            call init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
+!            en = get_enstrophy()
+            call init_hyperdiffusion(bbdif, nnu, prediss, ke)
 
             call setup_output_files
 
