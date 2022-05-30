@@ -84,8 +84,8 @@ module inversion_mod
 
             call diffz(ds, es)
 
-            es(0,  :, :) = zero
-            es(nz, :, :) = zero
+!            es(0,  :, :) = zero
+!            es(nz, :, :) = zero
 
             !! FFT back to semi-spectral space:
             !do ky = 0, ny-1
