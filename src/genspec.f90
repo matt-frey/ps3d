@@ -15,7 +15,7 @@ program genspec
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
     integer                       :: nc, kx, ky, kz, m, kmax
-    double precision              :: dk, k, prefactor, snorm
+    double precision              :: dk, dki, prefactor, snorm
     double precision              :: ens ! enstrophy
     double precision              :: ke  ! kinetic energy
     integer                       :: step
@@ -58,7 +58,8 @@ program genspec
     allocate(num(0:kmax))
 
     ! spacing of the shells
-    dk = kmax / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dki = one / dk
 
     ! (3) accumulate spectrum
     spec = zero
@@ -67,8 +68,7 @@ program genspec
     do kx = 0, nx-1
         do ky = 0, ny-1
             do kz = 0, nz
-                k = kmag(kz, ky, kx) / dk
-                m = int(k)
+                m = int(dble(kmag(kz, ky, kx)) * dki)
                 spec(m) = svortg(kz, kx, ky, 1) ** 2 + svortg(kz, kx, ky, 2) ** 2 + svortg(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
@@ -79,7 +79,7 @@ program genspec
 
     do m = 0, kmax
         if (num(m) > 0) then
-            spec(m) = spec(m) * prefactor * ((m+1) ** 3 - m ** 3) / num(m)
+            spec(m) = spec(m) * prefactor * dble((m+1) ** 3 - m ** 3) / dble(num(m))
         else
             print *, "Bin", m, " is empty!"
         endif
@@ -131,7 +131,7 @@ program genspec
             endif
 
             do k = 0, kmax
-                write(1235, *) k * dk, spec(k)
+                write(1235, *) dble(k) * dk, spec(k)
             enddo
 
             close(1235)
