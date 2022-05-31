@@ -84,7 +84,8 @@ program ps3d
             call setup_output_files
 
             open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a2, a4, a4, a4)') '# ', 't ', 'max ', 'rms ', 'char'
+            write(WRITE_VOR, '(a2, a2, a4, a4, a5, a5, a6, a6)') '# ', 't ', 'max ', 'rms ', 'char ', &
+                 '<xi> ', '<eta> ', '<zeta>'
 
             open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
             write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
