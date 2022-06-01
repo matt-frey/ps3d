@@ -3,7 +3,7 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, vcell, ncell
+    use parameters, only : nx, ny, nz, vcell, ncell, ncelli
     use constants, only : zero, f12, f14
     implicit none
 
@@ -97,5 +97,18 @@ module fields
             en = en * vcell * dble(ncell)
 
         end function get_enstrophy
+
+        function get_mean_vorticity() result(vormean)
+            double precision :: vormean(3)
+            integer          :: nc
+
+            do nc = 1, 3
+                vormean(nc) =       sum(vortg(1:nz-1, :, :, nc)) &
+                            + f12 * sum(vortg(0,      :, :, nc)) &
+                            + f12 * sum(vortg(nz,     :, :, nc))
+            enddo
+
+            vormean = vormean * ncelli
+        end function get_mean_vorticity
 
 end module fields
