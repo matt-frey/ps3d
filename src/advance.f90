@@ -160,9 +160,9 @@ module advance_mod
 
             !Add filtered vorticity tendency to vorticity source:
             do iz = 0, nz
-                svorts(iz, :, :, 1) =   svorts(iz, :, :, 1) - filt * svtend(iz, :, :, 1)
-                svorts(iz, :, :, 2) = - svorts(iz, :, :, 2) - filt * svtend(iz, :, :, 2)
-                svorts(iz, :, :, 3) =                       - filt * svtend(iz, :, :, 3)
+                svorts(iz, :, :, 1) =   svorts(iz, :, :, 1) + filt * svtend(iz, :, :, 1)
+                svorts(iz, :, :, 2) = - svorts(iz, :, :, 2) + filt * svtend(iz, :, :, 2)
+                svorts(iz, :, :, 3) =                       + filt * svtend(iz, :, :, 3)
             enddo
 
         end subroutine source
