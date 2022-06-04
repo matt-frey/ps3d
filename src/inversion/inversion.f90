@@ -215,6 +215,11 @@ module inversion_mod
 
             call diffy(ys, xs)
             call diffz(zs, svtend(:, :, :, 1))
+
+            ! Extrapolate
+            svtend(0,  :, :, 1) = two * svtend(1,    :, :, 1) - svtend(2,    :, :, 1)
+            svtend(nz, :, :, 1) = two * svtend(nz-1, :, :, 1) - svtend(nz-2, :, :, 1)
+
             svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
 
             !-------------------------------------------------------
@@ -227,6 +232,11 @@ module inversion_mod
 
             call diffx(xs, ys)
             call diffz(zs, svtend(:, :, :, 2))
+
+            ! Extrapolate
+            svtend(0,  :, :, 2) = two * svtend(1,    :, :, 2) - svtend(2,    :, :, 2)
+            svtend(nz, :, :, 2) = two * svtend(nz-1, :, :, 2) - svtend(nz-2, :, :, 2)
+
             svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
 
             !-------------------------------------------------------

@@ -48,6 +48,9 @@ module options
     ! a characteristic vorticity (see subroutine adapt of strat.f90).
     ! Note: nnu = 3 and prediss = 10 are recommended.
 
+    ! Pre-factor for z-filtering
+    double precision :: prefilt
+
     ! time limit
     type time_info_type
         double precision :: initial     = zero       ! initial time
@@ -70,7 +73,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, nnu, prediss, output, time
+            namelist /PS3D/ field_file, nnu, prediss, prefilt, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -120,6 +123,7 @@ module options
 
             call write_netcdf_attribute(ncid, "nnu", nnu)
             call write_netcdf_attribute(ncid, "prediss", prediss)
+            call write_netcdf_attribute(ncid, "prefilt", prefilt)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)

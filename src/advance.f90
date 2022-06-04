@@ -344,6 +344,8 @@ module advance_mod
                 diss = two / (one + dfac * hdis)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
                 !(see inversion_utils.f90 and parameters.f90).
+
+                call update_zfilter(dfac)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt / two
@@ -351,6 +353,8 @@ module advance_mod
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
                 !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
+
+                call update_zfilter(dfac)
             endif
 
         end subroutine adapt

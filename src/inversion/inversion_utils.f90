@@ -4,6 +4,7 @@ module inversion_utils
     use stafft
     use sta2dfft
     use deriv1d, only : init_deriv
+    use options, only : prefilt
     implicit none
 
     private
@@ -23,6 +24,9 @@ module inversion_utils
     ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
     double precision, allocatable :: k2l2i(:, :)
 
+    ! Note k2l2 = k^2+l^2
+    double precision, allocatable :: k2l2(:, :)
+
     !Quantities needed in FFTs:
     double precision, allocatable :: xtrig(:), ytrig(:), ztrig(:)
     integer :: xfactors(5), yfactors(5), zfactors(5)
@@ -39,10 +43,7 @@ module inversion_utils
     double precision, allocatable :: filt(:, :)
 
     ! Tridiagonal arrays for the vertical filter:
-    double precision, allocatable :: etdf(:), htdf(:), am(:)
-
-    ! Squared magnitude of horizontal wavevector, k^2 + l^2::
-    double precision, parameter :: kksq = 8.0d0
+    double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
@@ -78,7 +79,8 @@ module inversion_utils
             , rkx                   &
             , rky                   &
             , rkz                   &
-            , apply_zfilter
+            , apply_zfilter         &
+            , update_zfilter
 
     contains
 
@@ -207,7 +209,7 @@ module inversion_utils
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision, allocatable :: a0(:, :), ksq(:, :)
+            double precision, allocatable :: a0(:, :), k2l2(:, :)
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
             double precision              :: kxmaxi, kymaxi
@@ -233,8 +235,8 @@ module inversion_utils
             nxp2 = nx + 2
 
             allocate(a0(nx, ny))
-            allocate(ksq(nx, ny))
             allocate(k2l2i(nx, ny))
+            allocate(k2l2(nx, ny))
 
             allocate(filt(nx, ny))
             allocate(etdh(nz-1, nx, ny))
@@ -285,13 +287,13 @@ module inversion_utils
             !Squared wavenumber array (used in tridiagonal solve):
             do ky = 1, ny
                 do kx = 1, nx
-                    ksq(kx, ky) = rkx(kx) ** 2 + rky(ky) ** 2
+                    k2l2(kx, ky) = rkx(kx) ** 2 + rky(ky) ** 2
                 enddo
             enddo
 
-            ksq(1, 1) = one
-            k2l2i = one / ksq
-            ksq(1, 1) = zero
+            k2l2(1, 1) = one
+            k2l2i = one / k2l2
+            k2l2(1, 1) = zero
 
             !----------------------------------------------------------
             !Define Hou and Li filter:
@@ -307,7 +309,7 @@ module inversion_utils
 
             !-----------------------------------------------------------------------
             ! Fixed coefficients used in the tridiagonal problems:
-            a0 = -two * dzisq - ksq
+            a0 = -two * dzisq - k2l2
             ap = dzisq
 
             !-----------------------------------------------------------------------
@@ -357,20 +359,19 @@ module inversion_utils
             etdv(:, 1, 1) = zero
 
             deallocate(a0)
-            deallocate(ksq)
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Initialises the tridiagonal problem for z-filtering
         subroutine init_tridiagonal
-            double precision :: a0(nz-1)
             double precision :: pf, cf, diffmax, z, s
             integer          :: j
 
-            allocate(etdf(nz-2))
-            allocate(htdf(nz-1))
+            allocate(etdf(nz-2, nx, ny))
+            allocate(htdf(nz-1, nx, ny))
             allocate(am(nz))
+            allocate(b0(nz-1))
 
             !-----------------------------------------------------------------------
             pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
@@ -392,27 +393,39 @@ module inversion_utils
 
             ! where n = nz-1 below, and here ap(i) = am(i+1) (symmetric system).
 
-            do j=1,nz
+            do j = 1, nz
                 z = dx(3) * (dble(j) - f12)
                 s = (two * z - extent(3)) / extent(3)
-                am(j) = -cf * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
+                am(j) = - prefilt * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
             enddo
 
-            do j=1,nz-1
+            do j = 1, nz-1
                 z = dx(3) * dble(j)
                 s = (two * z - extent(3)) / extent(3)
-                a0(j) = one + kksq * diffmax * dexp(-pf * (one - s ** 2)) - am(j+1) - am(j)
+                b0(j) = diffmax * dexp(-pf * (one - s ** 2))
             enddo
-
-            htdf(1) = one / a0(1)
-            etdf(1) = -am(2) * htdf(1)
-            do j = 2, nz-2
-                htdf(j) = one / (a0(j) + am(j) * etdf(j-1))
-                etdf(j) = -am(j+1) * htdf(j)
-            enddo
-            htdf(nz-1) = one / (a0(nz-1) + am(nz-1) * etdf(nz-2))
 
         end subroutine init_tridiagonal
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine update_zfilter(dfac)
+            double precision, intent(in) :: dfac
+            double precision             :: a0(nx, ny)
+            integer                      :: j
+
+            a0 = one + dfac * (k2l2(:, :) * b0(1) - am(2) - am(1))
+            htdf(1, :, :) = one / a0
+            etdf(1, :, :) = -am(2) * htdf(1, :, :)
+            do j = 2, nz-2
+                a0 = one + dfac * (k2l2(:, :) * b0(j) - am(j+1) - am(j))
+                htdf(j, :, :) = one / (a0 + am(j) * etdf(j-1, :, :))
+                etdf(j, :, :) = -am(j+1) * htdf(j, :, :)
+            enddo
+
+            a0 = one + dfac * (k2l2(:, :) * b0(nz-1) - am(nz) - am(nz-1))
+            htdf(nz-1, :, :) = one / (a0 + am(nz-1) * etdf(nz-2, :, :))
+        end subroutine update_zfilter
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -420,26 +433,18 @@ module inversion_utils
         ! the boundaries (iz = 0 and iz = nz).
         subroutine apply_zfilter(fs)
             double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral space
-            double precision                :: phi(0:nz)
-            integer                         :: j, ix, iy
+            integer                         :: j
 
-            do iy = 0, ny-1
-                do ix = 0, nx-1
+            fs(1, :, :) = (fs(1, :, :) - am(1) * fs(0, :, :)) * htdf(1, :, :)
 
-                    phi = fs(:, ix, iy)
+            do j = 2, nz-2
+                fs(j, :, :) = (fs(j, :, :) - am(j) * fs(j-1, :, :)) * htdf(j, :, :)
+            enddo
 
-                    fs(1, ix, iy) = (phi(1) - am(1) * phi(0)) * htdf(1)
+            fs(nz-1, :, :) = (fs(nz-1, :, :) - am(nz) * fs(nz, :, :) - am(nz-1) * fs(nz-2, :, :)) * htdf(nz-1, :, :)
 
-                    do j = 2, nz-2
-                        fs(j, ix, iy) = (phi(j) - am(j) * fs(j-1, ix, iy)) * htdf(j)
-                    enddo
-
-                    fs(nz-1, ix, iy) = (phi(nz-1) - am(nz) * phi(nz) - am(nz-1) * fs(nz-2, ix, iy)) * htdf(nz-1)
-
-                    do j = nz-2, 1, -1
-                        fs(j, ix, iy) = etdf(j) * fs(j+1, ix, iy) + fs(j, ix, iy)
-                    enddo
-                enddo
+            do j = nz-2, 1, -1
+                fs(j, :, :) = etdf(j, :, :) * fs(j+1, :, :) + fs(j, :, :)
             enddo
 
         end subroutine apply_zfilter
