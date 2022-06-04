@@ -1,6 +1,6 @@
 module inversion_mod
     use inversion_utils
-    use parameters, only : nx, ny, nz, dxi
+    use parameters, only : nx, ny, nz
     use physics, only : f_cor
     use constants, only : zero, two, f12
     use sta2dfft, only : dct, dst
