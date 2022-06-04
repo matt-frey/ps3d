@@ -54,6 +54,9 @@ module advance_mod
             !Also, returns vorticity in physical space for use everywhere
             call vor2vel(svortg, vortg, svelog, velog)
 
+            ! Calculate svtend, for writing purposes only
+            call vorticity_tendency(svortg, velog, vortg, svtend)
+
             !Adapt the time step
             call adapt(t, sbuoyg, velog, svelog)
 
