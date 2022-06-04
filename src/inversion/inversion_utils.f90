@@ -38,6 +38,12 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :)
 
+    ! Tridiagonal arrays for the vertical filter:
+    double precision, allocatable :: etdf(:), htdf(:), am(:)
+
+    ! Squared magnitude of horizontal wavevector, k^2 + l^2::
+    double precision, parameter :: kksq = 8.0d0
+
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
 
@@ -71,7 +77,8 @@ module inversion_utils
             , ztrig                 &
             , rkx                   &
             , rky                   &
-            , rkz
+            , rkz                   &
+            , apply_zfilter
 
     contains
 
@@ -141,6 +148,8 @@ module inversion_utils
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
+
+            call init_tridiagonal
 
             !---------------------------------------------------------------------
             !Define Green function
@@ -350,6 +359,86 @@ module inversion_utils
             deallocate(a0)
             deallocate(ksq)
         end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Initialises the tridiagonal problem for z-filtering
+        subroutine init_tridiagonal
+            double precision :: a0(nz-1)
+            double precision :: pf, cf, diffmax, z, s
+            integer          :: j
+
+            allocate(etdf(nz-2))
+            allocate(htdf(nz-1))
+            allocate(am(nz))
+
+            !-----------------------------------------------------------------------
+            pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
+            write(*,*) ' p = ', pf
+            write(*,*)
+            write(*,*) ' We take K_max = c * dz^2; enter c: '
+            read(*,*) cf
+            diffmax = cf * dx(3) ** 2
+            write(*,*)
+            write(*,*) ' K_min/K_max = ', dexp(-pf)
+
+            ! Set up the tridiagonal system A x = u:
+
+            !   | a0(1) ap(1)   0    ...   ...  ...   0    ||x(1)|   |u(1)|
+            !   | am(2) a0(2) ap(2)   0    ...  ...   0    ||x(2)|   |u(2)|
+            !   |   0   am(3) a0(3) ap(3)   0   ...   0    ||x(3)| = |u(3)|
+            !   |                    ...                   || ...|   | ...|
+            !   |   0    ...   ...   ...    0  am(n) a0(n) ||x(n)|   |u(n)|
+
+            ! where n = nz-1 below, and here ap(i) = am(i+1) (symmetric system).
+
+            do j=1,nz
+                z = dx(3) * (dble(j) - f12)
+                s = (two * z - extent(3)) / extent(3)
+                am(j) = -cf * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
+            enddo
+
+            do j=1,nz-1
+                z = dx(3) * dble(j)
+                s = (two * z - extent(3)) / extent(3)
+                a0(j) = one + kksq * diffmax * dexp(-pf * (one - s ** 2)) - am(j+1) - am(j)
+            enddo
+
+            htdf(1) = one / a0(1)
+            etdf(1) = -am(2) * htdf(1)
+            do j = 2, nz-2
+                htdf(j) = one / (a0(j) + am(j) * etdf(j-1))
+                etdf(j) = -am(j+1) * htdf(j)
+            enddo
+            htdf(nz-1) = one / (a0(nz-1) + am(nz-1) * etdf(nz-2))
+
+        end subroutine init_tridiagonal
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Applies the z filter to phi to produce phif while keeping
+        ! phif = phi on the boundaries.
+        subroutine apply_zfilter(phi, phif)
+            double precision :: phi(0:nz), phif(0:nz)
+            integer          :: j
+
+            phif(0) = phi(0)
+
+            phif(1) = (phi(1) - am(1) * phi(0)) * htdf(1)
+
+            do j = 2, nz-2
+                phif(j) = (phi(j)-am(j)*phif(j-1))*htdf(j)
+            enddo
+
+            phif(nz-1) = (phi(nz-1) - am(nz) * phi(nz) - am(nz-1) * phif(nz-2)) * htdf(nz-1)
+
+            do j = nz-2, 1, -1
+                phif(j) = etdf(j) * phif(j+1) + phif(j)
+            enddo
+
+            phif(nz)=phi(nz)
+
+        end subroutine apply_zfilter
 
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
