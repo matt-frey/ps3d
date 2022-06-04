@@ -15,8 +15,9 @@ program genspec
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
     integer                       :: nc, kx, ky, kz, m, kmax
-    double precision              :: dk, k, prefactor, snorm
+    double precision              :: dk, dki, prefactor, snorm
     double precision              :: ens ! enstrophy
+    double precision              :: ke  ! kinetic energy
     integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
@@ -35,8 +36,8 @@ program genspec
     print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
 
     ! use some dummy values for bbdif, nnu and prediss
-    call init_inversion(zero, 3, 10.0d0)
-
+    call init_inversion
+    
     ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
     do nc = 1, 3
         call fftczp2s(vortg(:, :, :, nc), svortg(:, :, :, nc))
@@ -57,7 +58,8 @@ program genspec
     allocate(num(0:kmax))
 
     ! spacing of the shells
-    dk = kmax / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dki = one / dk
 
     ! (3) accumulate spectrum
     spec = zero
@@ -66,8 +68,7 @@ program genspec
     do kx = 0, nx-1
         do ky = 0, ny-1
             do kz = 0, nz
-                k = kmag(kz, ky, kx) / dk
-                m = int(k)
+                m = int(dble(kmag(kz, ky, kx)) * dki)
                 spec(m) = svortg(kz, kx, ky, 1) ** 2 + svortg(kz, kx, ky, 2) ** 2 + svortg(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
@@ -78,25 +79,14 @@ program genspec
 
     do m = 0, kmax
         if (num(m) > 0) then
-            spec(m) = spec(m) * prefactor * ((m+1) ** 3 - m ** 3) / num(m)
+            spec(m) = spec(m) * prefactor * dble((m+1) ** 3 - m ** 3) / dble(num(m))
         else
             print *, "Bin", m, " is empty!"
         endif
     enddo
 
     ! calculate enstrohpy
-    ens = f12 * sum(vortg(1:nz-1, :, :, 1) ** 2     &
-                  + vortg(1:nz-1, :, :, 2) ** 2     &
-                  + vortg(1:nz-1, :, :, 3) ** 2)    &
-        + f14 * sum(vortg(0,      :, :, 1) ** 2     &
-                  + vortg(0,      :, :, 2) ** 2     &
-                  + vortg(0,      :, :, 3) ** 2)    &
-        + f14 * sum(vortg(nz,     :, :, 1) ** 2     &
-                  + vortg(nz,     :, :, 2) ** 2     &
-                  + vortg(nz,     :, :, 3) ** 2)
-
-    ! note: ngrid = nx * ny * (nz+1) and vcell = dx * dy * dz
-    ens = ens * ngrid * vcell
+    ens = get_enstrophy()
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)
@@ -141,7 +131,7 @@ program genspec
             endif
 
             do k = 0, kmax
-                write(1235, *) k * dk, spec(k)
+                write(1235, *) dble(k) * dk, spec(k)
             enddo
 
             close(1235)

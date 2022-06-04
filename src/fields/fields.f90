@@ -3,8 +3,8 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz
-    use constants, only : zero
+    use parameters, only : nx, ny, nz, vcell, ncell, ncelli
+    use constants, only : zero, f12, f14
     implicit none
 
     ! x: zonal
@@ -61,5 +61,54 @@ module fields
             sbuoyg   = zero
             diss     = zero
         end subroutine field_default
+
+
+        function get_kinetic_energy() result(ke)
+            double precision :: ke
+
+            ke = f12 * sum(velog(1:nz-1, :, :, 1) ** 2      &
+                         + velog(1:nz-1, :, :, 2) ** 2      &
+                         + velog(1:nz-1, :, :, 3) ** 2)     &
+               + f14 * sum(velog(0,  :, :, 1) ** 2          &
+                         + velog(0,  :, :, 2) ** 2          &
+                         + velog(0,  :, :, 3) ** 2)         &
+               + f14 * sum(velog(nz, :, :, 1) ** 2          &
+                         + velog(nz, :, :, 2) ** 2          &
+                         + velog(nz, :, :, 3) ** 2)
+
+            ! multiply with total volume
+            ke = ke * vcell * dble(ncell)
+        end function get_kinetic_energy
+
+        function get_enstrophy() result(en)
+            double precision :: en
+
+            en = f12 * sum(vortg(1:nz-1, :, :, 1) ** 2      &
+                         + vortg(1:nz-1, :, :, 2) ** 2      &
+                         + vortg(1:nz-1, :, :, 3) ** 2)     &
+               + f14 * sum(vortg(0,  :, :, 1) ** 2          &
+                         + vortg(0,  :, :, 2) ** 2          &
+                         + vortg(0,  :, :, 3) ** 2)         &
+               + f14 * sum(vortg(nz, :, :, 1) ** 2          &
+                         + vortg(nz, :, :, 2) ** 2          &
+                         + vortg(nz, :, :, 3) ** 2)
+
+            ! multiply with total volume
+            en = en * vcell * dble(ncell)
+
+        end function get_enstrophy
+
+        function get_mean_vorticity() result(vormean)
+            double precision :: vormean(3)
+            integer          :: nc
+
+            do nc = 1, 3
+                vormean(nc) =       sum(vortg(1:nz-1, :, :, nc)) &
+                            + f12 * sum(vortg(0,      :, :, nc)) &
+                            + f12 * sum(vortg(nz,     :, :, nc))
+            enddo
+
+            vormean = vormean * ncelli
+        end function get_mean_vorticity
 
 end module fields

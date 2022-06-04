@@ -23,6 +23,7 @@ module advance_mod
     integer :: advance_timer
 
     integer, parameter :: WRITE_VOR = 1234
+    integer, parameter :: WRITE_ECOMP = 1235
 
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
@@ -46,7 +47,7 @@ module advance_mod
             double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticiy (spectral)
+            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -187,6 +188,7 @@ module advance_mod
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
+            double precision             :: ke, en, vormean(3)
 
 
             !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
@@ -236,8 +238,15 @@ module advance_mod
             enddo
             vorch = vorl2 / vorl1
 
+            vormean = get_mean_vorticity()
+
             ! Save vorticity diagnostics to vorticity.asc:
-            write(WRITE_VOR, '(1x,f13.6,3(1x,1p,e14.7))') t , vortmax, vortrms, vorch
+            write(WRITE_VOR, '(1x,f13.6,6(1x,1p,e14.7))') t , vortmax, vortrms, vorch, vormean
+
+            ! Save energy and enstrophy
+            ke = get_kinetic_energy()
+            en = get_enstrophy()
+            write(WRITE_ECOMP, '(1x,f13.6,2(1x,1p,e14.7))') t , ke, en
 
             !
             ! velocity strain
@@ -334,7 +343,6 @@ module advance_mod
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt / two
-                !vorch is the characteristic vorticity defined above.
                 diss = two / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless

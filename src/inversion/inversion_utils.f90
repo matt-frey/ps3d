@@ -1,6 +1,6 @@
 module inversion_utils
     use constants
-    use parameters, only : nx, ny, nz, dx, dxi, extent
+    use parameters, only : nx, ny, nz, dx, dxi, extent, ncelli
     use stafft
     use sta2dfft
     use deriv1d, only : init_deriv
@@ -46,30 +46,31 @@ module inversion_utils
     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
     integer :: nwx, nwy, nxp2, nyp2
 
-    logical :: is_initialised = .false.
+    logical :: is_fft_initialised = .false.
 
-    public :: init_inversion &
-            , diffx          &
-            , diffy          &
-            , diffz          &
-            , lapinv0        &
-            , fftxyp2s       &
-            , fftxys2p       &
-            , dz2            &
-            , filt           &
-            , hdzi           &
-            , k2l2i          &
-            , hdis           &
-            , fftczp2s       &
-            , fftczs2p       &
-            , fftss2fs       &
-            , fftfs2ss       &
-            , green          &
-            , decz           &
-            , zfactors       &
-            , ztrig          &
-            , rkx            &
-            , rky            &
+    public :: init_inversion        &
+            , init_hyperdiffusion   &
+            , diffx                 &
+            , diffy                 &
+            , diffz                 &
+            , lapinv0               &
+            , fftxyp2s              &
+            , fftxys2p              &
+            , dz2                   &
+            , filt                  &
+            , hdzi                  &
+            , k2l2i                 &
+            , hdis                  &
+            , fftczp2s              &
+            , fftczs2p              &
+            , fftss2fs              &
+            , fftfs2ss              &
+            , green                 &
+            , decz                  &
+            , zfactors              &
+            , ztrig                 &
+            , rkx                   &
+            , rky                   &
             , rkz
 
     contains
@@ -77,23 +78,20 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_inversion(bbdif, nnu, prediss)
+        subroutine init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             integer,          intent(in) :: nnu
             double precision, intent(in) :: prediss
-            double precision             :: visc, fac, div
-            double precision             :: rkxmax, rkymax,rkzmax
-            integer                      :: nnu2, kx, ky, iz, kz
-            double precision             :: zh1(0:nz), zh0(0:nz)
+            double precision, intent(in) :: ke ! kinetic energy
+            double precision, intent(in) :: en ! enstrophy
+            double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
+            integer                      :: kx, ky, iz, kz
 
-
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
-            allocate(green(0:nz, 0:nx-1, 0:ny-1))
-            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
-
-            !---------------------------------------------------------------------
-            !Set up FFTs:
-            call init_fft
+            ! check if FFT is initialised
+            if (.not. is_fft_initialised) then
+                print *, "Error: FFT not initialised!"
+                stop
+            endif
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
@@ -116,19 +114,36 @@ module inversion_utils
                 enddo
             else
                 !Define hyperviscosity:
-                nnu2 = 2 * nnu
-                visc = prediss / max(rkxmax, rkymax, rkzmax) ** nnu2
+                K2max = rkxmax ** 2 + rkymax ** 2 + rkzmax ** 2
+                ! multiply ke with ncelli to make it the mean kinetic energy
+                visc = prediss *  (K2max * ke /en) ** f13 / (K2max ** nnu)
+                !visc = prediss / max(rkxmax, rkymax, rkzmax) ** (2 * nnu)
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                       do kz = 0, nz
-                          hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
-                       enddo
+                        do kz = 0, nz
+                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
+                        enddo
                     enddo
                 enddo
             endif
+        end subroutine init_hyperdiffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine init_inversion
+            double precision             :: fac, div
+            integer                      :: kx, ky, iz, kz
+            double precision             :: zh1(0:nz), zh0(0:nz)
+
+            call init_fft
+
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(green(0:nz, 0:nx-1, 0:ny-1))
+            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
+
 
             !---------------------------------------------------------------------
             !Define Green function
@@ -193,11 +208,11 @@ module inversion_utils
             integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
             double precision              :: skx(nx), sky(ny)
 
-            if (is_initialised) then
+            if (is_fft_initialised) then
                 return
             endif
 
-            is_initialised = .true.
+            is_fft_initialised = .true.
 
             dz = dx(3)
             dzi = dxi(3)

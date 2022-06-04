@@ -6,9 +6,9 @@ program ps3d
     use timer
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
-    use inversion_mod, only : vor2vel_timer, vtend_timer
-    use inversion_utils, only : init_inversion, fftczp2s, filt
-    use advance_mod, only : advance, advance_timer, WRITE_VOR
+    use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
+    use inversion_utils, only : init_inversion, fftczp2s, filt, init_hyperdiffusion
+    use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
     implicit none
@@ -36,7 +36,7 @@ program ps3d
                               , time                &
                               , nnu                 &
                               , prediss
-            double precision  :: bbdif
+            double precision  :: bbdif, ke, en
             integer           :: iz
 
             call register_timer('ps', ps_timer)
@@ -59,9 +59,7 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
-            bbdif = maxval(buoyg) - minval(buoyg)
-
-            call init_inversion(bbdif, nnu, prediss)
+            call init_inversion
 
             ! convert fields to fully spectral space
             call fftczp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
@@ -77,10 +75,20 @@ program ps3d
                 sbuoyg(iz, :, :)    = filt * sbuoyg(iz, :, :)
             enddo
 
+            call vor2vel(svortg, vortg,  svelog, velog)
+            bbdif = maxval(buoyg) - minval(buoyg)
+            ke = get_kinetic_energy()
+            en = get_enstrophy()
+            call init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
+
             call setup_output_files
 
             open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a2, a4, a4, a5)') '# ', 't ', 'max ', 'rms ', 'char '
+            write(WRITE_VOR, '(a2, a2, a4, a4, a5, a5, a6, a6)') '# ', 't ', 'max ', 'rms ', 'char ', &
+                 '<xi> ', '<eta> ', '<zeta>'
+
+            open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
+            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
 
         end subroutine
 
@@ -106,6 +114,7 @@ program ps3d
             use options, only : output
 
             close(WRITE_VOR)
+            close(WRITE_ECOMP)
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)
