@@ -33,7 +33,7 @@ module inversion_utils
     double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :, :)
+    double precision, allocatable :: hdis(:, :)
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :)
@@ -87,6 +87,8 @@ module inversion_utils
             double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
             integer                      :: kx, ky, iz, kz
 
+            allocate(hdis(0:nx-1, 0:ny-1))
+
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
                 print *, "Error: FFT not initialised!"
@@ -107,9 +109,7 @@ module inversion_utils
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                    do kx = 0, nx-1
-                      do kz = 0, nz
-                         hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
-                      enddo
+                      hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
                    enddo
                 enddo
             else
@@ -123,9 +123,7 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
-                        enddo
+                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2) ** nnu
                     enddo
                 enddo
             endif
@@ -140,7 +138,6 @@ module inversion_utils
 
             call init_fft
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
 
