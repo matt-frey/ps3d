@@ -365,7 +365,7 @@ module inversion_utils
 
         ! Initialises the tridiagonal problem for z-filtering
         subroutine init_tridiagonal
-            double precision :: pf, cf, diffmax, z, s
+            double precision :: pf, diffmax, z, s
             integer          :: j
 
             allocate(etdf(nz-2, nx, ny))
@@ -375,12 +375,7 @@ module inversion_utils
 
             !-----------------------------------------------------------------------
             pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
-            write(*,*) ' p = ', pf
-            write(*,*)
-            write(*,*) ' We take K_max = c * dz^2; enter c: '
-            read(*,*) cf
-            diffmax = cf * dx(3) ** 2
-            write(*,*)
+            diffmax = prefilt * dx(3) ** 2
             write(*,*) ' K_min/K_max = ', dexp(-pf)
 
             ! Set up the tridiagonal system A x = u:
