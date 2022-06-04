@@ -22,7 +22,6 @@ module inversion_mod
             double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
 !            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
@@ -36,7 +35,7 @@ module inversion_mod
             !Compute vorticity in physical space:
             do nc = 1, 3
                 as = svortg(:, :, :, nc)
-                call fftczs2p(as, vortg(:, :, :, nc))
+                call fftxys2p(as, vortg(:, :, :, nc))
             enddo
 
             !Form source term for inversion of vertical velocity:
@@ -94,21 +93,12 @@ module inversion_mod
             !    enddo
             ! enddo
 
-            !print *, 'x-svort', minval(abs(svortg(:, :, :, 1)))
-            !print *, 'y-svort', minval(abs(svortg(:, :, :, 2)))
-            !print *, 'z-svort', minval(abs(svortg(:, :, :, 3)))
-
-            !Convert vorticity components to semi-spectral space
-            call fftfs2ss(svortg(:, :, :, 1), as)
-            call fftfs2ss(svortg(:, :, :, 2), bs)
-            call fftfs2ss(svortg(:, :, :, 3), cs)
-
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
             vbar(0) = zero
             do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (bs(iz, 0, 0) + bs(iz+1, 0, 0))
-                vbar(iz+1) = vbar(iz) - dz2 * (as(iz, 0, 0) + as(iz+1, 0, 0))
+                ubar(iz+1) = ubar(iz) + dz2 * (svortg(iz, 0, 0, 2) + svortg(iz+1, 0, 0, 2))
+                vbar(iz+1) = vbar(iz) - dz2 * (svortg(iz, 0, 0, 1) + svortg(iz+1, 0, 0, 1))
             enddo
 
             ! remove the mean value to have zero net momentum
@@ -121,7 +111,7 @@ module inversion_mod
 
             !Find x velocity component \hat{u}:
             call diffx(es, as)
-            call diffy(cs, bs)
+            call diffy(svortg(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -139,7 +129,7 @@ module inversion_mod
 
             !Find y velocity component \hat{v}:
             call diffy(es, as)
-            call diffx(cs, bs)
+            call diffx(svortg(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
