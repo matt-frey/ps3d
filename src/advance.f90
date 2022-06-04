@@ -128,7 +128,6 @@ module advance_mod
             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
-            double precision                :: svtend(0:nz, 0:nx-1, 0:ny-1, 3) ! vtend in spectral space
 
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
