@@ -30,7 +30,7 @@ module inversion_mod
             double precision                :: uavg, vavg
             double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
             integer                         :: iz, nc, kx, ky
-            
+
             call start_timer(vor2vel_timer)
 
             !Compute vorticity in physical space:
@@ -78,7 +78,7 @@ module inversion_mod
 !            do kz = 1, nz
 !                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
 !            enddo
-            
+
 !            es(0,  :, :) = zero
 !            es(nz, :, :) = zero
 
@@ -96,7 +96,7 @@ module inversion_mod
 
             !print *, 'x-svort', minval(abs(svortg(:, :, :, 1)))
             !print *, 'y-svort', minval(abs(svortg(:, :, :, 2)))
-            !print *, 'z-svort', minval(abs(svortg(:, :, :, 3))) 
+            !print *, 'z-svort', minval(abs(svortg(:, :, :, 3)))
 
             !Convert vorticity components to semi-spectral space
             call fftfs2ss(svortg(:, :, :, 1), as)
@@ -169,10 +169,10 @@ module inversion_mod
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
         subroutine vorticity_tendency(svortg, velog, vortg, svtend)
-            double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)    ! fully sectral
+            double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi-spectral
             double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out) :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! fully spectral
+            double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi spectral
             double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
             double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
             double precision              :: zs(0:nz, 0:nx-1, 0:ny-1)
@@ -185,7 +185,7 @@ module inversion_mod
 
             do nc = 1, 3
                 xs = svortg(:, :, :, nc)
-                call fftczs2p(xs, vortg(:, :, :, nc))
+                call fftxys2p(xs, vortg(:, :, :, nc))
                 vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
             enddo
 
@@ -222,10 +222,9 @@ module inversion_mod
             call diffy(ys, svtend(:, :, :, 3))
             svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
 
-            !Convert vorticity tendency from semi-spectral to fully-spectral space
+            !   apply z-filter
             do nc = 1, 3
-                xs = svtend(:, :, :, nc)
-                call fftss2fs(xs, svtend(:, :, :, nc))
+                call apply_zfilter(svtend(:, :, :, nc))
             enddo
 
             call stop_timer(vtend_timer)

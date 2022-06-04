@@ -416,30 +416,33 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Applies the z filter to phi to produce phif while keeping
-        ! phif = phi on the boundaries.
-        subroutine apply_zfilter(phi, phif)
-            double precision :: phi(0:nz), phif(0:nz)
-            integer          :: j
+        ! Applies the z filter to fs while keeping
+        ! the boundaries (iz = 0 and iz = nz).
+        subroutine apply_zfilter(fs)
+            double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral space
+            double precision                :: phi(0:nz)
+            integer                         :: j, ix, iy
 
-            phif(0) = phi(0)
+            do iy = 0, ny-1
+                do ix = 0, nx-1
 
-            phif(1) = (phi(1) - am(1) * phi(0)) * htdf(1)
+                    phi = fs(:, ix, iy)
 
-            do j = 2, nz-2
-                phif(j) = (phi(j)-am(j)*phif(j-1))*htdf(j)
+                    fs(1, ix, iy) = (phi(1) - am(1) * phi(0)) * htdf(1)
+
+                    do j = 2, nz-2
+                        fs(j, ix, iy) = (phi(j) - am(j) * fs(j-1, ix, iy)) * htdf(j)
+                    enddo
+
+                    fs(nz-1, ix, iy) = (phi(nz-1) - am(nz) * phi(nz) - am(nz-1) * fs(nz-2, ix, iy)) * htdf(nz-1)
+
+                    do j = nz-2, 1, -1
+                        fs(j, ix, iy) = etdf(j) * fs(j+1, ix, iy) + fs(j, ix, iy)
+                    enddo
+                enddo
             enddo
-
-            phif(nz-1) = (phi(nz-1) - am(nz) * phi(nz) - am(nz-1) * phif(nz-2)) * htdf(nz-1)
-
-            do j = nz-2, 1, -1
-                phif(j) = etdf(j) * phif(j+1) + phif(j)
-            enddo
-
-            phif(nz)=phi(nz)
 
         end subroutine apply_zfilter
-
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
