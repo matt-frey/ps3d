@@ -209,7 +209,7 @@ module inversion_utils
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision, allocatable :: a0(:, :), k2l2(:, :)
+            double precision, allocatable :: a0(:, :)
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
             double precision              :: kxmaxi, kymaxi
@@ -409,16 +409,16 @@ module inversion_utils
             double precision             :: a0(nx, ny)
             integer                      :: j
 
-            a0 = one + dfac * (k2l2(:, :) * b0(1) - am(2) - am(1))
+            a0 = one + dfac * (k2l2 * b0(1) - am(2) - am(1))
             htdf(1, :, :) = one / a0
             etdf(1, :, :) = -am(2) * htdf(1, :, :)
             do j = 2, nz-2
-                a0 = one + dfac * (k2l2(:, :) * b0(j) - am(j+1) - am(j))
+                a0 = one + dfac * (k2l2 * b0(j) - am(j+1) - am(j))
                 htdf(j, :, :) = one / (a0 + am(j) * etdf(j-1, :, :))
                 etdf(j, :, :) = -am(j+1) * htdf(j, :, :)
             enddo
 
-            a0 = one + dfac * (k2l2(:, :) * b0(nz-1) - am(nz) - am(nz-1))
+            a0 = one + dfac * (k2l2 * b0(nz-1) - am(nz) - am(nz-1))
             htdf(nz-1, :, :) = one / (a0 + am(nz-1) * etdf(nz-2, :, :))
         end subroutine update_zfilter
 
