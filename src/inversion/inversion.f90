@@ -42,6 +42,14 @@ module inversion_mod
             call diffy(svortg(:, :, :, 1), ds)
             call diffx(svortg(:, :, :, 2), es)
 
+            ! Convert ds and es to fully spectral space
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
+                    call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
             !$omp parallel
             !$omp workshare
             ds = green * (ds - es)
