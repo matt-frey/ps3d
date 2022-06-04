@@ -22,8 +22,8 @@ module inversion_mod
             double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
 !            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
             double precision                :: ubar(0:nz), vbar(0:nz)
             double precision                :: uavg, vavg
@@ -38,38 +38,46 @@ module inversion_mod
                 call fftxys2p(as, vortg(:, :, :, nc))
             enddo
 
-            !Form source term for inversion of vertical velocity:
+            !----------------------------------------------------------
+            !Form source term for inversion of vertical velocity -> ds:
             call diffy(svortg(:, :, :, 1), ds)
             call diffx(svortg(:, :, :, 2), es)
-
-            ! Convert ds and es to fully spectral space
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
-                    call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
             !$omp parallel
             !$omp workshare
-            ds = green * (ds - es)
+            ds = ds - es
             !$omp end workshare
             !$omp end parallel
 
-            ! FFT back the particular solution to semi-spectral space:
+            !Convert ds to fully spectral space:
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
 
+            !Invert Laplacian to find "w_p", the particular solution:
+            !$omp parallel
+            !$omp workshare
+            ds = green * ds
+            !$omp end workshare
+            !$omp end parallel
+
+            !FFT back the particular solution to semi-spectral space:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+            !Store boundary values of "w_p" to correct "w" below:
             wbot = ds(0,  :, :)
             wtop = ds(nz, :, :)
 
-            ! Define the complete vertical velocity in semi-spectral space:
+            !Define the complete vertical velocity "w" in semi-spectral space:
             do iz = 1, nz-1
                 ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(nz-iz, :, :) + wtop * decz(iz, :, :))
             enddo
+            !Ensure "w" is identically zero at the boundaries:
             ds(0,  :, :) = zero
             ds(nz, :, :) = zero
 
@@ -89,6 +97,7 @@ module inversion_mod
 !            es(0,  :, :) = zero
 !            es(nz, :, :) = zero
 
+            !Compute "dw/dz" -> es (semi-spectral space henceforth):
             call diffz(ds, es)
 
 !            es(0,  :, :) = zero
@@ -101,6 +110,7 @@ module inversion_mod
             !    enddo
             ! enddo
 
+            !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating horizontal vorticity:
             ubar(0) = zero
             vbar(0) = zero
@@ -109,7 +119,7 @@ module inversion_mod
                 vbar(iz+1) = vbar(iz) - dz2 * (svortg(iz, 0, 0, 1) + svortg(iz+1, 0, 0, 1))
             enddo
 
-            ! remove the mean value to have zero net momentum
+            !Remove the mean value to have zero net horizontal momentum:
             uavg = sum(ubar(1:nz-1) + f12 * ubar(nz)) / dble(nz)
             vavg = sum(vbar(1:nz-1) + f12 * vbar(nz)) / dble(nz)
             do iz = 0, nz
@@ -117,7 +127,8 @@ module inversion_mod
                 vbar(iz) = vbar(iz) - vavg
             enddo
 
-            !Find x velocity component \hat{u}:
+            !-------------------------------------------------------
+            !Find x velocity component "u":
             call diffx(es, as)
             call diffy(svortg(:, :, :, 3), bs)
 
@@ -130,12 +141,14 @@ module inversion_mod
             !Add horizontally-averaged flow:
             as(:, 0, 0) = ubar
 
+            !Store spectral form of "u":
             svelog(:, :, :, 1) = as
 
-            !Get u in physical space:
+            !Get "u" in physical space:
             call fftxys2p(as, velog(0:nz, :, :, 1))
 
-            !Find y velocity component \hat{v}:
+            !-------------------------------------------------------
+            !Find y velocity component "v":
             call diffy(es, as)
             call diffx(svortg(:, :, :, 3), bs)
 
@@ -147,15 +160,18 @@ module inversion_mod
 
             !Add horizontally-averaged flow:
             as(:, 0, 0) = vbar
-
+            
+            !Store spectral form of "v":
             svelog(:, :, :, 2) = as
 
-            !Get v in physical space:
+            !Get "v" in physical space:
             call fftxys2p(as, velog(0:nz, :, :, 2))
 
+            !-------------------------------------------------------
+            !Store spectral form of "w":
             svelog(:, :, :, 3) = ds
 
-            !Get w in physical space:
+            !Get "w" in physical space:
             call fftxys2p(ds, velog(0:nz, :, :, 3))
 
             call stop_timer(vor2vel_timer)
@@ -181,12 +197,15 @@ module inversion_mod
 
             call start_timer(vtend_timer)
 
+            !-------------------------------------------------------
+            ! First store absolute vorticity in physical space:
             do nc = 1, 3
                 xs = svortg(:, :, :, nc)
                 call fftxys2p(xs, vortg(:, :, :, nc))
                 vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
             enddo
 
+            !-------------------------------------------------------
             ! x-component of vorticity tendency:
             yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
             zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
@@ -198,6 +217,7 @@ module inversion_mod
             call diffz(zs, svtend(:, :, :, 1))
             svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
 
+            !-------------------------------------------------------
             ! y-component of vorticity tendency:
             xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
             zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
@@ -209,6 +229,7 @@ module inversion_mod
             call diffz(zs, svtend(:, :, :, 2))
             svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
 
+            !-------------------------------------------------------
             ! z-component of vorticity tendency:
             xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
             yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
@@ -220,7 +241,9 @@ module inversion_mod
             call diffy(ys, svtend(:, :, :, 3))
             svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
 
-            !   apply z-filter
+
+            !-------------------------------------------------------
+            ! Apply z-filter:
             do nc = 1, 3
                 call apply_zfilter(svtend(:, :, :, nc))
             enddo
