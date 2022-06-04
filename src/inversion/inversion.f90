@@ -17,7 +17,7 @@ module inversion_mod
         ! in physical space (vortg)
         subroutine vor2vel(svortg, vortg,  svelog, velog)
             double precision, intent(out)   :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)  ! fully spectral
+            double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
             double precision, intent(out)   :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
             double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
