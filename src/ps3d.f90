@@ -7,7 +7,7 @@ program ps3d
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
-    use inversion_utils, only : init_inversion, fftczp2s, filt, init_hyperdiffusion
+    use inversion_utils, only : init_inversion, fftxyp2s, filt, init_hyperdiffusion
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
                       setup_domain_and_parameters
@@ -61,11 +61,11 @@ program ps3d
 
             call init_inversion
 
-            ! convert fields to fully spectral space
-            call fftczp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
-            call fftczp2s(vortg(:, :, :, 2), svortg(:, :, :, 2))
-            call fftczp2s(vortg(:, :, :, 3), svortg(:, :, :, 3))
-            call fftczp2s(buoyg, sbuoyg)
+            ! convert fields to semi-spectral space
+            call fftxyp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
+            call fftxyp2s(vortg(:, :, :, 2), svortg(:, :, :, 2))
+            call fftxyp2s(vortg(:, :, :, 3), svortg(:, :, :, 3))
+            call fftxyp2s(buoyg, sbuoyg)
 
             ! apply Hou and Li de-aliasing filter
             do iz = 0, nz

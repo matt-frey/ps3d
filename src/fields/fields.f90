@@ -13,7 +13,7 @@ module fields
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
     double precision, allocatable, dimension(:, :, :, :) :: &
-        svortg,    &   ! vorticity vector field in fully spectral space
+        svortg,    &   ! vorticity vector field in semi-spectral space
         vortg,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         velog,     &   ! velocity vector field (u, v, w)
         svelog,    &   ! velocity vector field (u, v, w) (semi-spectral)
@@ -21,7 +21,7 @@ module fields
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoyg,     &   ! buoyancy (physical)
-        sbuoyg         ! buoyancy (fully spectral)
+        sbuoyg         ! buoyancy (semi-spectral)
 
     double precision, allocatable, dimension(:, :) :: &
         diss           ! dissipation operator (spectral)

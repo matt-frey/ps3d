@@ -129,18 +129,14 @@ module advance_mod
             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
             double precision                :: svtend(0:nz, 0:nx-1, 0:ny-1, 3) ! vtend in spectral space
-            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
 
             !--------------------------------------------------------------
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
-            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
-            call fftfs2ss(sbuoyg, bs)
-
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(bs, xs)
-            call diffy(bs, ys)
-            call diffz(bs, zs)
+            call diffx(sbuoyg, xs)
+            call diffy(sbuoyg, ys)
+            call diffz(sbuoyg, zs)
 
             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
             call fftss2fs(ys, svorts(:, :, :, 1))
@@ -156,8 +152,8 @@ module advance_mod
                  + velog(:, :, :, 2) * dbdy &   ! v * db/dy
                  + velog(:, :, :, 3) * dbdz     ! w * db/dz
 
-            !Convert to fully spectral space and apply de-aliasing filter:
-            call fftczp2s(dbdx, sbuoys)
+            !Convert to semi-spectral space and apply de-aliasing filter:
+            call fftxyp2s(dbdx, sbuoys)
 
             do iz = 0, nz
                 sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
@@ -197,17 +193,13 @@ module advance_mod
             double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
-            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
             double precision             :: ke, en, vormean(3)
 
 
-            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
-            call fftfs2ss(sbuoyg, bs)
-
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(bs, xs)
-            call diffy(bs, ys)
-            call diffz(bs, zs)
+            call diffx(sbuoyg, xs)
+            call diffy(sbuoyg, ys)
+            call diffz(sbuoyg, zs)
 
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
             call fftxys2p(xs, xp)

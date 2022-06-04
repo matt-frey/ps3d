@@ -9,7 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : fftxys2p, fftczs2p
+    use inversion_utils, only : fftxys2p
     implicit none
 
     integer :: field_io_timer
@@ -212,7 +212,7 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in spectral space (temporary)
+            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in semi-spectral space (temporary)
             double precision             :: vtend(0:nz, 0:ny-1, 0:nx-1)
 
             call start_timer(field_io_timer)
@@ -253,17 +253,17 @@ module field_netcdf
                  start, cnt)
 
             bs = svtend(:, :, :, 1)
-            call fftczs2p(bs, vtend)
+            call fftxys2p(bs, vtend)
             call write_netcdf_dataset(ncid, xvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 2)
-            call fftczs2p(bs, vtend)
+            call fftxys2p(bs, vtend)
             call write_netcdf_dataset(ncid, yvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 3)
-            call fftczs2p(bs, vtend)
+            call fftxys2p(bs, vtend)
             call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
 
