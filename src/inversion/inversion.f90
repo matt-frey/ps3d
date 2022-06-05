@@ -17,15 +17,16 @@ module inversion_mod
         ! returns the associated velocity field (vel) as well as vorticity
         ! in physical space (vor)
         subroutine vor2vel
-            double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: ubar(0:nz), vbar(0:nz)
+            double precision :: uavg, vavg
+            double precision :: wtop(0:nx-1, 0:ny-1)
+            double precision :: wbot(0:nx-1, 0:ny-1)
+            integer          :: iz, nc, kx, ky
 !            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
-            double precision                :: ubar(0:nz), vbar(0:nz)
-            double precision                :: uavg, vavg
-            double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
-            integer                         :: iz, nc, kx, ky
 
             call start_timer(vor2vel_timer)
 

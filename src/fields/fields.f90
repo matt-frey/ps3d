@@ -23,7 +23,8 @@ module fields
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
-        sbuoy       ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        diss        ! dissipation operator (fully spectral in iz=1, nz-1, semi-spectral at iz = 0 and iz = nz)
 
     contains
 
@@ -97,31 +98,34 @@ module fields
 
         end subroutine field_decompose
 
-!         subroutine field_combine(sfi, sftop, sfbot, sfc)
-!             double precision, intent(in)  :: sfi(1:nz, 0:nx-1, 0:ny-1) ! full-spectral interior field
-!             double precision, intent(in)  :: sftop(0:nx-1, 0:ny-1)     ! semi-spectral top z-boundary layer
-!             double precision, intent(in)  :: sfbot(0:nx-1, 0:ny-1)     ! semi-spectral bottom z-boundary layer
-!             double precision, intent(out) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral complete field
-!             double precision              :: sfl(0:nz, 0:nx-1, 0:ny-1) ! linear part in z
-!             double precision              :: ss(1:nz, 0:nx-1, 0:ny-1)  ! sine transform in z
-!             integer                       :: iz, ky, kx
-!
-!             !FFT to semi-spectral space (sine transform) as the array ss:
-!             do ky = 0, ny-1
-!                 do kx = 0, nx-1
-!                     ss(:, kx, ky) = sfi(:, kx, ky)
-!                     call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
-!                 enddo
-!            enddo
-!
-!             ! get linear part
-!             do iz = 0, nz
-!                 sfl(iz, :, :) = sfbot * phi00(nz - iz) + sftop * phi00(iz)
-!             enddo
-!
-!             sfc = ss + sfl
-!
-!         end subroutine field_combine
+        subroutine field_combine(sf, fc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
+            integer                       :: iz, kx, ky
+
+            !FFT to semi-spectral space (sine transform) as the array ss:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    sfc(1:nz, kx, ky) = sf(1:nz, kx, ky)
+                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            sfc(0,  :, :) = sf(0,  :, :)
+            sfc(nz, :, :) = sf(nz, :, :)
+
+            ! get linear part
+            do iz = 1, nz-1
+                sfl(iz, :, :) = sfc(0, :, :) * phi00(nz - iz) + sfc(nz, :, :) * phi00(iz)
+            enddo
+
+            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
+
+            call fftxys2p(sfc, fc)
+
+        end subroutine field_combine
 
         function get_kinetic_energy() result(ke)
             double precision :: ke

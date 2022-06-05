@@ -45,6 +45,8 @@ module inversion_utils
     ! Tridiagonal arrays for the vertical filter:
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
 
+    double precision, allocatable :: phi00(:)
+
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
 
@@ -80,7 +82,8 @@ module inversion_utils
             , rky                   &
             , rkz                   &
             , apply_zfilter         &
-            , update_zfilter
+            , update_zfilter        &
+            , phi00
 
     contains
 
@@ -157,6 +160,7 @@ module inversion_utils
 
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
+            allocate(phi00(0:nz))
 
 
             call init_tridiagonal

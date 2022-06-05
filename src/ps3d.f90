@@ -73,8 +73,8 @@ program ps3d
 !                 sbuoy(iz, :, :)    = filt * sbuoy(iz, :, :)
 !             enddo
 
-            call vor2vel(svor, vor,  svel, vel)
-            bbdif = maxval(buoyg) - minval(buoyg)
+            call vor2vel
+            bbdif = maxval(buoy) - minval(buoy)
             ke = get_kinetic_energy()
             en = get_enstrophy()
             call init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
