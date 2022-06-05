@@ -61,52 +61,67 @@ module fields
             diss   = zero
         end subroutine field_default
 
-        subroutine field_decompose(sfc, sfi, sftop, sfbot)
-            double precision, intent(in)    :: sfc(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral complete field
-            double precision, intent(inout) :: sfi(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral interior field
-            double precision, intent(inout) :: sftop(0:nx-1, 0:ny-1)     ! semi-spectral top z-boundary layer
-            double precision, intent(inout) :: sfbot(0:nx-1, 0:ny-1)     ! semi-spectral bottom z-boundary layer
-            double precision                :: sfl(0:nz, 0:nx-1, 0:ny-1) ! linear part in z
-            integer                         :: iz
+        subroutine field_decompose(fc, sf)
+            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
+            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
+            integer                       :: iz, kx, ky
 
-            ! get top and bottom layer
-            sftop = sfc(nz, :, :)
-            sfbot = sfc(0,  :, :)
+
+            cfc = fc
+            call fftxyp2s(cfc, sfc)
 
             ! get linear part
-            do iz = 0, nz
-                sfl(iz, :, :) = sfbot * phi00(nz - iz) + sftop * phi00(iz)
+            do iz = 1, nz-1
+                sfl(iz, :, :) = sfc(0, :, :) * phi00(nz - iz) + sfc(nz, :, :) * phi00(iz)
             enddo
 
-            sfi = sfc - sfl
+            ! bottom z-boundary
+            sf(0,      :, :) = sfc(0,      :, :)
+
+            ! interior
+            sf(1:nz-1, :, :) = sfc(1:nz-1, :, :) - sfl
+
+            ! transform interior to fully spectral
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dst(1, nz, sf(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+            ! top z-boundary
+            sf(nz, :, :) = sfc(nz, :, :)
 
         end subroutine field_decompose
 
-        subroutine field_combine(sfi, sftop, sfbot, sfc)
-            double precision, intent(in)  :: sfi(1:nz, 0:nx-1, 0:ny-1) ! full-spectral interior field
-            double precision, intent(in)  :: sftop(0:nx-1, 0:ny-1)     ! semi-spectral top z-boundary layer
-            double precision, intent(in)  :: sfbot(0:nx-1, 0:ny-1)     ! semi-spectral bottom z-boundary layer
-            double precision, intent(out) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral complete field
-            double precision              :: sfl(0:nz, 0:nx-1, 0:ny-1) ! linear part in z
-            double precision              :: ss(1:nz, 0:nx-1, 0:ny-1)  ! sine transform in z
-            integer                       :: iz, ky, kx
-
-            !FFT to semi-spectral space (sine transform) as the array ss:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    ss(:, kx, ky) = sfi(:, kx, ky)
-                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
-                enddo
-           enddo
-
-            ! get linear part
-            do iz = 0, nz
-                sfl(iz, :, :) = sfbot * phi00(nz - iz) + sftop * phi00(iz)
-            enddo
-
-            sfc = ss + sfl
-
-        end subroutine field_combine
+!         subroutine field_combine(sfi, sftop, sfbot, sfc)
+!             double precision, intent(in)  :: sfi(1:nz, 0:nx-1, 0:ny-1) ! full-spectral interior field
+!             double precision, intent(in)  :: sftop(0:nx-1, 0:ny-1)     ! semi-spectral top z-boundary layer
+!             double precision, intent(in)  :: sfbot(0:nx-1, 0:ny-1)     ! semi-spectral bottom z-boundary layer
+!             double precision, intent(out) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral complete field
+!             double precision              :: sfl(0:nz, 0:nx-1, 0:ny-1) ! linear part in z
+!             double precision              :: ss(1:nz, 0:nx-1, 0:ny-1)  ! sine transform in z
+!             integer                       :: iz, ky, kx
+!
+!             !FFT to semi-spectral space (sine transform) as the array ss:
+!             do ky = 0, ny-1
+!                 do kx = 0, nx-1
+!                     ss(:, kx, ky) = sfi(:, kx, ky)
+!                     call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
+!                 enddo
+!            enddo
+!
+!             ! get linear part
+!             do iz = 0, nz
+!                 sfl(iz, :, :) = sfbot * phi00(nz - iz) + sftop * phi00(iz)
+!             enddo
+!
+!             sfc = ss + sfl
+!
+!         end subroutine field_combine
 
         function get_kinetic_energy() result(ke)
             double precision :: ke

@@ -55,11 +55,15 @@ program ps3d
 
             time%initial = zero ! make sure user cannot start at arbirtrary time
 
-            call field_default
-
             call init_inversion
 
+            call field_default
+
             call read_netcdf_fields(trim(field_file))
+
+            ! decompose initial fields
+            call field_decompose(buoy, sbuoy)
+            call field_decompose(vor, svor)
 
 !             ! apply Hou and Li de-aliasing filter
 !             do iz = 0, nz
