@@ -32,8 +32,7 @@ module inversion_mod
 
             !Compute vorticity in physical space:
             do nc = 1, 3
-                as = svor(:, :, :, nc)
-                call fftxys2p(as, vor(:, :, :, nc))
+                call field_combine(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
@@ -180,26 +179,21 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
-        subroutine vorticity_tendency!(svor, vel, vor, svtend)
-!             double precision, intent(in)  :: svor(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi-spectral
-!             double precision, intent(in)  :: vel(0:nz, 0:ny-1, 0:nx-1, 3)
-!             double precision, intent(out) :: vor(0:nz, 0:ny-1, 0:nx-1, 3)
-!             double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi spectral
-            double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: zs(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: xp(0:nz, 0:ny-1, 0:nx-1)
-            double precision              :: yp(0:nz, 0:ny-1, 0:nx-1)
-            double precision              :: zp(0:nz, 0:ny-1, 0:nx-1)
-            integer                       :: nc
+        subroutine vorticity_tendency
+            double precision :: xs(0:nz, 0:nx-1, 0:ny-1)
+            double precision :: ys(0:nz, 0:nx-1, 0:ny-1)
+            double precision :: zs(0:nz, 0:nx-1, 0:ny-1)
+            double precision :: xp(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: yp(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: zp(0:nz, 0:ny-1, 0:nx-1)
+            integer          :: nc
 
             call start_timer(vtend_timer)
 
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
-                xs = svor(:, :, :, nc)
-                call fftxys2p(xs, vor(:, :, :, nc))
+                call field_combine(svor(:, :, :, nc), vor(:, :, :, nc))
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
