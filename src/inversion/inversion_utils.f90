@@ -37,12 +37,10 @@ module inversion_utils
     double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis2d(:, :)
-    double precision, allocatable :: hdis3d(:, :, :)
+    double precision, allocatable :: hdis(:, :, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt2d(:, :)
-    double precision, allocatable :: filt3d(:, :, :)
+    double precision, allocatable :: filt(:, :, :)
 
     ! Tridiagonal arrays for the vertical filter:
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
@@ -66,12 +64,10 @@ module inversion_utils
             , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
-            , filt2d                &
-            , filt3d                &
+            , filt                  &
             , hdzi                  &
             , k2l2i                 &
-            , hdis2d                &
-            , hdis3d                &
+            , hdis                  &
             , fftczp2s              &
             , fftczs2p              &
             , fftss2fs              &
@@ -100,8 +96,7 @@ module inversion_utils
             double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
             integer                      :: kx, ky, iz, kz
 
-            allocate(hdis2d(0:nx-1, 0:ny-1))
-            allocate(hdis3d(0:nz, 0:nx-1, 0:ny-1))
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -123,11 +118,11 @@ module inversion_utils
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis2d(kx, ky) = k2l2(kx+1, ky+1)
-                        do kz = 0, nz
-                            hdis3d(kz, kx, ky) = visc * (hdis2d(kx, ky) + rkz(kz) ** 2)
+                        hdis(0,  kx, ky) = visc * k2l2(kx+1, ky+1)
+                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
+                        do kz = 1, nz-1
+                            hdis(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2)
                         enddo
-                        hdis2d(kx, ky) = visc * hdis2d(kx, ky)
                     enddo
                 enddo
             else
@@ -141,9 +136,10 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis2d(kx, ky) = visc * k2l2(kx+1, ky+1) ** nnu
-                        do kz = 0, nz
-                            hdis3d(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2) ** nnu
+                        hdis(0,  kx, ky) = visc * k2l2(kx+1, ky+1) ** nnu
+                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
+                        do kz = 1, nz-1
+                            hdis(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2) ** nnu
                         enddo
                     enddo
                 enddo
@@ -250,8 +246,7 @@ module inversion_utils
             allocate(k2l2i(nx, ny))
             allocate(k2l2(nx, ny))
 
-            allocate(filt2d(nx, ny))
-            allocate(filt3d(0:nz, nx, ny))
+            allocate(filt(0:nz, nx, ny))
             allocate(etdh(nz-1, nx, ny))
             allocate(htdh(nz-1, nx, ny))
             allocate(etdv(0:nz, nx, ny))
@@ -318,9 +313,10 @@ module inversion_utils
             skz = -36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
-                    filt2d(kx, ky) = dexp(skx(kx) + sky(ky))
-                    do kz = 0, nz
-                        filt3d(kz, kx, ky) = filt2d(kx, ky) * dexp(skz(kz))
+                    filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
+                    filt(nz, kx, ky) = filt(0, kx, ky)
+                    do kz = 1, nz-1
+                        filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
                     enddo
                 enddo
             enddo

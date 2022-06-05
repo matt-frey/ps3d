@@ -5,6 +5,8 @@
 module fields
     use parameters, only : nx, ny, nz, vcell, ncell, ncelli
     use constants, only : zero, f12, f14
+    use sta2dfft, only : dst
+    use inversion_utils
     implicit none
 
     ! x: zonal
@@ -13,22 +15,15 @@ module fields
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
     double precision, allocatable, dimension(:, :, :, :) :: &
-        svori,     &   ! full-spectral vorticity in the interior of the domain
-        vor,     &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
-        vel,       &   ! velocity vector field (u, v, w)
-        svel,      &   ! velocity vector field (u, v, w) (semi-spectral)
+        svor,   &   ! full-spectral vorticity for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
+        vel,    &   ! velocity vector field (u, v, w)
+        svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
         svtend
 
     double precision, allocatable, dimension(:, :, :) :: &
-        buoyg,     &   ! buoyancy (physical)
-        sbuoy,     &   ! buoyancy (semi-spectral)
-        diss3d,    &   ! dissipation operator (spectral)
-        svortop,   &   ! semi-spectral vorticity at the top z-boundary (iz = nz)
-        svorbot        ! semi-spectral vorticity at the bottom z-boundary (iz = 0)
-
-    double precision, allocatable, dimension(:, :) :: &
-        diss2d         ! dissipation operator (spectral)
-
+        buoy,   &   ! buoyancy (physical)
+        sbuoy       ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
 
     contains
 
@@ -42,18 +37,14 @@ module fields
             allocate(svel(0:nz, 0:nx-1, 0:ny-1, 3))
 
             allocate(vor(0:nz, 0:ny-1, 0:nx-1, 3))
-            allocate(svori(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(svor(0:nz, 0:nx-1, 0:ny-1, 3))
 
             allocate(svtend(0:nz, 0:nx-1, 0:ny-1, 3))
 
-            allocate(buoyg(0:nz, 0:ny-1, 0:nx-1))
+            allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoy(0:nz, 0:nx-1, 0:ny-1))
 
-            allocate(diss2d(0:nx-1, 0:ny-1))
-            allocate(diss3d(0:nz, 0:nx-1, 0:ny-1))
-
-            allocate(svortop(0:nx-1, 0:ny-1, 3))
-            allocate(svorbot(0:nx-1, 0:ny-1, 3))
+            allocate(diss(0:nz, 0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
 
@@ -61,16 +52,13 @@ module fields
         subroutine field_default
             call field_alloc
 
-            vel     = zero
-            vor   = zero
-            svori   = zero
-            svtend  = zero
-            buoyg   = zero
-            sbuoy   = zero
-            diss2d  = zero
-            diss3d  = zero
-            svortop = zero
-            svorbot = zero
+            vel    = zero
+            vor    = zero
+            svor   = zero
+            svtend = zero
+            buoy   = zero
+            sbuoy  = zero
+            diss   = zero
         end subroutine field_default
 
         subroutine field_decompose(sfc, sfi, sftop, sfbot)
@@ -93,6 +81,32 @@ module fields
             sfi = sfc - sfl
 
         end subroutine field_decompose
+
+        subroutine field_combine(sfi, sftop, sfbot, sfc)
+            double precision, intent(in)  :: sfi(1:nz, 0:nx-1, 0:ny-1) ! full-spectral interior field
+            double precision, intent(in)  :: sftop(0:nx-1, 0:ny-1)     ! semi-spectral top z-boundary layer
+            double precision, intent(in)  :: sfbot(0:nx-1, 0:ny-1)     ! semi-spectral bottom z-boundary layer
+            double precision, intent(out) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral complete field
+            double precision              :: sfl(0:nz, 0:nx-1, 0:ny-1) ! linear part in z
+            double precision              :: ss(1:nz, 0:nx-1, 0:ny-1)  ! sine transform in z
+            integer                       :: iz, ky, kx
+
+            !FFT to semi-spectral space (sine transform) as the array ss:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    ss(:, kx, ky) = sfi(:, kx, ky)
+                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
+                enddo
+           enddo
+
+            ! get linear part
+            do iz = 0, nz
+                sfl(iz, :, :) = sfbot * phi00(nz - iz) + sftop * phi00(iz)
+            enddo
+
+            sfc = ss + sfl
+
+        end subroutine field_combine
 
         function get_kinetic_energy() result(ke)
             double precision :: ke

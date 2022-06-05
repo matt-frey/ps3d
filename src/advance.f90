@@ -67,26 +67,21 @@ module advance_mod
             !Start with a guess for F^{n+1} for all fields:
 
             !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
-            !vorticity (svor) in spectral space:
+            !vorticity in spectral space:
             call source(sbuoys, svorts)
 
             !Initialise iteration (dt = dt/4 below):
             bsi = sbuoy
             bsm = sbuoy + dt4 * sbuoys
-            do iz = 0, nz
-                sbuoy(iz, :, :) = diss2d * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
-            enddo
+            sbuoy = diss * (bsm + dt4 * sbuoys) - bsi
 
-
-
+            ! Advance interior and boundary of vorticity
             vortsi = svor
             vortsm = svor + dt4 * svorts
 
             do nc = 1, 3
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = diss2d * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
-                                         - vortsi(iz, :, :, nc)
-                enddo
+                svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                  - vortsi(:, :, :, nc)
             enddo
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
@@ -100,15 +95,11 @@ module advance_mod
                 call source(sbuoys, svorts)
 
                 !Update fields:
-                do iz = 0, nz
-                    sbuoy(iz, :, :) = diss2d * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
-                enddo
+                sbuoy = diss * (bsm + dt4 * sbuoys) - bsi
 
                 do nc = 1, 3
-                   do iz = 0, nz
-                        svor(iz, :, :, nc) = diss2d * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
-                                             - vortsi(iz, :, :, nc)
-                    enddo
+                    svor(iz, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
+                                       - vortsi(:, :, :, nc)
                 enddo
             enddo
 
@@ -119,7 +110,7 @@ module advance_mod
 
 
         ! Gets the source terms for vorticity and buoyancy in spectral space.
-        ! The spectral fields sbuoy and svor are all spectrally truncated.
+        ! The spectral fields sbuoy and svortg are all spectrally truncated.
         ! Note, vel obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
         subroutine source(sbuoys, svorts)
@@ -157,14 +148,12 @@ module advance_mod
             !Convert to semi-spectral space and apply de-aliasing filter:
             call fftxyp2s(dbdx, sbuoys)
 
-            do iz = 0, nz
-                sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
-            enddo
+            sbuoys = -filt3d * sbuoys
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
 
-            call vorticity_tendency(svor, vel, vor, svtend)
+            call vorticity_tendency
 
             !Add filtered vorticity tendency to vorticity source:
             do iz = 0, nz
@@ -213,7 +202,7 @@ module advance_mod
             bfmax = sqrt(sqrt(maxval(xp)))
 
             !Compute enstrophy: (reuse xp)
-            xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
+            xp = vortg(:, :, :, 1) ** 2 + vortg(:, :, :, 2) ** 2 + vortg(:, :, :, 3) ** 2
 
             !Maximum vorticity magnitude:
             vortmax = sqrt(maxval(xp))
@@ -227,9 +216,9 @@ module advance_mod
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
-                        vortmp1 = f12 * abs(vor(iz-1, iy, ix, 1) + vor(iz, iy, ix, 1))
-                        vortmp2 = f12 * abs(vor(iz-1, iy, ix, 2) + vor(iz, iy, ix, 2))
-                        vortmp3 = f12 * abs(vor(iz-1, iy, ix, 3) + vor(iz, iy, ix, 3))
+                        vortmp1 = f12 * abs(vortg(iz-1, iy, ix, 1) + vortg(iz, iy, ix, 1))
+                        vortmp2 = f12 * abs(vortg(iz-1, iy, ix, 2) + vortg(iz, iy, ix, 2))
+                        vortmp3 = f12 * abs(vortg(iz-1, iy, ix, 3) + vortg(iz, iy, ix, 3))
                         if (vortmp1 + vortmp2 + vortmp3 .gt. vortrms) then
                             vorl1 = vorl1 + vortmp1 + vortmp2 + vortmp3
                             vorl2 = vorl2 + vortmp1 ** 2 + vortmp2 ** 2 + vortmp3 ** 2
@@ -304,10 +293,10 @@ module advance_mod
                         ! S23 = 1/2 * (dv/dz + dw/dy) = 1/2 * (2 * dw/dy - \omegax) = dw/dy - 1/2 * \omegax
                         ! S33 = dw/dz = - (du/dx + dv/dy)
                         strain(1, 1) = dudx(iz, iy, ix)                              ! S11
-                        strain(1, 2) = dudy(iz, iy, ix) + f12 * vor(iz, iy, ix, 3) ! S12
-                        strain(1, 3) = dwdx(iz, iy, ix) + f12 * vor(iz, iy, ix, 2) ! S13
+                        strain(1, 2) = dudy(iz, iy, ix) + f12 * vortg(iz, iy, ix, 3) ! S12
+                        strain(1, 3) = dwdx(iz, iy, ix) + f12 * vortg(iz, iy, ix, 2) ! S13
                         strain(2, 2) = dvdy(iz, iy, ix)                              ! S22
-                        strain(2, 3) = dwdy(iz, iy, ix) - f12 * vor(iz, iy, ix, 1) ! S23
+                        strain(2, 3) = dwdy(iz, iy, ix) - f12 * vortg(iz, iy, ix, 1) ! S23
                         strain(3, 3) = -(dudx(iz, iy, ix) + dvdy(iz, iy, ix))        ! S33
 
                         ! calculate its eigenvalues. The Jacobi solver
@@ -338,8 +327,7 @@ module advance_mod
             if (nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt / two
-                diss2d = two / (one + dfac * hdis2d)
-                diss3d = two / (one + dfac * hdis3d)
+                diss = two / (one + dfac * hdis)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
                 !(see inversion_utils.f90 and parameters.f90).
 
@@ -347,8 +335,7 @@ module advance_mod
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt / two
-                diss2d = two / (one + dfac * hdis2d)
-                diss3d = two / (one + dfac * hdis3d)
+                diss = two / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
                 !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
