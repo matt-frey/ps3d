@@ -74,7 +74,7 @@ module advance_mod
             bsi = sbuoyg
             bsm = sbuoyg + dt4 * sbuoys
             do iz = 0, nz
-                sbuoyg(iz, :, :) = diss * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
+                sbuoyg(iz, :, :) = diss2d * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
             enddo
 
 
@@ -84,7 +84,7 @@ module advance_mod
 
             do nc = 1, 3
                 do iz = 0, nz
-                    svortg(iz, :, :, nc) = diss * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
+                    svortg(iz, :, :, nc) = diss2d * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
                                          - vortsi(iz, :, :, nc)
                 enddo
             enddo
@@ -101,12 +101,12 @@ module advance_mod
 
                 !Update fields:
                 do iz = 0, nz
-                    sbuoyg(iz, :, :) = diss * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
+                    sbuoyg(iz, :, :) = diss2d * (bsm(iz, :, :) + dt4 * sbuoys(iz, :, :)) - bsi(iz, :, :)
                 enddo
 
                 do nc = 1, 3
                    do iz = 0, nz
-                        svortg(iz, :, :, nc) = diss * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
+                        svortg(iz, :, :, nc) = diss2d * (vortsm(iz, :, :, nc) + dt4 * svorts(iz, :, :, nc)) &
                                              - vortsi(iz, :, :, nc)
                     enddo
                 enddo
@@ -341,7 +341,8 @@ module advance_mod
             if (nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt / two
-                diss = two / (one + dfac * hdis)
+                diss2d = two / (one + dfac * hdis2d)
+                diss3d = two / (one + dfac * hdis3d)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
                 !(see inversion_utils.f90 and parameters.f90).
 
@@ -349,7 +350,8 @@ module advance_mod
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt / two
-                diss = two / (one + dfac * hdis)
+                diss2d = two / (one + dfac * hdis2d)
+                diss3d = two / (one + dfac * hdis3d)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
                 !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).

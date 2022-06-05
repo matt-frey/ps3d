@@ -37,10 +37,12 @@ module inversion_utils
     double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :)
+    double precision, allocatable :: hdis2d(:, :)
+    double precision, allocatable :: hdis3d(:, :, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt(:, :)
+    double precision, allocatable :: filt2d(:, :)
+    double precision, allocatable :: filt3d(:, :, :)
 
     ! Tridiagonal arrays for the vertical filter:
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
@@ -64,10 +66,12 @@ module inversion_utils
             , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
-            , filt                  &
+            , filt2d                &
+            , filt3d                &
             , hdzi                  &
             , k2l2i                 &
-            , hdis                  &
+            , hdis2d                &
+            , hdis3d                &
             , fftczp2s              &
             , fftczs2p              &
             , fftss2fs              &
@@ -96,7 +100,8 @@ module inversion_utils
             double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
             integer                      :: kx, ky, iz, kz
 
-            allocate(hdis(0:nx-1, 0:ny-1))
+            allocate(hdis2d(0:nx-1, 0:ny-1))
+            allocate(hdis3d(0:nz, 0:nx-1, 0:ny-1))
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -117,9 +122,13 @@ module inversion_utils
 
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
-                   do kx = 0, nx-1
-                      hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
-                   enddo
+                    do kx = 0, nx-1
+                        hdis2d(kx, ky) = k2l2(kx+1, ky+1)
+                        do kz = 0, nz
+                            hdis3d(kz, kx, ky) = visc * (hdis2d(kx, ky) + rkz(kz) ** 2)
+                        enddo
+                        hdis2d(kx, ky) = visc * hdis2d(kx, ky)
+                    enddo
                 enddo
             else
                 !Define hyperviscosity:
@@ -132,7 +141,10 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2) ** nnu
+                        hdis2d(kx, ky) = visc * k2l2(kx+1, ky+1) ** nnu
+                        do kz = 0, nz
+                            hdis3d(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2) ** nnu
+                        enddo
                     enddo
                 enddo
             endif
@@ -212,9 +224,9 @@ module inversion_utils
             double precision, allocatable :: a0(:, :)
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
-            double precision              :: kxmaxi, kymaxi
-            integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
-            double precision              :: skx(nx), sky(ny)
+            double precision              :: kxmaxi, kymaxi, kzmaxi
+            integer                       :: kx, ky, kz, iz, isub, ib_sub, ie_sub
+            double precision              :: skx(nx), sky(ny), skz(nz)
 
             if (is_fft_initialised) then
                 return
@@ -238,7 +250,8 @@ module inversion_utils
             allocate(k2l2i(nx, ny))
             allocate(k2l2(nx, ny))
 
-            allocate(filt(nx, ny))
+            allocate(filt2d(nx, ny))
+            allocate(filt3d(0:nz, nx, ny))
             allocate(etdh(nz-1, nx, ny))
             allocate(htdh(nz-1, nx, ny))
             allocate(etdv(0:nz, nx, ny))
@@ -296,14 +309,19 @@ module inversion_utils
             k2l2(1, 1) = zero
 
             !----------------------------------------------------------
-            !Define Hou and Li filter:
+            !Define Hou and Li filter (2D and 3D):
             kxmaxi = one / maxval(rkx)
             skx = -36.d0 * (kxmaxi * rkx) ** 36
             kymaxi = one/maxval(rky)
             sky = -36.d0 * (kymaxi * rky) ** 36
+            kzmaxi = one/maxval(rkz)
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
             do ky = 1, ny
                 do kx = 1, nx
-                    filt(kx, ky) = dexp(skx(kx) + sky(ky))
+                    filt2d(kx, ky) = dexp(skx(kx) + sky(ky))
+                    do kz = 0, nz
+                        filt3d(kz, kx, ky) = filt2d(kx, ky) * dexp(skz(kz))
+                    enddo
                 enddo
             enddo
 
