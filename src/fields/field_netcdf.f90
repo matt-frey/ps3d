@@ -9,7 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : fftxys2p
+    use inversion_utils, only : fftxys2p, fftxyp2s
     implicit none
 
     integer :: field_io_timer
@@ -233,21 +233,21 @@ module field_netcdf
             !
             ! write fields (do not write halo cells)
             !
-            call write_netcdf_dataset(ncid, x_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 1), &
+            call write_netcdf_dataset(ncid, x_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 1), &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, y_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 2), &
+            call write_netcdf_dataset(ncid, y_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 2), &
                                       start, cnt)
-            call write_netcdf_dataset(ncid, z_vel_id, velog(0:nz, 0:ny-1, 0:nx-1, 3), &
-                                      start, cnt)
-
-            call write_netcdf_dataset(ncid, x_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 1), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, y_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 2), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, z_vor_id, vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
+            call write_netcdf_dataset(ncid, z_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 3), &
                                       start, cnt)
 
-            bs = sbuoyg
+            call write_netcdf_dataset(ncid, x_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 1), &
+                                      start, cnt)
+            call write_netcdf_dataset(ncid, y_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 2), &
+                                      start, cnt)
+            call write_netcdf_dataset(ncid, z_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 3), &
+                                      start, cnt)
+
+            bs = sbuoy
             call fftxys2p(bs, buoyg)
             call write_netcdf_dataset(ncid, buoy_id, buoyg(0:nz, 0:ny-1, 0:nx-1),   &
                  start, cnt)
@@ -281,6 +281,8 @@ module field_netcdf
             character(*),      intent(in) :: ncfname
             integer, optional, intent(in) :: step
             integer                       :: n_steps, start(4), cnt(4)
+            double precision              :: buffer(0:nz, 0:ny-1, 0:nx-1)  ! physical space
+            double precision              :: sbuffer(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral space
 
             call start_timer(field_io_timer)
 
@@ -303,34 +305,41 @@ module field_netcdf
                 ! 19 May 2022
                 ! https://stackoverflow.com/questions/45984672/print-values-without-new-line
                 write(*, "(a42)", advance="no") "Found x-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'x_vorticity',            &
-                                         vortg(0:nz, 0:ny-1, 0:nx-1, 1), &
-                                         start=start, cnt=cnt)
+                call read_netcdf_dataset(ncid, 'x_vorticity',          &
+                                         buffer, start=start, cnt=cnt)
                 write(*, *) "done"
+                ! decompose into boundary and interior
+                call fftxyp2s(buffer, sbuffer)
+                call field_decompose(sbuffer, svori(:, :, :, 1), svortop(:, :, 1), svorbot(:, :, 1))
             endif
 
             if (has_dataset(ncid, 'y_vorticity')) then
                 write(*, "(a42)", advance="no") "Found y-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'y_vorticity',            &
-                                         vortg(0:nz, 0:ny-1, 0:nx-1, 2), &
-                                         start=start, cnt=cnt)
-                 write(*, *) "done"
+                call read_netcdf_dataset(ncid, 'y_vorticity',          &
+                                         buffer, start=start, cnt=cnt)
+                write(*, *) "done"
+                ! decompose into boundary and interior
+                call fftxyp2s(buffer, sbuffer)
+                call field_decompose(sbuffer, svori(:, :, :, 2), svortop(:, :, 2), svorbot(:, :, 2))
             endif
 
             if (has_dataset(ncid, 'z_vorticity')) then
                 write(*, "(a42)", advance="no") "Found z-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'z_vorticity',            &
-                                         vortg(0:nz, 0:ny-1, 0:nx-1, 3), &
-                                         start=start, cnt=cnt)
-                 write(*, *) "done"
+                write(*, *) "done"
+                call read_netcdf_dataset(ncid, 'z_vorticity',          &
+                                         buffer, start=start, cnt=cnt)
+                ! decompose into boundary and interior
+                call fftxyp2s(buffer, sbuffer)
+                call field_decompose(sbuffer, svori(:, :, :, 3), svortop(:, :, 3), svorbot(:, :, 3))
             endif
 
             if (has_dataset(ncid, 'buoyancy')) then
                 write(*, "(a39)", advance="no") "Found buoyancy field input, reading ..."
                 call read_netcdf_dataset(ncid, 'buoyancy',            &
-                                         buoyg(0:nz, 0:ny-1, 0:nx-1), &
-                                         start=start, cnt=cnt)
-                 write(*, *) "done"
+                                         buffer, start=start, cnt=cnt)
+                write(*, *) "done"
+                buoyg = buffer
+                call fftxyp2s(buffer, sbuoy)
             endif
 
             call close_netcdf_file(ncid)

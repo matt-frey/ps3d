@@ -5,6 +5,7 @@ module inversion_mod
     use constants, only : zero, two, f12
     use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
+    use fields
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -12,14 +13,10 @@ module inversion_mod
 
     contains
 
-        ! Given the vorticity vector field (svortg) in spectral space, this
-        ! returns the associated velocity field (velog) as well as vorticity
-        ! in physical space (vortg)
-        subroutine vor2vel(svortg, vortg,  svelog, velog)
-            double precision, intent(out)   :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
-            double precision, intent(out)   :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
+        ! Given the vorticity vector field (svor) in spectral space, this
+        ! returns the associated velocity field (vel) as well as vorticity
+        ! in physical space (vor)
+        subroutine vor2vel
             double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
@@ -34,14 +31,14 @@ module inversion_mod
 
             !Compute vorticity in physical space:
             do nc = 1, 3
-                as = svortg(:, :, :, nc)
-                call fftxys2p(as, vortg(:, :, :, nc))
+                as = svor(:, :, :, nc)
+                call fftxys2p(as, vor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
             !Form source term for inversion of vertical velocity -> ds:
-            call diffy(svortg(:, :, :, 1), ds)
-            call diffx(svortg(:, :, :, 2), es)
+            call diffy(svor(:, :, :, 1), ds)
+            call diffx(svor(:, :, :, 2), es)
             !$omp parallel
             !$omp workshare
             ds = ds - es
@@ -115,8 +112,8 @@ module inversion_mod
             ubar(0) = zero
             vbar(0) = zero
             do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (svortg(iz, 0, 0, 2) + svortg(iz+1, 0, 0, 2))
-                vbar(iz+1) = vbar(iz) - dz2 * (svortg(iz, 0, 0, 1) + svortg(iz+1, 0, 0, 1))
+                ubar(iz+1) = ubar(iz) + dz2 * (svor(iz, 0, 0, 2) + svor(iz+1, 0, 0, 2))
+                vbar(iz+1) = vbar(iz) - dz2 * (svor(iz, 0, 0, 1) + svor(iz+1, 0, 0, 1))
             enddo
 
             !Remove the mean value to have zero net horizontal momentum:
@@ -130,7 +127,7 @@ module inversion_mod
             !-------------------------------------------------------
             !Find x velocity component "u":
             call diffx(es, as)
-            call diffy(svortg(:, :, :, 3), bs)
+            call diffy(svor(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -142,15 +139,15 @@ module inversion_mod
             as(:, 0, 0) = ubar
 
             !Store spectral form of "u":
-            svelog(:, :, :, 1) = as
+            svel(:, :, :, 1) = as
 
             !Get "u" in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 1))
+            call fftxys2p(as, vel(0:nz, :, :, 1))
 
             !-------------------------------------------------------
             !Find y velocity component "v":
             call diffy(es, as)
-            call diffx(svortg(:, :, :, 3), bs)
+            call diffx(svor(:, :, :, 3), bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -160,19 +157,19 @@ module inversion_mod
 
             !Add horizontally-averaged flow:
             as(:, 0, 0) = vbar
-            
+
             !Store spectral form of "v":
-            svelog(:, :, :, 2) = as
+            svel(:, :, :, 2) = as
 
             !Get "v" in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 2))
+            call fftxys2p(as, vel(0:nz, :, :, 2))
 
             !-------------------------------------------------------
             !Store spectral form of "w":
-            svelog(:, :, :, 3) = ds
+            svel(:, :, :, 3) = ds
 
             !Get "w" in physical space:
-            call fftxys2p(ds, velog(0:nz, :, :, 3))
+            call fftxys2p(ds, vel(0:nz, :, :, 3))
 
             call stop_timer(vor2vel_timer)
 
@@ -182,11 +179,11 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
-        subroutine vorticity_tendency(svortg, velog, vortg, svtend)
-            double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi-spectral
-            double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi spectral
+        subroutine vorticity_tendency!(svor, vel, vor, svtend)
+!             double precision, intent(in)  :: svor(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi-spectral
+!             double precision, intent(in)  :: vel(0:nz, 0:ny-1, 0:nx-1, 3)
+!             double precision, intent(out) :: vor(0:nz, 0:ny-1, 0:nx-1, 3)
+!             double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! semi spectral
             double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
             double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
             double precision              :: zs(0:nz, 0:nx-1, 0:ny-1)
@@ -200,15 +197,15 @@ module inversion_mod
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
-                xs = svortg(:, :, :, nc)
-                call fftxys2p(xs, vortg(:, :, :, nc))
-                vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
+                xs = svor(:, :, :, nc)
+                call fftxys2p(xs, vor(:, :, :, nc))
+                vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
             !-------------------------------------------------------
             ! x-component of vorticity tendency:
-            yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
-            zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
+            yp = vor(:, :, :, 2) * vel(:, :, :, 1) - vel(:, :, :, 2) * vor(:, :, :, 1)   ! eta * u - v * xi
+            zp = vor(:, :, :, 3) * vel(:, :, :, 1) - vel(:, :, :, 3) * vor(:, :, :, 1)   ! zeta * u - w * xi
 
             call fftxyp2s(yp, ys)
             call fftxyp2s(zp, zs)
@@ -224,8 +221,8 @@ module inversion_mod
 
             !-------------------------------------------------------
             ! y-component of vorticity tendency:
-            xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
-            zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
+            xp = vor(:, :, :, 1) * vel(:, :, :, 2) - vel(:, :, :, 1) * vor(:, :, :, 2)  ! xi * v - u * eta
+            zp = vor(:, :, :, 3) * vel(:, :, :, 2) - vel(:, :, :, 3) * vor(:, :, :, 2)  ! zeta * v - w * eta
 
             call fftxyp2s(xp, xs)
             call fftxyp2s(zp, zs)
@@ -241,8 +238,8 @@ module inversion_mod
 
             !-------------------------------------------------------
             ! z-component of vorticity tendency:
-            xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
-            yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
+            xp = vor(:, :, :, 1) * vel(:, :, :, 3) - vel(:, :, :, 1) * vor(:, :, :, 3) ! xi * w - u * zeta
+            yp = vor(:, :, :, 2) * vel(:, :, :, 3) - vel(:, :, :, 2) * vor(:, :, :, 3) ! eta * w - v * zeta
 
             call fftxyp2s(xp, xs)
             call fftxyp2s(yp, ys)

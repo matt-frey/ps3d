@@ -57,25 +57,19 @@ program ps3d
 
             call field_default
 
-            call read_netcdf_fields(trim(field_file))
-
             call init_inversion
 
-            ! convert fields to semi-spectral space
-            call fftxyp2s(vortg(:, :, :, 1), svortg(:, :, :, 1))
-            call fftxyp2s(vortg(:, :, :, 2), svortg(:, :, :, 2))
-            call fftxyp2s(vortg(:, :, :, 3), svortg(:, :, :, 3))
-            call fftxyp2s(buoyg, sbuoyg)
+            call read_netcdf_fields(trim(field_file))
 
-            ! apply Hou and Li de-aliasing filter
-            do iz = 0, nz
-                svortg(iz, :, :, 1) = filt * svortg(iz, :, :, 1)
-                svortg(iz, :, :, 2) = filt * svortg(iz, :, :, 2)
-                svortg(iz, :, :, 3) = filt * svortg(iz, :, :, 3)
-                sbuoyg(iz, :, :)    = filt * sbuoyg(iz, :, :)
-            enddo
+!             ! apply Hou and Li de-aliasing filter
+!             do iz = 0, nz
+!                 svori(iz, :, :, 1) = filt * svori(iz, :, :, 1)
+!                 svori(iz, :, :, 2) = filt * svori(iz, :, :, 2)
+!                 svori(iz, :, :, 3) = filt * svori(iz, :, :, 3)
+!                 sbuoy(iz, :, :)    = filt * sbuoy(iz, :, :)
+!             enddo
 
-            call vor2vel(svortg, vortg,  svelog, velog)
+            call vor2vel(svor, vor,  svel, vel)
             bbdif = maxval(buoyg) - minval(buoyg)
             ke = get_kinetic_energy()
             en = get_enstrophy()

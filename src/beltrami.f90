@@ -105,7 +105,7 @@ program beltrami
 
         subroutine beltrami_init
             double precision                :: pos(3)
-            double precision                :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision                :: vor(0:nz, 0:ny-1, 0:nx-1, 3)
             integer                         :: i, j, k
 
             call define_netcdf_dataset(ncid=ncid,                           &
@@ -148,14 +148,14 @@ program beltrami
                 do j = 0, ny - 1
                     do k = 0, nz
                         pos = box%origin + dx * dble((/i, j, k/))
-                        vortg(k, j, i, :) = get_flow_vorticity(pos)
+                        vor(k, j, i, :) = get_flow_vorticity(pos)
                     enddo
                 enddo
             enddo
 
-            call write_netcdf_dataset(ncid, x_vor_id, vortg(:, :, :, 1))
-            call write_netcdf_dataset(ncid, y_vor_id, vortg(:, :, :, 2))
-            call write_netcdf_dataset(ncid, z_vor_id, vortg(:, :, :, 3))
+            call write_netcdf_dataset(ncid, x_vor_id, vor(:, :, :, 1))
+            call write_netcdf_dataset(ncid, y_vor_id, vor(:, :, :, 2))
+            call write_netcdf_dataset(ncid, z_vor_id, vor(:, :, :, 3))
 
         end subroutine beltrami_init
 

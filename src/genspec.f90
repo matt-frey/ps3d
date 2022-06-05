@@ -40,7 +40,7 @@ program genspec
     
     ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
     do nc = 1, 3
-        call fftczp2s(vortg(:, :, :, nc), svortg(:, :, :, nc))
+        call fftczp2s(vor(:, :, :, nc), svor(:, :, :, nc))
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
@@ -69,7 +69,7 @@ program genspec
         do ky = 0, ny-1
             do kz = 0, nz
                 m = int(dble(kmag(kz, ky, kx)) * dki)
-                spec(m) = svortg(kz, kx, ky, 1) ** 2 + svortg(kz, kx, ky, 2) ** 2 + svortg(kz, kx, ky, 3) ** 2
+                spec(m) = svor(kz, kx, ky, 1) ** 2 + svor(kz, kx, ky, 2) ** 2 + svor(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo
