@@ -55,7 +55,7 @@ module inversion_utils
             , diffx                 &
             , diffy                 &
             , diffz                 &
-`           , fftxyp2s              &
+            , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
             , filt                  &
