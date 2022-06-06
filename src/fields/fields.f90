@@ -76,7 +76,7 @@ module fields
 
             ! get linear part
             do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phi00(nz - iz) + sfc(nz, :, :) * phi00(iz)
+                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
             enddo
 
             ! bottom z-boundary
@@ -118,7 +118,7 @@ module fields
 
             ! get linear part and add to sfc:
             do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phi00(nz - iz) + sfc(nz, :, :) * phi00(iz)
+                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
             enddo
 
             sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl

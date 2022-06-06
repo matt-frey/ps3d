@@ -36,7 +36,7 @@ module inversion_utils
     ! Tridiagonal arrays for the vertical filter:
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
 
-    double precision, allocatable :: phi00(:)
+    double precision, allocatable :: phitop(:), phibot
     double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
@@ -74,7 +74,8 @@ module inversion_utils
             , rkzi                  &
             , apply_zfilter         &
             , update_zfilter        &
-            , phi00
+            , phibot                &
+            , phitop
 
     contains
 
@@ -152,7 +153,8 @@ module inversion_utils
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
             allocate(psi(0:nz, 0:nx-1, 0:ny-1))
             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
-            allocate(phi00(0:nz))
+            allocate(phitop(1:nz-1))
+            allocate(phibot(1:nz-1))
 
 
             call init_tridiagonal
@@ -168,10 +170,11 @@ module inversion_utils
             enddo
 
             !---------------------------------------------------------------------
-            ! phi00 = (z-lower(3)) / extent(3) --> phi00 goes from 0 to 1
+            ! phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
             fac = one / dble(nz)
             do iz = 0, nz
-                phi00(iz) = fac * dble(iz)
+                phitop(iz) = fac * dble(iz)
+                phibot(iz) = phitop(nz-iz)
             enddo
 
             !Hyperbolic functions used for solutions of Laplace's equation:
@@ -180,12 +183,12 @@ module inversion_utils
                     kl = dsqrt(k2l2(kx, ky))
                     fac = kl * extent(3)
                     div = one / (one - dexp(-two * fac))
-                    psi(:, kx, ky) = div * (dexp(-fac * (one - phi00)) - &
-                                            dexp(-fac * (one + phi00)))
-                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phi00)
+                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) - &
+                                            dexp(-fac * (one + phitop)))
+                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop)
 
-                    dpsi(:, kx, ky) = div * (dexp(-fac * (one - phi00)) + &
-                                             dexp(-fac * (one + phi00)))  &
+                    dpsi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) + &
+                                             dexp(-fac * (one + phitop)))  &
                                     - one / fac
                     dpsi(:, kx, ky) = dpsi(:, kx, ky) / kl
                 enddo
@@ -195,12 +198,12 @@ module inversion_utils
             do kx = 1, nx-1
                 fac = rkx(kx) * extent(3)
                 div = one / (one - dexp(-two * fac))
-                psi(:, kx, 0) = div * (dexp(-fac * (one - phi00)) - &
-                                       dexp(-fac * (one + phi00)))
-                psi(:, kx, 0) = k2l2i(kx, ky) * (psi(:, kx, 0) - phi00)
+                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) - &
+                                       dexp(-fac * (one + phitop)))
+                psi(:, kx, 0) = k2l2i(kx, ky) * (psi(:, kx, 0) - phitop)
 
-                dpsi(:, kx, 0) = div * (dexp(-fac * (one - phi00)) + &
-                                        dexp(-fac * (one + phi00)))  &
+                dpsi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
+                                        dexp(-fac * (one + phitop)))  &
                                - one / fac
                 dpsi(:, kx, 0) = dpsi(:, kx, 0) / kl
             enddo
