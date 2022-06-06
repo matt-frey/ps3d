@@ -190,7 +190,7 @@ module inversion_utils
             green(0, 0, 0) = zero
 
             !---------------------------------------------------------------------
-            !Fractional z grid values:
+            ! phi00 = (z-lower(3)) / extent(3) --> phi00 goes from 0 to 1
             fac = one / dble(nz)
             do iz = 0, nz
                 phi00(iz) = fac * dble(iz)
@@ -201,38 +201,17 @@ module inversion_utils
                 do kx = 0, nx-1
                     fac = dsqrt(k2l2(kx+1, ky+1)) * extent(3)
                     div = one / (one - dexp(-two * fac))
-                    decz(:, kx, ky) = div * (exp(-fac * (one - phi00)) - &
-                                             exp(-fac * (one + phi00)))
-                enddo
-            enddo
-
-            do kx = 1, nx-1
-                fac = rkx(kx+1) * extent(3)
-                div = one / (one - dexp(-two * fac))
-                decz(:, kx, 0) = div * (exp(-fac * (one - phi00)) - &
-                                        exp(-fac * (one + phi00)))
-            enddo
-
-            decz(:, 0, 0) = zero
-
-            !---------------------------------------------------------------------
-            do ky = 1, ny-1
-                do kx = 0, nx-1
-                    do iz = 1, nz-1
-                        fac = dsqrt(k2l2(kx+1, ky+1)) * extent(3)
-                        phi = dsinh(fac * phi00(iz)) / dsinh(fac)
-                        psi(iz, kx, ky) = (phi - phi00(iz)) * k2l2i(kx+1, ky+1)
-                    enddo
+                    psi(:, kx, ky) = div * (dexp(-fac * (one - phi00)) - &
+                                            dexp(-fac * (one + phi00)))
                 enddo
             enddo
 
             ! ky = 0
             do kx = 1, nx-1
-                do iz = 1, nz-1
-                    fac = rkx(kx+1) * extent(3)
-                    phi = dsinh(fac * phi00(iz)) / dsinh(fac)
-                    psi(iz, kx, ky) = (phi - phi00(iz)) / rkx(kx+1) ** 2
-                enddo
+                fac = rkx(kx+1) * extent(3)
+                div = one / (one - dexp(-two * fac))
+                psi(:, kx, 0) = div * (dexp(-fac * (one - phi00)) - &
+                                       dexp(-fac * (one + phi00)))
             enddo
 
             psi(0,  :, :) = zero
