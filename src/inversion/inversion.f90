@@ -22,10 +22,7 @@ module inversion_mod
             double precision :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
-            double precision :: uavg, vavg
-            double precision :: wtop(0:nx-1, 0:ny-1)
-            double precision :: wbot(0:nx-1, 0:ny-1)
-            integer          :: iz, nc, kx, ky
+            integer          :: iz, nc, kx, ky, kz
 
             call start_timer(vor2vel_timer)
 
@@ -44,57 +41,62 @@ module inversion_mod
             !$omp end workshare
             !$omp end parallel
 
-            !Invert Laplacian to find "w_p", the particular solution:
+            !Calculate the boundary contributions of the source to the vertical velocity (bs) 
+            !and its derivative (es) in semi-spectral space:
+            do iz = 1, nz-1
+                bs(iz, :, :) = ds(nz, :, :) *  psi(iz, :, :) + ds(0, :, :) *  psi(nz-iz, :, :)
+            enddo
+            do iz = 0, nz
+                es(iz, :, :) = ds(nz, :, :) * dpsi(iz, :, :) - ds(0, :, :) * dpsi(nz-iz, :, :)
+            enddo
+            
+            !Invert Laplacian to find the part of w expressible as a sine series:
             !$omp parallel
             !$omp workshare
             ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
             !$omp end workshare
             !$omp end parallel
 
-
-            ! Calculate d/dz of sine-series part of vertical velocity
-            do iz = 1, nz-1
-                as(iz, :, :) = rkz(iz) * ds(iz, :, :)
+            ! Calculate d/dz of this sine series:
+            as(0, :, :) = zero
+            do kz = 1, nz-1
+                as(kz, :, :) = rkz(kz) * ds(kz, :, :)
             enddo
+            as(nz, :, :) = zero
 
-            !Store boundary values of "w_p" to correct "w" below:
-            wbot = ds(0,  :, :)
-            wtop = ds(nz, :, :)
-
-            !FFT back the particular solution to semi-spectral space:
+            !FFT these quantities back to semi-spectral space:
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    call dct(1, nz-1, as(1:nz-1, kx, ky), ztrig, zfactors)
-                    call dst(1, nz,   ds(1:nz, kx, ky), ztrig, zfactors)
+                    call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)
+                    call dst(1, nz, ds(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
 
-            ! Calculate the linear part (bs) and its derivative (es) of vertical velocity in semi-spectral space
-            do iz = 1, nz-1
-                bs(iz, :, :) =   wbot *  psi(nz-iz, :, :) + wtop *  psi(iz, :, :)
-                es(iz, :, :) = - wbot * dpsi(nz-iz, :, :) + wtop * dpsi(iz, :, :)
-            enddo
-
             ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+            ds(0     , :, :) = zero
             ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
-            es(1:nz-1, :, :) = es(1:nz-1, :, :) + as(1:nz-1, :, :)
+            ds(nz    , :, :) = zero
+            es = es + as
+            ! OMP the above????
 
             !----------------------------------------------------------------------
-            !Define horizontally-averaged flow by integrating horizontal vorticity:
+            !Define horizontally-averaged flow by integrating the horizontal vorticity:
+            
+            !First integrate the sine series in svor(1:nz-1, 0, 0, 1 & 2):
             ubar(0) = zero
             vbar(0) = zero
-            do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (svor(iz, 0, 0, 2) + svor(iz+1, 0, 0, 2))
-                vbar(iz+1) = vbar(iz) - dz2 * (svor(iz, 0, 0, 1) + svor(iz+1, 0, 0, 1))
-            enddo
+            ubar(1:nz-1) = -rkzi(1:nz-1) * svor(1:nz-1, 0, 0, 2)
+            vbar(1:nz-1) =  rkzi(1:nz-1) * svor(1:nz-1, 0, 0, 1)
+            ubar(nz) = zero
+            vbar(nz) = zero
 
-            !Remove the mean value to have zero net horizontal momentum:
-            uavg = sum(ubar(1:nz-1) + f12 * ubar(nz)) / dble(nz)
-            vavg = sum(vbar(1:nz-1) + f12 * vbar(nz)) / dble(nz)
-            do iz = 0, nz
-                ubar(iz) = ubar(iz) - uavg
-                vbar(iz) = vbar(iz) - vavg
-            enddo
+            !Transform to semi-spectral space as a cosine series:
+            call dct(1, nz, ubar, ztrig, zfactors)
+            call dct(1, nz, vbar, ztrig, zfactors)
+
+            !Add contribution from the linear function connecting the boundary values:
+            ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
+            vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
 
             !-------------------------------------------------------
             !Find x velocity component "u":
