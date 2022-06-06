@@ -116,7 +116,7 @@ module inversion_mod
             svel(:, :, :, 1) = as
 
             !Get "u" in physical space:
-            call fftxys2p(as, vel(0:nz, :, :, 1))
+            call field_combine(svel(:, :, :, 1), vel(:, :, :, 1))
 
             !-------------------------------------------------------
             !Find y velocity component "v":
@@ -136,14 +136,14 @@ module inversion_mod
             svel(:, :, :, 2) = as
 
             !Get "v" in physical space:
-            call fftxys2p(as, vel(0:nz, :, :, 2))
+            call field_combine(svel(:, :, :, 2), vel(:, :, :, 2))
 
             !-------------------------------------------------------
             !Store spectral form of "w":
             svel(:, :, :, 3) = ds
 
             !Get "w" in physical space:
-            call fftxys2p(ds, vel(0:nz, :, :, 3))
+            call field_combine(svel(:, :, :, 3), vel(:, :, :, 3))
 
             call stop_timer(vor2vel_timer)
 
