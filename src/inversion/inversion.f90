@@ -26,11 +26,10 @@ module inversion_mod
             double precision :: wtop(0:nx-1, 0:ny-1)
             double precision :: wbot(0:nx-1, 0:ny-1)
             integer          :: iz, nc, kx, ky
-!            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
 
             call start_timer(vor2vel_timer)
 
-            !Compute vorticity in physical space:
+            !Combine vorticity in physical space:
             do nc = 1, 3
                 call field_combine(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
@@ -45,67 +44,40 @@ module inversion_mod
             !$omp end workshare
             !$omp end parallel
 
-            !Convert ds to fully spectral space:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
             !Invert Laplacian to find "w_p", the particular solution:
             !$omp parallel
             !$omp workshare
-            ds = green * ds
+            ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
             !$omp end workshare
             !$omp end parallel
 
-            !FFT back the particular solution to semi-spectral space:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
-                enddo
+
+            ! Calculate d/dz of sine-series part of vertical velocity
+            do iz = 1, nz-1
+                as(iz, :, :) = rkz(iz) * ds(iz, :, :)
             enddo
 
             !Store boundary values of "w_p" to correct "w" below:
             wbot = ds(0,  :, :)
             wtop = ds(nz, :, :)
 
-            !Define the complete vertical velocity "w" in semi-spectral space:
-            do iz = 1, nz-1
-                ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(nz-iz, :, :) + wtop * decz(iz, :, :))
+            !FFT back the particular solution to semi-spectral space:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz-1, as(1:nz-1, kx, ky), ztrig, zfactors)
+                    call dst(1, nz,   ds(1:nz, kx, ky), ztrig, zfactors)
+                enddo
             enddo
-            !Ensure "w" is identically zero at the boundaries:
-            ds(0,  :, :) = zero
-            ds(nz, :, :) = zero
 
-!            ! FFT to fully spectral space (sine transform) as the array ss:
-!            do ky = 0, ny-1
-!                do kx = 0, nx-1
-!                    ss(:, kx, ky) = ds(1:nz, kx, ky)
-!                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
-!                enddo
-!            enddo
-!
-!            ! Derivative in z (dw/dz in fully spectral space):
-!            do kz = 1, nz
-!                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
-!            enddo
+            ! Calculate the linear part (bs) and its derivative (es) of vertical velocity in semi-spectral space
+            do iz = 1, nz-1
+                bs(iz, :, :) =   wbot *  psi(nz-iz, :, :) + wtop *  psi(iz, :, :)
+                es(iz, :, :) = - wbot * dpsi(nz-iz, :, :) + wtop * dpsi(iz, :, :)
+            enddo
 
-!            es(0,  :, :) = zero
-!            es(nz, :, :) = zero
-
-            !Compute "dw/dz" -> es (semi-spectral space henceforth):
-            call diffz(ds, es)
-
-!            es(0,  :, :) = zero
-!            es(nz, :, :) = zero
-
-            !! FFT back to semi-spectral space:
-            !do ky = 0, ny-1
-            !    do kx = 0, nx-1
-            !        call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
-            !    enddo
-            ! enddo
+            ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+            ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
+            es(1:nz-1, :, :) = es(1:nz-1, :, :) + as(1:nz-1, :, :)
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating horizontal vorticity:
