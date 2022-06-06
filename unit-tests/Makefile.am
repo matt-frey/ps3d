@@ -14,14 +14,18 @@ AM_LDFLAGS =                                   	\
 
 noinst_LTLIBRARIES = libcombi.la
 libcombi_la_SOURCES =
-libcombi_la_LIBADD =                                    \
-        $(top_builddir)/src/utils/libps_utils.la      \
-        $(top_builddir)/src/fft/libps_fft.la          \
+libcombi_la_LIBADD =                            	\
+        $(top_builddir)/src/utils/libps_utils.la      	\
+        $(top_builddir)/src/fft/libps_fft.la          	\
         $(top_builddir)/src/netcdf/libps_netcdf.la
 
 
-unittests_PROGRAMS =                            \
-        test_vor2vel
+unittests_PROGRAMS =   		\
+        test_vor2vel_1		\
+        test_vor2vel_2
 
-test_vor2vel_SOURCES = unit_test.f90 test_vor2vel.f90
-test_vor2vel_LDADD = libcombi.la
+test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
+test_vor2vel_1_LDADD = libcombi.la
+
+test_vor2vel_2_SOURCES = unit_test.f90 test_vor2vel_2.f90
+test_vor2vel_2_LDADD = libcombi.la

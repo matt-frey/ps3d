@@ -11,9 +11,9 @@
 !   eta(x, y, z) = alpha * v(x, y, z)
 !  zeta(x, y, z) = alpha * w(x, y, z)
 ! =============================================================================
-program test_vor2vel
+program test_vor2vel_1
     use unit_test
-    use constants, only : one, two, pi, f12, f34, three
+    use constants, only : one, two, pi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
@@ -92,4 +92,4 @@ program test_vor2vel
 
     deallocate(vel_ref)
 
-end program test_vor2vel
+end program test_vor2vel_1
