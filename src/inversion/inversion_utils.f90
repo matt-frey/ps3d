@@ -19,7 +19,7 @@ module inversion_utils
     double precision, allocatable :: etdv(:, :, :), htdv(:, :, :)
 
     ! Wavenumbers:
-    double precision, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:)
+    double precision, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:), rkzi(:)
 
     ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
     double precision, allocatable :: k2l2i(:, :)
@@ -34,7 +34,6 @@ module inversion_utils
     integer :: nxsub
 
     double precision, allocatable :: green(:, :, :)
-    double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :, :)
@@ -76,12 +75,12 @@ module inversion_utils
             , fftss2fs              &
             , fftfs2ss              &
             , green                 &
-            , decz                  &
             , zfactors              &
             , ztrig                 &
             , rkx                   &
             , rky                   &
             , rkz                   &
+            , rkzi                  &
             , apply_zfilter         &
             , update_zfilter        &
             , phi00
@@ -159,8 +158,7 @@ module inversion_utils
 
             call init_fft
 
-            allocate(green(0:nz, 0:nx-1, 0:ny-1))
-            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
+            allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
             allocate(psi(0:nz, 0:nx-1, 0:ny-1))
             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
             allocate(phi00(0:nz))
@@ -172,23 +170,11 @@ module inversion_utils
             !Define Green function
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    do kz = 1, nz
+                    do kz = 1, nz-1
                         green(kz, kx, ky) = - one / (k2l2(kx+1, ky+1) + rkz(kz) ** 2)
                     enddo
                 enddo
             enddo
-
-            do ky = 0, ny-1
-                do kx = 1, nx-1
-                    green(0, kx, ky) = - k2l2i(kx+1, ky+1)
-                enddo
-            enddo
-
-            do ky = 1, ny-1
-                green(0, 0, ky) = - one / rky(ky+1) ** 2
-            enddo
-
-            green(0, 0, 0) = zero
 
             !---------------------------------------------------------------------
             ! phi00 = (z-lower(3)) / extent(3) --> phi00 goes from 0 to 1
@@ -279,6 +265,7 @@ module inversion_utils
             allocate(rky(ny))
             allocate(hrky(ny))
             allocate(rkz(0:nz))
+            allocate(rkzi(1:nz-1))
             allocate(xtrig(2 * nx))
             allocate(ytrig(2 * ny))
             allocate(ztrig(2*nz))
@@ -311,6 +298,7 @@ module inversion_utils
             !Define z wavenumbers:
             rkz(0) = zero
             call init_deriv(nz, extent(3), rkz(1:nz))
+            rkzi(1:nz-1) = one / rkz(1:nz-1)
 
             !Squared maximum total wavenumber:
             rksqmax = rkxmax ** 2 + rkymax ** 2
