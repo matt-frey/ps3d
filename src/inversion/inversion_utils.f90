@@ -78,7 +78,9 @@ module inversion_utils
             , phibot                &
             , phitop                &
             , gambot                &
-            , gamtop
+            , gamtop                &
+            , psi                   &
+            , dpsi
 
     contains
 
