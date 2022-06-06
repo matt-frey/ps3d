@@ -224,11 +224,11 @@ module inversion_utils
                 dpsi(1:nz-1, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
                                              dexp(-fac * (one + phitop)))  &
                                     - one / fac
-                dpsi(1:nz-1, kx, 0) = dpsi(1:nz-1, kx, 0) / kl
+                dpsi(1:nz-1, kx, 0) = dpsi(1:nz-1, kx, 0) / rkx(kx)
 
                 ! iz = 0 and iz = nz --> phitop = 0
                 dpsi(0,  kx, 0) = div * two * dexp(-fac) - one / fac
-                dpsi(0,  kx, 0) = dpsi(0, kx, 0) / kl
+                dpsi(0,  kx, 0) = dpsi(0, kx, 0) / rkx(kx)
                 dpsi(nz, kx, 0) = dpsi(0, kx, 0)
             enddo
 
