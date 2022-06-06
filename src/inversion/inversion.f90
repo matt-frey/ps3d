@@ -41,7 +41,7 @@ module inversion_mod
             !$omp end workshare
             !$omp end parallel
 
-            !Calculate the boundary contributions of the source to the vertical velocity (bs) 
+            !Calculate the boundary contributions of the source to the vertical velocity (bs)
             !and its derivative (es) in semi-spectral space:
             do iz = 1, nz-1
                 bs(iz, :, :) = ds(nz, :, :) *  psi(iz, :, :) + ds(0, :, :) *  psi(nz-iz, :, :)
@@ -49,7 +49,7 @@ module inversion_mod
             do iz = 0, nz
                 es(iz, :, :) = ds(nz, :, :) * dpsi(iz, :, :) - ds(0, :, :) * dpsi(nz-iz, :, :)
             enddo
-            
+
             !Invert Laplacian to find the part of w expressible as a sine series:
             !$omp parallel
             !$omp workshare
@@ -81,12 +81,12 @@ module inversion_mod
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
-            
+
             !First integrate the sine series in svor(1:nz-1, 0, 0, 1 & 2):
             ubar(0) = zero
             vbar(0) = zero
-            ubar(1:nz-1) = -rkzi(1:nz-1) * svor(1:nz-1, 0, 0, 2)
-            vbar(1:nz-1) =  rkzi(1:nz-1) * svor(1:nz-1, 0, 0, 1)
+            ubar(1:nz-1) = -rkzi * svor(1:nz-1, 0, 0, 2)
+            vbar(1:nz-1) =  rkzi * svor(1:nz-1, 0, 0, 1)
             ubar(nz) = zero
             vbar(nz) = zero
 
