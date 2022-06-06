@@ -46,7 +46,7 @@ module inversion_utils
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
 
     double precision, allocatable :: phi00(:)
-    double precision, allocatable :: psi(:, :, :)
+    double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
@@ -155,13 +155,14 @@ module inversion_utils
         subroutine init_inversion
             double precision             :: fac, div
             integer                      :: kx, ky, iz, kz
-            double precision             :: phi
+            double precision             :: phi, kl
 
             call init_fft
 
             allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(decz(0:nz, 0:nx-1, 0:ny-1))
             allocate(psi(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
             allocate(phi00(0:nz))
 
 
@@ -199,10 +200,17 @@ module inversion_utils
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    fac = dsqrt(k2l2(kx+1, ky+1)) * extent(3)
+                    kl = dsqrt(k2l2(kx+1, ky+1))
+                    fac = kl * extent(3)
                     div = one / (one - dexp(-two * fac))
                     psi(:, kx, ky) = div * (dexp(-fac * (one - phi00)) - &
                                             dexp(-fac * (one + phi00)))
+                    psi(:, kx, ky) = k2l2i(kx+1, ky+1) * (psi(:, kx, ky) - phi00)
+
+                    dpsi(:, kx, ky) = div * (dexp(-fac * (one - phi00)) + &
+                                             dexp(-fac * (one + phi00)))  &
+                                    - one / fac
+                    dpsi(:, kx, ky) = dpsi(:, kx, ky) / kl
                 enddo
             enddo
 
@@ -212,10 +220,18 @@ module inversion_utils
                 div = one / (one - dexp(-two * fac))
                 psi(:, kx, 0) = div * (dexp(-fac * (one - phi00)) - &
                                        dexp(-fac * (one + phi00)))
+                psi(:, kx, 0) = k2l2i(kx+1, ky+1) * (psi(:, kx, 0) - phi00)
+
+                dpsi(:, kx, 0) = div * (dexp(-fac * (one - phi00)) + &
+                                        dexp(-fac * (one + phi00)))  &
+                               - one / fac
+                dpsi(:, kx, 0) = dpsi(:, kx, 0) / kl
             enddo
 
-            psi(0,  :, :) = zero
-            psi(nz, :, :) = zero
+            psi(0,   :, :) = zero
+            psi(nz,  :, :) = zero
+            dpsi(0,  :, :) = zero
+            dpsi(nz, :, :) = zero
 
           end subroutine init_inversion
 
