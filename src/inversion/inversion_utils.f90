@@ -156,7 +156,7 @@ module inversion_utils
             call init_fft
 
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
-            allocate(psi(0:nz, 0:nx-1, 0:ny-1))
+            allocate(psi(1:nz-1, 0:nx-1, 0:ny-1))
             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
             allocate(phitop(1:nz-1))
             allocate(phibot(1:nz-1))
@@ -192,9 +192,9 @@ module inversion_utils
                     kl = dsqrt(k2l2(kx, ky))
                     fac = kl * extent(3)
                     div = one / (one - dexp(-two * fac))
-                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) - &
-                                            dexp(-fac * (one + phitop)))
-                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop)
+                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop(1:nz-1))) - &
+                                            dexp(-fac * (one + phitop(1:nz-1))))
+                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop(1:nz-1))
 
                     dpsi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) + &
                                              dexp(-fac * (one + phitop)))  &
@@ -207,9 +207,9 @@ module inversion_utils
             do kx = 1, nx-1
                 fac = rkx(kx) * extent(3)
                 div = one / (one - dexp(-two * fac))
-                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) - &
-                                       dexp(-fac * (one + phitop)))
-                psi(:, kx, 0) = k2l2i(kx, ky) * (psi(:, kx, 0) - phitop)
+                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop(1:nz-1))) - &
+                                       dexp(-fac * (one + phitop(1:nz-1))))
+                psi(:, kx, 0) = k2l2i(kx, ky) * (psi(:, kx, 0) - phitop(1:nz-1))
 
                 dpsi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
                                         dexp(-fac * (one + phitop)))  &
@@ -217,10 +217,9 @@ module inversion_utils
                 dpsi(:, kx, 0) = dpsi(:, kx, 0) / kl
             enddo
 
-            psi(0,   :, :) = zero
-            psi(nz,  :, :) = zero
-            dpsi(0,  :, :) = zero
-            dpsi(nz, :, :) = zero
+            ! kx = ky = 0
+             psi(:, 0, 0) = f16 * phitop(1:nz-1) * ((phitop(1:nz-1) ** 2 - one) * extent(3) ** 2)
+            dpsi(:, 0, 0) = f12 * phitop ** 2 * extent(3) - f16 * extent(3)
 
           end subroutine init_inversion
 
