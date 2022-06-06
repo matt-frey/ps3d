@@ -36,7 +36,8 @@ module inversion_utils
     ! Tridiagonal arrays for the vertical filter:
     double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
 
-    double precision, allocatable :: phitop(:), phibot
+    double precision, allocatable :: gamtop(:), gambot(:)
+    double precision, allocatable :: phitop(:), phibot(:)
     double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
@@ -75,7 +76,9 @@ module inversion_utils
             , apply_zfilter         &
             , update_zfilter        &
             , phibot                &
-            , phitop
+            , phitop                &
+            , gambot                &
+            , gamtop
 
     contains
 
@@ -155,6 +158,8 @@ module inversion_utils
             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
             allocate(phitop(1:nz-1))
             allocate(phibot(1:nz-1))
+            allocate(gamtop(1:nz-1))
+            allocate(gambot(1:nz-1))
 
 
             call init_tridiagonal
@@ -175,6 +180,8 @@ module inversion_utils
             do iz = 0, nz
                 phitop(iz) = fac * dble(iz)
                 phibot(iz) = phitop(nz-iz)
+                gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
+                gambot(iz) = gamtop(nz-iz)
             enddo
 
             !Hyperbolic functions used for solutions of Laplace's equation:
