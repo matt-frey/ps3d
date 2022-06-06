@@ -3,7 +3,7 @@ program genspec
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
-    use parameters, only : nx, ny, nz, ngrid, vcell
+    use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
@@ -17,7 +17,6 @@ program genspec
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, dki, prefactor, snorm
     double precision              :: ens ! enstrophy
-    double precision              :: ke  ! kinetic energy
     integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
@@ -37,7 +36,7 @@ program genspec
 
     ! use some dummy values for bbdif, nnu and prediss
     call init_inversion
-    
+
     ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
     do nc = 1, 3
         call fftczp2s(vor(:, :, :, nc), svor(:, :, :, nc))

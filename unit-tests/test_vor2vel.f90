@@ -29,13 +29,12 @@ program test_vor2vel
 
     call register_timer('vorticity', vor2vel_timer)
 
-    nx = 128
-    ny = 128
-    nz = 128
+    nx = 32
+    ny = 32
+    nz = 32
 
     lower  = -f12 * pi * (/one, one, one/)
     extent =  pi * (/one, one, one/)
-
 
     allocate(vel_ref(0:nz, 0:ny-1, 0:nx-1, 3))
 
@@ -59,7 +58,7 @@ program test_vor2vel
                     x = lower(1) + ix * dx(1)
                     do iy = 0, ny-1
                         y = lower(2) + iy * dx(2)
-                        do iz = -1, nz+1
+                        do iz = 0, nz
                             z = lower(3) + iz * dx(3)
 
                             cosmz = dcos(m * z)
@@ -84,6 +83,8 @@ program test_vor2vel
                 call vor2vel
 
                 error = max(error, maxval(dabs(vel_ref - vel)))
+
+                print *, error
             enddo
         enddo
     enddo

@@ -45,7 +45,7 @@ module inversion_utils
 
 
 
-    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
+    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
     integer :: nwx, nwy, nxp2, nyp2
 
     logical :: is_fft_initialised = .false.
@@ -94,7 +94,7 @@ module inversion_utils
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
-            integer                      :: kx, ky, iz, kz
+            integer                      :: kx, ky, kz
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
@@ -118,10 +118,10 @@ module inversion_utils
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * k2l2(kx+1, ky+1)
+                        hdis(0,  kx, ky) = visc * k2l2(kx, ky)
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2)
+                            hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2)
                         enddo
                     enddo
                 enddo
@@ -136,10 +136,10 @@ module inversion_utils
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * k2l2(kx+1, ky+1) ** nnu
+                        hdis(0,  kx, ky) = visc * k2l2(kx, ky) ** nnu
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (k2l2(kx+1, ky+1) + rkz(kz) ** 2) ** nnu
+                            hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2) ** nnu
                         enddo
                     enddo
                 enddo
@@ -151,7 +151,7 @@ module inversion_utils
         subroutine init_inversion
             double precision             :: fac, div
             integer                      :: kx, ky, iz, kz
-            double precision             :: phi, kl
+            double precision             :: kl
 
             call init_fft
 
@@ -160,18 +160,19 @@ module inversion_utils
             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
             allocate(phitop(1:nz-1))
             allocate(phibot(1:nz-1))
-            allocate(gamtop(1:nz-1))
-            allocate(gambot(1:nz-1))
+            allocate(gamtop(0:nz))
+            allocate(gambot(0:nz))
 
 
-            call init_tridiagonal
+!             call init_tridiagonal
+
 
             !---------------------------------------------------------------------
             !Define Green function
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     do kz = 1, nz-1
-                        green(kz, kx, ky) = - one / (k2l2(kx+1, ky+1) + rkz(kz) ** 2)
+                        green(kz, kx, ky) = - one / (k2l2(kx, ky) + rkz(kz) ** 2)
                     enddo
                 enddo
             enddo
@@ -179,12 +180,16 @@ module inversion_utils
             !---------------------------------------------------------------------
             ! phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
             fac = one / dble(nz)
-            do iz = 0, nz
+            do iz = 1, nz-1
                 phitop(iz) = fac * dble(iz)
                 phibot(iz) = phitop(nz-iz)
                 gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
                 gambot(iz) = gamtop(nz-iz)
             enddo
+            gamtop(0)  = -f16 * extent(3)
+            gambot(0)  = gamtop(0)
+            gamtop(nz) = gamtop(0)
+            gambot(nz) = gamtop(0)
 
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
@@ -192,14 +197,19 @@ module inversion_utils
                     kl = dsqrt(k2l2(kx, ky))
                     fac = kl * extent(3)
                     div = one / (one - dexp(-two * fac))
-                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop(1:nz-1))) - &
-                                            dexp(-fac * (one + phitop(1:nz-1))))
-                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop(1:nz-1))
+                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) - &
+                                            dexp(-fac * (one + phitop)))
+                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop)
 
-                    dpsi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) + &
-                                             dexp(-fac * (one + phitop)))  &
-                                    - one / fac
-                    dpsi(:, kx, ky) = dpsi(:, kx, ky) / kl
+                    dpsi(1:nz-1, kx, ky) = div * (dexp(-fac * (one - phitop)) + &
+                                                  dexp(-fac * (one + phitop)))  &
+                                         - one / fac
+                    dpsi(1:nz-1, kx, ky) = dpsi(1:nz-1, kx, ky) / kl
+
+                    ! iz = 0 and iz = nz --> phitop = 0
+                    dpsi(0,  kx, ky) = div * two * dexp(-fac) - one / fac
+                    dpsi(0,  kx, ky) = dpsi(0, kx, ky) / kl
+                    dpsi(nz, kx, ky) = dpsi(0, kx, ky)
                 enddo
             enddo
 
@@ -207,19 +217,26 @@ module inversion_utils
             do kx = 1, nx-1
                 fac = rkx(kx) * extent(3)
                 div = one / (one - dexp(-two * fac))
-                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop(1:nz-1))) - &
-                                       dexp(-fac * (one + phitop(1:nz-1))))
-                psi(:, kx, 0) = k2l2i(kx, ky) * (psi(:, kx, 0) - phitop(1:nz-1))
+                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) - &
+                                       dexp(-fac * (one + phitop)))
+                psi(:, kx, 0) = k2l2i(kx, 0) * (psi(:, kx, 0) - phitop)
 
-                dpsi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
-                                        dexp(-fac * (one + phitop)))  &
-                               - one / fac
-                dpsi(:, kx, 0) = dpsi(:, kx, 0) / kl
+                dpsi(1:nz-1, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
+                                             dexp(-fac * (one + phitop)))  &
+                                    - one / fac
+                dpsi(1:nz-1, kx, 0) = dpsi(1:nz-1, kx, 0) / kl
+
+                ! iz = 0 and iz = nz --> phitop = 0
+                dpsi(0,  kx, 0) = div * two * dexp(-fac) - one / fac
+                dpsi(0,  kx, 0) = dpsi(0, kx, 0) / kl
+                dpsi(nz, kx, 0) = dpsi(0, kx, 0)
             enddo
 
             ! kx = ky = 0
-             psi(:, 0, 0) = f16 * phitop(1:nz-1) * ((phitop(1:nz-1) ** 2 - one) * extent(3) ** 2)
-            dpsi(:, 0, 0) = f12 * phitop ** 2 * extent(3) - f16 * extent(3)
+             psi(:, 0, 0) = f16 * phitop * ((phitop ** 2 - one) * extent(3) ** 2)
+            dpsi(1:nz-1, 0, 0) = f12 * phitop ** 2 * extent(3) - f16 * extent(3)
+            dpsi(0,  0, 0) = - f16 * extent(3)
+            dpsi(nz, 0, 0) = dpsi(0,  0, 0)
 
           end subroutine init_inversion
 
@@ -231,7 +248,7 @@ module inversion_utils
             double precision              :: rkxmax, rkymax
             double precision              :: rksqmax
             double precision              :: kxmaxi, kymaxi, kzmaxi
-            integer                       :: kx, ky, kz, iz
+            integer                       :: kx, ky, kz
             double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
 
             if (is_fft_initialised) then
@@ -257,9 +274,9 @@ module inversion_utils
 
             allocate(filt(0:nz, 0:nx-1, 0:ny-1))
             allocate(rkx(0:nx-1))
-            allocate(hrkx(0:nx-1))
+            allocate(hrkx(nx))
             allocate(rky(0:ny-1))
-            allocate(hrky(0:ny-1))
+            allocate(hrky(ny))
             allocate(rkz(0:nz))
             allocate(rkzi(1:nz-1))
             allocate(xtrig(2 * nx))
@@ -329,44 +346,44 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Initialises the tridiagonal problem for z-filtering
-        subroutine init_tridiagonal
-            double precision :: pf, diffmax, z, s
-            integer          :: j
-
-            allocate(etdf(nz-2, nx, ny))
-            allocate(htdf(nz-1, nx, ny))
-            allocate(am(nz))
-            allocate(b0(nz-1))
-
-            !-----------------------------------------------------------------------
-            pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
-            diffmax = prefilt * dx(3) ** 2
-            write(*,*) ' K_min/K_max = ', dexp(-pf)
-
-            ! Set up the tridiagonal system A x = u:
-
-            !   | a0(1) ap(1)   0    ...   ...  ...   0    ||x(1)|   |u(1)|
-            !   | am(2) a0(2) ap(2)   0    ...  ...   0    ||x(2)|   |u(2)|
-            !   |   0   am(3) a0(3) ap(3)   0   ...   0    ||x(3)| = |u(3)|
-            !   |                    ...                   || ...|   | ...|
-            !   |   0    ...   ...   ...    0  am(n) a0(n) ||x(n)|   |u(n)|
-
-            ! where n = nz-1 below, and here ap(i) = am(i+1) (symmetric system).
-
-            do j = 1, nz
-                z = dx(3) * (dble(j) - f12)
-                s = (two * z - extent(3)) / extent(3)
-                am(j) = - prefilt * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
-            enddo
-
-            do j = 1, nz-1
-                z = dx(3) * dble(j)
-                s = (two * z - extent(3)) / extent(3)
-                b0(j) = diffmax * dexp(-pf * (one - s ** 2))
-            enddo
-
-        end subroutine init_tridiagonal
+!         ! Initialises the tridiagonal problem for z-filtering
+!         subroutine init_tridiagonal
+!             double precision :: pf, diffmax, z, s
+!             integer          :: j
+!
+!             allocate(etdf(nz-2, nx, ny))
+!             allocate(htdf(nz-1, nx, ny))
+!             allocate(am(nz))
+!             allocate(b0(nz-1))
+!
+!             !-----------------------------------------------------------------------
+!             pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
+!             diffmax = prefilt * dx(3) ** 2
+!             write(*,*) ' K_min/K_max = ', dexp(-pf)
+!
+!             ! Set up the tridiagonal system A x = u:
+!
+!             !   | a0(1) ap(1)   0    ...   ...  ...   0    ||x(1)|   |u(1)|
+!             !   | am(2) a0(2) ap(2)   0    ...  ...   0    ||x(2)|   |u(2)|
+!             !   |   0   am(3) a0(3) ap(3)   0   ...   0    ||x(3)| = |u(3)|
+!             !   |                    ...                   || ...|   | ...|
+!             !   |   0    ...   ...   ...    0  am(n) a0(n) ||x(n)|   |u(n)|
+!
+!             ! where n = nz-1 below, and here ap(i) = am(i+1) (symmetric system).
+!
+!             do j = 1, nz
+!                 z = dx(3) * (dble(j) - f12)
+!                 s = (two * z - extent(3)) / extent(3)
+!                 am(j) = - prefilt * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
+!             enddo
+!
+!             do j = 1, nz-1
+!                 z = dx(3) * dble(j)
+!                 s = (two * z - extent(3)) / extent(3)
+!                 b0(j) = diffmax * dexp(-pf * (one - s ** 2))
+!             enddo
+!
+!         end subroutine init_tridiagonal
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

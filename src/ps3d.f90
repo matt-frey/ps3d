@@ -37,7 +37,7 @@ program ps3d
                               , nnu                 &
                               , prediss
             double precision  :: bbdif, ke, en
-            integer           :: iz
+!             integer           :: iz
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
