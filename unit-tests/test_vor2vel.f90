@@ -23,7 +23,7 @@ program test_vor2vel
 
     double precision              :: error
     double precision, allocatable :: vel_ref(:, :, :, :)
-    integer                       :: ix, iy, iz, ik, il, im
+    integer                       :: ix, iy, iz
     double precision              :: x, y, z, alpha, fk2l2, k, l, m
     double precision              :: cosmz, sinmz, sinkxly, coskxly
 
@@ -42,54 +42,53 @@ program test_vor2vel
 
     call field_default
 
+    k = two
+    l = two
+    m = one
+
     call init_inversion
 
-    do ik = 1, 3
-        k = dble(ik)
-        do il = 1, 3
-            l = dble(il)
-            do im = 1, 3, 2
-                m = dble(im)
 
-                alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
-                fk2l2 = one / dble(k ** 2 + l ** 2)
+    alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
+    fk2l2 = one / dble(k ** 2 + l ** 2)
 
-                do ix = 0, nx-1
-                    x = lower(1) + ix * dx(1)
-                    do iy = 0, ny-1
-                        y = lower(2) + iy * dx(2)
-                        do iz = 0, nz
-                            z = lower(3) + iz * dx(3)
+    do ix = 0, nx-1
+        x = lower(1) + ix * dx(1)
+        do iy = 0, ny-1
+            y = lower(2) + iy * dx(2)
+            do iz = 0, nz
+                z = lower(3) + iz * dx(3)
 
-                            cosmz = dcos(m * z)
-                            sinmz = dsin(m * z)
-                            sinkxly = dsin(k * x + l * y)
-                            coskxly = dcos(k * x + l * y)
+                cosmz = dcos(m * z)
+                sinmz = dsin(m * z)
+                sinkxly = dsin(k * x + l * y)
+                coskxly = dcos(k * x + l * y)
 
-                            ! velocity
-                            vel_ref(iz, iy, ix, 1) = fk2l2 * (k * m * sinmz - l * alpha * cosmz) * sinkxly
-                            vel_ref(iz, iy, ix, 2) = fk2l2 * (l * m * sinmz + k * alpha * cosmz) * sinkxly
-                            vel_ref(iz, iy, ix, 3) = cosmz * coskxly
+                ! velocity
+                vel_ref(iz, iy, ix, 1) = fk2l2 * (k * m * sinmz - l * alpha * cosmz) * sinkxly
+                vel_ref(iz, iy, ix, 2) = fk2l2 * (l * m * sinmz + k * alpha * cosmz) * sinkxly
+                vel_ref(iz, iy, ix, 3) = cosmz * coskxly
 
-                            ! vorticity
-                            vor(iz, iy, ix, 1) = alpha * vel_ref(iz, iy, ix, 1)
-                            vor(iz, iy, ix, 2) = alpha * vel_ref(iz, iy, ix, 2)
-                            vor(iz, iy, ix, 3) = alpha * vel_ref(iz, iy, ix, 3)
+                ! vorticity
+                vor(iz, iy, ix, 1) = alpha * vel_ref(iz, iy, ix, 1)
+                vor(iz, iy, ix, 2) = alpha * vel_ref(iz, iy, ix, 2)
+                vor(iz, iy, ix, 3) = alpha * vel_ref(iz, iy, ix, 3)
 
-                        enddo
-                    enddo
-                enddo
-
-                call vor2vel
-
-                error = max(error, maxval(dabs(vel_ref - vel)))
-
-                print *, error
             enddo
         enddo
     enddo
 
-    call print_result_dp('Test vor2vel', error, atol=5.0e-2)
+    call field_decompose(vor(:, :, :, 1), svor(:, :, :, 1))
+    call field_decompose(vor(:, :, :, 2), svor(:, :, :, 2))
+    call field_decompose(vor(:, :, :, 3), svor(:, :, :, 3))
+
+    call vor2vel
+
+    error = max(error, maxval(dabs(vel_ref - vel)))
+
+    print *, error
+
+    call print_result_dp('Test vor2vel', error, atol=1.0e-14)
 
     deallocate(vel_ref)
 
