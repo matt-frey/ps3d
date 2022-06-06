@@ -71,7 +71,6 @@ module fields
             double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
             integer                       :: iz, kx, ky
 
-
             cfc = fc
             call fftxyp2s(cfc, sfc)
 
@@ -81,7 +80,7 @@ module fields
             enddo
 
             ! bottom z-boundary
-            sf(0,      :, :) = sfc(0,      :, :)
+            sf(0, :, :) = sfc(0, :, :)
 
             ! interior
             sf(1:nz-1, :, :) = sfc(1:nz-1, :, :) - sfl
@@ -106,23 +105,25 @@ module fields
             double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
             integer                       :: iz, kx, ky
 
-            !FFT to semi-spectral space (sine transform) as the array ss:
+            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sfc:
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    sfc(1:nz, kx, ky) = sf(1:nz, kx, ky)
+                    sfc(1:nz-1, kx, ky) = sf(1:nz-1, kx, ky)
+                    sfc(nz    , kx, ky) = zero
                     call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
             sfc(0,  :, :) = sf(0,  :, :)
             sfc(nz, :, :) = sf(nz, :, :)
 
-            ! get linear part
+            ! get linear part and add to sfc:
             do iz = 1, nz-1
                 sfl(iz, :, :) = sfc(0, :, :) * phi00(nz - iz) + sfc(nz, :, :) * phi00(iz)
             enddo
 
             sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
 
+            ! transform to physical space as fc:
             call fftxys2p(sfc, fc)
 
         end subroutine field_combine
