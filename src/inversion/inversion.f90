@@ -21,6 +21,7 @@ module inversion_mod
             double precision :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
             integer          :: iz, nc, kx, ky, kz
 
@@ -28,7 +29,7 @@ module inversion_mod
 
             !Combine vorticity in physical space:
             do nc = 1, 3
-                call field_combine(svor(:, :, :, nc), vor(:, :, :, nc))
+                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
@@ -79,6 +80,9 @@ module inversion_mod
             es = es + as
             ! OMP the above????
 
+            ! Get complete zeta field in semi-spectral space
+            call field_combine_semi_spectral(svor(:, :, :, 3), cs)
+
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
 
@@ -101,7 +105,7 @@ module inversion_mod
             !-------------------------------------------------------
             !Find x velocity component "u":
             call diffx(es, as)
-            call diffy(svor(:, :, :, 3), bs)
+            call diffy(cs, bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -116,12 +120,12 @@ module inversion_mod
             svel(:, :, :, 1) = as
 
             !Get "u" in physical space:
-            call field_combine(svel(:, :, :, 1), vel(:, :, :, 1))
+            call fftxys2p(as, vel(:, :, :, 1))
 
             !-------------------------------------------------------
             !Find y velocity component "v":
             call diffy(es, as)
-            call diffx(svor(:, :, :, 3), bs)
+            call diffx(cs, bs)
 
             !$omp parallel do
             do iz = 0, nz
@@ -136,14 +140,14 @@ module inversion_mod
             svel(:, :, :, 2) = as
 
             !Get "v" in physical space:
-            call field_combine(svel(:, :, :, 2), vel(:, :, :, 2))
+            call fftxys2p(as, vel(:, :, :, 2))
 
             !-------------------------------------------------------
             !Store spectral form of "w":
             svel(:, :, :, 3) = ds
 
             !Get "w" in physical space:
-            call field_combine(svel(:, :, :, 3), vel(:, :, :, 3))
+            call fftxys2p(ds, vel(:, :, :, 3))
 
             call stop_timer(vor2vel_timer)
 
@@ -167,7 +171,7 @@ module inversion_mod
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
-                call field_combine(svor(:, :, :, nc), vor(:, :, :, nc))
+                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 

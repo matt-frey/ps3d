@@ -97,11 +97,10 @@ module fields
 
         end subroutine field_decompose
 
-        subroutine field_combine(sf, fc)
+        subroutine field_combine_semi_spectral(sf, sfc)
             double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
                                                                          ! semi-spectral at iz = 0 and iz = nz
-            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
-            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+            double precision, intent(out) :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
             double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
             integer                       :: iz, kx, ky
 
@@ -123,10 +122,20 @@ module fields
 
             sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
 
+        end subroutine field_combine_semi_spectral
+
+        subroutine field_combine_physical(sf, fc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+
+            call field_combine_semi_spectral(sf, sfc)
+
             ! transform to physical space as fc:
             call fftxys2p(sfc, fc)
 
-        end subroutine field_combine
+        end subroutine field_combine_physical
 
         function get_kinetic_energy() result(ke)
             double precision :: ke
