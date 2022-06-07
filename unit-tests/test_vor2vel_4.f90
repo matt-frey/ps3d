@@ -3,18 +3,18 @@
 !
 !  This unit test checks the calculation of the velocity field using the
 !  following flow:
-!     u(x, y, z) = z - (zmin + zmax) / 2
+!     u(x, y, z) = z^2 - 1/3 - <u>
 !     v(x, y, z) = 0
 !     w(x, y, z) = 0
 !  and vorticity
 !    xi(x, y, z) = 0
-!   eta(x, y, z) = 1
+!   eta(x, y, z) = 2 * z
 !  zeta(x, y, z) = 0
 ! with x, y in [-1/2, 1/2] and z in [0, 1].
 ! =============================================================================
 program test_vor2vel_2
     use unit_test
-    use constants, only : one, two, three, six, pi, twopi
+    use constants, only : one, f12, f13, two
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
     use inversion_utils
@@ -27,7 +27,7 @@ program test_vor2vel_2
     double precision              :: error
     double precision, allocatable :: vel_ref(:, :, :, :)
     integer                       :: iz
-    double precision              :: z
+    double precision              :: z, zmean
 
     call register_timer('vorticity', vor2vel_timer)
     call register_timer('field I/O', field_io_timer)
@@ -51,15 +51,18 @@ program test_vor2vel_2
         z = lower(3) + iz * dx(3)
 
         ! velocity
-        vel_ref(iz, :, :, 1) = z - f12 * (lower(3) + upper(3))
+        vel_ref(iz, :, :, 1) = z ** 2 - f13
         vel_ref(iz, :, :, 2) = zero
         vel_ref(iz, :, :, 3) = zero
 
         ! vorticity
         vor(iz, :, :, 1) = zero
-        vor(iz, :, :, 2) = one
+        vor(iz, :, :, 2) = two * z
         vor(iz, :, :, 3) = zero
     enddo
+
+    zmean = (vel_ref(0, 0, 0, 1) + vel_ref(nz, 0, 0, 1) + sum(vel_ref(1:nz-1, 0, 0, 1))) / nz
+    vel_ref(:, :, :, 1) = vel_ref(:, :, :, 1) - zmean
 
     call field_decompose(vor(:, :, :, 1), svor(:, :, :, 1))
     call field_decompose(vor(:, :, :, 2), svor(:, :, :, 2))
@@ -73,7 +76,9 @@ program test_vor2vel_2
 
     call write_step(zero)
 
-    call print_result_dp('Test vor2vel', error, atol=1.0e-14)
+    print *, error
+
+    call print_result_dp('Test vor2vel', error, atol=6.0e-3)
 
     deallocate(vel_ref)
 

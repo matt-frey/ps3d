@@ -23,7 +23,8 @@ libcombi_la_LIBADD =                            	\
 unittests_PROGRAMS =   		\
         test_vor2vel_1		\
         test_vor2vel_2		\
-        test_vor2vel_3
+        test_vor2vel_3		\
+        test_vor2vel_4
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -33,3 +34,6 @@ test_vor2vel_2_LDADD = libcombi.la
 
 test_vor2vel_3_SOURCES = unit_test.f90 test_vor2vel_3.f90
 test_vor2vel_3_LDADD = libcombi.la
+
+test_vor2vel_4_SOURCES = unit_test.f90 test_vor2vel_4.f90
+test_vor2vel_4_LDADD = libcombi.la
