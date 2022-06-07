@@ -180,7 +180,7 @@ module inversion_utils
                 phitop(iz) = fac * dble(iz)
                 phibot(iz) = fac * dble(nz-iz)
                 gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
-                gambot(iz) = gamtop(nz-iz)
+                gambot(iz) = f12 * extent(3) * (phibot(iz) ** 2 - f13)
             enddo
             gamtop(0)  = -f16 * extent(3)
             gambot(0)  = gamtop(0)
