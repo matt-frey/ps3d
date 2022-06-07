@@ -92,15 +92,13 @@ program test_vor2vel_2
 
     call vor2vel
 
-    error = max(error, maxval(dabs(vel_ref - vel)))
+    error = maxval(dabs(vel_ref - vel))
 
     call create_netcdf_field_file('test', .true.)
 
     call write_step(zero)
 
-    print *, error
-
-    call print_result_dp('Test vor2vel', error, atol=1.0e-14)
+    call print_result_dp('Test vor2vel', error, atol=6.0e-3)
 
     deallocate(vel_ref)
 

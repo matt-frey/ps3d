@@ -91,9 +91,7 @@ program test_vor2vel_1
 
     call write_step(zero)
 
-    error = max(error, maxval(dabs(vel_ref - vel)))
-
-    print *, error
+    error = maxval(dabs(vel_ref - vel))
 
     call print_result_dp('Test vor2vel', error, atol=1.0e-14)
 
