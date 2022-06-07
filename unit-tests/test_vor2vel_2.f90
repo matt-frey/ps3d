@@ -17,11 +17,13 @@
 ! =============================================================================
 program test_vor2vel_2
     use unit_test
-    use constants, only : one, two, three, six
+    use constants, only : one, two, three, six, pi, twopi
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
+    use utils, only : setup_domain_and_parameters, write_step
+    use field_netcdf, only : field_io_timer, create_netcdf_field_file
     use timer
     implicit none
 
@@ -32,12 +34,13 @@ program test_vor2vel_2
     double precision              :: coskx, sinkx, cosly, sinly
 
     call register_timer('vorticity', vor2vel_timer)
+    call register_timer('field I/O', field_io_timer)
 
     nx = 32
     ny = 32
     nz = 32
 
-    lower  = (/zero, zero, zero/)
+    lower  = (/-f12, -f12, zero/)
     extent = (/one, one, one/)
 
     allocate(vel_ref(0:nz, 0:ny-1, 0:nx-1, 3))
@@ -46,8 +49,8 @@ program test_vor2vel_2
 
     call field_default
 
-    k = two
-    l = two
+    l = twopi
+    k = two * l
 
     call init_inversion
 
@@ -90,6 +93,10 @@ program test_vor2vel_2
     call vor2vel
 
     error = max(error, maxval(dabs(vel_ref - vel)))
+
+    call create_netcdf_field_file('test', .true.)
+
+    call write_step(zero)
 
     print *, error
 
