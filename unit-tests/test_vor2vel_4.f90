@@ -12,7 +12,7 @@
 !  zeta(x, y, z) = 0
 ! with x, y in [-1/2, 1/2] and z in [0, 1].
 ! =============================================================================
-program test_vor2vel_2
+program test_vor2vel_4
     use unit_test
     use constants, only : one, f12, f13, two
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
@@ -61,7 +61,10 @@ program test_vor2vel_2
         vor(iz, :, :, 3) = zero
     enddo
 
-    zmean = (vel_ref(0, 0, 0, 1) + vel_ref(nz, 0, 0, 1) + sum(vel_ref(1:nz-1, 0, 0, 1))) / nz
+    zmean = (   f12 * vel_ref(0, 0, 0, 1)       &
+              + f12 * vel_ref(nz, 0, 0, 1)      &
+              + sum(vel_ref(1:nz-1, 0, 0, 1))   &
+             ) / dble(nz)
     vel_ref(:, :, :, 1) = vel_ref(:, :, :, 1) - zmean
 
     call field_decompose(vor(:, :, :, 1), svor(:, :, :, 1))
@@ -76,10 +79,8 @@ program test_vor2vel_2
 
     call write_step(zero)
 
-    print *, error
-
     call print_result_dp('Test vor2vel', error, atol=6.0e-3)
 
     deallocate(vel_ref)
 
-end program test_vor2vel_2
+end program test_vor2vel_4
