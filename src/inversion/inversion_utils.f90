@@ -462,8 +462,8 @@ module inversion_utils
             cfc = fc
             call fftxyp2s(cfc, sfc)
 
-            ! copy bottom z-boundary + interior
-            sf(0:nz-1, :, :) = sfc(0:nz-1, :, :)
+            ! copy
+            sf = sfc
 
             ! interior
             call field_decompose_semi_spectral(sf)
@@ -598,19 +598,17 @@ module inversion_utils
 
         subroutine diffz(fs, ds)
             double precision, intent(in)  :: fs(0:nz, 0:nx-1, 0:ny-1) ! mixed spectral space
-            double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! mixed pectral space
+            double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! mixed spectral space
             double precision              :: slope(0:nx-1, 0:ny-1)    ! semi-spectral space
             integer                       :: kx, ky, iz
 
             slope = (fs(nz, :, :) - fs(0, :, :)) / extent(3)
 
-            ds(0,      :, :) = fs(0, :, :)
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    ds(1:nz-1, kx, ky) = rkz(1:nz-1) * fs(1:nz-1, kx, ky)
-                enddo
+            ds(0, :, :) = fs(0, :, :)
+            do iz = 1, nz-1
+                ds(iz, :, :) = rkz(iz) * fs(iz, :, :)
             enddo
-            ds(nz,     :, :) = fs(0, :, :)
+            ds(nz, :, :) = fs(nz, :, :)
 
             ! transform to semi-spectral space
             do ky = 0, ny-1

@@ -32,7 +32,7 @@ program test_vor2vel_5
     call register_timer('vorticity', vor2vel_timer)
     call register_timer('field I/O', field_io_timer)
 
-    nx = 128
+    nx = 32
     ny = nx
     nz = nx
 
@@ -73,9 +73,7 @@ program test_vor2vel_5
 
     call write_step(zero)
 
-    print *, error
-
-    call print_result_dp('Test vor2vel', error, atol=1.0e-14)
+    call print_result_dp('Test vor2vel', error, atol=4.0e-6)
 
     deallocate(vel_ref)
 
