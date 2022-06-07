@@ -178,9 +178,9 @@ module inversion_utils
                 gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
                 gambot(iz) = f12 * extent(3) * (phibot(iz) ** 2 - f13)
             enddo
-            gamtop(0)  = -f16 * extent(3)
-            gambot(0)  = gamtop(0)
-            gamtop(nz) = gamtop(0)
+            gamtop(0)  = -f13 * extent(3)
+            gamtop(nz) = -f16 * extent(3)
+            gambot(0)  = gamtop(nz)
             gambot(nz) = gamtop(0)
 
             !Hyperbolic functions used for solutions of Laplace's equation:
