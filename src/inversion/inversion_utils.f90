@@ -82,6 +82,11 @@ module inversion_utils
             , psi                   &
             , dpsi
 
+    public :: field_combine_semi_spectral   &
+            , field_combine_physical        &
+            , field_decompose_semi_spectral &
+            , field_decompose_physical
+
     contains
 
 
@@ -419,6 +424,101 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        subroutine field_decompose_semi_spectral(sfc)
+            double precision, intent(inout) :: sfc(0:nz, 0:ny-1, 0:nx-1) ! in : complete field (semi-spectral space)
+                                                                         ! out: full-spectral (1:nz-1),
+                                                                         !      semi-spectral at iz = 0 and iz = nz
+            double precision                :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
+            integer                         :: iz, kx, ky
+
+            ! get linear part
+            do iz = 1, nz-1
+                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
+            enddo
+
+            ! interior
+            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) - sfl
+
+            ! transform interior to fully spectral
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+        end subroutine field_decompose_semi_spectral
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_decompose_physical(fc, sf)
+            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
+            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
+            integer                       :: iz, kx, ky
+
+            cfc = fc
+            call fftxyp2s(cfc, sfc)
+
+            ! copy bottom z-boundary + interior
+            sf(0:nz-1, :, :) = sfc(0:nz-1, :, :)
+
+            ! interior
+            call field_decompose_semi_spectral(sf)
+
+            ! top z-boundary
+            sf(nz, :, :) = sfc(nz, :, :)
+
+        end subroutine field_decompose_physical
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_combine_semi_spectral(sf, sfc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision, intent(out) :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
+            integer                       :: iz, kx, ky
+
+            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sfc:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    sfc(1:nz-1, kx, ky) = sf(1:nz-1, kx, ky)
+                    sfc(nz    , kx, ky) = zero
+                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            sfc(0,  :, :) = sf(0,  :, :)
+            sfc(nz, :, :) = sf(nz, :, :)
+
+            ! get linear part and add to sfc:
+            do iz = 1, nz-1
+                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
+            enddo
+
+            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
+
+        end subroutine field_combine_semi_spectral
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_combine_physical(sf, fc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
+
+            call field_combine_semi_spectral(sf, sfc)
+
+            ! transform to physical space as fc:
+            call fftxys2p(sfc, fc)
+
+        end subroutine field_combine_physical
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         ! Given fs in spectral space (at least in x & y), this returns dfs/dx
         ! (partial derivative).  The result is returned in ds, again
         ! spectral.  Uses exact form of the derivative in spectral space.
@@ -470,31 +570,63 @@ module inversion_utils
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+!
+!         !Calculates df/dz for a field f using 2nd-order differencing.
+!         !Here fs = f, ds = df/dz.
+!         subroutine diffz(fs, ds)
+!             double precision, intent(in)  :: fs(0:nz, nx, ny)
+!             double precision, intent(out) :: ds(0:nz, nx, ny)
+!             integer                       :: iz
+!
+!             ! linear extrapolation to fill boundary cells:
+!             ! iz = 0:  (fs(1) - fs(0)) / dz
+!             ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+!             ! could try other method: one-sided differencing
+!             ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
+!             ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
+!
+!             ! central differencing for interior cells
+!             !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
+!             !$omp do
+!             do iz = 1, nz-1
+!                 ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
+!             enddo
+!             !$omp end do
+!             !$omp end parallel
+!
+!         end subroutine
 
-        !Calculates df/dz for a field f using 2nd-order differencing.
-        !Here fs = f, ds = df/dz.
         subroutine diffz(fs, ds)
-            double precision, intent(in)  :: fs(0:nz, nx, ny)
-            double precision, intent(out) :: ds(0:nz, nx, ny)
-            integer                       :: iz
+            double precision, intent(in)  :: fs(0:nz, 0:nx-1, 0:ny-1) ! mixed spectral space
+            double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! mixed pectral space
+            double precision              :: slope(0:nx-1, 0:ny-1)    ! semi-spectral space
+            integer                       :: kx, ky, iz
 
-            ! linear extrapolation to fill boundary cells:
-            ! iz = 0:  (fs(1) - fs(0)) / dz
-            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
-            ! could try other method: one-sided differencing
-            ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
-            ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
+            slope = (fs(nz, :, :) - fs(0, :, :)) / extent(3)
 
-            ! central differencing for interior cells
-            !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
-            !$omp do
-            do iz = 1, nz-1
-                ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
+            ds(0,      :, :) = fs(0, :, :)
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    ds(1:nz-1, kx, ky) = rkz(1:nz-1) * fs(1:nz-1, kx, ky)
+                enddo
             enddo
-            !$omp end do
-            !$omp end parallel
+            ds(nz,     :, :) = fs(0, :, :)
 
-        end subroutine
+            ! transform to semi-spectral space
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, ds(0:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+            do iz = 0, nz
+                ds(iz, :, :) = ds(iz, :, :) + slope
+            enddo
+
+            ! transform to mixed spectral space
+            call field_decompose_semi_spectral(ds)
+
+        end subroutine diffz
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

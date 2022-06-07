@@ -5,8 +5,6 @@
 module fields
     use parameters, only : nx, ny, nz, vcell, ncell, ncelli
     use constants, only : zero, f12, f14
-    use sta2dfft, only : dst
-    use inversion_utils
     implicit none
 
     ! x: zonal
@@ -61,81 +59,6 @@ module fields
             sbuoy  = zero
             diss   = zero
         end subroutine field_default
-
-        subroutine field_decompose(fc, sf)
-            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
-            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
-                                                                         ! semi-spectral at iz = 0 and iz = nz
-            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
-            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
-            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
-            integer                       :: iz, kx, ky
-
-            cfc = fc
-            call fftxyp2s(cfc, sfc)
-
-            ! get linear part
-            do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
-            enddo
-
-            ! bottom z-boundary
-            sf(0, :, :) = sfc(0, :, :)
-
-            ! interior
-            sf(1:nz-1, :, :) = sfc(1:nz-1, :, :) - sfl
-
-            ! transform interior to fully spectral
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dst(1, nz, sf(1:nz, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
-            ! top z-boundary
-            sf(nz, :, :) = sfc(nz, :, :)
-
-        end subroutine field_decompose
-
-        subroutine field_combine_semi_spectral(sf, sfc)
-            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
-                                                                         ! semi-spectral at iz = 0 and iz = nz
-            double precision, intent(out) :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
-            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
-            integer                       :: iz, kx, ky
-
-            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sfc:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    sfc(1:nz-1, kx, ky) = sf(1:nz-1, kx, ky)
-                    sfc(nz    , kx, ky) = zero
-                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-            sfc(0,  :, :) = sf(0,  :, :)
-            sfc(nz, :, :) = sf(nz, :, :)
-
-            ! get linear part and add to sfc:
-            do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
-            enddo
-
-            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
-
-        end subroutine field_combine_semi_spectral
-
-        subroutine field_combine_physical(sf, fc)
-            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
-                                                                         ! semi-spectral at iz = 0 and iz = nz
-            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
-            double precision              :: sfc(0:nz, 0:ny-1, 0:nx-1)   ! complete field (semi-spectral space)
-
-            call field_combine_semi_spectral(sf, sfc)
-
-            ! transform to physical space as fc:
-            call fftxys2p(sfc, fc)
-
-        end subroutine field_combine_physical
 
         function get_kinetic_energy() result(ke)
             double precision :: ke

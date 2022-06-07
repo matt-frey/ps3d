@@ -32,7 +32,7 @@ program test_vor2vel_5
     call register_timer('vorticity', vor2vel_timer)
     call register_timer('field I/O', field_io_timer)
 
-    nx = 32
+    nx = 128
     ny = nx
     nz = nx
 
@@ -61,9 +61,9 @@ program test_vor2vel_5
         vor(iz, :, :, 3) = zero
     enddo
 
-    call field_decompose(vor(:, :, :, 1), svor(:, :, :, 1))
-    call field_decompose(vor(:, :, :, 2), svor(:, :, :, 2))
-    call field_decompose(vor(:, :, :, 3), svor(:, :, :, 3))
+    call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+    call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
     call vor2vel
 
@@ -72,6 +72,8 @@ program test_vor2vel_5
     call create_netcdf_field_file('test', .true.)
 
     call write_step(zero)
+
+    print *, error
 
     call print_result_dp('Test vor2vel', error, atol=1.0e-14)
 

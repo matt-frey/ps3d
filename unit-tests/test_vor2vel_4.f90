@@ -61,9 +61,9 @@ program test_vor2vel_4
         vor(iz, :, :, 3) = zero
     enddo
 
-    call field_decompose(vor(:, :, :, 1), svor(:, :, :, 1))
-    call field_decompose(vor(:, :, :, 2), svor(:, :, :, 2))
-    call field_decompose(vor(:, :, :, 3), svor(:, :, :, 3))
+    call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+    call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
     call vor2vel
 
@@ -73,7 +73,7 @@ program test_vor2vel_4
 
     call write_step(zero)
 
-    call print_result_dp('Test vor2vel', error, atol=6.0e-3)
+    call print_result_dp('Test vor2vel', error, atol=1.0e-14)
 
     deallocate(vel_ref)
 

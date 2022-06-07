@@ -158,12 +158,10 @@ module inversion_mod
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
         subroutine vorticity_tendency
-            double precision :: xs(0:nz, 0:nx-1, 0:ny-1)
-            double precision :: ys(0:nz, 0:nx-1, 0:ny-1)
-            double precision :: zs(0:nz, 0:nx-1, 0:ny-1)
-            double precision :: xp(0:nz, 0:ny-1, 0:nx-1)
-            double precision :: yp(0:nz, 0:ny-1, 0:nx-1)
-            double precision :: zp(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             integer          :: nc
 
             call start_timer(vtend_timer)
@@ -175,58 +173,41 @@ module inversion_mod
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
-            !-------------------------------------------------------
-            ! x-component of vorticity tendency:
-            yp = vor(:, :, :, 2) * vel(:, :, :, 1) - vel(:, :, :, 2) * vor(:, :, :, 1)   ! eta * u - v * xi
-            zp = vor(:, :, :, 3) * vel(:, :, :, 1) - vel(:, :, :, 3) * vor(:, :, :, 1)   ! zeta * u - w * xi
-
-            call fftxyp2s(yp, ys)
-            call fftxyp2s(zp, zs)
-
-            call diffy(ys, xs)
-            call diffz(zs, svtend(:, :, :, 1))
-
-            ! Extrapolate
-            svtend(0,  :, :, 1) = two * svtend(1,    :, :, 1) - svtend(2,    :, :, 1)
-            svtend(nz, :, :, 1) = two * svtend(nz-1, :, :, 1) - svtend(nz-2, :, :, 1)
-
-            svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
+            call field_combine_physical(sbuoy, buoy)
 
             !-------------------------------------------------------
-            ! y-component of vorticity tendency:
-            xp = vor(:, :, :, 1) * vel(:, :, :, 2) - vel(:, :, :, 1) * vor(:, :, :, 2)  ! xi * v - u * eta
-            zp = vor(:, :, :, 3) * vel(:, :, :, 2) - vel(:, :, :, 3) * vor(:, :, :, 2)  ! zeta * v - w * eta
+            ! Tendency in flux form:
+            !   dxi/dt  = dr/dy - dq/dz
+            !   deta/dt = dp/dz - dr/dx
+            !  dzeta/dt = dq/dx - dp/dy
 
-            call fftxyp2s(xp, xs)
-            call fftxyp2s(zp, zs)
-
-            call diffx(xs, ys)
-            call diffz(zs, svtend(:, :, :, 2))
-
-            ! Extrapolate
-            svtend(0,  :, :, 2) = two * svtend(1,    :, :, 2) - svtend(2,    :, :, 2)
-            svtend(nz, :, :, 2) = two * svtend(nz-1, :, :, 2) - svtend(nz-2, :, :, 2)
-
-            svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
-
-            !-------------------------------------------------------
-            ! z-component of vorticity tendency:
-            xp = vor(:, :, :, 1) * vel(:, :, :, 3) - vel(:, :, :, 1) * vor(:, :, :, 3) ! xi * w - u * zeta
-            yp = vor(:, :, :, 2) * vel(:, :, :, 3) - vel(:, :, :, 2) * vor(:, :, :, 3) ! eta * w - v * zeta
-
-            call fftxyp2s(xp, xs)
-            call fftxyp2s(yp, ys)
-
-            call diffx(xs, zs)
-            call diffy(ys, svtend(:, :, :, 3))
-            svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
+            ! r = u * eta - v * xi + b
+            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1) + buoy
+            call field_decompose_physical(fp, r)
 
 
-            !-------------------------------------------------------
-            ! Apply z-filter:
-            do nc = 1, 3
-                call apply_zfilter(svtend(:, :, :, nc))
-            enddo
+            ! q = w * xi - u * zeta
+            fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
+            call field_decompose_physical(fp, q)
+
+            ! dxi/dt  = dr/dy - dq/dz
+            call diffy(r, svtend(:, :, :, 1))
+            call diffz(q, p)
+            svtend(:, :, :, 1) = svtend(:, :, :, 1) + p     ! here: p = dq/dz
+
+            ! p = v * zeta - w * eta
+            fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
+            call field_decompose_physical(fp, p)
+
+            ! deta/dt = dp/dz - dr/dx
+            call diffx(r, svtend(:, :, :, 2))
+            call diffz(p, r)                                ! here: r = dp/dz
+            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)
+
+            ! dzeta/dt = dq/dx - dp/dy
+            call diffx(q, svtend(:, :, :, 3))
+            call diffy(p, r)                                ! here: r = dp/dy
+            svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
 
             call stop_timer(vtend_timer)
 
