@@ -231,8 +231,6 @@ module inversion_utils
             ! kx = ky = 0
             psi(:, 0, 0) = zero
             dpsi(:, 0, 0) = zero
-            dpsi(0,  0, 0) = zero
-            dpsi(nz, 0, 0) = zero
 
           end subroutine init_inversion
 
