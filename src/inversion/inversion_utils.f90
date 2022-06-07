@@ -151,7 +151,7 @@ module inversion_utils
         subroutine init_inversion
             double precision             :: fac, div
             integer                      :: kx, ky, iz, kz
-            double precision             :: kl
+            double precision             :: kl, em, ep
 
             call init_fft
 
@@ -188,14 +188,13 @@ module inversion_utils
                 do kx = 0, nx-1
                     kl = dsqrt(k2l2(kx, ky))
                     fac = kl * extent(3)
+                    em = dexp(-fac * (one - phitop))
+                    ep = dexp(-fac * (one + phitop))
                     div = one / (one - dexp(-two * fac))
-                    psi(:, kx, ky) = div * (dexp(-fac * (one - phitop)) - &
-                                            dexp(-fac * (one + phitop)))
+                    psi(:, kx, ky) = div * (em - ep)
                     psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop)
 
-                    dpsi(1:nz-1, kx, ky) = div * (dexp(-fac * (one - phitop)) + &
-                                                  dexp(-fac * (one + phitop)))  &
-                                         - one / fac
+                    dpsi(1:nz-1, kx, ky) = div * (em + ep) - one / fac
                     dpsi(1:nz-1, kx, ky) = dpsi(1:nz-1, kx, ky) / kl
 
                     ! iz = 0 and iz = nz --> phitop = 0
@@ -209,13 +208,12 @@ module inversion_utils
             do kx = 1, nx-1
                 fac = rkx(kx) * extent(3)
                 div = one / (one - dexp(-two * fac))
-                psi(:, kx, 0) = div * (dexp(-fac * (one - phitop)) - &
-                                       dexp(-fac * (one + phitop)))
+                em = dexp(-fac * (one - phitop))
+                ep = dexp(-fac * (one + phitop))
+                psi(:, kx, 0) = div * (em - ep)
                 psi(:, kx, 0) = k2l2i(kx, 0) * (psi(:, kx, 0) - phitop)
 
-                dpsi(1:nz-1, kx, 0) = div * (dexp(-fac * (one - phitop)) + &
-                                             dexp(-fac * (one + phitop)))  &
-                                    - one / fac
+                dpsi(1:nz-1, kx, 0) = div * (em + ep) - one / fac
                 dpsi(1:nz-1, kx, 0) = dpsi(1:nz-1, kx, 0) / rkx(kx)
 
                 ! iz = 0 and iz = nz --> phitop = 0
