@@ -149,9 +149,9 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            double precision             :: fac, div
             integer                      :: kx, ky, iz, kz
-            double precision             :: kl, em, ep
+            double precision             :: fac, faci, div, kl, kli 
+            double precision.            :: em(1:nz-1), ep(1:nz-1)
 
             call init_fft
 
@@ -170,60 +170,62 @@ module inversion_utils
             enddo
 
             !---------------------------------------------------------------------
-            ! phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
+            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
             fac = one / dble(nz)
             do iz = 1, nz-1
                 phitop(iz) = fac * dble(iz)
                 phibot(iz) = fac * dble(nz-iz)
-                gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
-                gambot(iz) = f12 * extent(3) * (phibot(iz) ** 2 - f13)
             enddo
-            gamtop(0)  = -f13 * extent(3)
-            gamtop(nz) = -f16 * extent(3)
-            gambot(0)  = gamtop(nz)
-            gambot(nz) = gamtop(0)
+            !Here phibot is the complement of phitop.
+            
+            !Define gamtop as the integral of phitop with zero average:
+            gamtop(0)  = -f16 * extent(3)
+            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
+            gamtop(nz) =  f13 * extent(3)
+            do iz = 0, nz
+                gambot(iz)  = gamtop(nz-iz)
+            enddo
+            !Here gambot is the complement of gamtop.
 
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    kl = dsqrt(k2l2(kx, ky))
+                    kl  = dsqrt(k2l2(kx, ky))
+                    kli = one / kl
                     fac = kl * extent(3)
+                    faci = one / fac
+                    div = one / (one - dexp(-two * fac))
                     em = dexp(-fac * (one - phitop))
                     ep = dexp(-fac * (one + phitop))
-                    div = one / (one - dexp(-two * fac))
-                    psi(:, kx, ky) = div * (em - ep)
-                    psi(:, kx, ky) = k2l2i(kx, ky) * (psi(:, kx, ky) - phitop)
+                    psi(:      , kx, ky) = k2l2i(kx, ky) * (div * (em - ep) - phitop)
+                    dpsi(1:nz-1, kx, ky) =           kli * (div * (em + ep) - faci)
 
-                    dpsi(1:nz-1, kx, ky) = div * (em + ep) - one / fac
-                    dpsi(1:nz-1, kx, ky) = dpsi(1:nz-1, kx, ky) / kl
-
-                    ! iz = 0 and iz = nz --> phitop = 0
-                    dpsi(0,  kx, ky) = div * two * dexp(-fac) - one / fac
-                    dpsi(0,  kx, ky) = dpsi(0, kx, ky) / kl
-                    dpsi(nz, kx, ky) = dpsi(0, kx, ky)
+                    ! iz = 0  --> phitop = 0
+                    dpsi(0 , kx, ky) = kli * (div * two * dexp(-fac) - faci)
+                    ! iz = nz --> phitop = 1
+                    dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
                 enddo
             enddo
 
             ! ky = 0
             do kx = 1, nx-1
+                kli = one / rkx(kx)
                 fac = rkx(kx) * extent(3)
+                faci = one / fac
                 div = one / (one - dexp(-two * fac))
                 em = dexp(-fac * (one - phitop))
                 ep = dexp(-fac * (one + phitop))
-                psi(:, kx, 0) = div * (em - ep)
-                psi(:, kx, 0) = k2l2i(kx, 0) * (psi(:, kx, 0) - phitop)
+                psi(:      , kx, 0) = k2l2i(kx, 0) * (div * (em - ep) - phitop)
+                dpsi(1:nz-1, kx, 0) =          kli * (div * (em + ep) - faci)
 
-                dpsi(1:nz-1, kx, 0) = div * (em + ep) - one / fac
-                dpsi(1:nz-1, kx, 0) = dpsi(1:nz-1, kx, 0) / rkx(kx)
-
-                ! iz = 0 and iz = nz --> phitop = 0
-                dpsi(0,  kx, 0) = div * two * dexp(-fac) - one / fac
-                dpsi(0,  kx, 0) = dpsi(0, kx, 0) / rkx(kx)
-                dpsi(nz, kx, 0) = dpsi(0, kx, 0)
+                ! iz = 0  --> phitop = 0
+                dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
+                ! iz = nz --> phitop = 1
+                dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
             enddo
 
             ! kx = ky = 0
-            psi(:, 0, 0) = zero
+            psi(: , 0, 0) = zero
             dpsi(:, 0, 0) = zero
 
           end subroutine init_inversion
