@@ -12,9 +12,9 @@
 !  zeta(x, y, z) = 0
 ! with x, y in [-1/2, 1/2] and z in [0, 1].
 ! =============================================================================
-program test_vor2vel_2
+program test_vor2vel_3
     use unit_test
-    use constants, only : one, two, three, six, pi, twopi
+    use constants, only : f12, one
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
     use inversion_utils
@@ -77,4 +77,4 @@ program test_vor2vel_2
 
     deallocate(vel_ref)
 
-end program test_vor2vel_2
+end program test_vor2vel_3
