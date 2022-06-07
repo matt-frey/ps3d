@@ -150,8 +150,8 @@ module inversion_utils
 
         subroutine init_inversion
             integer                      :: kx, ky, iz, kz
-            double precision             :: fac, faci, div, kl, kli 
-            double precision.            :: em(1:nz-1), ep(1:nz-1)
+            double precision             :: fac, faci, div, kl, kli
+            double precision             :: em(1:nz-1), ep(1:nz-1)
 
             call init_fft
 
@@ -177,7 +177,7 @@ module inversion_utils
                 phibot(iz) = fac * dble(nz-iz)
             enddo
             !Here phibot is the complement of phitop.
-            
+
             !Define gamtop as the integral of phitop with zero average:
             gamtop(0)  = -f16 * extent(3)
             gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
@@ -221,7 +221,7 @@ module inversion_utils
                 ! iz = 0  --> phitop = 0
                 dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
                 ! iz = nz --> phitop = 1
-                dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
+                dpsi(nz, kx, 0) = kli * (div * (one + dexp(-two * fac)) - faci)
             enddo
 
             ! kx = ky = 0
