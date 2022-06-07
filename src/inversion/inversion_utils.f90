@@ -169,12 +169,8 @@ module inversion_utils
 
             !---------------------------------------------------------------------
             !Define Green function
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    do kz = 1, nz-1
-                        green(kz, kx, ky) = - one / (k2l2(kx, ky) + rkz(kz) ** 2)
-                    enddo
-                enddo
+            do kz = 1, nz-1
+                green(kz, :, :) = - one / (k2l2(:, :) + rkz(kz) ** 2)
             enddo
 
             !---------------------------------------------------------------------
@@ -182,7 +178,7 @@ module inversion_utils
             fac = one / dble(nz)
             do iz = 1, nz-1
                 phitop(iz) = fac * dble(iz)
-                phibot(iz) = phitop(nz-iz)
+                phibot(iz) = fac * dble(nz-iz)
                 gamtop(iz) = f12 * extent(3) * (phitop(iz) ** 2 - f13)
                 gambot(iz) = gamtop(nz-iz)
             enddo
@@ -233,10 +229,10 @@ module inversion_utils
             enddo
 
             ! kx = ky = 0
-             psi(:, 0, 0) = f16 * phitop * ((phitop ** 2 - one) * extent(3) ** 2)
-            dpsi(1:nz-1, 0, 0) = f12 * phitop ** 2 * extent(3) - f16 * extent(3)
-            dpsi(0,  0, 0) = - f16 * extent(3)
-            dpsi(nz, 0, 0) = dpsi(0,  0, 0)
+            psi(:, 0, 0) = zero
+            dpsi(:, 0, 0) = zero
+            dpsi(0,  0, 0) = zero
+            dpsi(nz, 0, 0) = zero
 
           end subroutine init_inversion
 
