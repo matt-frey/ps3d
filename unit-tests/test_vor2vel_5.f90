@@ -3,18 +3,18 @@
 !
 !  This unit test checks the calculation of the velocity field using the
 !  following flow:
-!     u(x, y, z) = z^2 - 1/3
+!     u(x, y, z) = z^3 - 1/4
 !     v(x, y, z) = 0
 !     w(x, y, z) = 0
 !  and vorticity
 !    xi(x, y, z) = 0
-!   eta(x, y, z) = 2 * z
+!   eta(x, y, z) = 3 * z^2
 !  zeta(x, y, z) = 0
 ! with x, y in [-1/2, 1/2] and z in [0, 1].
 ! =============================================================================
 program test_vor2vel_5
     use unit_test
-    use constants, only : one, f12, f13, two
+    use constants, only : one, three, f12, f14, two
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
     use inversion_utils
@@ -51,13 +51,13 @@ program test_vor2vel_5
         z = lower(3) + iz * dx(3)
 
         ! velocity
-        vel_ref(iz, :, :, 1) = z ** 2 - f13
+        vel_ref(iz, :, :, 1) = z ** 3 - f14
         vel_ref(iz, :, :, 2) = zero
         vel_ref(iz, :, :, 3) = zero
 
         ! vorticity
         vor(iz, :, :, 1) = zero
-        vor(iz, :, :, 2) = two * z
+        vor(iz, :, :, 2) = three * z ** 2
         vor(iz, :, :, 3) = zero
     enddo
 
