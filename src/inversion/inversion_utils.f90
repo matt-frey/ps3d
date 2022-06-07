@@ -163,14 +163,10 @@ module inversion_utils
             allocate(gamtop(0:nz))
             allocate(gambot(0:nz))
 
-
-!             call init_tridiagonal
-
-
             !---------------------------------------------------------------------
             !Define Green function
             do kz = 1, nz-1
-                green(kz, :, :) = - one / (k2l2(:, :) + rkz(kz) ** 2)
+                green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
 
             !---------------------------------------------------------------------
