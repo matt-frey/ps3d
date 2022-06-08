@@ -29,7 +29,7 @@ module inversion_mod
 
             !Filter the vorticity and combine vorticity in physical space:
             do nc = 1, 3
-                svor(:, :, : nc) = filt * svor(:, :, : nc)
+                svor(:, :, :, nc) = filt * svor(:, :, :, nc)
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
