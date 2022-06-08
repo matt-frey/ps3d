@@ -192,7 +192,7 @@ module inversion_mod
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svtend(:, :, :, 1))
-            call diffz(q, p)
+            call diffz(fp, p)
             svtend(:, :, :, 1) = svtend(:, :, :, 1) + p     ! here: p = dq/dz
 
             ! p = v * zeta - w * eta
@@ -201,7 +201,7 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svtend(:, :, :, 2))
-            call diffz(p, r)                                ! here: r = dp/dz
+            call diffz(fp, r)                                ! here: r = dp/dz
             svtend(:, :, :, 2) = r - svtend(:, :, :, 2)
 
             ! dzeta/dt = dq/dx - dp/dy

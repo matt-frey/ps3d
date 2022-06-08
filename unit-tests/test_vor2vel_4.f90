@@ -15,7 +15,7 @@
 program test_vor2vel_4
     use unit_test
     use constants, only : one, f12, f13, two
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
+    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer

@@ -9,7 +9,7 @@ program ps3d
     use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
     use inversion_utils, only : init_inversion          &
                               , fftxyp2s                &
-                              , filt                    &
+!                               , filt                    &
                               , init_hyperdiffusion     &
                               , field_decompose_physical
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
