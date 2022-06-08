@@ -148,7 +148,8 @@ module advance_mod
 !             !Convert to semi-spectral space and apply de-aliasing filter:
 !             call fftxyp2s(dbdx, sbuoys)
 !
-            sbuoys = -filt * sbuoys
+            sbuoys = zero
+!             sbuoys = -filt * sbuoys
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
