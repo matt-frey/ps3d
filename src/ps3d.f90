@@ -67,7 +67,9 @@ program ps3d
 
             ! decompose initial fields
             call field_decompose_physical(buoy, sbuoy)
-            call field_decompose_physical(vor, svor)
+            call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+            call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
 !             ! apply Hou and Li de-aliasing filter
 !             do iz = 0, nz
