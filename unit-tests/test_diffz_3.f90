@@ -24,7 +24,7 @@ program test_diffz_3
     nz = 2*nx
 
     lower  = (/zero, -f12*pi, zero/)
-    extent = (/f12 * pi, twopi, twopi/)
+    extent = (/pi, twopi, twopi/)
 
     allocate(fp(0:nz, 0:ny-1, 0:nx-1))
     allocate(ds(0:nz, 0:nx-1, 0:ny-1))

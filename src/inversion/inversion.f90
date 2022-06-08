@@ -81,7 +81,8 @@ module inversion_mod
             ! OMP the above????
 
             ! Get complete zeta field in semi-spectral space
-            call field_combine_semi_spectral(svor(:, :, :, 3), cs)
+            cs = svor(:, :, :, 3)
+            call field_combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
