@@ -560,69 +560,28 @@ module inversion_utils
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!         !Calculates df/dz for a field f using 2nd-order differencing.
-!         !Here fs = f, ds = df/dz.
-!         subroutine diffz(fs, ds)
-!             double precision, intent(in)  :: fs(0:nz, nx, ny)
-!             double precision, intent(out) :: ds(0:nz, nx, ny)
-!             integer                       :: iz
-!
-!             ! linear extrapolation to fill boundary cells:
-!             ! iz = 0:  (fs(1) - fs(0)) / dz
-!             ! iz = nz: (fs(nz) - fs(nz-1)) / dz
-!             ! could try other method: one-sided differencing
-!             ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
-!             ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
-!
-!             ! central differencing for interior cells
-!             !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
-!             !$omp do
-!             do iz = 1, nz-1
-!                 ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
-!             enddo
-!             !$omp end do
-!             !$omp end parallel
-!
-!         end subroutine
 
-        subroutine diffz(fp, ds)
-            double precision, intent(in)  :: fp(0:nz, 0:ny-1, 0:nx-1) ! physical space
-            double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! df/dz in mixed spectral space
-            double precision              :: slope(0:nx-1, 0:ny-1)   ! physical space
-            integer                       :: kx, ky, kz, iz
+        !Calculates df/dz for a field f using 2nd-order differencing.
+        !Here fs = f, ds = df/dz.
+        subroutine diffz(fs, ds)
+            double precision, intent(in)  :: fs(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
+            integer                       :: iz
 
-            call field_decompose_physical(fp, ds)
+            ! Quadratic extrapolation at boundaries:
+            ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
+            ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
 
-            ! Calculate the derivative/slope of the linear part:
-            ! f(z, y, x) = a * h(x, y) + b * z * g(x, y)
-            ! for some constants a and b:
-            ! (f(zmax, y, x) - f(zmin, y, x)) / (zmax - zmin) = g(x, y)
-            slope = (ds(nz, :, :) - ds(0, :, :)) / extent(3)
-
-            ! Calculate d/dz of this sine series:
-            ds(0, :, :) = zero
-            do kz = 1, nz-1
-                ds(kz, :, :) = rkz(kz) * ds(kz, :, :)
+            ! central differencing for interior cells
+            !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
+            !$omp do
+            do iz = 1, nz-1
+                ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
             enddo
-            ds(nz, :, :) = zero
+            !$omp end do
+            !$omp end parallel
 
-            ! FFT cosine series back to semi-spectral space:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, ds(0:nz, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
-            ! Add the derivative of the linear part:
-            do iz = 0, nz
-                ds(iz, :, :) = ds(iz, :, :) + slope
-            enddo
-
-            ! Transform to mixed spectral space:
-            call field_decompose_semi_spectral(ds)
-
-        end subroutine diffz
+        end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

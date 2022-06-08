@@ -7,14 +7,14 @@
 ! =============================================================================
 program test_diffz_2
     use unit_test
-    use constants, only : one, two, pi, twopi, f12
+    use constants, only : zero, one, two, pi, twopi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use inversion_utils
     use timer
     implicit none
 
     double precision              :: error
-    double precision, allocatable :: dfdz_ref(:, :, :), dfdz(:, :, :), ds(:, :, :)
+    double precision, allocatable :: dfdz_ref(:, :, :), dfdz(:, :, :)
     double precision, allocatable :: fp(:, :, :)
     integer                       :: ix, iy, iz
     double precision              :: x, y, z, k, l, coskx, sinly
@@ -27,11 +27,9 @@ program test_diffz_2
     extent = (/pi, twopi, twopi/)
 
     allocate(fp(0:nz, 0:ny-1, 0:nx-1))
-    allocate(ds(0:nz, 0:nx-1, 0:ny-1))
     allocate(dfdz(0:nz, 0:ny-1, 0:nx-1))
     allocate(dfdz_ref(0:nz, 0:ny-1, 0:nx-1))
 
-    ds = zero
     dfdz = zero
 
     call update_parameters
@@ -56,16 +54,13 @@ program test_diffz_2
         enddo
     enddo
 
-    call diffz(fp, ds)
-
-    call field_combine_physical(ds, dfdz)
+    call diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 
-    call print_result_dp('Test diffz', error, atol=4.0e-14)
+    call print_result_dp('Test diffz', error, atol=2.0e-14)
 
     deallocate(fp)
-    deallocate(ds)
     deallocate(dfdz)
     deallocate(dfdz_ref)
 

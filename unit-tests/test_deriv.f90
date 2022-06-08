@@ -6,7 +6,7 @@ program test_deriv
   ! phi_S, differentiating this spectrally, returning the result as a
   ! cosine series, and adding back phi_L.
 
-!   gfortran -O3 -o test_deriv stafft.f90 deriv1d.f90 test_deriv.f90  
+!   gfortran -O3 -o test_deriv stafft.f90 deriv1d.f90 test_deriv.f90
 !==============================================================================
 
 ! Import the 1D FFT module:
@@ -14,11 +14,11 @@ use stafft, only : initfft, dst, dct
 use deriv1d, only : init_deriv
 
 implicit none
-  
+
 ! Resolution in z:
 integer,parameter:: nz = 1024
 
-!Generic double precision numerical constants: 
+!Generic double precision numerical constants:
 double precision,parameter:: zero = 0.d0, one = 1.d0, two = 2.d0
 double precision,parameter:: three = 3.d0, four = 4.d0, six = 6.d0
 
@@ -105,7 +105,7 @@ write(*,*) ' nz, max/rms errors for decompose, linear and quadratic:'
 write(*,'(i4,6(2x,1p,e14.7))') nz, eamax, earms, efmax, efrms, eqmax, eqrms
 write(*,*)
 
-open(88,file='errors',status='old',access='append')
+open(88,file='errors',status='old')
 write(88,'(i4,6(2x,1p,e14.7))') nz, eamax, earms, efmax, efrms, eqmax, eqrms
 close(88)
 
