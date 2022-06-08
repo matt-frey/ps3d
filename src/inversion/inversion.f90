@@ -27,8 +27,9 @@ module inversion_mod
 
             call start_timer(vor2vel_timer)
 
-            !Combine vorticity in physical space:
+            !Filter the vorticity and combine vorticity in physical space:
             do nc = 1, 3
+                svors(:, :, : nc) = filt * svors(:, :, : nc)
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 

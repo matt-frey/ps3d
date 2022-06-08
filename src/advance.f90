@@ -156,10 +156,10 @@ module advance_mod
 
             call vorticity_tendency
 
-            !Add filtered vorticity tendency to vorticity source:
-            svorts(:, :, :, 1) = filt * svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = filt * svtend(:, :, :, 2)
-            svorts(:, :, :, 3) = filt * svtend(:, :, :, 3)
+            !Add filtered vorticity tendency to vorticity source: (svorts can be removed)
+            svorts(:, :, :, 1) = svtend(:, :, :, 1)
+            svorts(:, :, :, 2) = svtend(:, :, :, 2)
+            svorts(:, :, :, 3) = svtend(:, :, :, 3)
 
         end subroutine source
 
