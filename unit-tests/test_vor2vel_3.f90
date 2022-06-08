@@ -19,8 +19,6 @@ program test_vor2vel_3
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use utils, only : setup_domain_and_parameters, write_step
-    use field_netcdf, only : field_io_timer, create_netcdf_field_file
     use timer
     implicit none
 
@@ -30,7 +28,6 @@ program test_vor2vel_3
     double precision              :: z
 
     call register_timer('vorticity', vor2vel_timer)
-    call register_timer('field I/O', field_io_timer)
 
     nx = 32
     ny = nx
@@ -68,10 +65,6 @@ program test_vor2vel_3
     call vor2vel
 
     error = maxval(dabs(vel_ref - vel))
-
-    call create_netcdf_field_file('test', .true.)
-
-    call write_step(zero)
 
     call print_result_dp('Test vor2vel', error, atol=1.0e-14)
 
