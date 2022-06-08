@@ -116,38 +116,38 @@ module advance_mod
         subroutine source(sbuoys, svorts)
             double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
             double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-            double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
-            double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
-            double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
-            double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-            double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-            double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
+!             double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
+!             double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
+!             double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
+!             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+!             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+!             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
-            !--------------------------------------------------------------
-            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
-
-            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoy, xs)
-            call diffy(sbuoy, ys)
-            call diffz(sbuoy, zs)
-
-            !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
-            call fftss2fs(ys, svorts(:, :, :, 1))
-            call fftss2fs(xs, svorts(:, :, :, 2))
-
-            !Obtain gradient of buoyancy in physical space
-            call fftxys2p(xs, dbdx)
-            call fftxys2p(ys, dbdy)
-            call fftxys2p(zs, dbdz)
-
-            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
-            dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
-                 + vel(:, :, :, 2) * dbdy &   ! v * db/dy
-                 + vel(:, :, :, 3) * dbdz     ! w * db/dz
-
-            !Convert to semi-spectral space and apply de-aliasing filter:
-            call fftxyp2s(dbdx, sbuoys)
-
+!             !--------------------------------------------------------------
+!             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
+!
+!             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+!             call diffx(sbuoy, xs)
+!             call diffy(sbuoy, ys)
+!             call diffz(sbuoy, zs)
+!
+!             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
+!             call fftss2fs(ys, svorts(:, :, :, 1))
+!             call fftss2fs(xs, svorts(:, :, :, 2))
+!
+!             !Obtain gradient of buoyancy in physical space
+!             call fftxys2p(xs, dbdx)
+!             call fftxys2p(ys, dbdy)
+!             call fftxys2p(zs, dbdz)
+!
+!             !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+!             dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
+!                  + vel(:, :, :, 2) * dbdy &   ! v * db/dy
+!                  + vel(:, :, :, 3) * dbdz     ! w * db/dz
+!
+!             !Convert to semi-spectral space and apply de-aliasing filter:
+!             call fftxyp2s(dbdx, sbuoys)
+!
             sbuoys = -filt * sbuoys
 
             !--------------------------------------------------------------
@@ -158,7 +158,7 @@ module advance_mod
             !Add filtered vorticity tendency to vorticity source:
             svorts(:, :, :, 1) =   svorts(:, :, :, 1) + filt * svtend(:, :, :, 1)
             svorts(:, :, :, 2) = - svorts(:, :, :, 2) + filt * svtend(:, :, :, 2)
-            svorts(:, :, :, 3) =                       + filt * svtend(:, :, :, 3)
+            svorts(:, :, :, 3) =                      + filt * svtend(:, :, :, 3)
 
         end subroutine source
 
@@ -185,13 +185,13 @@ module advance_mod
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             call diffx(sbuoy, xs)
             call diffy(sbuoy, ys)
-            call diffz(sbuoy, zs)
+
+            call field_combine_physical(sbuoy, yp)
+            call diffz(yp, zp)
 
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
             call fftxys2p(xs, xp)
             call fftxys2p(ys, yp)
-            call fftxys2p(zs, zp)
-
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             xp = xp ** 2 + yp ** 2 + zp ** 2

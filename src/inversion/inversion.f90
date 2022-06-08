@@ -160,6 +160,7 @@ module inversion_mod
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
         subroutine vorticity_tendency
             double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: gp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
@@ -192,7 +193,8 @@ module inversion_mod
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svtend(:, :, :, 1))
-            call diffz(fp, p)
+            call diffz(fp, gp)
+            call field_decompose_physical(gp, p)
             svtend(:, :, :, 1) = svtend(:, :, :, 1) - p     ! here: p = dq/dz
 
             ! p = v * zeta - w * eta
@@ -201,8 +203,9 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svtend(:, :, :, 2))
-            call diffz(fp, r)                               ! here: r = dp/dz
-            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)
+            call diffz(fp, gp)
+            call field_decompose_physical(gp, r)
+            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)     ! here: r = dp/dz
 
             ! dzeta/dt = dq/dx - dp/dy
             call diffx(q, svtend(:, :, :, 3))
