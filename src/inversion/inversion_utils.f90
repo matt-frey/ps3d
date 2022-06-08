@@ -33,9 +33,6 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
 
-    ! Tridiagonal arrays for the vertical filter:
-    double precision, allocatable :: etdf(:, :, :), htdf(:, :, :), am(:), b0(:)
-
     double precision, allocatable :: gamtop(:), gambot(:)
     double precision, allocatable :: phitop(:), phibot(:)
     double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
@@ -73,8 +70,6 @@ module inversion_utils
             , rky                   &
             , rkz                   &
             , rkzi                  &
-            , apply_zfilter         &
-            , update_zfilter        &
             , phibot                &
             , phitop                &
             , gambot                &
@@ -338,89 +333,6 @@ module inversion_utils
                 enddo
             enddo
         end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-!         ! Initialises the tridiagonal problem for z-filtering
-!         subroutine init_tridiagonal
-!             double precision :: pf, diffmax, z, s
-!             integer          :: j
-!
-!             allocate(etdf(nz-2, nx, ny))
-!             allocate(htdf(nz-1, nx, ny))
-!             allocate(am(nz))
-!             allocate(b0(nz-1))
-!
-!             !-----------------------------------------------------------------------
-!             pf = dlog(two) / (one - (one - two / dble(nz)) ** 2)
-!             diffmax = prefilt * dx(3) ** 2
-!             write(*,*) ' K_min/K_max = ', dexp(-pf)
-!
-!             ! Set up the tridiagonal system A x = u:
-!
-!             !   | a0(1) ap(1)   0    ...   ...  ...   0    ||x(1)|   |u(1)|
-!             !   | am(2) a0(2) ap(2)   0    ...  ...   0    ||x(2)|   |u(2)|
-!             !   |   0   am(3) a0(3) ap(3)   0   ...   0    ||x(3)| = |u(3)|
-!             !   |                    ...                   || ...|   | ...|
-!             !   |   0    ...   ...   ...    0  am(n) a0(n) ||x(n)|   |u(n)|
-!
-!             ! where n = nz-1 below, and here ap(i) = am(i+1) (symmetric system).
-!
-!             do j = 1, nz
-!                 z = dx(3) * (dble(j) - f12)
-!                 s = (two * z - extent(3)) / extent(3)
-!                 am(j) = - prefilt * dexp(-pf * (one - s ** 2)) !note diffmax/dz^2 = cf
-!             enddo
-!
-!             do j = 1, nz-1
-!                 z = dx(3) * dble(j)
-!                 s = (two * z - extent(3)) / extent(3)
-!                 b0(j) = diffmax * dexp(-pf * (one - s ** 2))
-!             enddo
-!
-!         end subroutine init_tridiagonal
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine update_zfilter(dfac)
-            double precision, intent(in) :: dfac
-            double precision             :: a0(nx, ny)
-            integer                      :: j
-
-            a0 = one + dfac * (k2l2 * b0(1) - am(2) - am(1))
-            htdf(1, :, :) = one / a0
-            etdf(1, :, :) = -am(2) * htdf(1, :, :)
-            do j = 2, nz-2
-                a0 = one + dfac * (k2l2 * b0(j) - am(j+1) - am(j))
-                htdf(j, :, :) = one / (a0 + am(j) * etdf(j-1, :, :))
-                etdf(j, :, :) = -am(j+1) * htdf(j, :, :)
-            enddo
-
-            a0 = one + dfac * (k2l2 * b0(nz-1) - am(nz) - am(nz-1))
-            htdf(nz-1, :, :) = one / (a0 + am(nz-1) * etdf(nz-2, :, :))
-        end subroutine update_zfilter
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! Applies the z filter to fs while keeping
-        ! the boundaries (iz = 0 and iz = nz).
-        subroutine apply_zfilter(fs)
-            double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1) ! semi-spectral space
-            integer                         :: j
-
-            fs(1, :, :) = (fs(1, :, :) - am(1) * fs(0, :, :)) * htdf(1, :, :)
-
-            do j = 2, nz-2
-                fs(j, :, :) = (fs(j, :, :) - am(j) * fs(j-1, :, :)) * htdf(j, :, :)
-            enddo
-
-            fs(nz-1, :, :) = (fs(nz-1, :, :) - am(nz) * fs(nz, :, :) - am(nz-1) * fs(nz-2, :, :)) * htdf(nz-1, :, :)
-
-            do j = nz-2, 1, -1
-                fs(j, :, :) = etdf(j, :, :) * fs(j+1, :, :) + fs(j, :, :)
-            enddo
-
-        end subroutine apply_zfilter
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
