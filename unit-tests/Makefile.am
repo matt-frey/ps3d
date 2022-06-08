@@ -27,7 +27,8 @@ unittests_PROGRAMS =   		\
         test_vor2vel_4		\
         test_vor2vel_5		\
         test_diffz_1		\
-        test_diffz_2
+        test_diffz_2		\
+        test_diffz_3
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -49,3 +50,6 @@ test_diffz_1_LDADD = libcombi.la
 
 test_diffz_2_SOURCES = unit_test.f90 test_diffz_2.f90
 test_diffz_2_LDADD = libcombi.la
+
+test_diffz_3_SOURCES = unit_test.f90 test_diffz_3.f90
+test_diffz_3_LDADD = libcombi.la
