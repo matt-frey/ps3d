@@ -185,7 +185,6 @@ module inversion_mod
             fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1) + buoy
             call field_decompose_physical(fp, r)
 
-
             ! q = w * xi - u * zeta
             fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
             call field_decompose_physical(fp, q)
@@ -193,7 +192,7 @@ module inversion_mod
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svtend(:, :, :, 1))
             call diffz(fp, p)
-            svtend(:, :, :, 1) = svtend(:, :, :, 1) + p     ! here: p = dq/dz
+            svtend(:, :, :, 1) = svtend(:, :, :, 1) - p     ! here: p = dq/dz
 
             ! p = v * zeta - w * eta
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
@@ -201,7 +200,7 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svtend(:, :, :, 2))
-            call diffz(fp, r)                                ! here: r = dp/dz
+            call diffz(fp, r)                               ! here: r = dp/dz
             svtend(:, :, :, 2) = r - svtend(:, :, :, 2)
 
             ! dzeta/dt = dq/dx - dp/dy
