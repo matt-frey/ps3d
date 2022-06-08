@@ -428,19 +428,15 @@ module inversion_utils
             double precision, intent(inout) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! in : complete field (semi-spectral space)
                                                                          ! out: full-spectral (1:nz-1),
                                                                          !      semi-spectral at iz = 0 and iz = nz
-            double precision                :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
             double precision                :: sfctop(0:nx-1, 0:ny-1)
             integer                         :: iz, kx, ky
 
             ! get linear part
             do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
+                sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz))
             enddo
 
             sfctop = sfc(nz, :, :)
-
-            ! interior
-            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) - sfl
 
             ! transform interior to fully spectral
             do ky = 0, ny-1
@@ -470,30 +466,27 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine field_combine_semi_spectral(sf, sfc)
-            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
-                                                                         ! semi-spectral at iz = 0 and iz = nz
-            double precision, intent(out) :: sfc(0:nz, 0:nx-1, 0:ny-1)   ! complete field (semi-spectral space)
-            double precision              :: sfl(1:nz-1, 0:nx-1, 0:ny-1) ! linear part in z (semi-spectral)
-            integer                       :: iz, kx, ky
+        subroutine field_combine_semi_spectral(sf)
+            double precision, intent(inout) :: sf(0:nz, 0:nx-1, 0:ny-1) ! in: full-spectral (1:nz-1),
+                                                                        !     semi-spectral at iz = 0 and iz = nz
+                                                                        ! out: complete field (semi-spectral space)
+            double precision                :: sftop(0:nx-1, 0:ny-1)
+            integer                         :: iz, kx, ky
 
-            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sfc:
+            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sf:
+            sftop = sf(nz, :, :)
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    sfc(1:nz-1, kx, ky) = sf(1:nz-1, kx, ky)
-                    sfc(nz    , kx, ky) = zero
-                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
+                    sf(nz, kx, ky) = zero
+                    call dst(1, nz, sf(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
-            sfc(0,  :, :) = sf(0,  :, :)
-            sfc(nz, :, :) = sf(nz, :, :)
+            sf(nz, :, :) = sftop
 
             ! get linear part and add to sfc:
             do iz = 1, nz-1
-                sfl(iz, :, :) = sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz)
+                sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phibot(iz) + sf(nz, :, :) * phitop(iz)
             enddo
-
-            sfc(1:nz-1, :, :) = sfc(1:nz-1, :, :) + sfl
 
         end subroutine field_combine_semi_spectral
 
@@ -505,7 +498,9 @@ module inversion_utils
             double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
             double precision              :: sfc(0:nz, 0:nx-1, 0:ny-1)   ! complete field (semi-spectral space)
 
-            call field_combine_semi_spectral(sf, sfc)
+            sfc = sf
+
+            call field_combine_semi_spectral(sfc)
 
             ! transform to physical space as fc:
             call fftxys2p(sfc, fc)
@@ -594,17 +589,16 @@ module inversion_utils
         subroutine diffz(fp, ds)
             double precision, intent(in)  :: fp(0:nz, 0:ny-1, 0:nx-1) ! physical space
             double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! df/dz in mixed spectral space
-            double precision              :: dp(0:nz, 0:ny-1, 0:nx-1) ! df/dz in physical space
-            double precision              :: slope(0:ny-1, 0:nx-1)   ! physical space
+            double precision              :: slope(0:nx-1, 0:ny-1)   ! physical space
             integer                       :: kx, ky, kz, iz
+
+            call field_decompose_physical(fp, ds)
 
             ! Calculate the derivative/slope of the linear part:
             ! f(z, y, x) = a * h(x, y) + b * z * g(x, y)
             ! for some constants a and b:
             ! (f(zmax, y, x) - f(zmin, y, x)) / (zmax - zmin) = g(x, y)
-            slope = (fp(nz, :, :) - fp(0, :, :)) / extent(3)
-
-            call field_decompose_physical(fp, ds)
+            slope = (ds(nz, :, :) - ds(0, :, :)) / extent(3)
 
             ! Calculate d/dz of this sine series:
             ds(0, :, :) = zero
@@ -620,16 +614,13 @@ module inversion_utils
                 enddo
             enddo
 
-            ! FFT back to physical space:
-            call fftxys2p(ds, dp)
-
             ! Add the derivative of the linear part:
             do iz = 0, nz
-                dp(iz, :, :) = dp(iz, :, :) + slope
+                ds(iz, :, :) = ds(iz, :, :) + slope
             enddo
 
             ! Transform to mixed spectral space:
-            call field_decompose_physical(dp, ds)
+            call field_decompose_semi_spectral(ds)
 
         end subroutine diffz
 
