@@ -105,7 +105,7 @@ write(*,*) ' nz, max/rms errors for decompose, linear and quadratic:'
 write(*,'(i4,6(2x,1p,e14.7))') nz, eamax, earms, efmax, efrms, eqmax, eqrms
 write(*,*)
 
-open(88,file='errors',status='old')
+open(88,file='errors',status='replace')
 write(88,'(i4,6(2x,1p,e14.7))') nz, eamax, earms, efmax, efrms, eqmax, eqrms
 close(88)
 
