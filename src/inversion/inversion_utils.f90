@@ -238,7 +238,7 @@ module inversion_utils
         subroutine init_fft
             double precision              :: rkxmax, rkymax, rkzmax
             double precision              :: rksqmax
-!             double precision              :: kxmaxi, kymaxi, kzmaxi
+            double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz
             double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
 
@@ -316,65 +316,65 @@ module inversion_utils
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
 
-!             !----------------------------------------------------------
-!             !Define Hou and Li filter (2D and 3D):
-!             kxmaxi = one / maxval(rkx)
-!             skx = -36.d0 * (kxmaxi * rkx) ** 36
-!             kymaxi = one/maxval(rky)
-!             sky = -36.d0 * (kymaxi * rky) ** 36
-!             kzmaxi = one/maxval(rkz)
-!             skz = -36.d0 * (kzmaxi * rkz) ** 36
-!             do ky = 0, ny-1
-!                 do kx = 0, nx-1
-!                     filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
-!                     filt(nz, kx, ky) = filt(0, kx, ky)
-!                     do kz = 1, nz-1
-!                         filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
-!                     enddo
-!                 enddo
-!             enddo
+             !----------------------------------------------------------
+             !Define Hou and Li filter (2D and 3D):
+             kxmaxi = one / maxval(rkx)
+             skx = -36.d0 * (kxmaxi * rkx) ** 36
+             kymaxi = one/maxval(rky)
+             sky = -36.d0 * (kymaxi * rky) ** 36
+             kzmaxi = one/maxval(rkz)
+             skz = -36.d0 * (kzmaxi * rkz) ** 36
+             do ky = 0, ny-1
+                 do kx = 0, nx-1
+                     filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
+                     filt(nz, kx, ky) = filt(0, kx, ky)
+                     do kz = 1, nz-1
+                         filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
+                     enddo
+                 enddo
+             enddo
 
 
-            !---------------------------------------------------------------------
-            !Define de-aliasing filter (2/3 rule):
-            skx(0) = one
-            do kx = 1, nx-1
-                if (rkx(kx) .lt. f23 * rkxmax) then
-                    skx(kx) = one
-                else
-                    skx(kx) = zero
-                endif
-            enddo
-
-            sky(0) = one
-            do ky = 1, ny-1
-                if (rky(ky) .lt. f23 * rkymax) then
-                    sky(ky) = one
-                else
-                    sky(ky) = zero
-                endif
-            enddo
-
-            skz(0) = one
-            rkzmax = maxval(rkz)
-            do kz = 1, nz
-                if (rkz(kz) .lt. f23 * rkzmax) then
-                    skz(kz) = one
-                else
-                    skz(kz) = zero
-                endif
-            enddo
-
-            !Take product of 1d filters:
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    filt(0,  kx, ky) = skx(kx) * sky(ky)
-                    filt(nz, kx, ky) = filt(0, kx, ky)
-                    do kz = 1, nz-1
-                        filt(kz, kx, ky) = filt(0, kx, ky) * skz(kz)
-                    enddo
-                enddo
-            enddo
+!            !---------------------------------------------------------------------
+!            !Define de-aliasing filter (2/3 rule):
+!            skx(0) = one
+!            do kx = 1, nx-1
+!                if (rkx(kx) .lt. f23 * rkxmax) then
+!                    skx(kx) = one
+!                else
+!                    skx(kx) = zero
+!                endif
+!            enddo
+!
+!            sky(0) = one
+!            do ky = 1, ny-1
+!                if (rky(ky) .lt. f23 * rkymax) then
+!                    sky(ky) = one
+!                else
+!                    sky(ky) = zero
+!                endif
+!            enddo
+!
+!            skz(0) = one
+!            rkzmax = maxval(rkz)
+!            do kz = 1, nz
+!                if (rkz(kz) .lt. f23 * rkzmax) then
+!                    skz(kz) = one
+!                else
+!                    skz(kz) = zero
+!                endif
+!            enddo
+!
+!            !Take product of 1d filters:
+!            do ky = 0, ny-1
+!                do kx = 0, nx-1
+!                    filt(0,  kx, ky) = skx(kx) * sky(ky)
+!                    filt(nz, kx, ky) = filt(0, kx, ky)
+!                    do kz = 1, nz-1
+!                        filt(kz, kx, ky) = filt(0, kx, ky) * skz(kz)
+!                    enddo
+!                enddo
+!            enddo
 
         end subroutine
 
