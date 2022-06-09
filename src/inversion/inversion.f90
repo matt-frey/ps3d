@@ -165,7 +165,7 @@ module inversion_mod
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            double precision :: wk(1:nz), savg, fnzi
+            double precision :: wk(1:nz), savg
             integer          :: nc
 
             call start_timer(vtend_timer)
