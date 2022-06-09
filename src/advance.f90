@@ -28,7 +28,7 @@ module advance_mod
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
 
-    double precision :: dt, dt4
+    double precision :: dt, dt2
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax, dfac
@@ -42,10 +42,8 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: bsi(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
-            double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
 
@@ -71,18 +69,16 @@ module advance_mod
             call source(sbuoys, svorts)
 
             !Initialise iteration (dt = dt/4 below):
-            bsi = sbuoy
-            bsm = sbuoy + dt4 * sbuoys
-            sbuoy = diss * (bsm + dt4 * sbuoys) - bsi
+            bsm = sbuoy + dt2 * sbuoys
+            sbuoy = diss * (bsm + dt2 * sbuoys)
 
             ! Advance interior and boundary of vorticity
-            vortsi = svor
-            vortsm = svor + dt4 * svorts
+            vortsm = svor + dt2 * svorts
 
             do nc = 1, 3
-                svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                  - vortsi(:, :, :, nc)
+                svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
             enddo
+
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
             !------------------------------------------------------------------
@@ -95,11 +91,10 @@ module advance_mod
                 call source(sbuoys, svorts)
 
                 !Update fields:
-                sbuoy = diss * (bsm + dt4 * sbuoys) - bsi
+                sbuoy = diss * (bsm + dt2 * sbuoys)
 
                 do nc = 1, 3
-                    svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                      - vortsi(:, :, :, nc)
+                    svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 enddo
             enddo
 
@@ -319,20 +314,20 @@ module advance_mod
                      cflpf / (velmax + small),      &
                      time%limit - t)
 
-            !Update value of dt/4:
-            dt4 = dt / four
+            !Update value of dt/2:
+            dt2 = f12 * dt
 
             !---------------------------------------------------------------------
             if (nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
-                dfac = dt / two
-                diss = two / (one + dfac * hdis)
+                dfac = dt
+                diss = one / (one + dfac * hdis)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
                 !(see inversion_utils.f90 and parameters.f90).
             else
                 !Update hyperdiffusion operator used in time stepping:
-                dfac = vorch * dt / two
-                diss = two / (one + dfac * hdis)
+                dfac = vorch * dt
+                diss = one / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
                 !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
