@@ -37,9 +37,7 @@ program ps3d
             use options, only : field_file          &
                               , output              &
                               , read_config_file    &
-                              , time                &
-                              , nnu                 &
-                              , prediss
+                              , time
             double precision  :: bbdif, ke, en
 !             integer           :: iz
 
@@ -83,7 +81,7 @@ program ps3d
             bbdif = maxval(buoy) - minval(buoy)
             ke = get_kinetic_energy()
             en = get_enstrophy()
-            call init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
+            call init_hyperdiffusion(bbdif, ke, en)
 
             call setup_output_files
 

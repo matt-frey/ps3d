@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module advance_mod
-    use options, only : time, nnu
+    use options, only : time, viscosity
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, vorticity_tendency
@@ -318,7 +318,7 @@ module advance_mod
             dt2 = f12 * dt
 
             !---------------------------------------------------------------------
-            if (nnu .eq. 1) then
+            if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
                 diss = one / (one + dfac * hdis)
