@@ -133,8 +133,8 @@ module inversion_utils
                 hwfac = one / (rkxmax ** 2 + rkymax ** 2)
                 visc_intr = viscosity%prediss_interior *  (K2max * ke /en) ** f13
                 visc_bndry = viscosity%prediss_boundary *  (K2max * ke /en) ** f13
-                write(*,'(a,1p,e14.7)') ' Interior hyperviscosity nu = ', visc_intr / (K2max ** viscosity%nnu)
-                write(*,'(a,1p,e14.7)') ' Boundary hyperviscosity nu = ', visc_bndry / (K2max ** viscosity%nnu)
+                write(*,'(a,1p,e14.7)') ' Interior hyperviscosity nu = ', visc_intr * wfac ** viscosity%nnu
+                write(*,'(a,1p,e14.7)') ' Boundary hyperviscosity nu = ', visc_bndry * hwfac ** viscosity%nnu
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
