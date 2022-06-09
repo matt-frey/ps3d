@@ -15,7 +15,6 @@ module advance_mod
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, vorticity_tendency
     use inversion_utils
-    use sta2dfft, only : dst
     use utils, only : write_step
     use fields
     use jacobi, only : jacobi_eigenvalues
