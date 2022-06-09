@@ -370,7 +370,7 @@ module inversion_utils
                     filt(0,  kx, ky) = skx(kx) * sky(ky)
                     filt(nz, kx, ky) = filt(0, kx, ky)
                     do kz = 1, nz-1
-                        filt(kx, kx, ky) = filt(0, kx, ky) * skz(kz)
+                        filt(kz, kx, ky) = filt(0, kx, ky) * skz(kz)
                     enddo
                 enddo
             enddo
