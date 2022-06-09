@@ -219,7 +219,7 @@ module inversion_mod
                 ! Recombine the kx = ky = 0 part of svtend:
                 wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
                 wk(nz) = zero
-                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                call dst(1, nz, wk(1:nz), ztrig, zfactors)
                 savg = fnzi * (f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + sum(wk(1:nz-1)))
                 ! savg is the average source in semi-spectral space
                 ! Remove from boundary values (0 & nz) and interior (wk):
@@ -227,7 +227,7 @@ module inversion_mod
                 svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
                 wk(1:nz-1) = wk(1:nz-1) - savg
                 ! Decompose again:
-                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                call dst(1, nz, wk(1:nz), ztrig, zfactors)
                 svtend(1:nz-1, 0, 0, nc) = wk(1:nz-1)
             enddo
 
