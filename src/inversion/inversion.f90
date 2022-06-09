@@ -216,21 +216,15 @@ module inversion_mod
 
             ! Ensure zero global mean horizontal vorticity tendencies:
             do nc = 1, 2
-                ! Recombine the kx = ky = 0 part of svtend:
+                ! Cast svtend_S = svtend - svtend_L onto the z grid as wk for kx = ky = 0:
                 wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
                 wk(nz) = zero
                 call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                wk(1:nz-1) = wk(1:nz-1) + svtend(0, 0, 0, nc) * phibot + svtend(nz, 0, 0, nc) * phitop
-                savg = fnzi * (f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + sum(wk(1:nz-1)))
-                ! savg is the average source in semi-spectral space
-                ! Remove from boundary values (0 & nz) and interior (wk):
+                ! Compute average, savg (first part is the part due to svtend_L):
+                savg = f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                ! Remove from boundary values (0 & nz):
                 svtend(0 , 0, 0, nc) = svtend(0 , 0, 0, nc) - savg
                 svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
-                wk(1:nz-1) = wk(1:nz-1) - savg
-                ! Decompose again:
-                wk(1:nz-1) = wk(1:nz-1) - svtend(0, 0, 0, nc) * phibot - svtend(nz, 0, 0, nc) * phitop
-                call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                svtend(1:nz-1, 0, 0, nc) = wk(1:nz-1)
             enddo
 
             call stop_timer(vtend_timer)
