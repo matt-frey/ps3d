@@ -57,6 +57,8 @@ module parameters
     !For controlling numerical stability
     double precision :: cflpf
 
+    double precision :: fnzi
+
     contains
 
     ! Update all parameters according to the
@@ -102,6 +104,8 @@ module parameters
 
         glmin = minval(dx)
         cflpf = cflmax * glmin
+
+        fnzi = one / dble(nz)
 
     end subroutine update_parameters
 end module parameters

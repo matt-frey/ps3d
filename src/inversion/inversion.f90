@@ -1,6 +1,6 @@
 module inversion_mod
     use inversion_utils
-    use parameters, only : nx, ny, nz
+    use parameters, only : nx, ny, nz, fnzi
     use physics, only : f_cor
     use constants, only : zero, two, f12
     use sta2dfft, only : dct, dst
@@ -165,6 +165,7 @@ module inversion_mod
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: wk(1:nz), savg, fnzi
             integer          :: nc
 
             call start_timer(vtend_timer)
@@ -212,6 +213,23 @@ module inversion_mod
             call diffx(q, svtend(:, :, :, 3))
             call diffy(p, r)                                ! here: r = dp/dy
             svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
+
+            ! Ensure zero global mean horizontal vorticity tendencies:
+            do nc = 1, 2
+                ! Recombine the kx = ky = 0 part of svtend:
+                wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
+                wk(nz) = zero
+                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                savg = fnzi * (f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + sum(wk(1:nz-1)))
+                ! savg is the average source in semi-spectral space
+                ! Remove from boundary values (0 & nz) and interior (wk):
+                svtend(0 , 0, 0, nc) = svtend(0 , 0, 0, nc) - savg
+                svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
+                wk(1:nz-1) = wk(1:nz-1) - savg
+                ! Decompose again:
+                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                svtend(1:nz-1, 0, 0, nc) = wk(1:nz-1)
+            enddo
 
             call stop_timer(vtend_timer)
 
