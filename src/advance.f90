@@ -46,7 +46,6 @@ module advance_mod
             double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
-            double precision                :: wk(1:nz), savg, fnzi
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -97,23 +96,6 @@ module advance_mod
                 do nc = 1, 3
                     svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 enddo
-            enddo
-
-            ! Ensure zero global mean horizontal vorticity tendencies:
-            do nc = 1, 2
-                ! Recombine the kx = ky = 0 part of svor:
-                wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
-                wk(nz) = zero
-                call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                savg = fnzi * (f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + sum(wk(1:nz-1)))
-                ! savg is the average source in semi-spectral space
-                ! Remove from boundary values (0 & nz) and interior (wk):
-                svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) - savg
-                svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) - savg
-                wk(1:nz-1) = wk(1:nz-1) - savg
-                ! Decompose again:
-                call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                svor(1:nz-1, 0, 0, nc) = wk(1:nz-1)
             enddo
 
             !Advance time:
