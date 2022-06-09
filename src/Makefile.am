@@ -10,9 +10,9 @@ ps3d_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
-	inversion/inversion.f90			\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	inversion/inversion.f90			\
 	utils/utils.f90				\
 	advance.f90				\
 	ps3d.f90
@@ -26,9 +26,9 @@ genspec_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
-	inversion/inversion.f90			\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	inversion/inversion.f90			\
 	utils/utils.f90				\
 	genspec.f90
 
@@ -41,9 +41,9 @@ beltrami_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90           \
-        inversion/inversion.f90                 \
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+        inversion/inversion.f90                 \
 	utils/utils.f90				\
 	beltrami.f90
 

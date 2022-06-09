@@ -1,10 +1,11 @@
 module inversion_mod
     use inversion_utils
-    use parameters, only : nx, ny, nz, dxi
+    use parameters, only : nx, ny, nz, fnzi
     use physics, only : f_cor
     use constants, only : zero, two, f12
     use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
+    use fields
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -12,114 +13,99 @@ module inversion_mod
 
     contains
 
-        ! Given the vorticity vector field (svortg) in spectral space, this
-        ! returns the associated velocity field (velog) as well as vorticity
-        ! in physical space (vortg)
-        subroutine vor2vel(svortg, vortg,  svelog, velog)
-            double precision, intent(out)   :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in)    :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)  ! fully spectral
-            double precision, intent(out)   :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out)   :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)  ! semi-spectral
-            double precision                :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
-!            double precision                :: ss(1:nz, 0:nx-1, 0:ny-1)         ! sine transform in z
-            double precision                :: ubar(0:nz), vbar(0:nz)
-            double precision                :: uavg, vavg
-            double precision                :: wtop(0:nx-1, 0:ny-1), wbot(0:nx-1, 0:ny-1)
-            integer                         :: iz, nc, kx, ky
-            
+        ! Given the vorticity vector field (svor) in spectral space, this
+        ! returns the associated velocity field (vel) as well as vorticity
+        ! in physical space (vor)
+        subroutine vor2vel
+            double precision :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: ubar(0:nz), vbar(0:nz)
+            integer          :: iz, nc, kx, ky, kz
+
             call start_timer(vor2vel_timer)
 
-            !Compute vorticity in physical space:
+            !Filter the vorticity and combine vorticity in physical space:
             do nc = 1, 3
-                as = svortg(:, :, :, nc)
-                call fftczs2p(as, vortg(:, :, :, nc))
+                svor(:, :, :, nc) = filt * svor(:, :, :, nc)
+                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
-            !Form source term for inversion of vertical velocity:
-            call diffy(svortg(:, :, :, 1), ds)
-            call diffx(svortg(:, :, :, 2), es)
-
+            !----------------------------------------------------------
+            !Form source term for inversion of vertical velocity -> ds:
+            call diffy(svor(:, :, :, 1), ds)
+            call diffx(svor(:, :, :, 2), es)
             !$omp parallel
             !$omp workshare
-            ds = green * (ds - es)
+            ds = ds - es
             !$omp end workshare
             !$omp end parallel
 
-            ! FFT back the particular solution to semi-spectral space:
+            !Calculate the boundary contributions of the source to the vertical velocity (bs)
+            !and its derivative (es) in semi-spectral space:
+            do iz = 1, nz-1
+                bs(iz, :, :) = ds(nz, :, :) *  psi(iz, :, :) + ds(0, :, :) *  psi(nz-iz, :, :)
+            enddo
+            do iz = 0, nz
+                es(iz, :, :) = ds(nz, :, :) * dpsi(iz, :, :) - ds(0, :, :) * dpsi(nz-iz, :, :)
+            enddo
+
+            !Invert Laplacian to find the part of w expressible as a sine series:
+            !$omp parallel
+            !$omp workshare
+            ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
+            !$omp end workshare
+            !$omp end parallel
+
+            ! Calculate d/dz of this sine series:
+            as(0, :, :) = zero
+            do kz = 1, nz-1
+                as(kz, :, :) = rkz(kz) * ds(kz, :, :)
+            enddo
+            as(nz, :, :) = zero
+
+            !FFT these quantities back to semi-spectral space:
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    call dct(1, nz, ds(:, kx, ky), ztrig, zfactors)
+                    call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)
+                    call dst(1, nz, ds(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
 
-            wbot = ds(0,  :, :)
-            wtop = ds(nz, :, :)
+            ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+            ds(0     , :, :) = zero
+            ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
+            ds(nz    , :, :) = zero
+            es = es + as
+            ! OMP the above????
 
-            ! Define the complete vertical velocity in semi-spectral space:
-            do iz = 1, nz-1
-                ds(iz, :, :) = ds(iz, :, :) - (wbot * decz(nz-iz, :, :) + wtop * decz(iz, :, :))
-            enddo
-            ds(0,  :, :) = zero
-            ds(nz, :, :) = zero
+            ! Get complete zeta field in semi-spectral space
+            cs = svor(:, :, :, 3)
+            call field_combine_semi_spectral(cs)
 
-!            ! FFT to fully spectral space (sine transform) as the array ss:
-!            do ky = 0, ny-1
-!                do kx = 0, nx-1
-!                    ss(:, kx, ky) = ds(1:nz, kx, ky)
-!                    call dst(1, nz, ss(:, kx, ky), ztrig, zfactors)
-!                enddo
-!            enddo
-!
-!            ! Derivative in z (dw/dz in fully spectral space):
-!            do kz = 1, nz
-!                es(kz, :, :) = rkz(kz) * ss(kz, :, :)
-!            enddo
-            
-!            es(0,  :, :) = zero
-!            es(nz, :, :) = zero
+            !----------------------------------------------------------------------
+            !Define horizontally-averaged flow by integrating the horizontal vorticity:
 
-            call diffz(ds, es)
-
-!            es(0,  :, :) = zero
-!            es(nz, :, :) = zero
-
-            !! FFT back to semi-spectral space:
-            !do ky = 0, ny-1
-            !    do kx = 0, nx-1
-            !        call dct(1, nz, es(:, kx, ky), ztrig, zfactors)
-            !    enddo
-            ! enddo
-
-            !print *, 'x-svort', minval(abs(svortg(:, :, :, 1)))
-            !print *, 'y-svort', minval(abs(svortg(:, :, :, 2)))
-            !print *, 'z-svort', minval(abs(svortg(:, :, :, 3))) 
-
-            !Convert vorticity components to semi-spectral space
-            call fftfs2ss(svortg(:, :, :, 1), as)
-            call fftfs2ss(svortg(:, :, :, 2), bs)
-            call fftfs2ss(svortg(:, :, :, 3), cs)
-
-            !Define horizontally-averaged flow by integrating horizontal vorticity:
+            !First integrate the sine series in svor(1:nz-1, 0, 0, 1 & 2):
             ubar(0) = zero
             vbar(0) = zero
-            do iz = 0, nz-1
-                ubar(iz+1) = ubar(iz) + dz2 * (bs(iz, 0, 0) + bs(iz+1, 0, 0))
-                vbar(iz+1) = vbar(iz) - dz2 * (as(iz, 0, 0) + as(iz+1, 0, 0))
-            enddo
+            ubar(1:nz-1) = -rkzi * svor(1:nz-1, 0, 0, 2)
+            vbar(1:nz-1) =  rkzi * svor(1:nz-1, 0, 0, 1)
+            ubar(nz) = zero
+            vbar(nz) = zero
 
-            ! remove the mean value to have zero net momentum
-            uavg = sum(ubar(1:nz-1) + f12 * ubar(nz)) / dble(nz)
-            vavg = sum(vbar(1:nz-1) + f12 * vbar(nz)) / dble(nz)
-            do iz = 0, nz
-                ubar(iz) = ubar(iz) - uavg
-                vbar(iz) = vbar(iz) - vavg
-            enddo
+            !Transform to semi-spectral space as a cosine series:
+            call dct(1, nz, ubar, ztrig, zfactors)
+            call dct(1, nz, vbar, ztrig, zfactors)
 
-            !Find x velocity component \hat{u}:
+            !Add contribution from the linear function connecting the boundary values:
+            ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
+            vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
+
+            !-------------------------------------------------------
+            !Find x velocity component "u":
             call diffx(es, as)
             call diffy(cs, bs)
 
@@ -132,12 +118,14 @@ module inversion_mod
             !Add horizontally-averaged flow:
             as(:, 0, 0) = ubar
 
-            svelog(:, :, :, 1) = as
+            !Store spectral form of "u":
+            svel(:, :, :, 1) = as
 
-            !Get u in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 1))
+            !Get "u" in physical space:
+            call fftxys2p(as, vel(:, :, :, 1))
 
-            !Find y velocity component \hat{v}:
+            !-------------------------------------------------------
+            !Find y velocity component "v":
             call diffy(es, as)
             call diffx(cs, bs)
 
@@ -150,15 +138,18 @@ module inversion_mod
             !Add horizontally-averaged flow:
             as(:, 0, 0) = vbar
 
-            svelog(:, :, :, 2) = as
+            !Store spectral form of "v":
+            svel(:, :, :, 2) = as
 
-            !Get v in physical space:
-            call fftxys2p(as, velog(0:nz, :, :, 2))
+            !Get "v" in physical space:
+            call fftxys2p(as, vel(:, :, :, 2))
 
-            svelog(:, :, :, 3) = ds
+            !-------------------------------------------------------
+            !Store spectral form of "w":
+            svel(:, :, :, 3) = ds
 
-            !Get w in physical space:
-            call fftxys2p(ds, velog(0:nz, :, :, 3))
+            !Get "w" in physical space:
+            call fftxys2p(ds, vel(:, :, :, 3))
 
             call stop_timer(vor2vel_timer)
 
@@ -168,64 +159,72 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
-        subroutine vorticity_tendency(svortg, velog, vortg, svtend)
-            double precision, intent(in)  :: svortg(0:nz, 0:nx-1, 0:ny-1, 3)    ! fully sectral
-            double precision, intent(in)  :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: vortg(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(out) :: svtend(0:nz, 0:nx-1, 0:ny-1, 3)    ! fully spectral
-            double precision              :: xs(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: ys(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: zs(0:nz, 0:nx-1, 0:ny-1)
-            double precision              :: xp(0:nz, 0:ny-1, 0:nx-1)
-            double precision              :: yp(0:nz, 0:ny-1, 0:nx-1)
-            double precision              :: zp(0:nz, 0:ny-1, 0:nx-1)
-            integer                       :: nc
+        subroutine vorticity_tendency
+            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: gp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: wk(1:nz), savg
+            integer          :: nc
 
             call start_timer(vtend_timer)
 
+            !-------------------------------------------------------
+            ! First store absolute vorticity in physical space:
             do nc = 1, 3
-                xs = svortg(:, :, :, nc)
-                call fftczs2p(xs, vortg(:, :, :, nc))
-                vortg(:, :, :, nc) = vortg(:, :, :, nc) + f_cor(nc)
+                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+                vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
-            ! x-component of vorticity tendency:
-            yp = vortg(:, :, :, 2) * velog(:, :, :, 1) - velog(:, :, :, 2) * vortg(:, :, :, 1)   ! eta * u - v * xi
-            zp = vortg(:, :, :, 3) * velog(:, :, :, 1) - velog(:, :, :, 3) * vortg(:, :, :, 1)   ! zeta * u - w * xi
+            call field_combine_physical(sbuoy, buoy)
 
-            call fftxyp2s(yp, ys)
-            call fftxyp2s(zp, zs)
+            !-------------------------------------------------------
+            ! Tendency in flux form:
+            !   dxi/dt  = dr/dy - dq/dz
+            !   deta/dt = dp/dz - dr/dx
+            !  dzeta/dt = dq/dx - dp/dy
 
-            call diffy(ys, xs)
-            call diffz(zs, svtend(:, :, :, 1))
-            svtend(:, :, :, 1) = svtend(:, :, :, 1) + xs
+            ! r = u * eta - v * xi + b
+            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1) + buoy
+            call field_decompose_physical(fp, r)
 
-            ! y-component of vorticity tendency:
-            xp = vortg(:, :, :, 1) * velog(:, :, :, 2) - velog(:, :, :, 1) * vortg(:, :, :, 2)  ! xi * v - u * eta
-            zp = vortg(:, :, :, 3) * velog(:, :, :, 2) - velog(:, :, :, 3) * vortg(:, :, :, 2)  ! zeta * v - w * eta
+            ! q = w * xi - u * zeta
+            fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
+            call field_decompose_physical(fp, q)
 
-            call fftxyp2s(xp, xs)
-            call fftxyp2s(zp, zs)
+            ! dxi/dt  = dr/dy - dq/dz
+            call diffy(r, svtend(:, :, :, 1))
+            call diffz(fp, gp)
+            call field_decompose_physical(gp, p)
+            svtend(:, :, :, 1) = svtend(:, :, :, 1) - p     ! here: p = dq/dz
 
-            call diffx(xs, ys)
-            call diffz(zs, svtend(:, :, :, 2))
-            svtend(:, :, :, 2) = svtend(:, :, :, 2) + ys
+            ! p = v * zeta - w * eta
+            fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
+            call field_decompose_physical(fp, p)
 
-            ! z-component of vorticity tendency:
-            xp = vortg(:, :, :, 1) * velog(:, :, :, 3) - velog(:, :, :, 1) * vortg(:, :, :, 3) ! xi * w - u * zeta
-            yp = vortg(:, :, :, 2) * velog(:, :, :, 3) - velog(:, :, :, 2) * vortg(:, :, :, 3) ! eta * w - v * zeta
+            ! deta/dt = dp/dz - dr/dx
+            call diffx(r, svtend(:, :, :, 2))
+            call diffz(fp, gp)
+            call field_decompose_physical(gp, r)
+            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)     ! here: r = dp/dz
 
-            call fftxyp2s(xp, xs)
-            call fftxyp2s(yp, ys)
+            ! dzeta/dt = dq/dx - dp/dy
+            call diffx(q, svtend(:, :, :, 3))
+            call diffy(p, r)                                ! here: r = dp/dy
+            svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
 
-            call diffx(xs, zs)
-            call diffy(ys, svtend(:, :, :, 3))
-            svtend(:, :, :, 3) = svtend(:, :, :, 3) + zs
-
-            !Convert vorticity tendency from semi-spectral to fully-spectral space
-            do nc = 1, 3
-                xs = svtend(:, :, :, nc)
-                call fftss2fs(xs, svtend(:, :, :, nc))
+            ! Ensure zero global mean horizontal vorticity tendencies:
+            do nc = 1, 2
+                ! Cast svtend_S = svtend - svtend_L onto the z grid as wk for kx = ky = 0:
+                wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
+                wk(nz) = zero
+                call dst(1, nz, wk(1:nz), ztrig, zfactors)
+                ! Compute average, savg (first part is the part due to svtend_L):
+                savg = f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                ! Remove from boundary values (0 & nz):
+                svtend(0 , 0, 0, nc) = svtend(0 , 0, 0, nc) - savg
+                svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
             enddo
 
             call stop_timer(vtend_timer)

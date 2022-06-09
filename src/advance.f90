@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module advance_mod
-    use options, only : time, nnu
+    use options, only : time, viscosity
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, vorticity_tendency
@@ -28,7 +28,7 @@ module advance_mod
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
 
-    double precision :: dt, dt4
+    double precision :: dt, dt2
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax, dfac
@@ -42,20 +42,21 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: bsi(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
             double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
-            double precision                :: vortsi(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
             !Also, returns vorticity in physical space for use everywhere
-            call vor2vel(svortg, vortg, svelog, velog)
+            call vor2vel
+
+            ! Calculate svtend, for writing purposes only
+            call vorticity_tendency
 
             !Adapt the time step
-            call adapt(t, sbuoyg, velog, svelog)
+            call adapt(t)
 
             !Write fields
             call write_step(t)
@@ -63,39 +64,37 @@ module advance_mod
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
 
-            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoyg) and
-            !vorticity (svortg) in spectral space:
+            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
+            !vorticity in spectral space:
             call source(sbuoys, svorts)
 
             !Initialise iteration (dt = dt/4 below):
-            bsi = sbuoyg
-            bsm = sbuoyg + dt4 * sbuoys
-            sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
+            bsm = sbuoy + dt2 * sbuoys
+            sbuoy = diss * (bsm + dt2 * sbuoys)
 
-            vortsi = svortg
-            vortsm = svortg + dt4 * svorts
+            ! Advance interior and boundary of vorticity
+            vortsm = svor + dt2 * svorts
 
             do nc = 1, 3
-               svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                   - vortsi(:, :, :, nc)
+                svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
             enddo
+
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
             !------------------------------------------------------------------
             !Iterate to improve estimates of F^{n+1}:
             do iter = 1, niter
                 !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel(svortg, vortg, svelog, velog)
+                call vor2vel
 
                 !Calculate the source terms (sbuoys,svorts):
                 call source(sbuoys, svorts)
 
                 !Update fields:
-                sbuoyg = diss * (bsm + dt4 * sbuoys) - bsi
+                sbuoy = diss * (bsm + dt2 * sbuoys)
 
                 do nc = 1, 3
-                   svortg(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt4 * svorts(:, :, :, nc)) &
-                                       - vortsi(:, :, :, nc)
+                    svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 enddo
             enddo
 
@@ -106,74 +105,64 @@ module advance_mod
 
 
         ! Gets the source terms for vorticity and buoyancy in spectral space.
-        ! The spectral fields sbuoyg and svortg are all spectrally truncated.
-        ! Note, velog obtained by vor2vel before calling this
+        ! The spectral fields sbuoy and svor are all spectrally truncated.
+        ! Note, vel obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
         subroutine source(sbuoys, svorts)
             double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
             double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-            double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
-            double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
-            double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
-            double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-            double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-            double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
-            double precision                :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
+!             double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
+!             double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
+!             double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
+!             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+!             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+!             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
-            !--------------------------------------------------------------
-            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
-
-            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
-            call fftfs2ss(sbuoyg, bs)
-
-            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(bs, xs)
-            call diffy(bs, ys)
-            call diffz(bs, zs)
-
-            !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
-            call fftss2fs(ys, svorts(:, :, :, 1))
-            call fftss2fs(xs, svorts(:, :, :, 2))
-
-            !Obtain gradient of buoyancy in physical space
-            call fftxys2p(xs, dbdx)
-            call fftxys2p(ys, dbdy)
-            call fftxys2p(zs, dbdz)
-
-            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
-            dbdx = velog(:, :, :, 1) * dbdx &   ! u * db/dx
-                 + velog(:, :, :, 2) * dbdy &   ! v * db/dy
-                 + velog(:, :, :, 3) * dbdz     ! w * db/dz
-
-            !Convert to fully spectral space and apply de-aliasing filter:
-            call fftczp2s(dbdx, sbuoys)
-
-            do iz = 0, nz
-                sbuoys(iz, :, :) = -filt * sbuoys(iz, :, :)
-            enddo
+!             !--------------------------------------------------------------
+!             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
+!
+!             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+!             call diffx(sbuoy, xs)
+!             call diffy(sbuoy, ys)
+!             call diffz(sbuoy, zs)
+!
+!             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
+!             call fftss2fs(ys, svorts(:, :, :, 1))
+!             call fftss2fs(xs, svorts(:, :, :, 2))
+!
+!             !Obtain gradient of buoyancy in physical space
+!             call fftxys2p(xs, dbdx)
+!             call fftxys2p(ys, dbdy)
+!             call fftxys2p(zs, dbdz)
+!
+!             !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+!             dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
+!                  + vel(:, :, :, 2) * dbdy &   ! v * db/dy
+!                  + vel(:, :, :, 3) * dbdz     ! w * db/dz
+!
+!             !Convert to semi-spectral space and apply de-aliasing filter:
+!             call fftxyp2s(dbdx, sbuoys)
+!
+            sbuoys = zero
+!             sbuoys = -filt * sbuoys
 
             !--------------------------------------------------------------
             !Vorticity source (excluding buoyancy effects):
 
-            call vorticity_tendency(svortg, velog, vortg, svtend)
+            call vorticity_tendency
 
-            !Add filtered vorticity tendency to vorticity source:
-            do iz = 0, nz
-                svorts(iz, :, :, 1) =   svorts(iz, :, :, 1) + filt * svtend(iz, :, :, 1)
-                svorts(iz, :, :, 2) = - svorts(iz, :, :, 2) + filt * svtend(iz, :, :, 2)
-                svorts(iz, :, :, 3) =                       + filt * svtend(iz, :, :, 3)
-            enddo
+            !Add filtered vorticity tendency to vorticity source: (svorts can be removed)
+            svorts(:, :, :, 1) = svtend(:, :, :, 1)
+            svorts(:, :, :, 2) = svtend(:, :, :, 2)
+            svorts(:, :, :, 3) = svtend(:, :, :, 3)
 
         end subroutine source
 
         !=======================================================================
 
         ! Adapts the time step and computes various diagnostics
-        subroutine adapt(t, sbuoyg, velog, svelog)
+        subroutine adapt(t)
             double precision, intent(in) :: t
-            double precision, intent(in) :: sbuoyg(0:nz, 0:nx-1, 0:ny-1)
-            double precision, intent(in) :: velog(0:nz, 0:ny-1, 0:nx-1, 3)
-            double precision, intent(in) :: svelog(0:nz, 0:nx-1, 0:ny-1, 3)
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
             double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
             double precision             :: zs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in z in spectral space
@@ -186,23 +175,19 @@ module advance_mod
             double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
-            double precision             :: bs(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy in semi-spectral space
             double precision             :: ke, en, vormean(3)
 
 
-            !Convert sbuoyg (fully spectral) to semi-spectral space in order to calculate diffz
-            call fftfs2ss(sbuoyg, bs)
-
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(bs, xs)
-            call diffy(bs, ys)
-            call diffz(bs, zs)
+            call diffx(sbuoy, xs)
+            call diffy(sbuoy, ys)
+
+            call field_combine_physical(sbuoy, yp)
+            call diffz(yp, zp)
 
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
             call fftxys2p(xs, xp)
             call fftxys2p(ys, yp)
-            call fftxys2p(zs, zp)
-
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             xp = xp ** 2 + yp ** 2 + zp ** 2
@@ -211,7 +196,7 @@ module advance_mod
             bfmax = sqrt(sqrt(maxval(xp)))
 
             !Compute enstrophy: (reuse xp)
-            xp = vortg(:, :, :, 1) ** 2 + vortg(:, :, :, 2) ** 2 + vortg(:, :, :, 3) ** 2
+            xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
 
             !Maximum vorticity magnitude:
             vortmax = sqrt(maxval(xp))
@@ -225,9 +210,9 @@ module advance_mod
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
-                        vortmp1 = f12 * abs(vortg(iz-1, iy, ix, 1) + vortg(iz, iy, ix, 1))
-                        vortmp2 = f12 * abs(vortg(iz-1, iy, ix, 2) + vortg(iz, iy, ix, 2))
-                        vortmp3 = f12 * abs(vortg(iz-1, iy, ix, 3) + vortg(iz, iy, ix, 3))
+                        vortmp1 = f12 * abs(vor(iz-1, iy, ix, 1) + vor(iz, iy, ix, 1))
+                        vortmp2 = f12 * abs(vor(iz-1, iy, ix, 2) + vor(iz, iy, ix, 2))
+                        vortmp3 = f12 * abs(vor(iz-1, iy, ix, 3) + vor(iz, iy, ix, 3))
                         if (vortmp1 + vortmp2 + vortmp3 .gt. vortrms) then
                             vorl1 = vorl1 + vortmp1 + vortmp2 + vortmp3
                             vorl2 = vorl2 + vortmp1 ** 2 + vortmp2 ** 2 + vortmp3 ** 2
@@ -252,23 +237,23 @@ module advance_mod
             !
 
             ! du/dx
-            call diffx(svelog(:, :, :, 1), xs)
+            call diffx(svel(:, :, :, 1), xs)
             call fftxys2p(xs, dudx)
 
             ! du/dy
-            call diffy(svelog(:, :, :, 1), ys)
+            call diffy(svel(:, :, :, 1), ys)
             call fftxys2p(ys, dudy)
 
             ! dw/dx
-            call diffx(svelog(:, :, :, 3), xs)
+            call diffx(svel(:, :, :, 3), xs)
             call fftxys2p(xs, dwdx)
 
             ! dv/dy
-            call diffy(svelog(:, :, :, 2), ys)
+            call diffy(svel(:, :, :, 2), ys)
             call fftxys2p(ys, dvdy)
 
             ! dw/dy
-            call diffy(svelog(:, :, :, 3), ys)
+            call diffy(svel(:, :, :, 3), ys)
             call fftxys2p(ys, dwdy)
 
             ! find largest stretch -- this corresponds to largest
@@ -301,12 +286,12 @@ module advance_mod
                         ! S22 = dv/dy
                         ! S23 = 1/2 * (dv/dz + dw/dy) = 1/2 * (2 * dw/dy - \omegax) = dw/dy - 1/2 * \omegax
                         ! S33 = dw/dz = - (du/dx + dv/dy)
-                        strain(1, 1) = dudx(iz, iy, ix)                              ! S11
-                        strain(1, 2) = dudy(iz, iy, ix) + f12 * vortg(iz, iy, ix, 3) ! S12
-                        strain(1, 3) = dwdx(iz, iy, ix) + f12 * vortg(iz, iy, ix, 2) ! S13
-                        strain(2, 2) = dvdy(iz, iy, ix)                              ! S22
-                        strain(2, 3) = dwdy(iz, iy, ix) - f12 * vortg(iz, iy, ix, 1) ! S23
-                        strain(3, 3) = -(dudx(iz, iy, ix) + dvdy(iz, iy, ix))        ! S33
+                        strain(1, 1) = dudx(iz, iy, ix)                            ! S11
+                        strain(1, 2) = dudy(iz, iy, ix) + f12 * vor(iz, iy, ix, 3) ! S12
+                        strain(1, 3) = dwdx(iz, iy, ix) + f12 * vor(iz, iy, ix, 2) ! S13
+                        strain(2, 2) = dvdy(iz, iy, ix)                            ! S22
+                        strain(2, 3) = dwdy(iz, iy, ix) - f12 * vor(iz, iy, ix, 1) ! S23
+                        strain(3, 3) = -(dudx(iz, iy, ix) + dvdy(iz, iy, ix))      ! S33
 
                         ! calculate its eigenvalues. The Jacobi solver
                         ! requires the upper triangular matrix only.
@@ -319,9 +304,9 @@ module advance_mod
             enddo
 
             !Maximum speed:
-            velmax = sqrt(maxval(velog(:, :, :, 1) ** 2   &
-                               + velog(:, :, :, 2) ** 2   &
-                               + velog(:, :, :, 3) ** 2))
+            velmax = sqrt(maxval(vel(:, :, :, 1) ** 2   &
+                               + vel(:, :, :, 2) ** 2   &
+                               + vel(:, :, :, 3) ** 2))
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
@@ -329,20 +314,20 @@ module advance_mod
                      cflpf / (velmax + small),      &
                      time%limit - t)
 
-            !Update value of dt/4:
-            dt4 = dt / four
+            !Update value of dt/2:
+            dt2 = f12 * dt
 
             !---------------------------------------------------------------------
-            if (nnu .eq. 1) then
+            if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
-                dfac = dt / two
-                diss = two / (one + dfac * hdis)
+                dfac = dt
+                diss = one / (one + dfac * hdis)
                 !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
                 !(see inversion_utils.f90 and parameters.f90).
             else
                 !Update hyperdiffusion operator used in time stepping:
-                dfac = vorch * dt / two
-                diss = two / (one + dfac * hdis)
+                dfac = vorch * dt
+                diss = one / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
                 !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).

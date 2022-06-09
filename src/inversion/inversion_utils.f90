@@ -4,6 +4,7 @@ module inversion_utils
     use stafft
     use sta2dfft
     use deriv1d, only : init_deriv
+    use options, only : viscosity
     implicit none
 
     private
@@ -11,39 +12,37 @@ module inversion_utils
     ! Ordering in physical space: z, y, x
     ! Ordering in spectral space: z, x, y
 
-    ! Tridiagonal arrays for the horizontal vorticity components:
-    double precision, allocatable :: etdh(:, :, :), htdh(:, :, :)
-
-    ! Tridiagonal arrays for the vertical vorticity component:
-    double precision, allocatable :: etdv(:, :, :), htdv(:, :, :)
-
     ! Wavenumbers:
-    double precision, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:)
+    double precision, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:), rkzi(:)
 
     ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
     double precision, allocatable :: k2l2i(:, :)
 
+    ! Note k2l2 = k^2+l^2
+    double precision, allocatable :: k2l2(:, :)
+
     !Quantities needed in FFTs:
     double precision, allocatable :: xtrig(:), ytrig(:), ztrig(:)
     integer :: xfactors(5), yfactors(5), zfactors(5)
-    integer, parameter :: nsubs_tri = 8 !number of blocks for openmp
-    integer :: nxsub
 
     double precision, allocatable :: green(:, :, :)
-    double precision, allocatable :: decz(:, :, :)
 
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt(:, :)
+    double precision, allocatable :: filt(:, :, :)
+
+    double precision, allocatable :: gamtop(:), gambot(:)
+    double precision, allocatable :: phitop(:), phibot(:)
+    double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
 
 
 
-    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
+    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
     integer :: nwx, nwy, nxp2, nyp2
 
     logical :: is_fft_initialised = .false.
@@ -53,7 +52,6 @@ module inversion_utils
             , diffx                 &
             , diffy                 &
             , diffz                 &
-            , lapinv0               &
             , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
@@ -66,26 +64,38 @@ module inversion_utils
             , fftss2fs              &
             , fftfs2ss              &
             , green                 &
-            , decz                  &
             , zfactors              &
             , ztrig                 &
             , rkx                   &
             , rky                   &
-            , rkz
+            , rkz                   &
+            , rkzi                  &
+            , phibot                &
+            , phitop                &
+            , gambot                &
+            , gamtop                &
+            , psi                   &
+            , dpsi
+
+    public :: field_combine_semi_spectral   &
+            , field_combine_physical        &
+            , field_decompose_semi_spectral &
+            , field_decompose_physical
 
     contains
 
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_hyperdiffusion(bbdif, nnu, prediss, ke, en)
+        subroutine init_hyperdiffusion(bbdif, ke, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
-            integer,          intent(in) :: nnu
-            double precision, intent(in) :: prediss
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: visc, rkxmax, rkymax, rkzmax, K2max
-            integer                      :: kx, ky, iz, kz
+            double precision             :: rkxmax, rkymax, rkzmax, K2max
+            double precision             :: visc_bndry, visc_intr, wfac, hwfac
+            integer                      :: kx, ky, kz
+
+            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -99,32 +109,40 @@ module inversion_utils
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
-            if (nnu .eq. 1) then
+            if (viscosity%nnu .eq. 1) then
                 !Define viscosity:
-                visc = prediss * sqrt(bbdif / rkxmax ** 3)
-                write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
+                visc_intr = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
+                visc_bndry = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
+                write(*,'(a,1p,e14.7)') ' Interior viscosity nu = ', visc_intr
+                write(*,'(a,1p,e14.7)') ' Boundary viscosity nu = ', visc_bndry
 
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
-                   do kx = 0, nx-1
-                      do kz = 0, nz
-                         hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
-                      enddo
-                   enddo
+                    do kx = 0, nx-1
+                        hdis(0,  kx, ky) = visc_bndry * k2l2(kx, ky)
+                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
+                        do kz = 1, nz-1
+                            hdis(kz, kx, ky) = visc_intr * (k2l2(kx, ky) + rkz(kz) ** 2)
+                        enddo
+                    enddo
                 enddo
             else
                 !Define hyperviscosity:
                 K2max = rkxmax ** 2 + rkymax ** 2 + rkzmax ** 2
-                ! multiply ke with ncelli to make it the mean kinetic energy
-                visc = prediss *  (K2max * ke /en) ** f13 / (K2max ** nnu)
-                !visc = prediss / max(rkxmax, rkymax, rkzmax) ** (2 * nnu)
-                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc
+                wfac = one / K2max
+                hwfac = one / (rkxmax ** 2 + rkymax ** 2)
+                visc_intr = viscosity%prediss_interior *  (K2max * ke /en) ** f13
+                visc_bndry = viscosity%prediss_boundary *  (K2max * ke /en) ** f13
+                write(*,'(a,1p,e14.7)') ' Interior hyperviscosity nu = ', visc_intr * wfac ** viscosity%nnu
+                write(*,'(a,1p,e14.7)') ' Boundary hyperviscosity nu = ', visc_bndry * hwfac ** viscosity%nnu
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        do kz = 0, nz
-                            hdis(kz, kx, ky) = visc * (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2) ** nnu
+                        hdis(0,  kx, ky) = visc_bndry * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
+                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
+                        do kz = 1, nz-1
+                            hdis(kz, kx, ky) = visc_intr * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
                         enddo
                     enddo
                 enddo
@@ -134,65 +152,84 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            double precision             :: fac, div
             integer                      :: kx, ky, iz, kz
-            double precision             :: zh1(0:nz), zh0(0:nz)
+            double precision             :: fac, faci, div, kl, kli
+            double precision             :: em(1:nz-1), ep(1:nz-1)
 
             call init_fft
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
-            allocate(green(0:nz, 0:nx-1, 0:ny-1))
-            allocate(decz(0:nz, 0:nx-1, 0:ny-1))
-
+            allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
+            allocate(psi(1:nz-1, 0:nx-1, 0:ny-1))
+            allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
+            allocate(phitop(1:nz-1))
+            allocate(phibot(1:nz-1))
+            allocate(gamtop(0:nz))
+            allocate(gambot(0:nz))
 
             !---------------------------------------------------------------------
             !Define Green function
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    do kz = 1, nz
-                        green(kz, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2)
-                    enddo
-                enddo
+            do kz = 1, nz-1
+                green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
-
-            do ky = 0, ny-1
-                do kx = 1, nx-1
-                    green(0, kx, ky) = - one / (rkx(kx+1) ** 2 + rky(ky+1) ** 2)
-                enddo
-            enddo
-
-            do ky = 1, ny-1
-                green(0, 0, ky) = - one / rky(ky+1) ** 2
-            enddo
-
-            green(0, 0, 0) = zero
 
             !---------------------------------------------------------------------
-            !Fractional z grid values:
+            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
             fac = one / dble(nz)
-            do iz = 0, nz
-                zh1(iz) = fac * dble(iz)
-                zh0(iz) = one - zh1(iz)
+            do iz = 1, nz-1
+                phitop(iz) = fac * dble(iz)
+                phibot(iz) = fac * dble(nz-iz)
             enddo
+            !Here phibot is the complement of phitop.
+
+            !Define gamtop as the integral of phitop with zero average:
+            gamtop(0)  = -f16 * extent(3)
+            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
+            gamtop(nz) =  f13 * extent(3)
+            do iz = 0, nz
+                gambot(iz)  = gamtop(nz-iz)
+            enddo
+            !Here gambot is the complement of gamtop.
 
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    fac = dsqrt(rky(ky+1) ** 2 + rkx(kx+1) ** 2) * extent(3)
+                    kl  = dsqrt(k2l2(kx, ky))
+                    kli = one / kl
+                    fac = kl * extent(3)
+                    faci = one / fac
                     div = one / (one - dexp(-two * fac))
-                    decz(:, kx, ky) = div * (exp(-fac * (one - zh1)) - &
-                                             exp(-fac * (one + zh1)))
+                    em = dexp(-fac * (one - phitop))
+                    ep = dexp(-fac * (one + phitop))
+                    psi(:      , kx, ky) = k2l2i(kx, ky) * (div * (em - ep) - phitop)
+                    dpsi(1:nz-1, kx, ky) =           kli * (div * (em + ep) - faci)
+
+                    ! iz = 0  --> phitop = 0
+                    dpsi(0 , kx, ky) = kli * (div * two * dexp(-fac) - faci)
+                    ! iz = nz --> phitop = 1
+                    dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
                 enddo
             enddo
 
+            ! ky = 0
             do kx = 1, nx-1
-                fac = rkx(kx+1) * extent(3)
+                kli = one / rkx(kx)
+                fac = rkx(kx) * extent(3)
+                faci = one / fac
                 div = one / (one - dexp(-two * fac))
-                decz(:, kx, 0) = div * (exp(-fac * (one - zh1)) - &
-                                        exp(-fac * (one + zh1)))
+                em = dexp(-fac * (one - phitop))
+                ep = dexp(-fac * (one + phitop))
+                psi(:      , kx, 0) = k2l2i(kx, 0) * (div * (em - ep) - phitop)
+                dpsi(1:nz-1, kx, 0) =          kli * (div * (em + ep) - faci)
+
+                ! iz = 0  --> phitop = 0
+                dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
+                ! iz = nz --> phitop = 1
+                dpsi(nz, kx, 0) = kli * (div * (one + dexp(-two * fac)) - faci)
             enddo
 
-            decz(:, 0, 0) = zero
+            ! kx = ky = 0
+            psi(: , 0, 0) = zero
+            dpsi(:, 0, 0) = zero
 
           end subroutine init_inversion
 
@@ -201,12 +238,11 @@ module inversion_utils
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision, allocatable :: a0(:, :), ksq(:, :)
-            double precision              :: rkxmax, rkymax
+            double precision              :: rkxmax, rkymax, rkzmax
             double precision              :: rksqmax
-            double precision              :: kxmaxi, kymaxi
-            integer                       :: kx, ky, iz, isub, ib_sub, ie_sub
-            double precision              :: skx(nx), sky(ny)
+            double precision              :: kxmaxi, kymaxi, kzmaxi
+            integer                       :: kx, ky, kz
+            double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
 
             if (is_fft_initialised) then
                 return
@@ -226,25 +262,19 @@ module inversion_utils
             nyp2 = ny + 2
             nxp2 = nx + 2
 
-            allocate(a0(nx, ny))
-            allocate(ksq(nx, ny))
-            allocate(k2l2i(nx, ny))
+            allocate(k2l2i(0:nx-1, 0:ny-1))
+            allocate(k2l2(0:nx-1, 0:ny-1))
 
-            allocate(filt(nx, ny))
-            allocate(etdh(nz-1, nx, ny))
-            allocate(htdh(nz-1, nx, ny))
-            allocate(etdv(0:nz, nx, ny))
-            allocate(htdv(0:nz, nx, ny))
-            allocate(rkx(nx))
+            allocate(filt(0:nz, 0:nx-1, 0:ny-1))
+            allocate(rkx(0:nx-1))
             allocate(hrkx(nx))
-            allocate(rky(ny))
+            allocate(rky(0:ny-1))
             allocate(hrky(ny))
             allocate(rkz(0:nz))
+            allocate(rkzi(1:nz-1))
             allocate(xtrig(2 * nx))
             allocate(ytrig(2 * ny))
             allocate(ztrig(2*nz))
-
-            nxsub = nx / nsubs_tri
 
             !----------------------------------------------------------------------
             ! Initialise FFTs and wavenumber arrays:
@@ -252,108 +282,188 @@ module inversion_utils
             call initfft(nz, zfactors, ztrig)
 
             !Define x wavenumbers:
-            rkx(1) = zero
+            rkx(0) = zero
             do kx = 1, nwx-1
-                rkx(kx+1)    = hrkx(2 * kx)
-                rkx(nx+1-kx) = hrkx(2 * kx)
+                rkx(kx)    = hrkx(2 * kx)
+                rkx(nx-kx) = hrkx(2 * kx)
             enddo
-            rkx(nwx+1) = hrkx(nx)
+            rkx(nwx) = hrkx(nx)
             rkxmax = hrkx(nx)
 
             !Define y wavenumbers:
-            rky(1) = zero
+            rky(0) = zero
             do ky = 1, nwy-1
-                rky(ky+1)    = hrky(2 * ky)
-                rky(ny+1-ky) = hrky(2 * ky)
+                rky(ky)    = hrky(2 * ky)
+                rky(ny-ky) = hrky(2 * ky)
             enddo
-            rky(nwy+1) = hrky(ny)
+            rky(nwy) = hrky(ny)
             rkymax = hrky(ny)
 
             !Define z wavenumbers:
             rkz(0) = zero
             call init_deriv(nz, extent(3), rkz(1:nz))
+            rkzi(1:nz-1) = one / rkz(1:nz-1)
 
             !Squared maximum total wavenumber:
             rksqmax = rkxmax ** 2 + rkymax ** 2
 
             !Squared wavenumber array (used in tridiagonal solve):
-            do ky = 1, ny
-                do kx = 1, nx
-                    ksq(kx, ky) = rkx(kx) ** 2 + rky(ky) ** 2
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    k2l2(kx, ky) = rkx(kx) ** 2 + rky(ky) ** 2
                 enddo
             enddo
 
-            ksq(1, 1) = one
-            k2l2i = one / ksq
-            ksq(1, 1) = zero
+            k2l2(0, 0) = one
+            k2l2i = one / k2l2
+            k2l2(0, 0) = zero
 
-            !----------------------------------------------------------
-            !Define Hou and Li filter:
-            kxmaxi = one / maxval(rkx)
-            skx = -36.d0 * (kxmaxi * rkx) ** 36
-            kymaxi = one/maxval(rky)
-            sky = -36.d0 * (kymaxi * rky) ** 36
-            do ky = 1, ny
-                do kx = 1, nx
-                    filt(kx, ky) = dexp(skx(kx) + sky(ky))
-                enddo
-            enddo
+             !----------------------------------------------------------
+             !Define Hou and Li filter (2D and 3D):
+             kxmaxi = one / maxval(rkx)
+             skx = -36.d0 * (kxmaxi * rkx) ** 36
+             kymaxi = one/maxval(rky)
+             sky = -36.d0 * (kymaxi * rky) ** 36
+             kzmaxi = one/maxval(rkz)
+             skz = -36.d0 * (kzmaxi * rkz) ** 36
+             do ky = 0, ny-1
+                 do kx = 0, nx-1
+                     filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
+                     filt(nz, kx, ky) = filt(0, kx, ky)
+                     do kz = 1, nz-1
+                         filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
+                     enddo
+                 enddo
+             enddo
 
-            !-----------------------------------------------------------------------
-            ! Fixed coefficients used in the tridiagonal problems:
-            a0 = -two * dzisq - ksq
-            ap = dzisq
 
-            !-----------------------------------------------------------------------
-            ! Tridiagonal arrays for the horizontal vorticity components:
-            htdh(1, :, :) = one / a0
-            etdh(1, :, :) = -ap * htdh(1, :, :)
-            !$omp parallel shared(a0, ap, etdh, htdh, nz, nxsub) private(isub, ib_sub, ie_sub, iz) default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = 2, nz-2
-                    htdh(iz, ib_sub:ie_sub, :) = one / (a0(ib_sub:ie_sub, :) &
-                                               + ap * etdh(iz-1, ib_sub:ie_sub, :))
-                    etdh(iz, ib_sub:ie_sub, :) = -ap * htdh(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
-            htdh(nz-1, :, :) = one / (a0 + ap * etdh(nz-2, :, :))
-            ! Remove horizontally-averaged part (done separately):
-            htdh(:, 1, 1) = zero
-            etdh(:, 1, 1) = zero
+!            !---------------------------------------------------------------------
+!            !Define de-aliasing filter (2/3 rule):
+!            skx(0) = one
+!            do kx = 1, nx-1
+!                if (rkx(kx) .lt. f23 * rkxmax) then
+!                    skx(kx) = one
+!                else
+!                    skx(kx) = zero
+!                endif
+!            enddo
+!
+!            sky(0) = one
+!            do ky = 1, ny-1
+!                if (rky(ky) .lt. f23 * rkymax) then
+!                    sky(ky) = one
+!                else
+!                    sky(ky) = zero
+!                endif
+!            enddo
+!
+!            skz(0) = one
+!            rkzmax = maxval(rkz)
+!            do kz = 1, nz
+!                if (rkz(kz) .lt. f23 * rkzmax) then
+!                    skz(kz) = one
+!                else
+!                    skz(kz) = zero
+!                endif
+!            enddo
+!
+!            !Take product of 1d filters:
+!            do ky = 0, ny-1
+!                do kx = 0, nx-1
+!                    filt(0,  kx, ky) = skx(kx) * sky(ky)
+!                    filt(nz, kx, ky) = filt(0, kx, ky)
+!                    do kz = 1, nz-1
+!                        filt(kz, kx, ky) = filt(0, kx, ky) * skz(kz)
+!                    enddo
+!                enddo
+!            enddo
 
-            ! Tridiagonal arrays for the vertical vorticity component:
-            htdv(0, :, :) = one / a0
-            etdv(0, :, :) = -two * ap * htdv(0, :, :)
-            !$omp parallel shared(a0, ap, etdv, htdv, nz, nxsub) private(isub, ib_sub, ie_sub, iz) default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = 1, nz-1
-                    htdv(iz, ib_sub:ie_sub, :) = one / (a0(ib_sub:ie_sub, :) &
-                                               + ap * etdv(iz-1, ib_sub:ie_sub, :))
-                    etdv(iz, ib_sub:ie_sub, :) = -ap * htdv(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            etdv(nz-1, 1, 1) = zero
-
-            htdv(nz, :, :) = one / (a0 + two * ap * etdv(nz-1, :, :))
-            ! Remove horizontally-averaged part (done separately):
-            htdv(:, 1, 1) = zero
-            etdv(:, 1, 1) = zero
-
-            deallocate(a0)
-            deallocate(ksq)
         end subroutine
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_decompose_semi_spectral(sfc)
+            double precision, intent(inout) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! in : complete field (semi-spectral space)
+                                                                         ! out: full-spectral (1:nz-1),
+                                                                         !      semi-spectral at iz = 0 and iz = nz
+            double precision                :: sfctop(0:nx-1, 0:ny-1)
+            integer                         :: iz, kx, ky
+
+            ! get linear part
+            do iz = 1, nz-1
+                sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz))
+            enddo
+
+            sfctop = sfc(nz, :, :)
+
+            ! transform interior to fully spectral
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+
+            sfc(nz, :, :) = sfctop
+
+        end subroutine field_decompose_semi_spectral
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_decompose_physical(fc, sf)
+            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
+
+            cfc = fc
+            call fftxyp2s(cfc, sf)
+
+            call field_decompose_semi_spectral(sf)
+
+        end subroutine field_decompose_physical
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_combine_semi_spectral(sf)
+            double precision, intent(inout) :: sf(0:nz, 0:nx-1, 0:ny-1) ! in: full-spectral (1:nz-1),
+                                                                        !     semi-spectral at iz = 0 and iz = nz
+                                                                        ! out: complete field (semi-spectral space)
+            double precision                :: sftop(0:nx-1, 0:ny-1)
+            integer                         :: iz, kx, ky
+
+            ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sf:
+            sftop = sf(nz, :, :)
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    sf(nz, kx, ky) = zero
+                    call dst(1, nz, sf(1:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            sf(nz, :, :) = sftop
+
+            ! get linear part and add to sfc:
+            do iz = 1, nz-1
+                sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phibot(iz) + sf(nz, :, :) * phitop(iz)
+            enddo
+
+        end subroutine field_combine_semi_spectral
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_combine_physical(sf, fc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision              :: sfc(0:nz, 0:nx-1, 0:ny-1)   ! complete field (semi-spectral space)
+
+            sfc = sf
+
+            call field_combine_semi_spectral(sfc)
+
+            ! transform to physical space as fc:
+            call fftxys2p(sfc, fc)
+
+        end subroutine field_combine_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -412,16 +522,13 @@ module inversion_utils
         !Calculates df/dz for a field f using 2nd-order differencing.
         !Here fs = f, ds = df/dz.
         subroutine diffz(fs, ds)
-            double precision, intent(in)  :: fs(0:nz, nx, ny)
-            double precision, intent(out) :: ds(0:nz, nx, ny)
+            double precision, intent(in)  :: fs(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
             integer                       :: iz
 
-            ! linear extrapolation to fill boundary cells:
-            ! iz = 0:  (fs(1) - fs(0)) / dz
-            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
-            ! could try other method: one-sided differencing
-            ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
-            ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
+            ! Quadratic extrapolation at boundaries:
+            ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
+            ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
 
             ! central differencing for interior cells
             !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
@@ -432,49 +539,6 @@ module inversion_utils
             !$omp end do
             !$omp end parallel
 
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Inverts Laplace's operator on fs in semi-spectral space.
-        !Here fs = 0 on the z boundaries.
-        !Uses 2nd-order differencing
-        !*** Overwrites fs ***
-        subroutine lapinv0(fs)
-            double precision, intent(inout) :: fs(0:nz, nx, ny)
-            integer                         :: iz, isub, ib_sub, ie_sub
-
-            fs(0, :, :) = zero
-            fs(1, :, :) = fs(1, :, :) * htdh(1, :, :)
-
-            !$omp parallel shared(fs, ap, htdh, nz, nxsub) private(isub, ib_sub, ie_sub, iz) default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = 2, nz-1
-                    fs(iz, ib_sub:ie_sub, :) = (fs(iz, ib_sub:ie_sub, :) &
-                                             - ap * fs(iz-1, ib_sub:ie_sub, :)) &
-                                             * htdh(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
-
-            fs(nz, :, :) = zero
-
-            !$omp parallel shared(fs, etdh, nz, nxsub) private(isub, ib_sub, ie_sub, iz)  default(none)
-            !$omp do
-            do isub = 0, nsubs_tri-1
-                ib_sub = isub * nxsub + 1
-                ie_sub = (isub + 1) * nxsub
-                do iz = nz-2, 1, -1
-                    fs(iz, ib_sub:ie_sub, :) = etdh(iz, ib_sub:ie_sub, :) &
-                                             * fs(iz+1, ib_sub:ie_sub, :) + fs(iz, ib_sub:ie_sub, :)
-                enddo
-            enddo
-            !$omp end do
-            !$omp end parallel
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

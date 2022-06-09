@@ -35,18 +35,23 @@ module options
     logical :: allow_larger_anisotropy = .false.
 
     !(Hyper)viscosity parameters:
-    integer :: nnu
-    double precision :: prediss
-    ! If nnu = 1, this is the molecular viscosity case.  Then, we
-    ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
-    ! where k_{x_max} is the maximum x wavenumber.
-    ! Note: prediss = 2 is recommended.
-    ! ----------------------------------------------------------------
-    ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
-    ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
-    ! where k_max is the maximum x or y wavenumber and zeta_char is
-    ! a characteristic vorticity (see subroutine adapt of strat.f90).
-    ! Note: nnu = 3 and prediss = 10 are recommended.
+    type visc_type
+        integer :: nnu
+        double precision :: prediss_interior
+        double precision :: prediss_boundary
+        ! If nnu = 1, this is the molecular viscosity case.  Then, we
+        ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
+        ! where k_{x_max} is the maximum x wavenumber.
+        ! Note: prediss = 2 is recommended.
+        ! ----------------------------------------------------------------
+        ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
+        ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
+        ! where k_max is the maximum x or y wavenumber and zeta_char is
+        ! a characteristic vorticity (see subroutine adapt of strat.f90).
+        ! Note: nnu = 3 and prediss = 10 are recommended.
+    end type visc_type
+
+    type(visc_type) :: viscosity
 
     ! time limit
     type time_info_type
@@ -70,7 +75,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, nnu, prediss, output, time
+            namelist /PS3D/ field_file, viscosity, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -112,14 +117,15 @@ module options
                                                allow_larger_anisotropy)
 
 
-            if (nnu == 1) then
+            if (viscosity%nnu == 1) then
                 call write_netcdf_attribute(ncid, "viscosity", "molecular")
             else
                 call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
             endif
 
-            call write_netcdf_attribute(ncid, "nnu", nnu)
-            call write_netcdf_attribute(ncid, "prediss", prediss)
+            call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
+            call write_netcdf_attribute(ncid, "prediss_boundary", viscosity%prediss_boundary)
+            call write_netcdf_attribute(ncid, "prediss_interior", viscosity%prediss_interior)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
