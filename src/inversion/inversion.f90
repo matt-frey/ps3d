@@ -166,7 +166,7 @@ module inversion_mod
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: wk(1:nz), savg, fnzi
-            integer          :: nc
+            integer          :: nc, kx, ky
 
             call start_timer(vtend_timer)
 
@@ -219,7 +219,11 @@ module inversion_mod
                 ! Recombine the kx = ky = 0 part of svtend:
                 wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
                 wk(nz) = zero
-                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                do ky = 0, ny-1
+                    do kx = 0, nx-1
+                        call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                    enddo
+                enddo
                 savg = fnzi * (f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + sum(wk(1:nz-1)))
                 ! savg is the average source in semi-spectral space
                 ! Remove from boundary values (0 & nz) and interior (wk):
@@ -227,7 +231,11 @@ module inversion_mod
                 svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
                 wk(1:nz-1) = wk(1:nz-1) - savg
                 ! Decompose again:
-                call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                do ky = 0, ny-1
+                    do kx = 0, nx-1
+                        call dst(1, nz, wk(1:nz, kx, ky), ztrig, zfactors)
+                    enddo
+                enddo
                 svtend(1:nz-1, 0, 0, nc) = wk(1:nz-1)
             enddo
 
