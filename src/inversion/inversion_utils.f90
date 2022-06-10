@@ -93,7 +93,9 @@ module inversion_utils
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, rkzmax, K2max
             double precision             :: visc_bndry, visc_intr, wfac, hwfac
+            double precision             :: char_len, char_vel, kolm_len, visc
             integer                      :: kx, ky, kz
+
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
@@ -106,6 +108,11 @@ module inversion_utils
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
             rkzmax = maxval(rkz)
+
+            char_len = dsqrt(ke / en)
+            char_vel = dsqrt(two * ke)
+            kolm_len = viscosity%kolm_fac * max(dx)
+            visc = char_vel * char_len ** (2 * nnu - 1) * (kolm_len / char_len) ** f43
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
