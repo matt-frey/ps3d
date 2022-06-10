@@ -10,7 +10,7 @@ program ps3d
     use inversion_utils, only : init_inversion          &
                               , fftxyp2s                &
 !                               , filt                    &
-                              , init_hyperdiffusion     &
+                              , init_diffusion     &
                               , field_decompose_physical
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
@@ -85,7 +85,7 @@ program ps3d
             call vor2vel
             ke = get_kinetic_energy()
             en = get_enstrophy()
-            call init_hyperdiffusion(ke, en)
+            call init_diffusion(ke, en)
 
             call setup_output_files
 

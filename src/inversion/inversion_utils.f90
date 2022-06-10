@@ -46,7 +46,7 @@ module inversion_utils
     logical :: is_fft_initialised = .false.
 
     public :: init_inversion        &
-            , init_hyperdiffusion   &
+            , init_diffusion        &
             , diffx                 &
             , diffy                 &
             , diffz                 &
@@ -82,7 +82,7 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_hyperdiffusion(te, en)
+        subroutine init_diffusion(te, en)
             double precision, intent(in) :: te ! kinetic + potential energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: char_len, char_vel, kolm_len, visc
@@ -113,7 +113,7 @@ module inversion_utils
                 enddo
             enddo
 
-        end subroutine init_hyperdiffusion
+        end subroutine init_diffusion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
