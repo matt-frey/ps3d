@@ -96,7 +96,7 @@ module inversion_utils
                 stop
             endif
 
-            char_len = dsqrt(te / en)
+            char_len = viscosity%len_fac * dsqrt(te / en)
             char_vel = dsqrt(two * te * ncelli) ! ncelli = 1 / (nx * ny * nz)
             kolm_len = viscosity%kolm_fac * maxval(dx)
             visc = char_vel * char_len ** (2 * viscosity%nnu - 1) * (kolm_len / char_len) ** f43

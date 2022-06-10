@@ -42,6 +42,7 @@ module options
         ! If nnu > 1, this is the hyperviscosity case.
         ! Note: nnu = 3
         double precision :: kolm_fac = 5.0d0
+        double precision :: len_fac = 0.1d0
     end type visc_type
 
     type(visc_type) :: viscosity
