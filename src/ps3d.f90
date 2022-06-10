@@ -63,6 +63,9 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
+            ! calculate the initial mean vorticity and save it in ini_vor_mean:
+            ini_vor_mean = get_mean_vorticity()
+
             ! decompose initial fields
             call field_decompose_physical(buoy, sbuoy)
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))

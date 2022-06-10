@@ -24,6 +24,9 @@ module fields
         sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
         diss        ! dissipation operator (fully spectral in iz=1, nz-1, semi-spectral at iz = 0 and iz = nz)
 
+    ! initial mean vorticity
+    double precision :: ini_vor_mean(3)
+
     contains
 
         ! Allocate all fields
@@ -58,6 +61,8 @@ module fields
             buoy   = zero
             sbuoy  = zero
             diss   = zero
+
+            ini_vor_mean = zero
         end subroutine field_default
 
         function get_kinetic_energy() result(ke)
