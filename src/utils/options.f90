@@ -49,6 +49,7 @@ module options
         ! where k_max is the maximum x or y wavenumber and zeta_char is
         ! a characteristic vorticity (see subroutine adapt of strat.f90).
         ! Note: nnu = 3 and prediss = 10 are recommended.
+        double precision :: kolm_fac = 5.0d0
     end type visc_type
 
     type(visc_type) :: viscosity
@@ -126,6 +127,7 @@ module options
             call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
             call write_netcdf_attribute(ncid, "prediss_boundary", viscosity%prediss_boundary)
             call write_netcdf_attribute(ncid, "prediss_interior", viscosity%prediss_interior)
+            call write_netcdf_attribute(ncid, "kolm_fac", viscosity%kolm_fac)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
