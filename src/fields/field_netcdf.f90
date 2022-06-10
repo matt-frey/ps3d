@@ -263,7 +263,8 @@ module field_netcdf
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
                  start, cnt)
 
-            call write_netcdf_dataset(ncid, diss_id, diss(0:nz, 0:ny-1, 0:nx-1),    &
+            ! Note: This must hold: nx = ny
+            call write_netcdf_dataset(ncid, diss_id, diss(0:nz, 0:nx-1, 0:ny-1),    &
                                       start, cnt)
 
             bs = svtend(:, :, :, 1)
