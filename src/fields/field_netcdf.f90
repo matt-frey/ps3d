@@ -22,7 +22,7 @@ module field_netcdf
 
     integer            :: x_vel_id, y_vel_id, z_vel_id, &
                           x_vor_id, y_vor_id, z_vor_id, &
-                          buoy_id, n_writes,            &
+                          buoy_id, n_writes, diss_id    &
                           xvtend_id, yvtend_id, zvtend_id
 
     private :: ncid, ncfname,                   &
@@ -30,7 +30,7 @@ module field_netcdf
                coord_ids, t_axis_id,            &
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
-               buoy_id, n_writes,               &
+               buoy_id, n_writes, diss_id       &
                xvtend_id, yvtend_id, zvtend_id
 
     contains
@@ -134,6 +134,15 @@ module field_netcdf
                                        varid=buoy_id)
 
             call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='dissipation',                  &
+                                       long_name='dissipation operator',    &
+                                       std_name='',                         &
+                                       unit='1',                            &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=diss_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
                                        name='x_vorticity_tendency',         &
                                        long_name='x vort. tend. component', &
                                        std_name='',                         &
@@ -198,6 +207,8 @@ module field_netcdf
 
             call get_var_id(ncid, 'buoyancy', buoy_id)
 
+            call get_var_id(ncid, 'dissipation', diss_id)
+
             call get_var_id(ncid, 'x_vorticity_tendency', xvtend_id)
 
             call get_var_id(ncid, 'y_vorticity_tendency', yvtend_id)
@@ -251,6 +262,9 @@ module field_netcdf
             call fftxys2p(bs, buoy)
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
                  start, cnt)
+
+            call write_netcdf_dataset(ncid, diss_id, diss(0:nz, 0:ny-1, 0:nx-1),    &
+                                      start, cnt)
 
             bs = svtend(:, :, :, 1)
             call fftxys2p(bs, vtend)
