@@ -38,8 +38,8 @@ program ps3d
                               , output              &
                               , read_config_file    &
                               , time
-            double precision  :: ke, en
-!             integer           :: iz
+            double precision :: ke, en
+            double precision :: vormean(3)
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -63,8 +63,10 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
-            ! calculate the initial mean vorticity and save it in ini_vor_mean:
-            ini_vor_mean = get_mean_vorticity()
+            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
+            vormean = get_mean_vorticity()
+            ini_vor_mean(1) = vormean(1)
+            ini_vor_mean(2) = vormean(2)
 
             ! decompose initial fields
             call field_decompose_physical(buoy, sbuoy)

@@ -113,7 +113,7 @@ module advance_mod
             double precision :: wk(1:nz), savg
             integer          :: nc
 
-            ! Ensure zero global mean horizontal vorticity tendencies:
+            ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
                 ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
                 wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)

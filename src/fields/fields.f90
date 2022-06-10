@@ -24,8 +24,8 @@ module fields
         sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
         diss        ! dissipation operator (fully spectral in iz=1, nz-1, semi-spectral at iz = 0 and iz = nz)
 
-    ! initial mean vorticity
-    double precision :: ini_vor_mean(3)
+    ! initial \xi and \eta mean
+    double precision :: ini_vor_mean(2)
 
     contains
 
