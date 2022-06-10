@@ -37,18 +37,10 @@ module options
     !(Hyper)viscosity parameters:
     type visc_type
         integer :: nnu
-        double precision :: prediss_interior
-        double precision :: prediss_boundary
-        ! If nnu = 1, this is the molecular viscosity case.  Then, we
-        ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
-        ! where k_{x_max} is the maximum x wavenumber.
-        ! Note: prediss = 2 is recommended.
+        ! If nnu = 1, this is the molecular viscosity case.
         ! ----------------------------------------------------------------
-        ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
-        ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
-        ! where k_max is the maximum x or y wavenumber and zeta_char is
-        ! a characteristic vorticity (see subroutine adapt of strat.f90).
-        ! Note: nnu = 3 and prediss = 10 are recommended.
+        ! If nnu > 1, this is the hyperviscosity case.
+        ! Note: nnu = 3
         double precision :: kolm_fac = 5.0d0
     end type visc_type
 
@@ -125,8 +117,6 @@ module options
             endif
 
             call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
-            call write_netcdf_attribute(ncid, "prediss_boundary", viscosity%prediss_boundary)
-            call write_netcdf_attribute(ncid, "prediss_interior", viscosity%prediss_interior)
             call write_netcdf_attribute(ncid, "kolm_fac", viscosity%kolm_fac)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)

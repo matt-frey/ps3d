@@ -355,7 +355,7 @@ module advance_mod
                 diss = one / (one + dfac * hdis)
                 !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
                 !K_max is the maximum x or y wavenumber and C is a dimensionless
-                !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
+                !prefactor (see inversion_utils.f90 and parameters.f90).
             endif
 
         end subroutine adapt
