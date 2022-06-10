@@ -22,7 +22,7 @@ module field_netcdf
 
     integer            :: x_vel_id, y_vel_id, z_vel_id, &
                           x_vor_id, y_vor_id, z_vor_id, &
-                          buoy_id, n_writes, diss_id    &
+                          buoy_id, n_writes, diss_id,   &
                           xvtend_id, yvtend_id, zvtend_id
 
     private :: ncid, ncfname,                   &
@@ -30,7 +30,7 @@ module field_netcdf
                coord_ids, t_axis_id,            &
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
-               buoy_id, n_writes, diss_id       &
+               buoy_id, n_writes, diss_id,      &
                xvtend_id, yvtend_id, zvtend_id
 
     contains
