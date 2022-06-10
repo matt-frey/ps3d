@@ -38,7 +38,7 @@ program ps3d
                               , output              &
                               , read_config_file    &
                               , time
-            double precision  :: bbdif, ke, en
+            double precision  :: ke, en
 !             integer           :: iz
 
             call register_timer('ps', ps_timer)
@@ -81,10 +81,9 @@ program ps3d
 !             enddo
 
             call vor2vel
-            bbdif = maxval(buoy) - minval(buoy)
             ke = get_kinetic_energy()
             en = get_enstrophy()
-            call init_hyperdiffusion(bbdif, ke, en)
+            call init_hyperdiffusion(ke, en)
 
             call setup_output_files
 

@@ -12,7 +12,7 @@
 module advance_mod
     use options, only : time, viscosity
     use constants
-    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
+    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli, fnzi
     use inversion_mod, only : vor2vel, vorticity_tendency
     use inversion_utils
     use utils, only : write_step

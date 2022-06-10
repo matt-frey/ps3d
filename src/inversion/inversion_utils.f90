@@ -58,9 +58,6 @@ module inversion_utils
             , k2l2i                 &
             , hdis                  &
             , fftczp2s              &
-            , fftczs2p              &
-            , fftss2fs              &
-            , fftfs2ss              &
             , green                 &
             , zfactors              &
             , ztrig                 &
@@ -351,6 +348,68 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        ! Computes a 2D FFT (in x & y) of a 3D array fp in physical space
+        ! and returns the result as fs in spectral space (in x & y).
+        ! Only FFTs over the x and y directions are performed.
+        ! *** fp is destroyed upon exit ***
+        subroutine fftxyp2s(fp, fs)
+            double precision, intent(inout) :: fp(:, :, :)       !Physical
+            double precision, intent(out)   :: fs(:, :, :)       !Spectral
+            integer                         :: kx, iy, nzval, nxval, nyval
+
+            nzval = size(fp, 1)
+            nyval = size(fp, 2)
+            nxval = size(fp, 3)
+
+            ! Carry out a full x transform first:
+            call forfft(nzval * nyval, nxval, fp, xtrig, xfactors)
+
+            ! Transpose array:
+            !$omp parallel do shared(fs, fp) private(kx, iy)
+            do kx = 1, nxval
+                do iy = 1, nyval
+                    fs(:, kx, iy) = fp(:, iy, kx)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            ! Carry out a full y transform on transposed array:
+            call forfft(nzval * nxval, nyval, fs, ytrig, yfactors)
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Computes an *inverse* 2D FFT (in x & y) of a 3D array fs in spectral
+        ! space and returns the result as fp in physical space (in x & y).
+        ! Only inverse FFTs over the x and y directions are performed.
+        ! *** fs is destroyed upon exit ***
+        subroutine fftxys2p(fs, fp)
+            double precision, intent(inout):: fs(:, :, :)  !Spectral
+            double precision, intent(out)  :: fp(:, :, :)  !Physical
+            integer                        :: kx, iy, nzval, nxval, nyval
+
+            nzval = size(fs, 1)
+            nxval = size(fs, 2)
+            nyval = size(fs, 3)
+
+            ! Carry out a full inverse y transform first:
+            call revfft(nzval * nxval, nyval, fs, ytrig, yfactors)
+
+            ! Transpose array:
+            !$omp parallel do shared(fs, fp) private(kx, iy)
+            do kx = 1, nxval
+                do iy = 1, nyval
+                    fp(:, iy, kx) = fs(:, kx, iy)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            ! Carry out a full inverse x transform:
+            call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         subroutine field_decompose_semi_spectral(sfc)
             double precision, intent(inout) :: sfc(0:nz, 0:nx-1, 0:ny-1) ! in : complete field (semi-spectral space)
                                                                          ! out: full-spectral (1:nz-1),
@@ -508,6 +567,43 @@ module inversion_utils
             !$omp end do
             !$omp end parallel
 
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Computes a 3D FFT of an array fp in physical space and
+        !returns the result as fs in spectral space.  It is assumed that
+        !fp is generally non-zero at the z boundaries (so a cosine
+        !transform is used in z).
+        !*** fp is destroyed upon exit ***
+        subroutine fftczp2s(fp, fs)
+            double precision, intent(inout) :: fp(:, :, :)  !Physical
+            double precision, intent(out)   :: fs(:, :, :)  !Spectral
+            integer                         :: kx, ky, iy, nzval, nxval, nyval
+
+            nzval = size(fp, 1)
+            nyval = size(fp, 2)
+            nxval = size(fp, 3)
+
+            !Carry out a full x transform first:
+            call forfft(nzval * nyval, nxval, fp, xtrig, xfactors)
+
+            !Transpose array:
+            do kx = 1, nxval
+                do iy = 1, nyval
+                    fs(:, kx, iy) = fp(:, iy, kx)
+                enddo
+            enddo
+
+            !Carry out a full y transform on transposed array:
+            call forfft(nzval * nxval, nyval, fs, ytrig, yfactors)
+
+            !Carry out z FFT for each kx and ky:
+            do ky = 1, nyval
+                do kx = 1, nxval
+                    call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
         end subroutine
 
 end module inversion_utils
