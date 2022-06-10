@@ -173,7 +173,6 @@ module inversion_mod
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
-                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
