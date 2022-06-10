@@ -101,17 +101,17 @@ module inversion_utils
 
             char_len = dsqrt(te / en)
             char_vel = dsqrt(two * te * ncelli) ! ncelli = 1 / (nx * ny * nz)
-            kolm_len = viscosity%kolm_fac * max(dx)
-            visc = char_vel * char_len ** (2 * nnu - 1) * (kolm_len / char_len) ** f43
+            kolm_len = viscosity%kolm_fac * maxval(dx)
+            visc = char_vel * char_len ** (2 * viscosity%nnu - 1) * (kolm_len / char_len) ** f43
             write(*,'(a,1p,e14.7)') ' (hyper)viscosity nu = ', visc
 
             !Define spectral dissipation operator:
             do ky = 0, ny-1
                 do kx = 0, nx-1
-                    hdis(0,  kx, ky) = visc * k2l2(kx, ky) ** nnu
+                    hdis(0,  kx, ky) = visc * k2l2(kx, ky) ** viscosity%nnu
                     hdis(nz, kx, ky) = hdis(0,  kx, ky)
                     do kz = 1, nz-1
-                        hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2) ** nnu
+                        hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2) ** viscosity%nnu
                     enddo
                 enddo
             enddo
