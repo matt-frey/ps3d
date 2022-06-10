@@ -87,73 +87,37 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_hyperdiffusion(bbdif, ke, en)
-            double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
-            double precision, intent(in) :: ke ! kinetic energy
+        subroutine init_hyperdiffusion(te, en)
+            double precision, intent(in) :: te ! kinetic + potential energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: rkxmax, rkymax, rkzmax, K2max
-            double precision             :: visc_bndry, visc_intr, wfac, hwfac
             double precision             :: char_len, char_vel, kolm_len, visc
             integer                      :: kx, ky, kz
 
-
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
 
-            ! check if FFT is initialised
+            !Check if FFT is initialised
             if (.not. is_fft_initialised) then
                 print *, "Error: FFT not initialised!"
                 stop
             endif
 
-            rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
-            rkzmax = maxval(rkz)
-
-            char_len = dsqrt(ke / en)
-            char_vel = dsqrt(two * ke)
+            char_len = dsqrt(te / en)
+            char_vel = dsqrt(two * te)
             kolm_len = viscosity%kolm_fac * max(dx)
             visc = char_vel * char_len ** (2 * nnu - 1) * (kolm_len / char_len) ** f43
+            write(*,'(a,1p,e14.7)') ' (hyper)viscosity nu = ', visc
 
-            !---------------------------------------------------------------------
-            ! Damping, viscous or hyperviscous:
-            if (viscosity%nnu .eq. 1) then
-                !Define viscosity:
-                visc_intr = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
-                visc_bndry = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
-                write(*,'(a,1p,e14.7)') ' Interior viscosity nu = ', visc_intr
-                write(*,'(a,1p,e14.7)') ' Boundary viscosity nu = ', visc_bndry
-
-                !Define spectral dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc_bndry * k2l2(kx, ky)
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc_intr * (k2l2(kx, ky) + rkz(kz) ** 2)
-                        enddo
+            !Define spectral dissipation operator:
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    hdis(0,  kx, ky) = visc * k2l2(kx, ky) ** nnu
+                    hdis(nz, kx, ky) = hdis(0,  kx, ky)
+                    do kz = 1, nz-1
+                        hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2) ** nnu
                     enddo
                 enddo
-            else
-                !Define hyperviscosity:
-                K2max = rkxmax ** 2 + rkymax ** 2 + rkzmax ** 2
-                wfac = one / K2max
-                hwfac = one / (rkxmax ** 2 + rkymax ** 2)
-                visc_intr = viscosity%prediss_interior *  (K2max * ke /en) ** f13
-                visc_bndry = viscosity%prediss_boundary *  (K2max * ke /en) ** f13
-                write(*,'(a,1p,e14.7)') ' Interior hyperviscosity nu = ', visc_intr * wfac ** viscosity%nnu
-                write(*,'(a,1p,e14.7)') ' Boundary hyperviscosity nu = ', visc_bndry * hwfac ** viscosity%nnu
+            enddo
 
-                !Define dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc_bndry * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc_intr * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
-                        enddo
-                    enddo
-                enddo
-            endif
         end subroutine init_hyperdiffusion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
