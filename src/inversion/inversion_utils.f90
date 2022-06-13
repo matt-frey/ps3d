@@ -92,7 +92,7 @@ module inversion_utils
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, rkzmax, K2max
-            double precision             :: visc, fac
+            double precision             :: visc, wfac, hwfac
             integer                      :: kx, ky, kz
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
@@ -127,17 +127,18 @@ module inversion_utils
             else
                 !Define hyperviscosity:
                 K2max = max(rkxmax, rkymax, rkzmax) ** 2
-                fac = one / K2max
+                wfac = one / K2max
+                hwfac = one / (max(rkxmax, rkymax) ** 2)
                 visc = viscosity%prediss *  (K2max * ke /en) ** f13
-                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * fac ** viscosity%nnu
+                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * (fac * k2l2(kx, ky)) ** viscosity%nnu
+                        hdis(0,  kx, ky) = visc * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (fac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
+                            hdis(kz, kx, ky) = visc * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
                         enddo
                     enddo
                 enddo
