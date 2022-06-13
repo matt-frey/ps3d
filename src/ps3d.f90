@@ -10,7 +10,7 @@ program ps3d
     use inversion_utils, only : init_inversion          &
                               , fftxyp2s                &
 !                               , filt                    &
-                              , init_hyperdiffusion     &
+                              , init_diffusion          &
                               , field_decompose_physical
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
     use utils, only : write_last_step, setup_output_files,       &
@@ -38,8 +38,8 @@ program ps3d
                               , output              &
                               , read_config_file    &
                               , time
-            double precision  :: bbdif, ke, en
-!             integer           :: iz
+            double precision :: bbdif, ke, en
+            double precision :: vormean(3)
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -63,6 +63,11 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
+            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
+            vormean = get_mean_vorticity()
+            ini_vor_mean(1) = vormean(1)
+            ini_vor_mean(2) = vormean(2)
+
             ! decompose initial fields
             call field_decompose_physical(buoy, sbuoy)
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
@@ -81,7 +86,7 @@ program ps3d
             bbdif = maxval(buoy) - minval(buoy)
             ke = get_kinetic_energy()
             en = get_enstrophy()
-            call init_hyperdiffusion(bbdif, ke, en)
+            call init_diffusion(bbdif, ke, en)
 
             call setup_output_files
 
