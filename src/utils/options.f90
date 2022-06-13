@@ -37,8 +37,7 @@ module options
     !(Hyper)viscosity parameters:
     type visc_type
         integer :: nnu
-        double precision :: prediss_interior
-        double precision :: prediss_boundary
+        double precision :: prediss
         ! If nnu = 1, this is the molecular viscosity case.  Then, we
         ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
         ! where k_{x_max} is the maximum x wavenumber.
@@ -124,8 +123,7 @@ module options
             endif
 
             call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
-            call write_netcdf_attribute(ncid, "prediss_boundary", viscosity%prediss_boundary)
-            call write_netcdf_attribute(ncid, "prediss_interior", viscosity%prediss_interior)
+            call write_netcdf_attribute(ncid, "prediss", viscosity%prediss)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)

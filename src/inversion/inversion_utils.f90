@@ -92,7 +92,7 @@ module inversion_utils
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, rkzmax, K2max
-            double precision             :: visc_bndry, visc_intr, wfac, hwfac
+            double precision             :: visc, fac
             integer                      :: kx, ky, kz
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
@@ -111,38 +111,33 @@ module inversion_utils
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
                 !Define viscosity:
-                visc_intr = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
-                visc_bndry = viscosity%prediss_interior * sqrt(bbdif / rkxmax ** 3)
-                write(*,'(a,1p,e14.7)') ' Interior viscosity nu = ', visc_intr
-                write(*,'(a,1p,e14.7)') ' Boundary viscosity nu = ', visc_bndry
+                visc = viscosity%prediss * sqrt(bbdif / rkxmax ** 3)
+                write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc_bndry * k2l2(kx, ky)
+                        hdis(0,  kx, ky) = visc * k2l2(kx, ky)
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc_intr * (k2l2(kx, ky) + rkz(kz) ** 2)
+                            hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2)
                         enddo
                     enddo
                 enddo
             else
                 !Define hyperviscosity:
-                K2max = rkxmax ** 2 + rkymax ** 2 + rkzmax ** 2
-                wfac = one / K2max
-                hwfac = one / (rkxmax ** 2 + rkymax ** 2)
-                visc_intr = viscosity%prediss_interior *  (K2max * ke /en) ** f13
-                visc_bndry = viscosity%prediss_boundary *  (K2max * ke /en) ** f13
-                write(*,'(a,1p,e14.7)') ' Interior hyperviscosity nu = ', visc_intr * wfac ** viscosity%nnu
-                write(*,'(a,1p,e14.7)') ' Boundary hyperviscosity nu = ', visc_bndry * hwfac ** viscosity%nnu
+                K2max = max(rkxmax, rkymax, rkzmax) ** 2
+                fac = one / K2max
+                visc = viscosity%prediss *  (K2max * ke /en) ** f13
+                write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * fac ** viscosity%nnu
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc_bndry * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
+                        hdis(0,  kx, ky) = visc * (fac * k2l2(kx, ky)) ** viscosity%nnu
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc_intr * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
+                            hdis(kz, kx, ky) = visc * (fac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
                         enddo
                     enddo
                 enddo
