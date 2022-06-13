@@ -165,7 +165,6 @@ module inversion_mod
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            double precision :: wk(1:nz), savg
             integer          :: nc
 
             call start_timer(vtend_timer)
@@ -212,19 +211,6 @@ module inversion_mod
             call diffx(q, svtend(:, :, :, 3))
             call diffy(p, r)                                ! here: r = dp/dy
             svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
-
-            ! Ensure zero global mean horizontal vorticity tendencies:
-            do nc = 1, 2
-                ! Cast svtend_S = svtend - svtend_L onto the z grid as wk for kx = ky = 0:
-                wk(1:nz-1) = svtend(1:nz-1, 0, 0, nc)
-                wk(nz) = zero
-                call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                ! Compute average, savg (first part is the part due to svtend_L):
-                savg = f12 * (svtend(0, 0, 0, nc) + svtend(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
-                ! Remove from boundary values (0 & nz):
-                svtend(0 , 0, 0, nc) = svtend(0 , 0, 0, nc) - savg
-                svtend(nz, 0, 0, nc) = svtend(nz, 0, 0, nc) - savg
-            enddo
 
             call stop_timer(vtend_timer)
 

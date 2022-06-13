@@ -12,10 +12,11 @@
 module advance_mod
     use options, only : time, viscosity
     use constants
-    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
+    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli, fnzi
     use inversion_mod, only : vor2vel, vorticity_tendency
     use inversion_utils
     use utils, only : write_step
+    use sta2dfft, only : dst
     use fields
     use jacobi, only : jacobi_eigenvalues
     implicit none
@@ -79,6 +80,8 @@ module advance_mod
                 svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
             enddo
 
+            call adjust_vorticity_mean
+
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
             !------------------------------------------------------------------
@@ -96,12 +99,34 @@ module advance_mod
                 do nc = 1, 3
                     svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 enddo
+
+                call adjust_vorticity_mean
+
             enddo
 
             !Advance time:
             print *, "At time", t, "and time step", dt
             t = t + dt
         end subroutine advance
+
+        subroutine adjust_vorticity_mean
+            double precision :: wk(1:nz), savg
+            integer          :: nc
+
+            ! Ensure zero global mean horizontal vorticity conservation:
+            do nc = 1, 2
+                ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
+                wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
+                wk(nz) = zero
+                call dst(1, nz, wk(1:nz), ztrig, zfactors)
+                ! Compute average, savg (first part is the part due to svor_L):
+                savg = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                ! Remove from boundary values (0 & nz):
+                svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg
+                svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg
+            enddo
+
+        end subroutine adjust_vorticity_mean
 
 
         ! Gets the source terms for vorticity and buoyancy in spectral space.
@@ -322,15 +347,12 @@ module advance_mod
                 !Update diffusion operator used in time stepping:
                 dfac = dt
                 diss = one / (one + dfac * hdis)
-                !hdis = nu*(k_x^2+k_y^2) where nu is the viscosity coefficient
-                !(see inversion_utils.f90 and parameters.f90).
+                !(see inversion_utils.f90)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
                 diss = one / (one + dfac * hdis)
-                !hdis = C*(K/K_max)^{2p} where K^2 = k_x^2+k_y^2, p is the order,
-                !K_max is the maximum x or y wavenumber and C is a dimensionless
-                !prefactor (see inversion_utils.f90 and parameters.f90 where C = prediss).
+                !(see inversion_utils.f90)
             endif
 
         end subroutine adapt
