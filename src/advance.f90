@@ -190,7 +190,6 @@ module advance_mod
             double precision, intent(in) :: t
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
             double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
-            double precision             :: zs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in z in spectral space
             double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
