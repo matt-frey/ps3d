@@ -159,8 +159,7 @@ module inversion_utils
             integer                      :: kx, ky, iz, kz
             double precision             :: fac, faci, div, kl, kli
 !             double precision             :: em(1:nz-1), ep(1:nz-1)
-            double precision             :: z, zm(0:nz), zp(0:nz), R, Q, Lm, Lp, k2ifac
-            double precision             :: ef, em, ep, dphim, dphip
+            double precision             :: z, zm(0:nz), zp(0:nz)
 
             call init_fft
 
@@ -192,34 +191,22 @@ module inversion_utils
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    kl = dsqrt(k2l2(kx, ky))
-                    fac = kl * extent(3)
-                    div = one / (one - dexp(-two * fac))
-                    k2ifac = f12 * k2l2i(kx, ky)
-
-                    ef = dexp(- fac)
-                    ep = dexp(- Lp)
-                    em = dexp(- Lm)
-
-                    Lm = kl * zm
-                    Lp = kl * zp
-
-                    phim(:, kx, ky) = div * (ep - ef * em)
-                    phip(:, kx, ky) = div * (em - ef * ep)
-
-                    dphim = - kl * div * (ep + ef * em)
-                    dphip =   kl * div * (em + ef * ep)
-
-                    Q = div * (one + dexp(- two * fac))
-                    R = div * (two * ef)
-
-                    thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
-                    thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
-
-                    dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
-                    dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
+                    call set_hyperbolic_functions(kx, ky, zm, zp)
                 enddo
             enddo
+
+            ! ky = 0
+            do kx = 1, nx-1
+                call set_hyperbolic_functions(kx, 0, zm, zp)
+            enddo
+
+            ! kx = ky = 0
+            thetam(:, 0, 0) = zero
+            thetap(:, 0, 0) = zero
+
+            dthetam(:, 0, 0) = zero
+            dthetap(:, 0, 0) = zero
+
 
             !---------------------------------------------------------------------
 !             !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
@@ -283,7 +270,45 @@ module inversion_utils
 !             psi(: , 0, 0) = zero
 !             dpsi(:, 0, 0) = zero
 
-          end subroutine init_inversion
+        end subroutine init_inversion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine set_hyperbolic_functions(kx, ky, zm, zp)
+            integer,          intent(in) :: kx, ky
+            double precision, intent(in) :: zm(0:nz), zp(0:nz)
+            double precision             :: R, Q, Lm, Lp, k2ifac
+            double precision             :: ef, em, ep, dphim, dphip
+
+            kl = dsqrt(k2l2(kx, ky))
+            fac = kl * extent(3)
+            div = one / (one - dexp(-two * fac))
+            k2ifac = f12 * k2l2i(kx, ky)
+
+            ef = dexp(- fac)
+            ep = dexp(- Lp)
+            em = dexp(- Lm)
+
+            Lm = kl * zm
+            Lp = kl * zp
+
+            phim(:, kx, ky) = div * (ep - ef * em)
+            phip(:, kx, ky) = div * (em - ef * ep)
+
+            dphim = - kl * div * (ep + ef * em)
+            dphip =   kl * div * (em + ef * ep)
+
+            Q = div * (one + dexp(- two * fac))
+            R = div * (two * ef)
+
+            thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
+            thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
+
+            dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
+            dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
+
+        end subroutine set_hyperbolic_functions
+
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
