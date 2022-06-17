@@ -181,7 +181,7 @@ module inversion_utils
             !---------------------------------------------------------------------
             !Define zm = zmax - z, zp = z - zmin
             do iz = 0, nz
-                z = dx(3) * dble(iz)
+                z = lower(3) + dx(3) * dble(iz)
                 zm(iz) = upper(3) - z
                 zp(iz) = z - lower(3)
             enddo
