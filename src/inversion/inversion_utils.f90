@@ -167,6 +167,10 @@ module inversion_utils
 
             allocate(phim(0:nz, 0:nx-1, 0:ny-1))
             allocate(phip(0:nz, 0:nx-1, 0:ny-1))
+            allocate(thetam(0:nz, 0:nx-1, 0:ny-1))
+            allocate(thetap(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dthetam(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dthetap(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Define Green function
@@ -264,7 +268,7 @@ module inversion_utils
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision              :: rkxmax, rkymax, rkzmax
+            double precision              :: rkxmax, rkymax!, rkzmax
             double precision              :: rksqmax
             double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz
