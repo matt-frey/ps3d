@@ -299,7 +299,7 @@ module inversion_utils
             dphip =   kl * div * (em + ef * ep)
 
             Q = div * (one + dexp(- two * fac))
-            R = div * (two * ef)
+            R = div * two * ef
 
             thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
             thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
