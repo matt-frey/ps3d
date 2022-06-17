@@ -33,9 +33,17 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
 
-    double precision, allocatable :: gamtop(:), gambot(:)
-    double precision, allocatable :: phitop(:), phibot(:)
-    double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
+!     double precision, allocatable :: gamtop(:), gambot(:)
+!     double precision, allocatable :: phitop(:), phibot(:)
+!     double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
+
+    double precision, allocatable :: thetam(:, :, :)    ! theta_{-}
+    double precision, allocatable :: thetap(:, :, :)    ! theta_{+}
+    double precision, allocatable :: dthetam(:, :, :)   ! dtheta_{-}/dz
+    double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
+    double precision, allocatable :: phim(:, :, :)      ! phi_{-}
+    double precision, allocatable :: phip(:, :, :)      ! phi_{+}
+
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
@@ -70,12 +78,12 @@ module inversion_utils
             , rky                   &
             , rkz                   &
             , rkzi                  &
-            , phibot                &
-            , phitop                &
-            , gambot                &
-            , gamtop                &
-            , psi                   &
-            , dpsi
+!             , phibot                &
+!             , phitop                &
+!             , gambot                &
+!             , gamtop                &
+!             , psi                   &
+!             , dpsi
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -150,17 +158,22 @@ module inversion_utils
         subroutine init_inversion
             integer                      :: kx, ky, iz, kz
             double precision             :: fac, faci, div, kl, kli
-            double precision             :: em(1:nz-1), ep(1:nz-1)
+!             double precision             :: em(1:nz-1), ep(1:nz-1)
+            double precision             :: z, zm(0:nz), zp(0:nz), R, Q, Lm, Lp, k2ifac
+            double precision             :: ef, em, ep, dphim, dphip
 
             call init_fft
 
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
-            allocate(psi(1:nz-1, 0:nx-1, 0:ny-1))
-            allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
-            allocate(phitop(1:nz-1))
-            allocate(phibot(1:nz-1))
-            allocate(gamtop(0:nz))
-            allocate(gambot(0:nz))
+!             allocate(psi(1:nz-1, 0:nx-1, 0:ny-1))
+!             allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
+!             allocate(phitop(1:nz-1))
+!             allocate(phibot(1:nz-1))
+!             allocate(gamtop(0:nz))
+!             allocate(gambot(0:nz))
+
+            allocate(phim(0:nz, 0:nx-1, 0:ny-1))
+            allocate(phip(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Define Green function
@@ -169,63 +182,106 @@ module inversion_utils
             enddo
 
             !---------------------------------------------------------------------
-            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
-            fac = one / dble(nz)
-            do iz = 1, nz-1
-                phitop(iz) = fac * dble(iz)
-                phibot(iz) = fac * dble(nz-iz)
-            enddo
-            !Here phibot is the complement of phitop.
-
-            !Define gamtop as the integral of phitop with zero average:
-            gamtop(0)  = -f16 * extent(3)
-            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
-            gamtop(nz) =  f13 * extent(3)
+            !Define zm = zmax - z, zp = z - zmin
             do iz = 0, nz
-                gambot(iz)  = gamtop(nz-iz)
+                z = dx(3) * dble(iz)
+                zm(iz) = upper(3) - z
+                zp(iz) = z - lower(3)
             enddo
-            !Here gambot is the complement of gamtop.
 
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    kl  = dsqrt(k2l2(kx, ky))
-                    kli = one / kl
+                    kl = dsqrt(k2l2(kx, ky))
                     fac = kl * extent(3)
-                    faci = one / fac
                     div = one / (one - dexp(-two * fac))
-                    em = dexp(-fac * (one - phitop))
-                    ep = dexp(-fac * (one + phitop))
-                    psi(:      , kx, ky) = k2l2i(kx, ky) * (div * (em - ep) - phitop)
-                    dpsi(1:nz-1, kx, ky) =           kli * (div * (em + ep) - faci)
+                    k2ifac = f12 * k2l2i(kx, ky)
 
-                    ! iz = 0  --> phitop = 0
-                    dpsi(0 , kx, ky) = kli * (div * two * dexp(-fac) - faci)
-                    ! iz = nz --> phitop = 1
-                    dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
+                    ef = dexp(- fac)
+                    ep = dexp(- Lp)
+                    em = dexp(- Lm)
+
+                    Lm = kl * zm
+                    Lp = kl * zp
+
+                    phim(:, kx, ky) = div * (ep - ef * em)
+                    phip(:, kx, ky) = div * (em - ef * ep)
+
+                    dphim = - kl * div * (ep + ef * em)
+                    dphip =   kl * div * (em + ef * ep)
+
+                    Q = div * (one + dexp(- two * fac))
+                    R = div * (two * ef)
+
+                    thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
+                    thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
+
+                    dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
+                    dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
                 enddo
             enddo
 
-            ! ky = 0
-            do kx = 1, nx-1
-                kli = one / rkx(kx)
-                fac = rkx(kx) * extent(3)
-                faci = one / fac
-                div = one / (one - dexp(-two * fac))
-                em = dexp(-fac * (one - phitop))
-                ep = dexp(-fac * (one + phitop))
-                psi(:      , kx, 0) = k2l2i(kx, 0) * (div * (em - ep) - phitop)
-                dpsi(1:nz-1, kx, 0) =          kli * (div * (em + ep) - faci)
+            !---------------------------------------------------------------------
+!             !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
+!             fac = one / dble(nz)
+!             do iz = 1, nz-1
+!                 phitop(iz) = fac * dble(iz)
+!                 phibot(iz) = fac * dble(nz-iz)
+!             enddo
+!             !Here phibot is the complement of phitop.
 
-                ! iz = 0  --> phitop = 0
-                dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
-                ! iz = nz --> phitop = 1
-                dpsi(nz, kx, 0) = kli * (div * (one + dexp(-two * fac)) - faci)
-            enddo
-
-            ! kx = ky = 0
-            psi(: , 0, 0) = zero
-            dpsi(:, 0, 0) = zero
+!             !Define gamtop as the integral of phitop with zero average:
+!             gamtop(0)  = -f16 * extent(3)
+!             gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
+!             gamtop(nz) =  f13 * extent(3)
+!             do iz = 0, nz
+!                 gambot(iz)  = gamtop(nz-iz)
+!             enddo
+!             !Here gambot is the complement of gamtop.
+!
+!             !Hyperbolic functions used for solutions of Laplace's equation:
+!             do ky = 1, ny-1
+!                 do kx = 0, nx-1
+!                     kl  = dsqrt(k2l2(kx, ky))
+!                     kli = one / kl
+!                     fac = kl * extent(3)
+!                     faci = one / fac
+!                     div = one / (one - dexp(-two * fac))
+!                     em = dexp(-fac * (one - phitop))
+!                     ep = dexp(-fac * (one + phitop))
+!
+!                     phip(:, kx, ky) = k2l2i(kx, ky) * (div * (em - ep))
+!
+!                     psi(:      , kx, ky) = k2l2i(kx, ky) * (div * (em - ep) - phitop)
+!                     dpsi(1:nz-1, kx, ky) =           kli * (div * (em + ep) - faci)
+!
+!                     ! iz = 0  --> phitop = 0
+!                     dpsi(0 , kx, ky) = kli * (div * two * dexp(-fac) - faci)
+!                     ! iz = nz --> phitop = 1
+!                     dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
+!                 enddo
+!             enddo
+!
+!             ! ky = 0
+!             do kx = 1, nx-1
+!                 kli = one / rkx(kx)
+!                 fac = rkx(kx) * extent(3)
+!                 faci = one / fac
+!                 div = one / (one - dexp(-two * fac))
+!                 em = dexp(-fac * (one - phitop))
+!                 ep = dexp(-fac * (one + phitop))
+!                 psi(:      , kx, 0) = k2l2i(kx, 0) * (div * (em - ep) - phitop)
+!                 dpsi(1:nz-1, kx, 0) =          kli * (div * (em + ep) - faci)
+!
+!                 ! iz = 0  --> phitop = 0
+!                 dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
+!                 ! iz = nz --> phitop = 1
+!                 dpsi(nz, kx, 0) = kli * (div * (one + dexp(-two * fac)) - faci)
+!             enddo
+!
+!             ! kx = ky = 0
+!             psi(: , 0, 0) = zero
+!             dpsi(:, 0, 0) = zero
 
           end subroutine init_inversion
 
