@@ -47,7 +47,6 @@ module inversion_utils
                hrkx, hrky!, rkz
 
 
-
     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
     integer :: nwx, nwy, nxp2, nyp2
 
@@ -98,7 +97,7 @@ module inversion_utils
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, rkzmax, K2max
-            double precision             :: visc, wfac, hwfac
+            double precision             :: visc, wfac
             integer                      :: kx, ky, kz
 
             allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
@@ -134,20 +133,22 @@ module inversion_utils
                 !Define hyperviscosity:
                 K2max = max(rkxmax, rkymax, rkzmax) ** 2
                 wfac = one / K2max
-                hwfac = one / (max(rkxmax, rkymax) ** 2)
                 visc = viscosity%prediss *  (K2max * ke /en) ** f13
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:
                 do ky = 0, ny-1
                     do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
+                        hdis(0,  kx, ky) = visc * (wfac * k2l2(kx, ky)) ** viscosity%nnu
                         hdis(nz, kx, ky) = hdis(0,  kx, ky)
                         do kz = 1, nz-1
                             hdis(kz, kx, ky) = visc * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
                         enddo
                     enddo
                 enddo
+                
+                !Ensure average is not modified by hyperviscosity:
+                hdis(:, 0, 0) = zero
             endif
         end subroutine init_diffusion
 
@@ -156,7 +157,6 @@ module inversion_utils
         subroutine init_inversion
             integer          :: kx, ky, iz, kz
             double precision :: z, zm(0:nz), zp(0:nz), fac
-            double precision :: phitop(1:nz-1)
 
             call init_fft
 
@@ -207,20 +207,11 @@ module inversion_utils
             dthetam(:, 0, 0) = zero
             dthetap(:, 0, 0) = zero
 
-
             !---------------------------------------------------------------------
-            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
-            fac = one / dble(nz)
-            do iz = 1, nz-1
-                phitop(iz) = fac * dble(iz)
-            enddo
-
-            !Define gamtop as the integral of phitop with zero average:
-            gamtop(0)  = -f16 * extent(3)
-            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
-            gamtop(nz) =  f13 * extent(3)
+            !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
+            gamtop = f12 * extent(3) * (phip(:, 0, 0) ** 2 - f13)
             do iz = 0, nz
-                gambot(iz)  = gamtop(nz-iz)
+                gambot(iz) = gamtop(nz-iz)
             enddo
             !Here gambot is the complement of gamtop.
 
@@ -238,16 +229,15 @@ module inversion_utils
 
             kl = dsqrt(k2l2(kx, ky))
             fac = kl * extent(3)
-            div = one / (one - dexp(-two * fac))
+            ef = dexp(- fac)
+            div = one / (one - ef**2)
             k2ifac = f12 * k2l2i(kx, ky)
 
             Lm = kl * zm
             Lp = kl * zp
 
-            ef = dexp(- fac)
             ep = dexp(- Lp)
             em = dexp(- Lm)
-
 
             phim(:, kx, ky) = div * (ep - ef * em)
             phip(:, kx, ky) = div * (em - ef * ep)
@@ -255,7 +245,7 @@ module inversion_utils
             dphim = - kl * div * (ep + ef * em)
             dphip =   kl * div * (em + ef * ep)
 
-            Q = div * (one + dexp(- two * fac))
+            Q = div * (one + ef**2)
             R = div * two * ef
 
             thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
@@ -265,7 +255,6 @@ module inversion_utils
             dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
 
         end subroutine set_hyperbolic_functions
-
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -369,6 +358,9 @@ module inversion_utils
                      enddo
                  enddo
              enddo
+             
+             !Ensure filter does not change domain mean:
+             filt(:, 0, 0) = one
 
 
 !            !---------------------------------------------------------------------
@@ -411,6 +403,9 @@ module inversion_utils
 !                    enddo
 !                enddo
 !            enddo
+             
+!            !Ensure filter does not change domain mean:
+!            filt(:, 0, 0) = one
 
         end subroutine
 
