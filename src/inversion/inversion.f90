@@ -29,7 +29,6 @@ module inversion_mod
 
             !Filter the vorticity and combine vorticity in physical space:
             do nc = 1, 3
-                svor(:, :, :, nc) = filt * svor(:, :, :, nc)
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
@@ -46,10 +45,10 @@ module inversion_mod
             !Calculate the boundary contributions of the source to the vertical velocity (bs)
             !and its derivative (es) in semi-spectral space:
             do iz = 1, nz-1
-                bs(iz, :, :) = ds(nz, :, :) *  psi(iz, :, :) + ds(0, :, :) *  psi(nz-iz, :, :)
+                bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
             enddo
             do iz = 0, nz
-                es(iz, :, :) = ds(nz, :, :) * dpsi(iz, :, :) - ds(0, :, :) * dpsi(nz-iz, :, :)
+                es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
             enddo
 
             !Invert Laplacian to find the part of w expressible as a sine series:
