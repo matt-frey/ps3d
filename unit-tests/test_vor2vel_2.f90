@@ -91,7 +91,7 @@ program test_vor2vel_2
 
     error = maxval(dabs(vel_ref - vel))
 
-    call print_result_dp('Test vor2vel', error, atol=6.0e-3)
+    call print_result_dp('Test vor2vel', error, atol=1.2e-2)
 
     deallocate(vel_ref)
 

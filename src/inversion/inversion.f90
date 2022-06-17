@@ -99,9 +99,9 @@ module inversion_mod
             call dct(1, nz, ubar, ztrig, zfactors)
             call dct(1, nz, vbar, ztrig, zfactors)
 
-!             !Add contribution from the linear function connecting the boundary values:
-!             ubar = ubar + svor(0, 0, 0, 2) * k2l2i * phim - svor(0, 0, 0, 2) * gambot
-!             vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
+            !Add contribution from the linear function connecting the boundary values:
+            ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
+            vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
 
             !-------------------------------------------------------
             !Find x velocity component "u":

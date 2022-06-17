@@ -33,7 +33,7 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
 
-!     double precision, allocatable :: gamtop(:), gambot(:)
+    double precision, allocatable :: gamtop(:), gambot(:)
 
     double precision, allocatable :: thetam(:, :, :)    ! theta_{-}
     double precision, allocatable :: thetap(:, :, :)    ! theta_{+}
@@ -79,9 +79,9 @@ module inversion_utils
             , thetap                &
             , thetam                &
             , dthetap               &
-            , dthetam
-!             , gambot                &
-!             , gamtop                &
+            , dthetam               &
+            , gambot                &
+            , gamtop
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -154,16 +154,15 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            integer                      :: kx, ky, iz, kz
-!             double precision             :: fac, faci, div, kl, kli
-!             double precision             :: em(1:nz-1), ep(1:nz-1)
-            double precision             :: z, zm(0:nz), zp(0:nz)
+            integer          :: kx, ky, iz, kz
+            double precision :: z, zm(0:nz), zp(0:nz), fac
+            double precision :: phitop(1:nz-1)
 
             call init_fft
 
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
-!             allocate(gamtop(0:nz))
-!             allocate(gambot(0:nz))
+            allocate(gamtop(0:nz))
+            allocate(gambot(0:nz))
 
             allocate(phim(0:nz, 0:nx-1, 0:ny-1))
             allocate(phip(0:nz, 0:nx-1, 0:ny-1))
@@ -199,6 +198,9 @@ module inversion_utils
             enddo
 
             ! kx = ky = 0
+            phim(:, 0, 0) = zm / extent(3)
+            phip(:, 0, 0) = zp / extent(3)
+
             thetam(:, 0, 0) = zero
             thetap(:, 0, 0) = zero
 
@@ -207,24 +209,26 @@ module inversion_utils
 
 
             !---------------------------------------------------------------------
-!             !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
-!             fac = one / dble(nz)
-!             do iz = 1, nz-1
-!                 phitop(iz) = fac * dble(iz)
+            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
+            fac = one / dble(nz)
+            do iz = 1, nz-1
+                phitop(iz) = fac * dble(iz)
+            enddo
 
-!             !Define gamtop as the integral of phitop with zero average:
-!             gamtop(0)  = -f16 * extent(3)
-!             gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
-!             gamtop(nz) =  f13 * extent(3)
-!             do iz = 0, nz
-!                 gambot(iz)  = gamtop(nz-iz)
-!             enddo
-!             !Here gambot is the complement of gamtop.
-!
+            !Define gamtop as the integral of phitop with zero average:
+            gamtop(0)  = -f16 * extent(3)
+            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
+            gamtop(nz) =  f13 * extent(3)
+            do iz = 0, nz
+                gambot(iz)  = gamtop(nz-iz)
+            enddo
+            !Here gambot is the complement of gamtop.
+
         end subroutine init_inversion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        ! for kx > 0 and ky >= 0 or kx >= 0 and ky > 0
         subroutine set_hyperbolic_functions(kx, ky, zm, zp)
             integer,          intent(in) :: kx, ky
             double precision, intent(in) :: zm(0:nz), zp(0:nz)
