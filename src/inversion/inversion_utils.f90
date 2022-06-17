@@ -146,7 +146,7 @@ module inversion_utils
                         enddo
                     enddo
                 enddo
-                
+
                 !Ensure average is not modified by hyperviscosity:
                 hdis(:, 0, 0) = zero
             endif
@@ -156,7 +156,7 @@ module inversion_utils
 
         subroutine init_inversion
             integer          :: kx, ky, iz, kz
-            double precision :: z, zm(0:nz), zp(0:nz), fac
+            double precision :: z, zm(0:nz), zp(0:nz)
 
             call init_fft
 
@@ -224,7 +224,7 @@ module inversion_utils
             integer,          intent(in) :: kx, ky
             double precision, intent(in) :: zm(0:nz), zp(0:nz)
             double precision             :: R(0:nz), Q(0:nz), k2ifac, dphim(0:nz), dphip(0:nz)
-            double precision             :: ef(0:nz), em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
+            double precision             :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
             double precision             :: fac, div, kl
 
             kl = dsqrt(k2l2(kx, ky))
@@ -358,7 +358,7 @@ module inversion_utils
                      enddo
                  enddo
              enddo
-             
+
              !Ensure filter does not change domain mean:
              filt(:, 0, 0) = one
 
@@ -403,7 +403,7 @@ module inversion_utils
 !                    enddo
 !                enddo
 !            enddo
-             
+
 !            !Ensure filter does not change domain mean:
 !            filt(:, 0, 0) = one
 
