@@ -9,7 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : fftxys2p
+    use inversion_utils, only : field_combine_physical
     implicit none
 
     integer :: field_io_timer
@@ -248,22 +248,22 @@ module field_netcdf
                                       start, cnt)
 
             bs = sbuoy
-            call fftxys2p(bs, buoy)
+            call field_combine_physical(bs, buoy)
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
                  start, cnt)
 
             bs = svtend(:, :, :, 1)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, xvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 2)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, yvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 3)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
 
