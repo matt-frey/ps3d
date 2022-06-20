@@ -9,7 +9,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : field_combine_physical
+    use inversion_utils, only : field_combine_physical, fftxys2p, diffx, diffy, diffz
     implicit none
 
     integer :: field_io_timer
@@ -20,10 +20,11 @@ module field_netcdf
     integer            :: coord_ids(3)  ! = (x, y, z)
     integer            :: t_axis_id
 
-    integer            :: x_vel_id, y_vel_id, z_vel_id, &
-                          x_vor_id, y_vor_id, z_vor_id, &
-                          buoy_id, n_writes,            &
-                          xvtend_id, yvtend_id, zvtend_id
+    integer            :: x_vel_id, y_vel_id, z_vel_id,    &
+                          x_vor_id, y_vor_id, z_vor_id,    &
+                          buoy_id, n_writes,               &
+                          xvtend_id, yvtend_id, zvtend_id, &
+                          divvel_id, divvor_id
 
     private :: ncid, ncfname,                   &
                dimids,                          &
@@ -31,7 +32,8 @@ module field_netcdf
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
                buoy_id, n_writes,               &
-               xvtend_id, yvtend_id, zvtend_id
+               xvtend_id, yvtend_id, zvtend_id, &
+               divvel_id, divvor_id
 
     contains
 
@@ -160,6 +162,24 @@ module field_netcdf
                                        dimids=dimids,                       &
                                        varid=zvtend_id)
 
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='divergence_velocity',          &
+                                       long_name='div. of velocity',        &
+                                       std_name='',                         &
+                                       unit='1/s',                          &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=divvel_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='divergence_vorticity',         &
+                                       long_name='div. of vorticity',       &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=divvor_id)
+
             call close_definition(ncid)
 
         end subroutine create_netcdf_field_file
@@ -204,6 +224,10 @@ module field_netcdf
 
             call get_var_id(ncid, 'z_vorticity_tendency', zvtend_id)
 
+            call get_var_id(ncid, 'divergence_velocity', divvel_id)
+
+            call get_var_id(ncid, 'divergence_vorticity', divvor_id)
+
         end subroutine read_netcdf_field_content
 
         ! Write a step in the field file.
@@ -214,6 +238,7 @@ module field_netcdf
             integer                      :: cnt(4), start(4)
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in semi-spectral space (temporary)
             double precision             :: vtend(0:nz, 0:ny-1, 0:nx-1)
+            double precision             :: dd(0:nz, 0:ny-1, 0:nx-1)
 
             call start_timer(field_io_timer)
 
@@ -265,6 +290,42 @@ module field_netcdf
             bs = svtend(:, :, :, 3)
             call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+
+            !
+            ! divergence of velocity
+            !
+            !du/dx
+            call diffx(svel(:, :, :, 1), bs)
+            call fftxys2p(bs, dd)
+
+            ! dv/dy
+            call diffy(svel(:, :, :, 2), bs)
+            call fftxys2p(bs, vtend)
+            vtend = dd + vtend
+
+            ! dw/dz
+            call diffz(vel(:, :, :, 3), dd)
+            vtend = dd + vtend
+            call write_netcdf_dataset(ncid, divvel_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+
+            !
+            ! divergence of vorticity
+            !
+            !dxi/dx
+            call diffx(svor(:, :, :, 1), bs)
+            call fftxys2p(bs, dd)
+
+            ! deta/dy
+            call diffy(svor(:, :, :, 2), bs)
+            call fftxys2p(bs, vtend)
+            vtend = dd + vtend
+
+            ! dzeta/dz
+            call diffz(vor(:, :, :, 3), dd)
+            vtend = dd + vtend
+            call write_netcdf_dataset(ncid, divvor_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
 
             ! increment counter
