@@ -28,7 +28,7 @@ module inversion_utils
     double precision, allocatable :: green(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :, :)
+    double precision, allocatable :: hdis(:, :)
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
@@ -96,11 +96,10 @@ module inversion_utils
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: rkxmax, rkymax, rkzmax, K2max
+            double precision             :: rkxmax, rkymax, K2max
             double precision             :: visc, wfac
-            integer                      :: kx, ky, kz
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(hdis(0:nx-1, 0:ny-1))
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -110,7 +109,6 @@ module inversion_utils
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
-            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
@@ -120,36 +118,20 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * k2l2(kx, ky)
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2)
-                        enddo
-                    enddo
-                enddo
-            else
+                hdis = visc * k2l2
+             else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax, rkzmax) ** 2
+                K2max = max(rkxmax, rkymax) ** 2
                 wfac = one / K2max
                 visc = viscosity%prediss *  (K2max * ke /en) ** f13
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * (wfac * k2l2(kx, ky)) ** viscosity%nnu
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
-                        enddo
-                    enddo
-                enddo
-
+                hdis = visc * (wfac * k2l2) ** viscosity%nnu
+             
                 !Ensure average is not modified by hyperviscosity:
-                hdis(:, 0, 0) = zero
-            endif
+                hdis(0, 0) = zero
+             endif
         end subroutine init_diffusion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
