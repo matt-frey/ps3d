@@ -32,6 +32,7 @@ module inversion_utils
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: gauss(:, :)
 
     double precision, allocatable :: gamtop(:), gambot(:)
 
@@ -61,6 +62,7 @@ module inversion_utils
             , fftxys2p              &
             , dz2                   &
             , filt                  &
+            , gauss                 &
             , hdzi                  &
             , k2l2i                 &
             , hdis                  &
@@ -244,7 +246,7 @@ module inversion_utils
         !coefficients, etc).
         subroutine init_fft
             double precision              :: rkxmax, rkymax!, rkzmax
-            double precision              :: rksqmax
+            double precision              :: rksqmax, C_g, A_g
             double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz
             double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
@@ -271,6 +273,7 @@ module inversion_utils
             allocate(k2l2(0:nx-1, 0:ny-1))
 
             allocate(filt(0:nz, 0:nx-1, 0:ny-1))
+            allocate(gauss(0:nx-1, 0:ny-1))
             allocate(rkx(0:nx-1))
             allocate(hrkx(nx))
             allocate(rky(0:ny-1))
@@ -323,26 +326,31 @@ module inversion_utils
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
 
-             !----------------------------------------------------------
-             !Define Hou and Li filter (2D and 3D):
-             kxmaxi = one / maxval(rkx)
-             skx = -36.d0 * (kxmaxi * rkx) ** 36
-             kymaxi = one/maxval(rky)
-             sky = -36.d0 * (kymaxi * rky) ** 36
-             kzmaxi = one/maxval(rkz)
-             skz = -36.d0 * (kzmaxi * rkz) ** 36
-             do ky = 0, ny-1
-                 do kx = 0, nx-1
-                     filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
-                     filt(nz, kx, ky) = filt(0, kx, ky)
-                     do kz = 1, nz-1
-                         filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
-                     enddo
-                 enddo
-             enddo
+            !----------------------------------------------------------
+            !Define Hou and Li filter (2D and 3D) and Gauss filter (2D):
 
-             !Ensure filter does not change domain mean:
-             filt(:, 0, 0) = one
+            A_g = 4.0d0
+            C_g = A_g / max(rkxmax, rkymax)
+            gauss = dexp(-C_g * k2l2)
+            
+            kxmaxi = one / maxval(rkx)
+            skx = -36.d0 * (kxmaxi * rkx) ** 36
+            kymaxi = one/maxval(rky)
+            sky = -36.d0 * (kymaxi * rky) ** 36
+            kzmaxi = one/maxval(rkz)
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
+            do ky = 0, ny-1
+               do kx = 0, nx-1
+                  filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
+                  filt(nz, kx, ky) = filt(0, kx, ky)
+                  do kz = 1, nz-1
+                     filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
+                  enddo
+               enddo
+            enddo
+            
+            !Ensure filter does not change domain mean:
+            filt(:, 0, 0) = one
 
 
 !            !---------------------------------------------------------------------
@@ -385,7 +393,7 @@ module inversion_utils
 !                    enddo
 !                enddo
 !            enddo
-
+!
 !            !Ensure filter does not change domain mean:
 !            filt(:, 0, 0) = one
 
@@ -538,8 +546,14 @@ module inversion_utils
             integer                       :: iz
 
             ! Quadratic extrapolation at boundaries:
-            ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
-            ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
+            !ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
+            !ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
+
+            ! Linear extrapolation at the boundaries:
+            ! iz = 0:  (fs(1) - fs(0)) / dz
+            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+            ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
+            ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
 
             ! central differencing for interior cells
             !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
