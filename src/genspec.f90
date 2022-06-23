@@ -26,7 +26,7 @@ program genspec
     ! read domain dimensions
     call setup_domain_and_parameters(trim(filename))
 
-    allocate(kmag(0:nz, 0:ny-1, 0:nx-1))
+    allocate(kmag(0:nz, 0:nx-1, 0:ny-1))
 
     call field_default
 
@@ -43,10 +43,10 @@ program genspec
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
-    do kx = 0, nx-1
-        do ky = 0, ny-1
+    do ky = 0, ny-1
+        do kx = 0, nx-1
             do kz = 0, nz
-                kmag(kz, ky, kx) = nint(dsqrt(rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2))
+                kmag(kz, kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
      enddo
@@ -64,10 +64,10 @@ program genspec
     spec = zero
     num = 0
 
-    do kx = 0, nx-1
-        do ky = 0, ny-1
+    do ky = 0, ny-1
+        do kx = 0, nx-1
             do kz = 0, nz
-                m = int(dble(kmag(kz, ky, kx)) * dki)
+                m = int(dble(kmag(kz, kx, ky)) * dki)
                 spec(m) = svor(kz, kx, ky, 1) ** 2 + svor(kz, kx, ky, 2) ** 2 + svor(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
