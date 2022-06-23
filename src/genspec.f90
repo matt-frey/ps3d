@@ -37,9 +37,16 @@ program genspec
     ! use some dummy values for bbdif, nnu and prediss
     call init_inversion
 
-    ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
+    ! (1) compute the 3D spectrum of each velocity component:
     do nc = 1, 3
-        call fftczp2s(vor(:, :, :, nc), svor(:, :, :, nc))
+        call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
+    enddo
+    do ky = 0, ny-1
+        do kx = 0, nx-1
+            call dct(1, nz, svel(0:nz, kx, ky, 1), ztrig, zfactors) ! u
+            call dct(1, nz, svel(0:nz, kx, ky, 2), ztrig, zfactors) ! v
+            call dst(1, nz, svel(1:nz, kx, ky, 3), ztrig, zfactors) ! w
+        enddo
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
@@ -68,7 +75,7 @@ program genspec
         do kx = 0, nx-1
             do kz = 0, nz
                 m = int(dble(kmag(kz, kx, ky)) * dki)
-                spec(m) = svor(kz, kx, ky, 1) ** 2 + svor(kz, kx, ky, 2) ** 2 + svor(kz, kx, ky, 3) ** 2
+                spec(m) = svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo
