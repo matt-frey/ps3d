@@ -27,30 +27,30 @@ module inversion_mod
 
             call start_timer(vor2vel_timer)
 
-!            ! Enforce solenoidality
-!            ! A, B, C are vorticities
-!            ! D = B_x - A_y; E = C_z
-!            ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
-!            call diffx(svor(:, :, :, 2), as) ! as = B_x
-!            call diffy(svor(:, :, :, 1), bs) ! bs = A_y
-!            ds = as - bs                     ! ds = D
-!            cs = svor(:, :, :, 3)
-!            call field_combine_semi_spectral(cs)
-!            call diffz(cs, es)                     ! es = E
-!            call field_decompose_semi_spectral(es)
-!            
-!            call diffx(es, svor(:, :, :, 1)) ! E_x
-!            call diffy(ds, cs)                  ! cs = D_y
-!            do iz = 0, nz
-!               svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
-!            enddo
-!
-!            call diffy(es, svor(:, :, :, 2)) ! E_y
-!            call diffx(ds, cs)               ! D_x
-!     
-!            do iz = 0, nz
-!               svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
-!            enddo
+            ! Enforce solenoidality
+            ! A, B, C are vorticities
+            ! D = B_x - A_y; E = C_z
+            ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
+            call diffx(svor(:, :, :, 2), as) ! as = B_x
+            call diffy(svor(:, :, :, 1), bs) ! bs = A_y
+            ds = as - bs                     ! ds = D
+            cs = svor(:, :, :, 3)
+            call field_combine_semi_spectral(cs)
+            call diffz(cs, es)                     ! es = E
+            call field_decompose_semi_spectral(es)
+            
+            call diffx(es, svor(:, :, :, 1)) ! E_x
+            call diffy(ds, cs)                  ! cs = D_y
+            do iz = 0, nz
+               svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
+            enddo
+
+            call diffy(es, svor(:, :, :, 2)) ! E_y
+            call diffx(ds, cs)               ! D_x
+     
+            do iz = 0, nz
+               svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
+            enddo
 
             
             !Combine vorticity in physical space:
