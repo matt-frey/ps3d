@@ -32,7 +32,6 @@ module inversion_utils
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
-    double precision, allocatable :: gauss(:, :)
 
     double precision, allocatable :: gamtop(:), gambot(:)
 
@@ -62,12 +61,9 @@ module inversion_utils
             , fftxys2p              &
             , dz2                   &
             , filt                  &
-            , gauss                 &
             , hdzi                  &
             , k2l2i                 &
             , hdis                  &
-            , fftczp2s              &
-            , fftczs2p              &
             , fftss2fs              &
             , fftfs2ss              &
             , green                 &
@@ -130,7 +126,7 @@ module inversion_utils
 
                 !Define dissipation operator:
                 hdis = visc * (wfac * k2l2) ** viscosity%nnu
-             
+
                 !Ensure average is not modified by hyperviscosity:
                 hdis(0, 0) = zero
              endif
@@ -245,8 +241,7 @@ module inversion_utils
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision              :: rkxmax, rkymax!, rkzmax
-            double precision              :: rksqmax, C_g, A_g
+            double precision              :: rkxmax, rkymax, rksqmax
             double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz
             double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
@@ -273,7 +268,6 @@ module inversion_utils
             allocate(k2l2(0:nx-1, 0:ny-1))
 
             allocate(filt(0:nz, 0:nx-1, 0:ny-1))
-            allocate(gauss(0:nx-1, 0:ny-1))
             allocate(rkx(0:nx-1))
             allocate(hrkx(nx))
             allocate(rky(0:ny-1))
@@ -327,12 +321,7 @@ module inversion_utils
             k2l2(0, 0) = zero
 
             !----------------------------------------------------------
-            !Define Hou and Li filter (2D and 3D) and Gauss filter (2D):
-
-            A_g = 4.0d0
-            C_g = A_g / max(rkxmax, rkymax)
-            gauss = dexp(-C_g * k2l2)
-            
+            !Define Hou and Li filter (2D and 3D):
             kxmaxi = one / maxval(rkx)
             skx = -36.d0 * (kxmaxi * rkx) ** 36
             kymaxi = one/maxval(rky)
@@ -348,54 +337,9 @@ module inversion_utils
                   enddo
                enddo
             enddo
-            
+
             !Ensure filter does not change domain mean:
             filt(:, 0, 0) = one
-
-
-!            !---------------------------------------------------------------------
-!            !Define de-aliasing filter (2/3 rule):
-!            skx(0) = one
-!            do kx = 1, nx-1
-!                if (rkx(kx) .lt. f23 * rkxmax) then
-!                    skx(kx) = one
-!                else
-!                    skx(kx) = zero
-!                endif
-!            enddo
-!
-!            sky(0) = one
-!            do ky = 1, ny-1
-!                if (rky(ky) .lt. f23 * rkymax) then
-!                    sky(ky) = one
-!                else
-!                    sky(ky) = zero
-!                endif
-!            enddo
-!
-!            skz(0) = one
-!            rkzmax = maxval(rkz)
-!            do kz = 1, nz
-!                if (rkz(kz) .lt. f23 * rkzmax) then
-!                    skz(kz) = one
-!                else
-!                    skz(kz) = zero
-!                endif
-!            enddo
-!
-!            !Take product of 1d filters:
-!            do ky = 0, ny-1
-!                do kx = 0, nx-1
-!                    filt(0,  kx, ky) = skx(kx) * sky(ky)
-!                    filt(nz, kx, ky) = filt(0, kx, ky)
-!                    do kz = 1, nz-1
-!                        filt(kz, kx, ky) = filt(0, kx, ky) * skz(kz)
-!                    enddo
-!                enddo
-!            enddo
-!
-!            !Ensure filter does not change domain mean:
-!            filt(:, 0, 0) = one
 
         end subroutine
 
@@ -545,10 +489,6 @@ module inversion_utils
             double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
             integer                       :: iz
 
-            ! Quadratic extrapolation at boundaries:
-            !ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
-            !ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
-
             ! Linear extrapolation at the boundaries:
             ! iz = 0:  (fs(1) - fs(0)) / dz
             ! iz = nz: (fs(nz) - fs(nz-1)) / dz
@@ -626,80 +566,6 @@ module inversion_utils
 
             ! Carry out a full inverse x transform:
             call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Computes a 3D FFT of an array fp in physical space and
-        !returns the result as fs in spectral space.  It is assumed that
-        !fp is generally non-zero at the z boundaries (so a cosine
-        !transform is used in z).
-        !*** fp is destroyed upon exit ***
-        subroutine fftczp2s(fp, fs)
-            double precision, intent(inout) :: fp(:, :, :)  !Physical
-            double precision, intent(out)   :: fs(:, :, :)  !Spectral
-            integer                         :: kx, ky, iy, nzval, nxval, nyval
-
-            nzval = size(fp, 1)
-            nyval = size(fp, 2)
-            nxval = size(fp, 3)
-
-            !Carry out a full x transform first:
-            call forfft(nzval * nyval, nxval, fp, xtrig, xfactors)
-
-            !Transpose array:
-            do kx = 1, nxval
-                do iy = 1, nyval
-                    fs(:, kx, iy) = fp(:, iy, kx)
-                enddo
-            enddo
-
-            !Carry out a full y transform on transposed array:
-            call forfft(nzval * nxval, nyval, fs, ytrig, yfactors)
-
-            !Carry out z FFT for each kx and ky:
-            do ky = 1, nyval
-                do kx = 1, nxval
-                    call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Computes an *inverse* 3D FFT of an array fs in spectral space and
-        !returns the result as fp in physical space.  It is assumed that
-        !fp is generally non-zero at the z boundaries (so a cosine
-        !transform is used in z).
-        !*** fs is destroyed upon exit ***
-        subroutine fftczs2p(fs, fp)
-            double precision, intent(inout) :: fs(:, :, :)  !Spectral
-            double precision, intent(out)   :: fp(:, :, :)  !Physical
-            integer                         :: ix, iy, kx, nzval, nxval, nyval
-
-            nzval = size(fs, 1)
-            nxval = size(fs, 2)
-            nyval = size(fs, 3)
-
-            !Carry out a full inverse y transform first:
-            call revfft(nzval * nxval, nyval,fs,ytrig,yfactors)
-
-            !Transpose array:
-            do kx = 1, nxval
-                do iy = 1, nyval
-                    fp(:, iy, kx) = fs(:, kx, iy)
-                enddo
-            enddo
-
-            !Carry out a full inverse x transform:
-            call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
-
-            !Carry out z FFT for each ix and iy:
-            do ix = 1, nxval
-                do iy = 1, nyval
-                    call dct(1, nzval-1, fp(:, iy, ix), ztrig, zfactors)
-                enddo
-            enddo
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

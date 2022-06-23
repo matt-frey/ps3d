@@ -1,8 +1,8 @@
 module inversion_mod
     use inversion_utils
-    use parameters, only : nx, ny, nz, fnzi
+    use parameters, only : nx, ny, nz
     use physics, only : f_cor
-    use constants, only : zero, two, f12
+    use constants, only : zero
     use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
     use fields
@@ -27,6 +27,7 @@ module inversion_mod
 
             call start_timer(vor2vel_timer)
 
+            !----------------------------------------------------------
             ! Enforce solenoidality
             ! A, B, C are vorticities
             ! D = B_x - A_y; E = C_z
@@ -38,7 +39,7 @@ module inversion_mod
             call field_combine_semi_spectral(cs)
             call diffz(cs, es)                     ! es = E
             call field_decompose_semi_spectral(es)
-            
+
             call diffx(es, svor(:, :, :, 1)) ! E_x
             call diffy(ds, cs)                  ! cs = D_y
             do iz = 0, nz
@@ -47,12 +48,12 @@ module inversion_mod
 
             call diffy(es, svor(:, :, :, 2)) ! E_y
             call diffx(ds, cs)               ! D_x
-     
+
             do iz = 0, nz
                svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
             enddo
 
-            
+            !----------------------------------------------------------
             !Combine vorticity in physical space:
             do nc = 1, 3
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
@@ -190,7 +191,7 @@ module inversion_mod
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            integer          :: nc, iz
+            integer          :: nc
 
             call start_timer(vtend_timer)
 
@@ -237,12 +238,6 @@ module inversion_mod
             call diffy(p, r)                                ! here: r = dp/dy
             svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
 
-            ! Apply Gaussian filter to boundaries of horizontal vorticities (xi, eta):
-!            do nc = 1, 2
-!               svtend(0,  :, :, nc) = gauss * svtend(0,  :, :, nc)
-!               svtend(nz, :, :, nc) = gauss * svtend(nz, :, :, nc)
-!            enddo
-            
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency
