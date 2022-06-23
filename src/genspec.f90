@@ -3,6 +3,7 @@ program genspec
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
+    use sta2dfft, only : dct, dst
     use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
@@ -16,7 +17,7 @@ program genspec
     integer, allocatable          :: num(:)
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, dki, prefactor, snorm
-    double precision              :: ens ! enstrophy
+    double precision              :: ke ! kinetic energy
     integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
@@ -91,13 +92,13 @@ program genspec
         endif
     enddo
 
-    ! calculate enstrohpy
-    ens = get_enstrophy()
+    ! calculate kinetic energy
+    ke = get_kinetic_energy()
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)
-    ! has the property that its integral over K gives the total enstrophy
-    snorm = ens / sum(spec * dk)
+    ! has the property that its integral over K gives the total kinetic energy
+    snorm = ke / sum(spec * dk)
 
     ! normalise the spectrum
     spec = spec * snorm
