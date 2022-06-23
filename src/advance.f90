@@ -43,18 +43,15 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
+#ifdef ENABLE_BUOYANCY
+            double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
+#endif
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
             !Also, returns vorticity in physical space for use everywhere
             call vor2vel
-
-            ! Calculate svtend, for writing purposes only
-            call vorticity_tendency
 
             !Adapt the time step
             call adapt(t)
@@ -67,22 +64,29 @@ module advance_mod
 
             !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
             !vorticity in spectral space:
-            call source(sbuoys, svorts)
+            call source
 
-            !Initialise iteration (dt = dt/4 below):
+            !Initialise iteration (dt = dt/2 below):
+#ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
+            call field_combine_semi_spectral(sbuoy)
+            do iz = 0, nz
+                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+            enddo
+            call field_decompose_semi_spectral(sbuoy)
+#endif
 
             ! Advance interior and boundary of vorticity
             vortsm = svor + dt2 * svorts
 
             do nc = 1, 3
-               svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-               call field_combine_semi_spectral(svor(:, :, :, nc))
-               do iz = 0, nz
-                  svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-               enddo
-               call field_decompose_semi_spectral(svor(:, :, :, nc))
+                svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                call field_combine_semi_spectral(svor(:, :, :, nc))
+                do iz = 0, nz
+                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                enddo
+                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             call adjust_vorticity_mean
@@ -96,18 +100,20 @@ module advance_mod
                 call vor2vel
 
                 !Calculate the source terms (sbuoys,svorts):
-                call source(sbuoys, svorts)
+                call source
 
                 !Update fields:
+#ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
+#endif
 
                 do nc = 1, 3
-                   svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                   call field_combine_semi_spectral(svor(:, :, :, nc))
-                   do iz = 0, nz
-                      svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                   enddo
-                   call field_decompose_semi_spectral(svor(:, :, :, nc))
+                    svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                    call field_combine_semi_spectral(svor(:, :, :, nc))
+                    do iz = 0, nz
+                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    enddo
+                    call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
                 call adjust_vorticity_mean
@@ -143,9 +149,7 @@ module advance_mod
         ! The spectral fields sbuoy and svor are all spectrally truncated.
         ! Note, vel obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
-        subroutine source(sbuoys, svorts)
-            double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
-            double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
+        subroutine source
 !             double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
 !             double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
 !             double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
@@ -178,18 +182,12 @@ module advance_mod
 !             !Convert to semi-spectral space and apply de-aliasing filter:
 !             call fftxyp2s(dbdx, sbuoys)
 !
-            sbuoys = zero
-!             sbuoys = -filt * sbuoys
+!             sbuoys = zero
 
             !--------------------------------------------------------------
-            !Vorticity source (excluding buoyancy effects):
+            !Vorticity source:
 
             call vorticity_tendency
-
-            !Add filtered vorticity tendency to vorticity source: (svorts can be removed)
-            svorts(:, :, :, 1) = svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = svtend(:, :, :, 2)
-            svorts(:, :, :, 3) = svtend(:, :, :, 3)
 
         end subroutine source
 
@@ -201,8 +199,10 @@ module advance_mod
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
             double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
             double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
+#ifdef ENABLE_BUOYANCY
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
+#endif
             double precision             :: strain(3, 3), eigs(3)
             double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
             double precision             :: dudy(0:nz, 0:ny-1, 0:nx-1)      ! du/dy in physical space
@@ -211,7 +211,9 @@ module advance_mod
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
             double precision             :: ke, en, vormean(3)
 
+            bfmax = zero
 
+#ifdef ENABLE_BUOYANCY
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             call diffx(sbuoy, xs)
             call diffy(sbuoy, ys)
@@ -228,6 +230,8 @@ module advance_mod
 
             !Maximum buoyancy frequency:
             bfmax = sqrt(sqrt(maxval(xp)))
+#endif
+
 
             !Compute enstrophy: (reuse xp)
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2

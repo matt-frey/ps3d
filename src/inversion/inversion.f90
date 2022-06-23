@@ -184,7 +184,7 @@ module inversion_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
+        ! Compute the gridded vorticity tendency:
         subroutine vorticity_tendency
             double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
             double precision :: gp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
@@ -201,8 +201,9 @@ module inversion_mod
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
             enddo
 
+#ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-
+#endif
             !-------------------------------------------------------
             ! Tendency in flux form:
             !   dxi/dt  = dr/dy - dq/dz
@@ -210,7 +211,10 @@ module inversion_mod
             !  dzeta/dt = dq/dx - dp/dy
 
             ! r = u * eta - v * xi + b
-            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1) + buoy
+            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1)
+#ifdef ENABLE_BUOYANCY
+            fp = fp + buoy
+#endif
             call field_decompose_physical(fp, r)
 
             ! q = w * xi - u * zeta
@@ -218,25 +222,25 @@ module inversion_mod
             call field_decompose_physical(fp, q)
 
             ! dxi/dt  = dr/dy - dq/dz
-            call diffy(r, svtend(:, :, :, 1))
+            call diffy(r, svorts(:, :, :, 1))
             call diffz(fp, gp)
             call field_decompose_physical(gp, p)
-            svtend(:, :, :, 1) = svtend(:, :, :, 1) - p     ! here: p = dq/dz
+            svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
 
             ! p = v * zeta - w * eta
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
             call field_decompose_physical(fp, p)
 
             ! deta/dt = dp/dz - dr/dx
-            call diffx(r, svtend(:, :, :, 2))
+            call diffx(r, svorts(:, :, :, 2))
             call diffz(fp, gp)
             call field_decompose_physical(gp, r)
-            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)     ! here: r = dp/dz
+            svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
 
             ! dzeta/dt = dq/dx - dp/dy
-            call diffx(q, svtend(:, :, :, 3))
+            call diffx(q, svorts(:, :, :, 3))
             call diffy(p, r)                                ! here: r = dp/dy
-            svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
+            svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
 
             call stop_timer(vtend_timer)
 

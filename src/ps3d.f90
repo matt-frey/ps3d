@@ -8,8 +8,6 @@ program ps3d
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
     use inversion_utils, only : init_inversion          &
-                              , fftxyp2s                &
-!                               , filt                    &
                               , init_diffusion          &
                               , field_decompose_physical
     use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
@@ -69,21 +67,19 @@ program ps3d
             ini_vor_mean(2) = vormean(2)
 
             ! decompose initial fields
+#ifdef ENABLE_BUOYANCY
             call field_decompose_physical(buoy, sbuoy)
+#endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
             call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
-!             ! apply Hou and Li de-aliasing filter
-!             do iz = 0, nz
-!                 svori(iz, :, :, 1) = filt * svori(iz, :, :, 1)
-!                 svori(iz, :, :, 2) = filt * svori(iz, :, :, 2)
-!                 svori(iz, :, :, 3) = filt * svori(iz, :, :, 3)
-!                 sbuoy(iz, :, :)    = filt * sbuoy(iz, :, :)
-!             enddo
-
             call vor2vel
+#ifdef ENABLE_BUOYANCY
             bbdif = maxval(buoy) - minval(buoy)
+#else
+            bbdif = zero
+#endif
             ke = get_kinetic_energy()
             en = get_enstrophy()
             call init_diffusion(bbdif, ke, en)
