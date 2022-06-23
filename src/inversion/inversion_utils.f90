@@ -1,6 +1,6 @@
 module inversion_utils
     use constants
-    use parameters, only : nx, ny, nz, dx, dxi, extent, ncelli
+    use parameters, only : nx, ny, nz, dx, dxi, extent, ncelli, upper, lower
     use stafft
     use sta2dfft
     use deriv1d, only : init_deriv
@@ -28,18 +28,24 @@ module inversion_utils
     double precision, allocatable :: green(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :, :)
+    double precision, allocatable :: hdis(:, :)
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: gauss(:, :)
 
     double precision, allocatable :: gamtop(:), gambot(:)
-    double precision, allocatable :: phitop(:), phibot(:)
-    double precision, allocatable :: psi(:, :, :), dpsi(:, :, :)
+
+    double precision, allocatable :: thetam(:, :, :)    ! theta_{-}
+    double precision, allocatable :: thetap(:, :, :)    ! theta_{+}
+    double precision, allocatable :: dthetam(:, :, :)   ! dtheta_{-}/dz
+    double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
+    double precision, allocatable :: phim(:, :, :)      ! phi_{-}
+    double precision, allocatable :: phip(:, :, :)      ! phi_{+}
+
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
-
 
 
     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
@@ -56,6 +62,7 @@ module inversion_utils
             , fftxys2p              &
             , dz2                   &
             , filt                  &
+            , gauss                 &
             , hdzi                  &
             , k2l2i                 &
             , hdis                  &
@@ -70,12 +77,12 @@ module inversion_utils
             , rky                   &
             , rkz                   &
             , rkzi                  &
-            , phibot                &
-            , phitop                &
+            , thetap                &
+            , thetam                &
+            , dthetap               &
+            , dthetam               &
             , gambot                &
-            , gamtop                &
-            , psi                   &
-            , dpsi
+            , gamtop
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -91,11 +98,10 @@ module inversion_utils
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             double precision, intent(in) :: ke ! kinetic energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: rkxmax, rkymax, rkzmax, K2max
-            double precision             :: visc, wfac, hwfac
-            integer                      :: kx, ky, kz
+            double precision             :: rkxmax, rkymax, K2max
+            double precision             :: visc, wfac
 
-            allocate(hdis(0:nz, 0:nx-1, 0:ny-1))
+            allocate(hdis(0:nx-1, 0:ny-1))
 
             ! check if FFT is initialised
             if (.not. is_fft_initialised) then
@@ -105,7 +111,6 @@ module inversion_utils
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
-            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
@@ -115,52 +120,40 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * k2l2(kx, ky)
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2)
-                        enddo
-                    enddo
-                enddo
-            else
+                hdis = visc * k2l2
+             else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax, rkzmax) ** 2
+                K2max = max(rkxmax, rkymax) ** 2
                 wfac = one / K2max
-                hwfac = one / (max(rkxmax, rkymax) ** 2)
                 visc = viscosity%prediss *  (K2max * ke /en) ** f13
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:
-                do ky = 0, ny-1
-                    do kx = 0, nx-1
-                        hdis(0,  kx, ky) = visc * (hwfac * k2l2(kx, ky)) ** viscosity%nnu
-                        hdis(nz, kx, ky) = hdis(0,  kx, ky)
-                        do kz = 1, nz-1
-                            hdis(kz, kx, ky) = visc * (wfac * (k2l2(kx, ky) + rkz(kz) ** 2)) ** viscosity%nnu
-                        enddo
-                    enddo
-                enddo
-            endif
+                hdis = visc * (wfac * k2l2) ** viscosity%nnu
+             
+                !Ensure average is not modified by hyperviscosity:
+                hdis(0, 0) = zero
+             endif
         end subroutine init_diffusion
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            integer                      :: kx, ky, iz, kz
-            double precision             :: fac, faci, div, kl, kli
-            double precision             :: em(1:nz-1), ep(1:nz-1)
+            integer          :: kx, ky, iz, kz
+            double precision :: z, zm(0:nz), zp(0:nz)
 
             call init_fft
 
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
-            allocate(psi(1:nz-1, 0:nx-1, 0:ny-1))
-            allocate(dpsi(0:nz, 0:nx-1, 0:ny-1))
-            allocate(phitop(1:nz-1))
-            allocate(phibot(1:nz-1))
             allocate(gamtop(0:nz))
             allocate(gambot(0:nz))
+
+            allocate(phim(0:nz, 0:nx-1, 0:ny-1))
+            allocate(phip(0:nz, 0:nx-1, 0:ny-1))
+            allocate(thetam(0:nz, 0:nx-1, 0:ny-1))
+            allocate(thetap(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dthetam(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dthetap(0:nz, 0:nx-1, 0:ny-1))
 
             !---------------------------------------------------------------------
             !Define Green function
@@ -169,73 +162,91 @@ module inversion_utils
             enddo
 
             !---------------------------------------------------------------------
-            !Define phitop = (z-lower(3)) / extent(3) --> phitop goes from 0 to 1
-            fac = one / dble(nz)
-            do iz = 1, nz-1
-                phitop(iz) = fac * dble(iz)
-                phibot(iz) = fac * dble(nz-iz)
-            enddo
-            !Here phibot is the complement of phitop.
-
-            !Define gamtop as the integral of phitop with zero average:
-            gamtop(0)  = -f16 * extent(3)
-            gamtop(1:nz-1) = f12 * extent(3) * (phitop ** 2 - f13)
-            gamtop(nz) =  f13 * extent(3)
+            !Define zm = zmax - z, zp = z - zmin
             do iz = 0, nz
-                gambot(iz)  = gamtop(nz-iz)
+                z = lower(3) + dx(3) * dble(iz)
+                zm(iz) = upper(3) - z
+                zp(iz) = z - lower(3)
             enddo
-            !Here gambot is the complement of gamtop.
 
             !Hyperbolic functions used for solutions of Laplace's equation:
             do ky = 1, ny-1
                 do kx = 0, nx-1
-                    kl  = dsqrt(k2l2(kx, ky))
-                    kli = one / kl
-                    fac = kl * extent(3)
-                    faci = one / fac
-                    div = one / (one - dexp(-two * fac))
-                    em = dexp(-fac * (one - phitop))
-                    ep = dexp(-fac * (one + phitop))
-                    psi(:      , kx, ky) = k2l2i(kx, ky) * (div * (em - ep) - phitop)
-                    dpsi(1:nz-1, kx, ky) =           kli * (div * (em + ep) - faci)
-
-                    ! iz = 0  --> phitop = 0
-                    dpsi(0 , kx, ky) = kli * (div * two * dexp(-fac) - faci)
-                    ! iz = nz --> phitop = 1
-                    dpsi(nz, kx, ky) = kli * (div * (one + dexp(-two * fac)) - faci)
+                    call set_hyperbolic_functions(kx, ky, zm, zp)
                 enddo
             enddo
 
             ! ky = 0
             do kx = 1, nx-1
-                kli = one / rkx(kx)
-                fac = rkx(kx) * extent(3)
-                faci = one / fac
-                div = one / (one - dexp(-two * fac))
-                em = dexp(-fac * (one - phitop))
-                ep = dexp(-fac * (one + phitop))
-                psi(:      , kx, 0) = k2l2i(kx, 0) * (div * (em - ep) - phitop)
-                dpsi(1:nz-1, kx, 0) =          kli * (div * (em + ep) - faci)
-
-                ! iz = 0  --> phitop = 0
-                dpsi(0 ,  kx, 0) = kli * (div * two * dexp(-fac) - faci)
-                ! iz = nz --> phitop = 1
-                dpsi(nz, kx, 0) = kli * (div * (one + dexp(-two * fac)) - faci)
+                call set_hyperbolic_functions(kx, 0, zm, zp)
             enddo
 
             ! kx = ky = 0
-            psi(: , 0, 0) = zero
-            dpsi(:, 0, 0) = zero
+            phim(:, 0, 0) = zm / extent(3)
+            phip(:, 0, 0) = zp / extent(3)
 
-          end subroutine init_inversion
+            thetam(:, 0, 0) = zero
+            thetap(:, 0, 0) = zero
+
+            dthetam(:, 0, 0) = zero
+            dthetap(:, 0, 0) = zero
+
+            !---------------------------------------------------------------------
+            !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
+            gamtop = f12 * extent(3) * (phip(:, 0, 0) ** 2 - f13)
+            do iz = 0, nz
+                gambot(iz) = gamtop(nz-iz)
+            enddo
+            !Here gambot is the complement of gamtop.
+
+        end subroutine init_inversion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! for kx > 0 and ky >= 0 or kx >= 0 and ky > 0
+        subroutine set_hyperbolic_functions(kx, ky, zm, zp)
+            integer,          intent(in) :: kx, ky
+            double precision, intent(in) :: zm(0:nz), zp(0:nz)
+            double precision             :: R(0:nz), Q(0:nz), k2ifac, dphim(0:nz), dphip(0:nz)
+            double precision             :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
+            double precision             :: fac, div, kl
+
+            kl = dsqrt(k2l2(kx, ky))
+            fac = kl * extent(3)
+            ef = dexp(- fac)
+            div = one / (one - ef**2)
+            k2ifac = f12 * k2l2i(kx, ky)
+
+            Lm = kl * zm
+            Lp = kl * zp
+
+            ep = dexp(- Lp)
+            em = dexp(- Lm)
+
+            phim(:, kx, ky) = div * (ep - ef * em)
+            phip(:, kx, ky) = div * (em - ef * ep)
+
+            dphim = - kl * div * (ep + ef * em)
+            dphip =   kl * div * (em + ef * ep)
+
+            Q = div * (one + ef**2)
+            R = div * two * ef
+
+            thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
+            thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
+
+            dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
+            dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
+
+        end subroutine set_hyperbolic_functions
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         !Initialises this module (FFTs, x & y wavenumbers, tri-diagonal
         !coefficients, etc).
         subroutine init_fft
-            double precision              :: rkxmax, rkymax, rkzmax
-            double precision              :: rksqmax
+            double precision              :: rkxmax, rkymax!, rkzmax
+            double precision              :: rksqmax, C_g, A_g
             double precision              :: kxmaxi, kymaxi, kzmaxi
             integer                       :: kx, ky, kz
             double precision              :: skx(0:nx-1), sky(0:ny-1), skz(0:nz)
@@ -262,6 +273,7 @@ module inversion_utils
             allocate(k2l2(0:nx-1, 0:ny-1))
 
             allocate(filt(0:nz, 0:nx-1, 0:ny-1))
+            allocate(gauss(0:nx-1, 0:ny-1))
             allocate(rkx(0:nx-1))
             allocate(hrkx(nx))
             allocate(rky(0:ny-1))
@@ -314,23 +326,31 @@ module inversion_utils
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
 
-             !----------------------------------------------------------
-             !Define Hou and Li filter (2D and 3D):
-             kxmaxi = one / maxval(rkx)
-             skx = -36.d0 * (kxmaxi * rkx) ** 36
-             kymaxi = one/maxval(rky)
-             sky = -36.d0 * (kymaxi * rky) ** 36
-             kzmaxi = one/maxval(rkz)
-             skz = -36.d0 * (kzmaxi * rkz) ** 36
-             do ky = 0, ny-1
-                 do kx = 0, nx-1
-                     filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
-                     filt(nz, kx, ky) = filt(0, kx, ky)
-                     do kz = 1, nz-1
-                         filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
-                     enddo
-                 enddo
-             enddo
+            !----------------------------------------------------------
+            !Define Hou and Li filter (2D and 3D) and Gauss filter (2D):
+
+            A_g = 4.0d0
+            C_g = A_g / max(rkxmax, rkymax)
+            gauss = dexp(-C_g * k2l2)
+            
+            kxmaxi = one / maxval(rkx)
+            skx = -36.d0 * (kxmaxi * rkx) ** 36
+            kymaxi = one/maxval(rky)
+            sky = -36.d0 * (kymaxi * rky) ** 36
+            kzmaxi = one/maxval(rkz)
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
+            do ky = 0, ny-1
+               do kx = 0, nx-1
+                  filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
+                  filt(nz, kx, ky) = filt(0, kx, ky)
+                  do kz = 1, nz-1
+                     filt(kz, kx, ky) = filt(0, kx, ky) * dexp(skz(kz))
+                  enddo
+               enddo
+            enddo
+            
+            !Ensure filter does not change domain mean:
+            filt(:, 0, 0) = one
 
 
 !            !---------------------------------------------------------------------
@@ -373,8 +393,26 @@ module inversion_utils
 !                    enddo
 !                enddo
 !            enddo
+!
+!            !Ensure filter does not change domain mean:
+!            filt(:, 0, 0) = one
 
         end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine field_decompose_physical(fc, sf)
+            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+                                                                         ! semi-spectral at iz = 0 and iz = nz
+            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
+
+            cfc = fc
+            call fftxyp2s(cfc, sf)
+
+            call field_decompose_semi_spectral(sf)
+
+        end subroutine field_decompose_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -385,9 +423,9 @@ module inversion_utils
             double precision                :: sfctop(0:nx-1, 0:ny-1)
             integer                         :: iz, kx, ky
 
-            ! get linear part
+            ! subtract harmonic part
             do iz = 1, nz-1
-                sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phibot(iz) + sfc(nz, :, :) * phitop(iz))
+                sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phim(iz, :, :) + sfc(nz, :, :) * phip(iz, :, :))
             enddo
 
             sfctop = sfc(nz, :, :)
@@ -405,18 +443,20 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine field_decompose_physical(fc, sf)
-            double precision, intent(in)  :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
-            double precision, intent(out) :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
+        subroutine field_combine_physical(sf, fc)
+            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
                                                                          ! semi-spectral at iz = 0 and iz = nz
-            double precision              :: cfc(0:nz, 0:ny-1, 0:nx-1)   ! copy of complete field (physical space)
+            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
+            double precision              :: sfc(0:nz, 0:nx-1, 0:ny-1)   ! complete field (semi-spectral space)
 
-            cfc = fc
-            call fftxyp2s(cfc, sf)
+            sfc = sf
 
-            call field_decompose_semi_spectral(sf)
+            call field_combine_semi_spectral(sfc)
 
-        end subroutine field_decompose_physical
+            ! transform to physical space as fc:
+            call fftxys2p(sfc, fc)
+
+        end subroutine field_combine_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -437,29 +477,12 @@ module inversion_utils
             enddo
             sf(nz, :, :) = sftop
 
-            ! get linear part and add to sfc:
+            ! add harmonic part to sfc:
             do iz = 1, nz-1
-                sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phibot(iz) + sf(nz, :, :) * phitop(iz)
+                sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phim(iz, :, :) + sf(nz, :, :) * phip(iz, :, :)
             enddo
 
         end subroutine field_combine_semi_spectral
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine field_combine_physical(sf, fc)
-            double precision, intent(in)  :: sf(0:nz, 0:nx-1, 0:ny-1)    ! full-spectral (1:nz-1),
-                                                                         ! semi-spectral at iz = 0 and iz = nz
-            double precision, intent(out) :: fc(0:nz, 0:ny-1, 0:nx-1)    ! complete field (physical space)
-            double precision              :: sfc(0:nz, 0:nx-1, 0:ny-1)   ! complete field (semi-spectral space)
-
-            sfc = sf
-
-            call field_combine_semi_spectral(sfc)
-
-            ! transform to physical space as fc:
-            call fftxys2p(sfc, fc)
-
-        end subroutine field_combine_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -523,8 +546,14 @@ module inversion_utils
             integer                       :: iz
 
             ! Quadratic extrapolation at boundaries:
-            ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
-            ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
+            !ds(0,  :, :) = hdzi * (four * fs(1,  :, :) - three * fs(0,    :, :) - fs(2, :, :))
+            !ds(nz, :, :) = hdzi * (three * fs(nz, :, :) + fs(nz-2, :, :) - four * fs(nz-1, :, :))
+
+            ! Linear extrapolation at the boundaries:
+            ! iz = 0:  (fs(1) - fs(0)) / dz
+            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+            ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
+            ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
 
             ! central differencing for interior cells
             !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)

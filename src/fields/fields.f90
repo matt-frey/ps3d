@@ -21,9 +21,11 @@ module fields
 
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
-        sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
-        diss        ! dissipation operator (fully spectral in iz=1, nz-1, semi-spectral at iz = 0 and iz = nz)
+        sbuoy       ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
 
+    double precision, allocatable, dimension(:, :) :: &
+        diss        ! dissipation operator
+    
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
@@ -46,7 +48,7 @@ module fields
             allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoy(0:nz, 0:nx-1, 0:ny-1))
 
-            allocate(diss(0:nz, 0:nx-1, 0:ny-1))
+            allocate(diss(0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
 

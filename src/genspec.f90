@@ -3,6 +3,7 @@ program genspec
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
+    use sta2dfft, only : dct, dst
     use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
@@ -16,7 +17,7 @@ program genspec
     integer, allocatable          :: num(:)
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, dki, prefactor, snorm
-    double precision              :: ens ! enstrophy
+    double precision              :: ke ! kinetic energy
     integer                       :: step
 
     call register_timer('field I/O', field_io_timer)
@@ -26,7 +27,7 @@ program genspec
     ! read domain dimensions
     call setup_domain_and_parameters(trim(filename))
 
-    allocate(kmag(0:nz, 0:ny-1, 0:nx-1))
+    allocate(kmag(0:nz, 0:nx-1, 0:ny-1))
 
     call field_default
 
@@ -37,16 +38,23 @@ program genspec
     ! use some dummy values for bbdif, nnu and prediss
     call init_inversion
 
-    ! (1) compute the 3D spectrum of each vorticity component assuming cosine in z
+    ! (1) compute the 3D spectrum of each velocity component:
     do nc = 1, 3
-        call fftczp2s(vor(:, :, :, nc), svor(:, :, :, nc))
+        call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
+    enddo
+    do ky = 0, ny-1
+        do kx = 0, nx-1
+            call dct(1, nz, svel(0:nz, kx, ky, 1), ztrig, zfactors) ! u
+            call dct(1, nz, svel(0:nz, kx, ky, 2), ztrig, zfactors) ! v
+            call dst(1, nz, svel(1:nz, kx, ky, 3), ztrig, zfactors) ! w
+        enddo
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
-    do kx = 0, nx-1
-        do ky = 0, ny-1
+    do ky = 0, ny-1
+        do kx = 0, nx-1
             do kz = 0, nz
-                kmag(kz, ky, kx) = nint(dsqrt(rkx(kx+1) ** 2 + rky(ky+1) ** 2 + rkz(kz) ** 2))
+                kmag(kz, kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
      enddo
@@ -64,11 +72,11 @@ program genspec
     spec = zero
     num = 0
 
-    do kx = 0, nx-1
-        do ky = 0, ny-1
+    do ky = 0, ny-1
+        do kx = 0, nx-1
             do kz = 0, nz
-                m = int(dble(kmag(kz, ky, kx)) * dki)
-                spec(m) = svor(kz, kx, ky, 1) ** 2 + svor(kz, kx, ky, 2) ** 2 + svor(kz, kx, ky, 3) ** 2
+                m = int(dble(kmag(kz, kx, ky)) * dki)
+                spec(m) = svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo
@@ -84,13 +92,13 @@ program genspec
         endif
     enddo
 
-    ! calculate enstrohpy
-    ens = get_enstrophy()
+    ! calculate kinetic energy
+    ke = get_kinetic_energy()
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)
-    ! has the property that its integral over K gives the total enstrophy
-    snorm = ens / sum(spec * dk)
+    ! has the property that its integral over K gives the total kinetic energy
+    snorm = ke / sum(spec * dk)
 
     ! normalise the spectrum
     spec = spec * snorm

@@ -9,7 +9,8 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : fftxys2p
+    use inversion_utils, only : field_combine_physical, fftxys2p, diffx, diffy, diffz, &
+         field_combine_semi_spectral
     implicit none
 
     integer :: field_io_timer
@@ -20,10 +21,12 @@ module field_netcdf
     integer            :: coord_ids(3)  ! = (x, y, z)
     integer            :: t_axis_id
 
-    integer            :: x_vel_id, y_vel_id, z_vel_id, &
-                          x_vor_id, y_vor_id, z_vor_id, &
-                          buoy_id, n_writes,            &
-                          xvtend_id, yvtend_id, zvtend_id
+    integer            :: x_vel_id, y_vel_id, z_vel_id,    &
+                          x_vor_id, y_vor_id, z_vor_id,    &
+                          buoy_id, n_writes,               &
+                          xvtend_id, yvtend_id, zvtend_id, &
+                          divvel_id, divvor_id, zeta_z_id, &
+                          xi_x_id, eta_y_id, eta_x_id, xi_y_id
 
     private :: ncid, ncfname,                   &
                dimids,                          &
@@ -31,7 +34,9 @@ module field_netcdf
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
                buoy_id, n_writes,               &
-               xvtend_id, yvtend_id, zvtend_id
+               xvtend_id, yvtend_id, zvtend_id, &
+               divvel_id, divvor_id, zeta_z_id, &
+               xi_x_id, eta_y_id, eta_x_id, xi_y_id
 
     contains
 
@@ -160,6 +165,69 @@ module field_netcdf
                                        dimids=dimids,                       &
                                        varid=zvtend_id)
 
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='divergence_velocity',          &
+                                       long_name='div. of velocity',        &
+                                       std_name='',                         &
+                                       unit='1/s',                          &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=divvel_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='divergence_vorticity',         &
+                                       long_name='div. of vorticity',       &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=divvor_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='zeta_z',                       &
+                                       long_name='zeta_z',                  &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=zeta_z_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='xi_x',                       &
+                                       long_name='xi_x',                  &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=xi_x_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='eta_y',                       &
+                                       long_name='eta_y',                  &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=eta_y_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='eta_x',                       &
+                                       long_name='eta_x',                  &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=eta_x_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='xi_y',                       &
+                                       long_name='xi_y',                  &
+                                       std_name='',                         &
+                                       unit='1/(m s)',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=xi_y_id)
+            
             call close_definition(ncid)
 
         end subroutine create_netcdf_field_file
@@ -204,6 +272,17 @@ module field_netcdf
 
             call get_var_id(ncid, 'z_vorticity_tendency', zvtend_id)
 
+            call get_var_id(ncid, 'divergence_velocity', divvel_id)
+
+            call get_var_id(ncid, 'divergence_vorticity', divvor_id)
+
+
+            call get_var_id(ncid, 'zeta_z', zeta_z_id)
+            call get_var_id(ncid, 'xi_x', xi_x_id)
+            call get_var_id(ncid, 'eta_y', eta_y_id)
+            call get_var_id(ncid, 'eta_x', eta_x_id)
+            call get_var_id(ncid, 'xi_y', xi_y_id)
+            
         end subroutine read_netcdf_field_content
 
         ! Write a step in the field file.
@@ -214,6 +293,7 @@ module field_netcdf
             integer                      :: cnt(4), start(4)
             double precision             :: bs(0:nz, 0:nx-1, 0:ny-1) ! buoyancy in semi-spectral space (temporary)
             double precision             :: vtend(0:nz, 0:ny-1, 0:nx-1)
+            double precision             :: dd(0:nz, 0:ny-1, 0:nx-1), ds(0:nz, 0:nx-1, 0:ny-1)
 
             call start_timer(field_io_timer)
 
@@ -248,23 +328,90 @@ module field_netcdf
                                       start, cnt)
 
             bs = sbuoy
-            call fftxys2p(bs, buoy)
+            call field_combine_physical(bs, buoy)
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
                  start, cnt)
 
             bs = svtend(:, :, :, 1)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, xvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 2)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, yvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                  start, cnt)
 
             bs = svtend(:, :, :, 3)
-            call fftxys2p(bs, vtend)
+            call field_combine_physical(bs, vtend)
             call write_netcdf_dataset(ncid, zvtend_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+
+            !
+            ! divergence of velocity
+            !
+            !du/dx
+            call diffx(svel(:, :, :, 1), bs)
+            call fftxys2p(bs, dd)
+
+            ! dv/dy
+            call diffy(svel(:, :, :, 2), bs)
+            call fftxys2p(bs, vtend)
+            vtend = dd + vtend
+
+            ! dw/dz
+            call diffz(vel(:, :, :, 3), dd)
+            vtend = dd + vtend
+            call write_netcdf_dataset(ncid, divvel_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+
+            !
+            ! divergence of vorticity
+            !
+
+            !dxi/dy
+            ds = svor(:, :, :, 1)
+            call field_combine_semi_spectral(ds)
+
+            call diffy(ds, bs)
+            call fftxys2p(bs, dd)
+
+            call write_netcdf_dataset(ncid, xi_y_id, dd(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+            !dxi/dx
+            call diffx(ds, bs)
+            call fftxys2p(bs, dd)
+
+            call write_netcdf_dataset(ncid, xi_x_id, dd(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+            ! deta/dy
+            ds = svor(:, :, :, 2)
+            call field_combine_semi_spectral(ds)
+            call diffy(ds, bs)
+            call fftxys2p(bs, vtend)
+
+            call write_netcdf_dataset(ncid, eta_y_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+            vtend = dd + vtend
+
+            ! deta/dx
+            call diffx(ds, bs)
+            call fftxys2p(bs, dd)
+            call write_netcdf_dataset(ncid, eta_x_id, dd(0:nz, 0:ny-1, 0:nx-1), &
+                 start, cnt)
+
+
+            ! dzeta/dz
+            call diffz(vor(:, :, :, 3), dd)
+            vtend = dd + vtend
+
+            call write_netcdf_dataset(ncid, zeta_z_id, dd(0:nz, 0:ny-1, 0:nx-1), &
+                                      start, cnt)
+            
+            call write_netcdf_dataset(ncid, divvor_id, vtend(0:nz, 0:ny-1, 0:nx-1), &
                                       start, cnt)
 
             ! increment counter
@@ -321,6 +468,30 @@ module field_netcdf
                 write(*, "(a42)", advance="no") "Found z-vorticity field input, reading ..."
                 call read_netcdf_dataset(ncid, 'z_vorticity',            &
                                          vor(0:nz, 0:ny-1, 0:nx-1, 3),   &
+                                         start=start, cnt=cnt)
+                 write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'x_velocity')) then
+                write(*, "(a42)", advance="no") "Found x-velocity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'x_velocity',             &
+                                         vel(0:nz, 0:ny-1, 0:nx-1, 1),   &
+                                         start=start, cnt=cnt)
+                write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'y_velocity')) then
+                write(*, "(a42)", advance="no") "Found y-velocity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'y_velocity',             &
+                                         vel(0:nz, 0:ny-1, 0:nx-1, 2),   &
+                                         start=start, cnt=cnt)
+                 write(*, *) "done"
+            endif
+
+            if (has_dataset(ncid, 'z_velocity')) then
+                write(*, "(a42)", advance="no") "Found z-velocity field input, reading ..."
+                call read_netcdf_dataset(ncid, 'z_velocity',             &
+                                         vel(0:nz, 0:ny-1, 0:nx-1, 3),   &
                                          start=start, cnt=cnt)
                  write(*, *) "done"
             endif

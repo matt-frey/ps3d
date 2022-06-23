@@ -71,13 +71,18 @@ module advance_mod
 
             !Initialise iteration (dt = dt/4 below):
             bsm = sbuoy + dt2 * sbuoys
-            sbuoy = diss * (bsm + dt2 * sbuoys)
+            sbuoy = filt * (bsm + dt2 * sbuoys)
 
             ! Advance interior and boundary of vorticity
             vortsm = svor + dt2 * svorts
 
             do nc = 1, 3
-                svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+               svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+               call field_combine_semi_spectral(svor(:, :, :, nc))
+               do iz = 0, nz
+                  svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+               enddo
+               call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             call adjust_vorticity_mean
@@ -94,10 +99,15 @@ module advance_mod
                 call source(sbuoys, svorts)
 
                 !Update fields:
-                sbuoy = diss * (bsm + dt2 * sbuoys)
+                sbuoy = filt * (bsm + dt2 * sbuoys)
 
                 do nc = 1, 3
-                    svor(:, :, :, nc) = diss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                   svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                   call field_combine_semi_spectral(svor(:, :, :, nc))
+                   do iz = 0, nz
+                      svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                   enddo
+                   call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
                 call adjust_vorticity_mean
@@ -190,7 +200,6 @@ module advance_mod
             double precision, intent(in) :: t
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
             double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
-            double precision             :: zs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in z in spectral space
             double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
@@ -353,7 +362,7 @@ module advance_mod
                 dfac = vorch * dt
                 diss = one / (one + dfac * hdis)
                 !(see inversion_utils.f90)
-            endif
+             endif
 
         end subroutine adapt
 
