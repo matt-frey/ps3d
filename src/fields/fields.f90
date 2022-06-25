@@ -62,13 +62,15 @@ module fields
         subroutine field_default
             call field_alloc
 
-            vel    = zero
-            vor    = zero
             svor   = zero
+            vor    = zero
+            vel    = zero
+            svel   = zero
             svorts = zero
 #ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero
+            sbuoys = zero
 #endif
             diss   = zero
 
