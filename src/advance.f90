@@ -257,29 +257,31 @@ module advance_mod
             call fftxys2p(ys, yp)
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
-            !$omp parallel
-            !$omp workshare
+            !$omp parallel workshare
             xp = xp ** 2 + yp ** 2 + zp ** 2
+            !$omp end parallel workshare
 
             !Maximum buoyancy frequency:
+            !$omp parallel workshare
             bfmax = dsqrt(dsqrt(maxval(xp)))
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 #endif
 
-            !$omp parallel
-            !$omp workshare
 
             !Compute enstrophy: (reuse xp)
+            !$omp parallel workshare
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
+            !$omp end parallel workshare
 
             !Maximum vorticity magnitude:
+            !$omp parallel workshare
             vortmax = dsqrt(maxval(xp))
+            !$omp end parallel workshare
 
             !R.m.s. vorticity:
+            !$omp parallel workshare
             vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
@@ -386,16 +388,15 @@ module advance_mod
                 enddo
             enddo
             !$omp end do
-
-            !$omp workshare
+            !$omp end parallel
 
             !Maximum speed:
+            !$omp parallel workshare
             velmax = dsqrt(maxval(vel(:, :, :, 1) ** 2   &
                                 + vel(:, :, :, 2) ** 2   &
                                 + vel(:, :, :, 3) ** 2))
 
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
@@ -410,20 +411,16 @@ module advance_mod
             if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
-                !$omp parallel
-                !$omp workshare
+                !$omp parallel workshare
                 diss = one / (one + dfac * hdis)
-                !$omp end workshare
-                !$omp end parallel
+                !$omp end parallel workshare
                 !(see inversion_utils.f90)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
-                !$omp parallel
-                !$omp workshare
+                !$omp parallel workshare
                 diss = one / (one + dfac * hdis)
-                !$omp end workshare
-                !$omp end parallel
+                !$omp end parallel workshare
                 !(see inversion_utils.f90)
              endif
 

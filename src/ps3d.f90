@@ -102,9 +102,11 @@ program ps3d
 
             t = time%initial
 
+            call start_timer(advance_timer)
             do while (t < time%limit)
                 call advance(t)
             enddo
+            call stop_timer(advance_timer)
 
             ! write final step (we only write if we really advanced in time)
             if (t > time%initial) then
