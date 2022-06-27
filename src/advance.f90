@@ -263,8 +263,9 @@ module advance_mod
 
             !Maximum buoyancy frequency:
             !$omp parallel workshare
-            bfmax = dsqrt(dsqrt(maxval(xp)))
+            bfmax = maxval(xp)
             !$omp end parallel workshare
+            bfmax = dsqrt(dsqrt(bfmax))
 #endif
 
 
@@ -275,13 +276,16 @@ module advance_mod
 
             !Maximum vorticity magnitude:
             !$omp parallel workshare
-            vortmax = dsqrt(maxval(xp))
+            vortmax = maxval(xp)
             !$omp end parallel workshare
+            vormax = dsqrt(vortmax)
 
             !R.m.s. vorticity:
             !$omp parallel workshare
-            vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
+            vorl1 = sum(xp(0, :, :)+xp(nz, :, :))
+            vorl2 = sum(xp(1:nz-1, :, :))
             !$omp end parallel workshare
+            vortrms = dsqrt(ncelli*(f12*vorl1+vorl2))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
@@ -342,7 +346,7 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
-            !$omp parallel private(ix, iy, iz, strain, eigs)  default(shared)
+            !$omp parallel private(ix, iy, iz, strain, eigs)  shared(dudx, dudy, dwdy, dvdy, dwdy, vor)
             !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
@@ -392,11 +396,12 @@ module advance_mod
 
             !Maximum speed:
             !$omp parallel workshare
-            velmax = dsqrt(maxval(vel(:, :, :, 1) ** 2   &
-                                + vel(:, :, :, 2) ** 2   &
-                                + vel(:, :, :, 3) ** 2))
+            velmax = maxval(vel(:, :, :, 1) ** 2   &
+                          + vel(:, :, :, 2) ** 2   &
+                          + vel(:, :, :, 3) ** 2)
 
             !$omp end parallel workshare
+            velmax = dsqrt(velmax)
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
