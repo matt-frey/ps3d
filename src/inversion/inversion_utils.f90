@@ -116,7 +116,9 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
 
                 !Define spectral dissipation operator:
+                !$omp parallel workshare
                 hdis = visc * k2l2
+                !$omp end parallel workshare
              else
                 !Define hyperviscosity:
                 K2max = max(rkxmax, rkymax) ** 2
@@ -125,7 +127,9 @@ module inversion_utils
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:
+                !$omp parallel workshare
                 hdis = visc * (wfac * k2l2) ** viscosity%nnu
+                !$omp end parallel workshare
 
                 !Ensure average is not modified by hyperviscosity:
                 hdis(0, 0) = zero
@@ -151,32 +155,43 @@ module inversion_utils
             allocate(dthetam(0:nz, 0:nx-1, 0:ny-1))
             allocate(dthetap(0:nz, 0:nx-1, 0:ny-1))
 
+            !$omp parallel
+
             !---------------------------------------------------------------------
             !Define Green function
+            !$omp do
             do kz = 1, nz-1
                 green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
+            !$omp end do
 
             !---------------------------------------------------------------------
             !Define zm = zmax - z, zp = z - zmin
+            !$omp do private(z)
             do iz = 0, nz
                 z = lower(3) + dx(3) * dble(iz)
                 zm(iz) = upper(3) - z
                 zp(iz) = z - lower(3)
             enddo
+            !$omp end do
 
             !Hyperbolic functions used for solutions of Laplace's equation:
+            !$omp do collapse(2)
             do ky = 1, ny-1
                 do kx = 0, nx-1
                     call set_hyperbolic_functions(kx, ky, zm, zp)
                 enddo
             enddo
+            !$omp end do
 
             ! ky = 0
+            !$omp do
             do kx = 1, nx-1
                 call set_hyperbolic_functions(kx, 0, zm, zp)
             enddo
+            !$omp end do
 
+            !$omp workshare
             ! kx = ky = 0
             phim(:, 0, 0) = zm / extent(3)
             phip(:, 0, 0) = zp / extent(3)
@@ -187,13 +202,19 @@ module inversion_utils
             dthetam(:, 0, 0) = zero
             dthetap(:, 0, 0) = zero
 
+
             !---------------------------------------------------------------------
             !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
             gamtop = f12 * extent(3) * (phip(:, 0, 0) ** 2 - f13)
+            !$omp end workshare
+            !$omp do
             do iz = 0, nz
                 gambot(iz) = gamtop(nz-iz)
             enddo
+            !$omp end do
             !Here gambot is the complement of gamtop.
+
+            !$omp end parallel
 
         end subroutine init_inversion
 
@@ -328,6 +349,9 @@ module inversion_utils
             sky = -36.d0 * (kymaxi * rky) ** 36
             kzmaxi = one/maxval(rkz)
             skz = -36.d0 * (kzmaxi * rkz) ** 36
+
+            !$omp parallel
+            !$omp do collapse(2)
             do ky = 0, ny-1
                do kx = 0, nx-1
                   filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
@@ -337,6 +361,8 @@ module inversion_utils
                   enddo
                enddo
             enddo
+            !$omp end do
+            !$omp end parallel
 
             !Ensure filter does not change domain mean:
             filt(:, 0, 0) = one
@@ -367,21 +393,33 @@ module inversion_utils
             double precision                :: sfctop(0:nx-1, 0:ny-1)
             integer                         :: iz, kx, ky
 
+            !$omp parallel
+
             ! subtract harmonic part
+            !$omp do
             do iz = 1, nz-1
                 sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phim(iz, :, :) + sfc(nz, :, :) * phip(iz, :, :))
             enddo
+            !$omp end do
 
+            !$omp workshare
             sfctop = sfc(nz, :, :)
+            !$omp end workshare
 
             ! transform interior to fully spectral
+            !$omp do collapse(2)
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dst(1, nz, sfc(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end do
 
+            !$omp workshare
             sfc(nz, :, :) = sfctop
+            !$omp end workshare
+
+            !$omp end parallel
 
         end subroutine field_decompose_semi_spectral
 
@@ -411,20 +449,34 @@ module inversion_utils
             double precision                :: sftop(0:nx-1, 0:ny-1)
             integer                         :: iz, kx, ky
 
+            !$omp parallel
+
             ! transform sf(1:nz-1, :, :) to semi-spectral space (sine transform) as the array sf:
+            !$omp workshare
             sftop = sf(nz, :, :)
+            !$omp end workshare
+
+            !$omp do collapse(2)
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     sf(nz, kx, ky) = zero
                     call dst(1, nz, sf(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end do
+
+            !$omp workshare
             sf(nz, :, :) = sftop
+            !$omp end workshare
 
             ! add harmonic part to sfc:
+            !$omp do
             do iz = 1, nz-1
                 sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phim(iz, :, :) + sf(nz, :, :) * phip(iz, :, :)
             enddo
+            !$omp end do
+
+            !$omp end parallel
 
         end subroutine field_combine_semi_spectral
 
@@ -438,19 +490,30 @@ module inversion_utils
             double precision, intent(out) :: ds(0:nz, nx, ny)
             integer                       :: kx, dkx, kxc
 
+            !$omp parallel private(dkx, kxc, kx)
+
             !Carry out differentiation by wavenumber multiplication:
+            !$omp workshare
             ds(:, 1, :) = zero
+            !$omp end workshare
+
+            !$omp do
             do kx = 2, nx - nwx
                 dkx = 2 * (kx - 1)
                 kxc = nxp2 - kx
                 ds(:, kx,  :) = -hrkx(dkx) * fs(:,kxc,:)
                 ds(:, kxc, :) =  hrkx(dkx) * fs(:,kx ,:)
             enddo
+            !$omp end do
 
             if (mod(nx, 2) .eq. 0) then
                 kxc = nwx + 1
+                !$omp workshare
                 ds(:, kxc, :) = zero
+                !$omp end workshare
             endif
+
+            !$omp end parallel
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -464,20 +527,30 @@ module inversion_utils
             double precision              :: fac
             integer                       :: ky, kyc
 
-            !Carry out differentiation by wavenumber multiplication:
-            ds(:, :, 1) = zero
+            !$omp parallel private(kyc, fac, ky)
 
+            !Carry out differentiation by wavenumber multiplication:
+            !$omp workshare
+            ds(:, :, 1) = zero
+            !$omp end workshare
+
+            !$omp do
             do ky = 2, ny - nwy
                 kyc = nyp2 - ky
                 fac = hrky(2 * (ky - 1))
                 ds(:, :, ky) = -fac * fs(:, :, kyc)
                 ds(:, :, kyc) = fac * fs(:, : , ky)
             enddo
+            !$omp end do
 
             if (mod(ny, 2) .eq. 0) then
                 kyc = nwy + 1
+                !$omp workshare
                 ds(:, :, kyc) = zero
+                !$omp end workshare
             endif
+
+            !$omp end parallel
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -489,19 +562,23 @@ module inversion_utils
             double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
             integer                       :: iz
 
+            !$omp parallel shared(ds, fs, dzi, hdzi, nz) private(iz) default(none)
+
             ! Linear extrapolation at the boundaries:
             ! iz = 0:  (fs(1) - fs(0)) / dz
             ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+            !$omp workshare
             ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
             ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
+            !$omp end workshare
 
             ! central differencing for interior cells
-            !$omp parallel shared(ds, fs, hdzi, nz) private(iz) default(none)
             !$omp do
             do iz = 1, nz-1
                 ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
             enddo
             !$omp end do
+
             !$omp end parallel
 
         end subroutine
@@ -525,7 +602,7 @@ module inversion_utils
             call forfft(nzval * nyval, nxval, fp, xtrig, xfactors)
 
             ! Transpose array:
-            !$omp parallel do shared(fs, fp) private(kx, iy)
+            !$omp parallel do collapse(2) shared(fs, fp) private(kx, iy)
             do kx = 1, nxval
                 do iy = 1, nyval
                     fs(:, kx, iy) = fp(:, iy, kx)
@@ -556,7 +633,7 @@ module inversion_utils
             call revfft(nzval * nxval, nyval, fs, ytrig, yfactors)
 
             ! Transpose array:
-            !$omp parallel do shared(fs, fp) private(kx, iy)
+            !$omp parallel do collapse(2) shared(fs, fp) private(kx, iy)
             do kx = 1, nxval
                 do iy = 1, nyval
                     fp(:, iy, kx) = fs(:, kx, iy)
@@ -584,12 +661,14 @@ module inversion_utils
             nyval = size(fp, 3)
 
             !Carry out z FFT for each kx and ky:
+            !$omp parallel do collapse(2) shared(fs, fp) private(kx, ky)
             do ky = 1, nyval
                 do kx = 1, nxval
                     fs(:, kx, ky) = fp(:, kx, ky)
                     call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end parallel do
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -608,12 +687,14 @@ module inversion_utils
             nyval = size(fs, 3)
 
             !Carry out z FFT for each ix and iy:
+            !$omp parallel do collapse(2) shared(fs, fp) private(ix, iy)
             do iy = 1, nyval
                 do ix = 1, nxval
                     fp(:, ix, iy) = fs(:, ix, iy)
                     call dct(1, nzval-1, fp(:, ix, iy), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end parallel do
         end subroutine
 
 end module inversion_utils

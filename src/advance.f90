@@ -71,21 +71,37 @@ module advance_mod
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
             call field_combine_semi_spectral(sbuoy)
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do iz = 0, nz
                 sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
             enddo
+            !$omp end do
+            !$omp end parallel
             call field_decompose_semi_spectral(sbuoy)
 #endif
 
             ! Advance interior and boundary of vorticity
+            !$omp parallel
+            !$omp workshare
             vortsm = svor + dt2 * svorts
+            !$omp end workshare
+            !$omp end parallel
 
             do nc = 1, 3
+                !$omp parallel
+                !$omp workshare
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                !$omp end workshare
+                !$omp end parallel
                 call field_combine_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel private(iz)  default(shared)
+                !$omp do
                 do iz = 0, nz
                     svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
                 enddo
+                !$omp end do
+                !$omp end parallel
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
@@ -108,11 +124,19 @@ module advance_mod
 #endif
 
                 do nc = 1, 3
+                    !$omp parallel
+                    !$omp workshare
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                    !$omp end workshare
+                    !$omp end parallel
                     call field_combine_semi_spectral(svor(:, :, :, nc))
+                    !$omp parallel private(iz)  default(shared)
+                    !$omp do
                     do iz = 0, nz
                         svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
                     enddo
+                    !$omp end do
+                    !$omp end parallel
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
@@ -226,12 +250,18 @@ module advance_mod
             call fftxys2p(ys, yp)
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
+            !$omp parallel
+            !$omp workshare
             xp = xp ** 2 + yp ** 2 + zp ** 2
 
             !Maximum buoyancy frequency:
             bfmax = sqrt(sqrt(maxval(xp)))
+            !$omp end workshare
+            !$omp end parallel
 #endif
 
+            !$omp parallel
+            !$omp workshare
 
             !Compute enstrophy: (reuse xp)
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
@@ -241,10 +271,14 @@ module advance_mod
 
             !R.m.s. vorticity:
             vortrms = sqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
+            !$omp end workshare
+            !$omp end parallel
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
             vorl2 = zero
+            !$omp parallel private(ix, iy, iz, vortmp1, vortmp2, vortmp3)  default(shared)
+            !$omp do reduction(+:vorl1,vorl2) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
@@ -258,6 +292,8 @@ module advance_mod
                     enddo
                 enddo
             enddo
+            !$omp end do
+            !$omp end parallel
             vorch = vorl2 / vorl1
 
             vormean = get_mean_vorticity()
@@ -297,6 +333,8 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
+            !$omp parallel private(ix, iy, iz, strain, eigs)  default(shared)
+            !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 0, nz
@@ -340,11 +378,17 @@ module advance_mod
                     enddo
                 enddo
             enddo
+            !$omp end do
+
+            !$omp workshare
 
             !Maximum speed:
             velmax = sqrt(maxval(vel(:, :, :, 1) ** 2   &
                                + vel(:, :, :, 2) ** 2   &
                                + vel(:, :, :, 3) ** 2))
+
+            !$omp end workshare
+            !$omp end parallel
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
@@ -359,12 +403,20 @@ module advance_mod
             if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
+                !$omp parallel
+                !$omp workshare
                 diss = one / (one + dfac * hdis)
+                !$omp end workshare
+                !$omp end parallel
                 !(see inversion_utils.f90)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
+                !$omp parallel
+                !$omp workshare
                 diss = one / (one + dfac * hdis)
+                !$omp end workshare
+                !$omp end parallel
                 !(see inversion_utils.f90)
              endif
 

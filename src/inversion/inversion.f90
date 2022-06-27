@@ -34,24 +34,36 @@ module inversion_mod
             ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
             call diffx(svor(:, :, :, 2), as) ! as = B_x
             call diffy(svor(:, :, :, 1), bs) ! bs = A_y
+            !$omp parallel
+            !$omp workshare
             ds = as - bs                     ! ds = D
             cs = svor(:, :, :, 3)
+            !$omp end workshare
+            !$omp end parallel
             call field_combine_semi_spectral(cs)
             call diffz(cs, es)                     ! es = E
             call field_decompose_semi_spectral(es)
 
             call diffx(es, svor(:, :, :, 1)) ! E_x
             call diffy(ds, cs)                  ! cs = D_y
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do iz = 0, nz
                svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
             enddo
+            !$omp end do
+            !$omp end parallel
 
             call diffy(es, svor(:, :, :, 2)) ! E_y
             call diffx(ds, cs)               ! D_x
 
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do iz = 0, nz
                svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
             enddo
+            !$omp end do
+            !$omp end parallel
 
             !----------------------------------------------------------
             !Combine vorticity in physical space:
@@ -71,12 +83,21 @@ module inversion_mod
 
             !Calculate the boundary contributions of the source to the vertical velocity (bs)
             !and its derivative (es) in semi-spectral space:
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do iz = 1, nz-1
                 bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
             enddo
+            !$omp end do
+            !$omp end parallel
+
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do iz = 0, nz
                 es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
             enddo
+            !$omp end do
+            !$omp end parallel
 
             !Invert Laplacian to find the part of w expressible as a sine series:
             !$omp parallel
@@ -87,25 +108,36 @@ module inversion_mod
 
             ! Calculate d/dz of this sine series:
             as(0, :, :) = zero
+            !$omp parallel private(iz)  default(shared)
+            !$omp do
             do kz = 1, nz-1
                 as(kz, :, :) = rkz(kz) * ds(kz, :, :)
             enddo
+            !$omp end do
+            !$omp end parallel
             as(nz, :, :) = zero
 
             !FFT these quantities back to semi-spectral space:
+            !$omp parallel private(kx, ky)  default(shared)
+            !$omp do collapse(2)
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)
                     call dst(1, nz, ds(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end do
+            !$omp end parallel
 
             ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+            !$omp parallel
+            !$omp workshare
             ds(0     , :, :) = zero
             ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
             ds(nz    , :, :) = zero
             es = es + as
-            ! OMP the above????
+            !$omp end workshare
+            !$omp end parallel
 
             ! Get complete zeta field in semi-spectral space
             cs = svor(:, :, :, 3)
@@ -135,7 +167,7 @@ module inversion_mod
             call diffx(es, as)
             call diffy(cs, bs)
 
-            !$omp parallel do
+            !$omp parallel do private(iz) default(shared)
             do iz = 0, nz
                 as(iz, :, :) = k2l2i * (as(iz, :, :) + bs(iz, :, :))
             enddo
@@ -155,7 +187,7 @@ module inversion_mod
             call diffy(es, as)
             call diffx(cs, bs)
 
-            !$omp parallel do
+            !$omp parallel do private(iz) default(shared)
             do iz = 0, nz
                 as(iz, :, :) = k2l2i * (as(iz, :, :) - bs(iz, :, :))
             enddo
@@ -211,36 +243,60 @@ module inversion_mod
             !  dzeta/dt = dq/dx - dp/dy
 
             ! r = u * eta - v * xi + b
+            !$omp parallel
+            !$omp workshare
             fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1)
 #ifdef ENABLE_BUOYANCY
             fp = fp + buoy
 #endif
+            !$omp end workshare
+            !$omp end parallel
             call field_decompose_physical(fp, r)
 
             ! q = w * xi - u * zeta
+            !$omp parallel
+            !$omp workshare
             fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
+            !$omp end workshare
+            !$omp end parallel
             call field_decompose_physical(fp, q)
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
             call diffz(fp, gp)
             call field_decompose_physical(gp, p)
+            !$omp parallel
+            !$omp workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
+            !$omp end workshare
+            !$omp end parallel
 
             ! p = v * zeta - w * eta
+            !$omp parallel
+            !$omp workshare
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
+            !$omp end workshare
+            !$omp end parallel
             call field_decompose_physical(fp, p)
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
             call diffz(fp, gp)
             call field_decompose_physical(gp, r)
+            !$omp parallel
+            !$omp workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
+            !$omp end workshare
+            !$omp end parallel
 
             ! dzeta/dt = dq/dx - dp/dy
             call diffx(q, svorts(:, :, :, 3))
             call diffy(p, r)                                ! here: r = dp/dy
+            !$omp parallel
+            !$omp workshare
             svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
+            !$omp end workshare
+            !$omp end parallel
 
             call stop_timer(vtend_timer)
 
