@@ -255,7 +255,7 @@ module advance_mod
             xp = xp ** 2 + yp ** 2 + zp ** 2
 
             !Maximum buoyancy frequency:
-            bfmax = sqrt(sqrt(maxval(xp)))
+            bfmax = dsqrt(dsqrt(maxval(xp)))
             !$omp end workshare
             !$omp end parallel
 #endif
@@ -267,10 +267,10 @@ module advance_mod
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
 
             !Maximum vorticity magnitude:
-            vortmax = sqrt(maxval(xp))
+            vortmax = dsqrt(maxval(xp))
 
             !R.m.s. vorticity:
-            vortrms = sqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
+            vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
             !$omp end workshare
             !$omp end parallel
 
@@ -383,9 +383,9 @@ module advance_mod
             !$omp workshare
 
             !Maximum speed:
-            velmax = sqrt(maxval(vel(:, :, :, 1) ** 2   &
-                               + vel(:, :, :, 2) ** 2   &
-                               + vel(:, :, :, 3) ** 2))
+            velmax = dsqrt(maxval(vel(:, :, :, 1) ** 2   &
+                                + vel(:, :, :, 2) ** 2   &
+                                + vel(:, :, :, 3) ** 2))
 
             !$omp end workshare
             !$omp end parallel
