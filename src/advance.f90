@@ -346,7 +346,8 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
-            !$omp parallel private(ix, iy, iz, strain, eigs)  shared(dudx, dudy, dwdy, dvdy, dwdy, vor)
+            !$omp parallel private(strain, eigs) shared(ggmax, dudx, dudy, dwdy, dvdy, vor) &
+            !$omp& default(private)
             !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
