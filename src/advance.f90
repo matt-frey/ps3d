@@ -278,7 +278,7 @@ module advance_mod
             !$omp parallel workshare
             vortmax = maxval(xp)
             !$omp end parallel workshare
-            vormax = dsqrt(vortmax)
+            vortmax = dsqrt(vortmax)
 
             !R.m.s. vorticity:
             !$omp parallel workshare
