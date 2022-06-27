@@ -121,6 +121,15 @@ module advance_mod
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
+                call field_combine_semi_spectral(sbuoy)
+                !$omp parallel private(iz)  default(shared)
+                !$omp do
+                do iz = 0, nz
+                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                enddo
+                !$omp end do
+                !$omp end parallel
+                call field_decompose_semi_spectral(sbuoy)
 #endif
 
                 do nc = 1, 3
@@ -174,39 +183,37 @@ module advance_mod
         ! Note, vel obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
         subroutine source
-!             double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
-!             double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
-!             double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
-!             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-!             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-!             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
+#ifdef ENABLE_BUOYANCY
+            double precision :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
+            double precision :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
+            double precision :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
+            double precision :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+            double precision :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+            double precision :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
-!             !--------------------------------------------------------------
-!             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
-!
-!             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-!             call diffx(sbuoy, xs)
-!             call diffy(sbuoy, ys)
-!             call diffz(sbuoy, zs)
-!
-!             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
-!             call fftss2fs(ys, svorts(:, :, :, 1))
-!             call fftss2fs(xs, svorts(:, :, :, 2))
-!
-!             !Obtain gradient of buoyancy in physical space
-!             call fftxys2p(xs, dbdx)
-!             call fftxys2p(ys, dbdy)
-!             call fftxys2p(zs, dbdz)
-!
-!             !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
-!             dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
-!                  + vel(:, :, :, 2) * dbdy &   ! v * db/dy
-!                  + vel(:, :, :, 3) * dbdz     ! w * db/dz
-!
-!             !Convert to semi-spectral space and apply de-aliasing filter:
-!             call fftxyp2s(dbdx, sbuoys)
-!
-!             sbuoys = zero
+            !--------------------------------------------------------------
+            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
+
+            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+            call diffx(sbuoy, xs)
+            call diffy(sbuoy, ys)
+            call diffz(sbuoy, zs)
+
+            !Obtain gradient of buoyancy in physical space
+            call fftxys2p(xs, dbdx)
+            call fftxys2p(ys, dbdy)
+            call fftxys2p(zs, dbdz)
+
+            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+            !$omp parallel workshare
+            dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
+                 + vel(:, :, :, 2) * dbdy &   ! v * db/dy
+                 + vel(:, :, :, 3) * dbdz     ! w * db/dz
+            !$omp end parallel workshare
+
+            !Convert to semi-spectral space and apply de-aliasing filter:
+            call fftxyp2s(dbdx, sbuoys)
+#endif
 
             !--------------------------------------------------------------
             !Vorticity source:
