@@ -290,7 +290,6 @@ module inversion_mod
 
         end subroutine vorticity_tendency
 
-
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute pressure ignoring buoyancy (if --enable-buoyancy)
@@ -306,7 +305,6 @@ module inversion_mod
             double precision             :: dwdz(0:nz, 0:ny-1, 0:nx-1) ! dw/dz in physical space
             double precision             :: rs(0:nz, 0:nx-1, 0:ny-1)   ! rhs in spectral space
             integer                      :: kx, ky
-
 
             !-------------------------------------------------------
             ! Compute rhs (and store in pres) of Poisson equation to determine the pressure:
