@@ -33,7 +33,7 @@ module field_netcdf
                coord_ids, t_axis_id,            &
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
-               pres_id                          &
+               pres_id,                         &
 #ifdef ENABLE_BUOYANCY
                buoy_id,                         &
 #endif
