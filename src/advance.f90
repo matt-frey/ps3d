@@ -79,7 +79,7 @@ module advance_mod
             call field_decompose_semi_spectral(sbuoy)
 #endif
 
-            ! Advance interior and boundary of vorticity
+            ! Advance interior and boundary values of vorticity
             !$omp parallel workshare
             vortsm = svor + dt2 * svorts
             !$omp end parallel workshare
