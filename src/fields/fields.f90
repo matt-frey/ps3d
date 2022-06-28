@@ -19,6 +19,9 @@ module fields
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
         svorts      ! vorticity source in mixed spectral space
 
+    double precision, allocatable, dimension(:, :, :) :: &
+        pres        ! pressure field (physical space)
+
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
@@ -54,6 +57,7 @@ module fields
             allocate(sbuoys(0:nz, 0:nx-1, 0:ny-1))
 #endif
 
+            allocate(pres(0:nz, 0:ny-1, 0:nx-1))
             allocate(diss(0:nx-1, 0:ny-1))
 
         end subroutine field_alloc
@@ -72,6 +76,7 @@ module fields
             sbuoy  = zero
             sbuoys = zero
 #endif
+            pres   = zero
             diss   = zero
 
             ini_vor_mean = zero

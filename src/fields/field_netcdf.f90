@@ -22,6 +22,7 @@ module field_netcdf
 
     integer            :: x_vel_id, y_vel_id, z_vel_id,    &
                           x_vor_id, y_vor_id, z_vor_id,    &
+                          pres_id,                         &
 #ifdef ENABLE_BUOYANCY
                           buoy_id,                         &
 #endif
@@ -32,6 +33,7 @@ module field_netcdf
                coord_ids, t_axis_id,            &
                x_vel_id, y_vel_id, z_vel_id,    &
                x_vor_id, y_vor_id, z_vor_id,    &
+               pres_id,                         &
 #ifdef ENABLE_BUOYANCY
                buoy_id,                         &
 #endif
@@ -127,6 +129,16 @@ module field_netcdf
                                        dtype=NF90_DOUBLE,                   &
                                        dimids=dimids,                       &
                                        varid=z_vor_id)
+
+            call define_netcdf_dataset(ncid=ncid,                           &
+                                       name='pressure',                     &
+                                       long_name='pressure',                &
+                                       std_name='',                         &
+                                       unit='m^2/s^2',                      &
+                                       dtype=NF90_DOUBLE,                   &
+                                       dimids=dimids,                       &
+                                       varid=pres_id)
+
 #ifdef ENABLE_BUOYANCY
             call define_netcdf_dataset(ncid=ncid,                           &
                                        name='buoyancy',                     &
@@ -173,6 +185,8 @@ module field_netcdf
 
             call get_var_id(ncid, 'z_vorticity', z_vor_id)
 
+            call get_var_id(ncid, 'pressure', pres_id)
+
 #ifdef ENABLE_BUOYANCY
             call get_var_id(ncid, 'buoyancy', buoy_id)
 #endif
@@ -216,6 +230,9 @@ module field_netcdf
             call write_netcdf_dataset(ncid, y_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 2), &
                                       start, cnt)
             call write_netcdf_dataset(ncid, z_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 3), &
+                                      start, cnt)
+
+            call write_netcdf_dataset(ncid, pres_id, pres(0:nz, 0:ny-1, 0:nx-1),    &
                                       start, cnt)
 
 #ifdef ENABLE_BUOYANCY

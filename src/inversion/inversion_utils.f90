@@ -142,7 +142,7 @@ module inversion_utils
 
             call init_fft
 
-            allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
+            allocate(green(0:nz, 0:nx-1, 0:ny-1))
             allocate(gamtop(0:nz))
             allocate(gambot(0:nz))
 
@@ -156,10 +156,11 @@ module inversion_utils
             !---------------------------------------------------------------------
             !Define Green function
             !$omp parallel do
-            do kz = 1, nz-1
+            do kz = 1, nz
                 green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
             !$omp end parallel do
+            green(0, :, :) = - k2l2i
 
             !---------------------------------------------------------------------
             !Define zm = zmax - z, zp = z - zmin
@@ -332,6 +333,7 @@ module inversion_utils
             k2l2(0, 0) = one
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
+            k2l2i(0, 0) = zero
 
             !----------------------------------------------------------
             !Define Hou and Li filter (2D and 3D):

@@ -2,14 +2,15 @@ module inversion_mod
     use inversion_utils
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
-    use constants, only : zero
+    use constants, only : zero, two
     use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
     use fields
     implicit none
 
     integer :: vor2vel_timer,   &
-               vtend_timer
+               vtend_timer,     &
+               pres_timer
 
     contains
 
@@ -42,8 +43,12 @@ module inversion_mod
             call diffz(cs, es)                     ! es = E
             call field_decompose_semi_spectral(es)
 
+            ! ubar and vbar are used here to store the mean x and y components of the vorticity
+            ubar = svor(:, 0, 0, 1)
+            vbar = svor(:, 0, 0, 2)
+
             call diffx(es, svor(:, :, :, 1)) ! E_x
-            call diffy(ds, cs)                  ! cs = D_y
+            call diffy(ds, cs)               ! cs = D_y
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
@@ -58,6 +63,10 @@ module inversion_mod
                svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
             enddo
             !$omp end parallel do
+
+            ! bring back the mean x and y components of the vorticity
+            svor(:, 0, 0, 1) = ubar
+            svor(:, 0, 0, 2) = vbar
 
             !----------------------------------------------------------
             !Combine vorticity in physical space:
@@ -89,7 +98,7 @@ module inversion_mod
 
             !Invert Laplacian to find the part of w expressible as a sine series:
             !$omp parallel workshare
-            ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
+            ds(1:nz-1, :, :) = green(1:nz-1, :, :) * ds(1:nz-1, :, :)
             !$omp end parallel workshare
 
             ! Calculate d/dz of this sine series:
@@ -281,5 +290,75 @@ module inversion_mod
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Compute pressure ignoring buoyancy (if --enable-buoyancy)
+        ! Solves Lap(p) = R with dp/dz = 0 on each boundary where
+        ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
+        ! is the Jacobian.
+        subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
+            double precision, intent(in) :: dudx(0:nz, 0:ny-1, 0:nx-1) ! du/dx in physical space
+            double precision, intent(in) :: dudy(0:nz, 0:ny-1, 0:nx-1) ! du/dy in physical space
+            double precision, intent(in) :: dvdy(0:nz, 0:ny-1, 0:nx-1) ! dv/dy in physical space
+            double precision, intent(in) :: dwdx(0:nz, 0:ny-1, 0:nx-1) ! dw/dx in physical space
+            double precision, intent(in) :: dwdy(0:nz, 0:ny-1, 0:nx-1) ! dw/dy in physical space
+            double precision             :: dwdz(0:nz, 0:ny-1, 0:nx-1) ! dw/dz in physical space
+            double precision             :: rs(0:nz, 0:nx-1, 0:ny-1)   ! rhs in spectral space
+            integer                      :: kx, ky
+
+            call start_timer(pres_timer)
+
+            !-------------------------------------------------------
+            ! Compute rhs (and store in pres) of Poisson equation to determine the pressure:
+            ! J_xy(u, v) = du/dx * dv/dy - du/dy * dv/dx
+            ! J_yz(v, w) = dv/dy * dw/dz - dv/dz * dw/dy
+            ! J_zx(w, u) = dw/dz * du/dx - dw/dx * du/dz
+            ! dv/dx = \zeta + du/dy
+            ! du/dz = \eta + dw/dx
+            ! dv/dz = dw/dy - \xi
+            ! dw/dz = - (du/dx + dv/dy)
+
+            !$omp parallel workshare
+            dwdz = - (dudx + dvdy)
+
+            pres = two * (dudx * dvdy - dudy * (vor(:, :, :, 3) + dudy) + &
+                          dvdy * dwdz - dwdy * (dwdy - vor(:, :, :, 1)) + &
+                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))
+            !$omp end parallel workshare
+
+            !-------------------------------------------------------
+            ! Transform to full spectral space:
+            call fftxyp2s(pres, rs)
+
+            !$omp parallel do collapse(2) private(kx, ky)
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, rs(0:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            !-------------------------------------------------------
+            !Invert Laplacian:
+            !$omp parallel workshare
+            rs = green * rs
+            !$omp end parallel workshare
+
+            !-------------------------------------------------------
+            ! Transform to physical space:
+            !$omp parallel do collapse(2) private(kx, ky)
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    call dct(1, nz, rs(0:nz, kx, ky), ztrig, zfactors)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            call fftxys2p(rs, pres)
+
+            call stop_timer(pres_timer)
+
+        end subroutine pressure
 
 end module inversion_mod
