@@ -17,15 +17,18 @@ module fields
         vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         vel,    &   ! velocity vector field (u, v, w)
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
-        svtend
+        svorts      ! vorticity source in mixed spectral space
 
+#ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
-        sbuoy       ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        sbuoys      ! buoyancy source in mixed spectral space
+#endif
 
     double precision, allocatable, dimension(:, :) :: &
         diss        ! dissipation operator
-    
+
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
@@ -43,10 +46,13 @@ module fields
             allocate(vor(0:nz, 0:ny-1, 0:nx-1, 3))
             allocate(svor(0:nz, 0:nx-1, 0:ny-1, 3))
 
-            allocate(svtend(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(svorts(0:nz, 0:nx-1, 0:ny-1, 3))
 
+#ifdef ENABLE_BUOYANCY
             allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoy(0:nz, 0:nx-1, 0:ny-1))
+            allocate(sbuoys(0:nz, 0:nx-1, 0:ny-1))
+#endif
 
             allocate(diss(0:nx-1, 0:ny-1))
 
@@ -56,12 +62,16 @@ module fields
         subroutine field_default
             call field_alloc
 
-            vel    = zero
-            vor    = zero
             svor   = zero
-            svtend = zero
+            vor    = zero
+            vel    = zero
+            svel   = zero
+            svorts = zero
+#ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero
+            sbuoys = zero
+#endif
             diss   = zero
 
             ini_vor_mean = zero
@@ -107,9 +117,11 @@ module fields
             integer          :: nc
 
             do nc = 1, 3
+                !$omp parallel workshare
                 vormean(nc) =       sum(vor(1:nz-1, :, :, nc)) &
                             + f12 * sum(vor(0,      :, :, nc)) &
                             + f12 * sum(vor(nz,     :, :, nc))
+                !$omp end parallel workshare
             enddo
 
             vormean = vormean * ncelli

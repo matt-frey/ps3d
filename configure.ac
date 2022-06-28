@@ -105,6 +105,21 @@ else
     AC_MSG_RESULT([no])
 fi
 
+ENABLE_BUOYANCY='no'
+AC_ARG_ENABLE([buoyancy],
+              [AS_HELP_STRING([--enable-buoyancy], [enable buoyancy mode (default=no)])],
+              [ENABLE_BUOYANCY=$enableval])
+
+AM_CONDITIONAL([ENABLE_BUOYANCY], [test "$ENABLE_BUOYANCY" = "yes"])
+
+AC_MSG_CHECKING([whether we are enabling buoyancy])
+if test "x$ENABLE_BUOYANCY" = "xyes"; then
+    AC_MSG_RESULT([yes])
+    FCFLAGS="$FCFLAGS -DENABLE_BUOYANCY"
+else
+    AC_MSG_RESULT([no])
+fi
+
 
 ENABLE_DEBUG='no'
 AC_ARG_ENABLE([debug],

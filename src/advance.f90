@@ -43,18 +43,15 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: sbuoys(0:nz, 0:nx-1, 0:ny-1)     ! source of buoyancy (spectral)
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
-            double precision                :: svorts(0:nz, 0:nx-1, 0:ny-1, 3)  ! source of vorticity (spectral)
+#ifdef ENABLE_BUOYANCY
+            double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
+#endif
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
             !Also, returns vorticity in physical space for use everywhere
             call vor2vel
-
-            ! Calculate svtend, for writing purposes only
-            call vorticity_tendency
 
             !Adapt the time step
             call adapt(t)
@@ -67,22 +64,37 @@ module advance_mod
 
             !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
             !vorticity in spectral space:
-            call source(sbuoys, svorts)
+            call source
 
-            !Initialise iteration (dt = dt/4 below):
+            !Initialise iteration (dt = dt/2 below):
+#ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
+            call field_combine_semi_spectral(sbuoy)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sbuoy)
+#endif
 
-            ! Advance interior and boundary of vorticity
+            ! Advance interior and boundary values of vorticity
+            !$omp parallel workshare
             vortsm = svor + dt2 * svorts
+            !$omp end parallel workshare
 
             do nc = 1, 3
-               svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-               call field_combine_semi_spectral(svor(:, :, :, nc))
-               do iz = 0, nz
-                  svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-               enddo
-               call field_decompose_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel workshare
+                svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                !$omp end parallel workshare
+                call field_combine_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel do private(iz)  default(shared)
+                do iz = 0, nz
+                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                enddo
+                !$omp end parallel do
+                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             call adjust_vorticity_mean
@@ -96,18 +108,31 @@ module advance_mod
                 call vor2vel
 
                 !Calculate the source terms (sbuoys,svorts):
-                call source(sbuoys, svorts)
+                call source
 
                 !Update fields:
+#ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
+                call field_combine_semi_spectral(sbuoy)
+                !$omp parallel do private(iz)  default(shared)
+                do iz = 0, nz
+                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                enddo
+                !$omp end parallel do
+                call field_decompose_semi_spectral(sbuoy)
+#endif
 
                 do nc = 1, 3
-                   svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                   call field_combine_semi_spectral(svor(:, :, :, nc))
-                   do iz = 0, nz
-                      svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                   enddo
-                   call field_decompose_semi_spectral(svor(:, :, :, nc))
+                    !$omp parallel workshare
+                    svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                    !$omp end parallel workshare
+                    call field_combine_semi_spectral(svor(:, :, :, nc))
+                    !$omp parallel do private(iz)  default(shared)
+                    do iz = 0, nz
+                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    enddo
+                    !$omp end parallel do
+                    call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
                 call adjust_vorticity_mean
@@ -143,53 +168,43 @@ module advance_mod
         ! The spectral fields sbuoy and svor are all spectrally truncated.
         ! Note, vel obtained by vor2vel before calling this
         ! routine are spectrally truncated as well.
-        subroutine source(sbuoys, svorts)
-            double precision, intent(inout) :: sbuoys(0:nz, 0:nx-1, 0:ny-1)    ! in spectral space
-            double precision, intent(inout) :: svorts(0:nz, 0:nx-1, 0:ny-1, 3) ! in spectral space
-!             double precision                :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
-!             double precision                :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
-!             double precision                :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
-!             double precision                :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-!             double precision                :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-!             double precision                :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
-
-!             !--------------------------------------------------------------
-!             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
-!
-!             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-!             call diffx(sbuoy, xs)
-!             call diffy(sbuoy, ys)
-!             call diffz(sbuoy, zs)
-!
-!             !Store spectral db/dx and db/dy in svorts for use in vorticity source below:
-!             call fftss2fs(ys, svorts(:, :, :, 1))
-!             call fftss2fs(xs, svorts(:, :, :, 2))
-!
-!             !Obtain gradient of buoyancy in physical space
-!             call fftxys2p(xs, dbdx)
-!             call fftxys2p(ys, dbdy)
-!             call fftxys2p(zs, dbdz)
-!
-!             !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
-!             dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
-!                  + vel(:, :, :, 2) * dbdy &   ! v * db/dy
-!                  + vel(:, :, :, 3) * dbdz     ! w * db/dz
-!
-!             !Convert to semi-spectral space and apply de-aliasing filter:
-!             call fftxyp2s(dbdx, sbuoys)
-!
-            sbuoys = zero
-!             sbuoys = -filt * sbuoys
+        subroutine source
+#ifdef ENABLE_BUOYANCY
+            double precision :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
+            double precision :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
+            double precision :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
+            double precision :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
+            double precision :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
+            double precision :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
             !--------------------------------------------------------------
-            !Vorticity source (excluding buoyancy effects):
+            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
+
+            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+            call diffx(sbuoy, xs)
+            call diffy(sbuoy, ys)
+            call diffz(sbuoy, zs)
+
+            !Obtain gradient of buoyancy in physical space
+            call fftxys2p(xs, dbdx)
+            call fftxys2p(ys, dbdy)
+            call fftxys2p(zs, dbdz)
+
+            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+            !$omp parallel workshare
+            dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
+                 + vel(:, :, :, 2) * dbdy &   ! v * db/dy
+                 + vel(:, :, :, 3) * dbdz     ! w * db/dz
+            !$omp end parallel workshare
+
+            !Convert to semi-spectral space and apply de-aliasing filter:
+            call fftxyp2s(dbdx, sbuoys)
+#endif
+
+            !--------------------------------------------------------------
+            !Vorticity source:
 
             call vorticity_tendency
-
-            !Add filtered vorticity tendency to vorticity source: (svorts can be removed)
-            svorts(:, :, :, 1) = svtend(:, :, :, 1)
-            svorts(:, :, :, 2) = svtend(:, :, :, 2)
-            svorts(:, :, :, 3) = svtend(:, :, :, 3)
 
         end subroutine source
 
@@ -201,8 +216,10 @@ module advance_mod
             double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
             double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
             double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
+#ifdef ENABLE_BUOYANCY
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
+#endif
             double precision             :: strain(3, 3), eigs(3)
             double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
             double precision             :: dudy(0:nz, 0:ny-1, 0:nx-1)      ! du/dy in physical space
@@ -211,7 +228,9 @@ module advance_mod
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
             double precision             :: ke, en, vormean(3)
 
+            bfmax = zero
 
+#ifdef ENABLE_BUOYANCY
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             call diffx(sbuoy, xs)
             call diffy(sbuoy, ys)
@@ -224,23 +243,31 @@ module advance_mod
             call fftxys2p(ys, yp)
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
+            !$omp parallel workshare
             xp = xp ** 2 + yp ** 2 + zp ** 2
+            !$omp end parallel workshare
 
             !Maximum buoyancy frequency:
-            bfmax = sqrt(sqrt(maxval(xp)))
+            bfmax = dsqrt(dsqrt(maxval(xp)))
+#endif
+
 
             !Compute enstrophy: (reuse xp)
+            !$omp parallel workshare
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
+            !$omp end parallel workshare
 
             !Maximum vorticity magnitude:
-            vortmax = sqrt(maxval(xp))
+            vortmax = dsqrt(maxval(xp))
 
             !R.m.s. vorticity:
-            vortrms = sqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
+            vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
             vorl2 = zero
+            !$omp parallel private(ix, iy, iz, vortmp1, vortmp2, vortmp3) shared(vor)
+            !$omp do reduction(+:vorl1,vorl2) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
@@ -254,6 +281,8 @@ module advance_mod
                     enddo
                 enddo
             enddo
+            !$omp end do
+            !$omp end parallel
             vorch = vorl2 / vorl1
 
             vormean = get_mean_vorticity()
@@ -293,6 +322,8 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
+            !$omp parallel private(strain, eigs) shared(dudx, dudy, dwdy, dvdy, vor)
+            !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 0, nz
@@ -336,11 +367,17 @@ module advance_mod
                     enddo
                 enddo
             enddo
+            !$omp end do
+            !$omp end parallel
 
             !Maximum speed:
-            velmax = sqrt(maxval(vel(:, :, :, 1) ** 2   &
-                               + vel(:, :, :, 2) ** 2   &
-                               + vel(:, :, :, 3) ** 2))
+            !$omp parallel workshare
+            velmax = maxval(vel(:, :, :, 1) ** 2   &
+                          + vel(:, :, :, 2) ** 2   &
+                          + vel(:, :, :, 3) ** 2)
+
+            !$omp end parallel workshare
+            velmax = dsqrt(velmax)
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
@@ -355,12 +392,16 @@ module advance_mod
             if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
+                !$omp parallel workshare
                 diss = one / (one + dfac * hdis)
+                !$omp end parallel workshare
                 !(see inversion_utils.f90)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
+                !$omp parallel workshare
                 diss = one / (one + dfac * hdis)
+                !$omp end parallel workshare
                 !(see inversion_utils.f90)
              endif
 

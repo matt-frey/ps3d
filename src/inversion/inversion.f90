@@ -1,8 +1,8 @@
 module inversion_mod
     use inversion_utils
-    use parameters, only : nx, ny, nz, fnzi
+    use parameters, only : nx, ny, nz
     use physics, only : f_cor
-    use constants, only : zero, two, f12
+    use constants, only : zero
     use sta2dfft, only : dct, dst
     use timer, only : start_timer, stop_timer
     use fields
@@ -27,32 +27,39 @@ module inversion_mod
 
             call start_timer(vor2vel_timer)
 
+            !----------------------------------------------------------
             ! Enforce solenoidality
             ! A, B, C are vorticities
             ! D = B_x - A_y; E = C_z
             ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
             call diffx(svor(:, :, :, 2), as) ! as = B_x
             call diffy(svor(:, :, :, 1), bs) ! bs = A_y
+            !$omp parallel workshare
             ds = as - bs                     ! ds = D
             cs = svor(:, :, :, 3)
+            !$omp end parallel workshare
             call field_combine_semi_spectral(cs)
             call diffz(cs, es)                     ! es = E
             call field_decompose_semi_spectral(es)
-            
+
             call diffx(es, svor(:, :, :, 1)) ! E_x
             call diffy(ds, cs)                  ! cs = D_y
+            !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
             enddo
+            !$omp end parallel do
 
             call diffy(es, svor(:, :, :, 2)) ! E_y
             call diffx(ds, cs)               ! D_x
-     
+
+            !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
             enddo
+            !$omp end parallel do
 
-            
+            !----------------------------------------------------------
             !Combine vorticity in physical space:
             do nc = 1, 3
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
@@ -62,52 +69,62 @@ module inversion_mod
             !Form source term for inversion of vertical velocity -> ds:
             call diffy(svor(:, :, :, 1), ds)
             call diffx(svor(:, :, :, 2), es)
-            !$omp parallel
-            !$omp workshare
+            !$omp parallel workshare
             ds = ds - es
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 
             !Calculate the boundary contributions of the source to the vertical velocity (bs)
             !and its derivative (es) in semi-spectral space:
+            !$omp parallel do private(iz)  default(shared)
             do iz = 1, nz-1
                 bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
             enddo
+            !$omp end parallel do
+
+            !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
             enddo
+            !$omp end parallel do
 
             !Invert Laplacian to find the part of w expressible as a sine series:
-            !$omp parallel
-            !$omp workshare
+            !$omp parallel workshare
             ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 
             ! Calculate d/dz of this sine series:
+            !$omp parallel workshare
             as(0, :, :) = zero
+            !$omp end parallel workshare
+            !$omp parallel do private(iz)  default(shared)
             do kz = 1, nz-1
                 as(kz, :, :) = rkz(kz) * ds(kz, :, :)
             enddo
+            !$omp end parallel do
+            !$omp parallel workshare
             as(nz, :, :) = zero
+            !$omp end parallel workshare
 
             !FFT these quantities back to semi-spectral space:
+            !$omp parallel do collapse(2) private(kx, ky)
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)
                     call dst(1, nz, ds(1:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end parallel do
 
             ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+            !$omp parallel workshare
             ds(0     , :, :) = zero
             ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
             ds(nz    , :, :) = zero
             es = es + as
-            ! OMP the above????
 
             ! Get complete zeta field in semi-spectral space
             cs = svor(:, :, :, 3)
+            !$omp end parallel workshare
             call field_combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
@@ -134,7 +151,7 @@ module inversion_mod
             call diffx(es, as)
             call diffy(cs, bs)
 
-            !$omp parallel do
+            !$omp parallel do private(iz) default(shared)
             do iz = 0, nz
                 as(iz, :, :) = k2l2i * (as(iz, :, :) + bs(iz, :, :))
             enddo
@@ -144,7 +161,9 @@ module inversion_mod
             as(:, 0, 0) = ubar
 
             !Store spectral form of "u":
+            !$omp parallel workshare
             svel(:, :, :, 1) = as
+            !$omp end parallel workshare
 
             !Get "u" in physical space:
             call fftxys2p(as, vel(:, :, :, 1))
@@ -154,7 +173,7 @@ module inversion_mod
             call diffy(es, as)
             call diffx(cs, bs)
 
-            !$omp parallel do
+            !$omp parallel do private(iz) default(shared)
             do iz = 0, nz
                 as(iz, :, :) = k2l2i * (as(iz, :, :) - bs(iz, :, :))
             enddo
@@ -164,14 +183,18 @@ module inversion_mod
             as(:, 0, 0) = vbar
 
             !Store spectral form of "v":
+            !$omp parallel workshare
             svel(:, :, :, 2) = as
+            !$omp end parallel workshare
 
             !Get "v" in physical space:
             call fftxys2p(as, vel(:, :, :, 2))
 
             !-------------------------------------------------------
             !Store spectral form of "w":
+            !$omp parallel workshare
             svel(:, :, :, 3) = ds
+            !$omp end parallel workshare
 
             !Get "w" in physical space:
             call fftxys2p(ds, vel(:, :, :, 3))
@@ -183,25 +206,28 @@ module inversion_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Compute the gridded vorticity tendency: (excluding buoyancy effects)
+        ! Compute the gridded vorticity tendency:
         subroutine vorticity_tendency
             double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
             double precision :: gp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
             double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
             double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            integer          :: nc, iz
+            integer          :: nc
 
             call start_timer(vtend_timer)
 
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
+                !$omp parallel workshare
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
+                !$omp end parallel workshare
             enddo
 
+#ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-
+#endif
             !-------------------------------------------------------
             ! Tendency in flux form:
             !   dxi/dt  = dr/dy - dq/dz
@@ -209,40 +235,49 @@ module inversion_mod
             !  dzeta/dt = dq/dx - dp/dy
 
             ! r = u * eta - v * xi + b
-            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1) + buoy
+            !$omp parallel workshare
+            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1)
+#ifdef ENABLE_BUOYANCY
+            fp = fp + buoy
+#endif
+            !$omp end parallel workshare
             call field_decompose_physical(fp, r)
 
             ! q = w * xi - u * zeta
+            !$omp parallel workshare
             fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
+            !$omp end parallel workshare
             call field_decompose_physical(fp, q)
 
             ! dxi/dt  = dr/dy - dq/dz
-            call diffy(r, svtend(:, :, :, 1))
+            call diffy(r, svorts(:, :, :, 1))
             call diffz(fp, gp)
             call field_decompose_physical(gp, p)
-            svtend(:, :, :, 1) = svtend(:, :, :, 1) - p     ! here: p = dq/dz
+            !$omp parallel workshare
+            svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
+            !$omp end parallel workshare
 
             ! p = v * zeta - w * eta
+            !$omp parallel workshare
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
+            !$omp end parallel workshare
             call field_decompose_physical(fp, p)
 
             ! deta/dt = dp/dz - dr/dx
-            call diffx(r, svtend(:, :, :, 2))
+            call diffx(r, svorts(:, :, :, 2))
             call diffz(fp, gp)
             call field_decompose_physical(gp, r)
-            svtend(:, :, :, 2) = r - svtend(:, :, :, 2)     ! here: r = dp/dz
+            !$omp parallel workshare
+            svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
+            !$omp end parallel workshare
 
             ! dzeta/dt = dq/dx - dp/dy
-            call diffx(q, svtend(:, :, :, 3))
+            call diffx(q, svorts(:, :, :, 3))
             call diffy(p, r)                                ! here: r = dp/dy
-            svtend(:, :, :, 3) = svtend(:, :, :, 3) - r
+            !$omp parallel workshare
+            svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
+            !$omp end parallel workshare
 
-            ! Apply Gaussian filter to boundaries of horizontal vorticities (xi, eta):
-!            do nc = 1, 2
-!               svtend(0,  :, :, nc) = gauss * svtend(0,  :, :, nc)
-!               svtend(nz, :, :, nc) = gauss * svtend(nz, :, :, nc)
-!            enddo
-            
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency

@@ -30,7 +30,7 @@ unittests_PROGRAMS =   		\
         test_diffz_2		\
         test_diffz_3		\
         test_diffz_4		\
-        test_deriv
+        test_omp_collapse
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -59,5 +59,5 @@ test_diffz_3_LDADD = libcombi.la
 test_diffz_4_SOURCES = unit_test.f90 test_diffz_4.f90
 test_diffz_4_LDADD = libcombi.la
 
-test_deriv_SOURCES = unit_test.f90 test_deriv.f90
-test_deriv_LDADD = libcombi.la
+test_omp_collapse_SOURCES = unit_test.f90 test_omp_collapse.f90
+test_omp_collapse_LDADD = libcombi.la
