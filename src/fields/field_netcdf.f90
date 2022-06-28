@@ -134,7 +134,7 @@ module field_netcdf
                                        name='pressure',                     &
                                        long_name='pressure',                &
                                        std_name='',                         &
-                                       unit='1/m/s^2',                      &
+                                       unit='m^2/s^2',                      &
                                        dtype=NF90_DOUBLE,                   &
                                        dimids=dimids,                       &
                                        varid=pres_id)
