@@ -172,20 +172,16 @@ module inversion_utils
             !$omp end parallel do
 
             !Hyperbolic functions used for solutions of Laplace's equation:
-            !$omp parallel do collapse(2)
             do ky = 1, ny-1
                 do kx = 0, nx-1
                     call set_hyperbolic_functions(kx, ky, zm, zp)
                 enddo
             enddo
-            !$omp end parallel do
 
             ! ky = 0
-            !$omp parallel do
             do kx = 1, nx-1
                 call set_hyperbolic_functions(kx, 0, zm, zp)
             enddo
-            !$omp end parallel do
 
             !$omp parallel workshare
             ! kx = ky = 0
