@@ -156,10 +156,11 @@ module inversion_utils
             !---------------------------------------------------------------------
             !Define Green function
             !$omp parallel do
-            do kz = 0, nz
+            do kz = 1, nz
                 green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
             !$omp end parallel do
+            green(0, :, :) = - k2l2i
 
             !---------------------------------------------------------------------
             !Define zm = zmax - z, zp = z - zmin
