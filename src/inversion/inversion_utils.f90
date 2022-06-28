@@ -27,6 +27,9 @@ module inversion_utils
 
     double precision, allocatable :: green(:, :, :)
 
+    ! Green for pressure calculation
+    double precision, allocatable :: presgreen(:, :, :)
+
     ! Spectral dissipation operator
     double precision, allocatable :: hdis(:, :)
 
@@ -65,6 +68,7 @@ module inversion_utils
             , k2l2i                 &
             , hdis                  &
             , green                 &
+            , presgreen             &
             , zfactors              &
             , ztrig                 &
             , rkx                   &
@@ -143,6 +147,7 @@ module inversion_utils
             call init_fft
 
             allocate(green(1:nz-1, 0:nx-1, 0:ny-1))
+            allocate(presgreen(0:nz, 0:nx-1, 0:ny-1))
             allocate(gamtop(0:nz))
             allocate(gambot(0:nz))
 
@@ -160,6 +165,14 @@ module inversion_utils
                 green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
             enddo
             !$omp end parallel do
+
+            !---------------------------------------------------------------------
+            ! Define Green function for pressure
+            !$omp parallel workshare
+            presgreen(0,  :, :) = - k2l2i
+            presgreen(1:nz-1, :, :) = green
+            presgreen(nz, :, :) = - one / (k2l2 + rkz(nz) ** 2)
+            !$omp end parallel workshare
 
             !---------------------------------------------------------------------
             !Define zm = zmax - z, zp = z - zmin
@@ -336,6 +349,7 @@ module inversion_utils
             k2l2(0, 0) = one
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
+            k2l2i(0, 0) = zero
 
             !----------------------------------------------------------
             !Define Hou and Li filter (2D and 3D):
