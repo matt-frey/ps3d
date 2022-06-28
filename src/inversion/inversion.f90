@@ -102,7 +102,7 @@ module inversion_mod
             as(nz, :, :) = zero
 
             !FFT these quantities back to semi-spectral space:
-            !$omp parallel do collapse(2) private(kx, ky)  default(shared)
+            !$omp parallel do collapse(2) private(kx, ky)
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)

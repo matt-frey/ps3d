@@ -71,37 +71,29 @@ module advance_mod
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
             call field_combine_semi_spectral(sbuoy)
-            !$omp parallel private(iz)  default(shared)
-            !$omp do
+            !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
             enddo
-            !$omp end do
-            !$omp end parallel
+            !$omp end parallel do
             call field_decompose_semi_spectral(sbuoy)
 #endif
 
             ! Advance interior and boundary of vorticity
-            !$omp parallel
-            !$omp workshare
+            !$omp parallel workshare
             vortsm = svor + dt2 * svorts
-            !$omp end workshare
-            !$omp end parallel
+            !$omp end parallel workshare
 
             do nc = 1, 3
-                !$omp parallel
-                !$omp workshare
+                !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                !$omp end workshare
-                !$omp end parallel
+                !$omp end parallel workshare
                 call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel private(iz)  default(shared)
-                !$omp do
+                !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
                 enddo
-                !$omp end do
-                !$omp end parallel
+                !$omp end parallel do
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
@@ -122,30 +114,24 @@ module advance_mod
 #ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
                 call field_combine_semi_spectral(sbuoy)
-                !$omp parallel private(iz)  default(shared)
-                !$omp do
+                !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
                 enddo
-                !$omp end do
-                !$omp end parallel
+                !$omp end parallel do
                 call field_decompose_semi_spectral(sbuoy)
 #endif
 
                 do nc = 1, 3
-                    !$omp parallel
-                    !$omp workshare
+                    !$omp parallel workshare
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                    !$omp end workshare
-                    !$omp end parallel
+                    !$omp end parallel workshare
                     call field_combine_semi_spectral(svor(:, :, :, nc))
-                    !$omp parallel private(iz)  default(shared)
-                    !$omp do
+                    !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
                         svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
                     enddo
-                    !$omp end do
-                    !$omp end parallel
+                    !$omp end parallel do
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
@@ -290,7 +276,7 @@ module advance_mod
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
             vorl2 = zero
-            !$omp parallel private(ix, iy, iz, vortmp1, vortmp2, vortmp3)  default(shared)
+            !$omp parallel private(ix, iy, iz, vortmp1, vortmp2, vortmp3) shared(vor)
             !$omp do reduction(+:vorl1,vorl2) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
@@ -346,8 +332,7 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
-            !$omp parallel private(strain, eigs) shared(ggmax, dudx, dudy, dwdy, dvdy, vor) &
-            !$omp& default(private)
+            !$omp parallel private(strain, eigs) shared(dudx, dudy, dwdy, dvdy, vor)
             !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
