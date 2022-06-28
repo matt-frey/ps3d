@@ -112,7 +112,7 @@ AC_ARG_ENABLE([buoyancy],
 
 AM_CONDITIONAL([ENABLE_BUOYANCY], [test "$ENABLE_BUOYANCY" = "yes"])
 
-AC_MSG_CHECKING([whether we are compiling in verbose mode])
+AC_MSG_CHECKING([whether we are enabling buoyancy])
 if test "x$ENABLE_BUOYANCY" = "xyes"; then
     AC_MSG_RESULT([yes])
     FCFLAGS="$FCFLAGS -DENABLE_BUOYANCY"
