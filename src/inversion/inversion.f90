@@ -93,13 +93,17 @@ module inversion_mod
             !$omp end parallel workshare
 
             ! Calculate d/dz of this sine series:
+            !$omp parallel workshare
             as(0, :, :) = zero
+            !$omp end parallel workshare
             !$omp parallel do private(iz)  default(shared)
             do kz = 1, nz-1
                 as(kz, :, :) = rkz(kz) * ds(kz, :, :)
             enddo
             !$omp end parallel do
+            !$omp parallel workshare
             as(nz, :, :) = zero
+            !$omp end parallel workshare
 
             !FFT these quantities back to semi-spectral space:
             !$omp parallel do collapse(2) private(kx, ky)
@@ -117,10 +121,10 @@ module inversion_mod
             ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
             ds(nz    , :, :) = zero
             es = es + as
-            !$omp end parallel workshare
 
             ! Get complete zeta field in semi-spectral space
             cs = svor(:, :, :, 3)
+            !$omp end parallel workshare
             call field_combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
@@ -157,7 +161,9 @@ module inversion_mod
             as(:, 0, 0) = ubar
 
             !Store spectral form of "u":
+            !$omp parallel workshare
             svel(:, :, :, 1) = as
+            !$omp end parallel workshare
 
             !Get "u" in physical space:
             call fftxys2p(as, vel(:, :, :, 1))
@@ -177,14 +183,18 @@ module inversion_mod
             as(:, 0, 0) = vbar
 
             !Store spectral form of "v":
+            !$omp parallel workshare
             svel(:, :, :, 2) = as
+            !$omp end parallel workshare
 
             !Get "v" in physical space:
             call fftxys2p(as, vel(:, :, :, 2))
 
             !-------------------------------------------------------
             !Store spectral form of "w":
+            !$omp parallel workshare
             svel(:, :, :, 3) = ds
+            !$omp end parallel workshare
 
             !Get "w" in physical space:
             call fftxys2p(ds, vel(:, :, :, 3))
@@ -210,7 +220,9 @@ module inversion_mod
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
+                !$omp parallel workshare
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
+                !$omp end parallel workshare
             enddo
 
 #ifdef ENABLE_BUOYANCY
