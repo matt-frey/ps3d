@@ -6,7 +6,7 @@ echo "Run all unit tests ..."
 
 for file in "$dir"/*; do
     if [[ "$file" != "$0" ]]; then
-        $file
+        export OMP_NUM_THREADS=4; $file
     fi
 done
 

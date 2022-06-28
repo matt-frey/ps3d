@@ -64,8 +64,6 @@ module inversion_utils
             , hdzi                  &
             , k2l2i                 &
             , hdis                  &
-            , fftss2fs              &
-            , fftfs2ss              &
             , green                 &
             , zfactors              &
             , ztrig                 &
@@ -348,7 +346,6 @@ module inversion_utils
             kzmaxi = one/maxval(rkz)
             skz = -36.d0 * (kzmaxi * rkz) ** 36
 
-            !$omp parallel do collapse(2)
             do ky = 0, ny-1
                do kx = 0, nx-1
                   filt(0,  kx, ky) = dexp(skx(kx) + sky(ky))
@@ -358,7 +355,6 @@ module inversion_utils
                   enddo
                enddo
             enddo
-            !$omp end parallel do
 
             !Ensure filter does not change domain mean:
             filt(:, 0, 0) = one
@@ -620,58 +616,6 @@ module inversion_utils
 
             ! Carry out a full inverse x transform:
             call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Computes a 3D FFT of an array fp in semi-spectral space and
-        !returns the result as fs in fully spectral space.  It is assumed that
-        !fp is generally non-zero at the z boundaries (so a cosine
-        !transform is used in z).
-        subroutine fftss2fs(fp, fs)
-            double precision, intent(in)  :: fp(:, :, :)  !semi-spectral
-            double precision, intent(out) :: fs(:, :, :)  !fully-spectral
-            integer                       :: kx, ky, nzval, nxval, nyval
-
-            nzval = size(fp, 1)
-            nxval = size(fp, 2)
-            nyval = size(fp, 3)
-
-            !Carry out z FFT for each kx and ky:
-            !$omp parallel do collapse(2) shared(fs, fp) private(kx, ky)
-            do ky = 1, nyval
-                do kx = 1, nxval
-                    fs(:, kx, ky) = fp(:, kx, ky)
-                    call dct(1, nzval-1, fs(:, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-            !$omp end parallel do
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Computes an *inverse* 3D FFT of an array fs in fully spectral space and
-        !returns the result as fp in semi-spectral space.  It is assumed that
-        !fp is generally non-zero at the z boundaries (so a cosine
-        !transform is used in z).
-        subroutine fftfs2ss(fs, fp)
-            double precision, intent(in)  :: fs(:, :, :)  !fully spectral
-            double precision, intent(out) :: fp(:, :, :)  !semi-spectral
-            integer                       :: ix, iy, nzval, nxval, nyval
-
-            nzval = size(fs, 1)
-            nxval = size(fs, 2)
-            nyval = size(fs, 3)
-
-            !Carry out z FFT for each ix and iy:
-            !$omp parallel do collapse(2) shared(fs, fp) private(ix, iy)
-            do iy = 1, nyval
-                do ix = 1, nxval
-                    fp(:, ix, iy) = fs(:, ix, iy)
-                    call dct(1, nzval-1, fp(:, ix, iy), ztrig, zfactors)
-                enddo
-            enddo
-            !$omp end parallel do
         end subroutine
 
 end module inversion_utils

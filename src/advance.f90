@@ -248,10 +248,7 @@ module advance_mod
             !$omp end parallel workshare
 
             !Maximum buoyancy frequency:
-            !$omp parallel workshare
-            bfmax = maxval(xp)
-            !$omp end parallel workshare
-            bfmax = dsqrt(dsqrt(bfmax))
+            bfmax = dsqrt(dsqrt(maxval(xp)))
 #endif
 
 
@@ -261,17 +258,10 @@ module advance_mod
             !$omp end parallel workshare
 
             !Maximum vorticity magnitude:
-            !$omp parallel workshare
-            vortmax = maxval(xp)
-            !$omp end parallel workshare
-            vortmax = dsqrt(vortmax)
+            vortmax = dsqrt(maxval(xp))
 
             !R.m.s. vorticity:
-            !$omp parallel workshare
-            vorl1 = sum(xp(0, :, :)+xp(nz, :, :))
-            vorl2 = sum(xp(1:nz-1, :, :))
-            !$omp end parallel workshare
-            vortrms = dsqrt(ncelli*(f12*vorl1+vorl2))
+            vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small

@@ -80,7 +80,6 @@ module fields
         function get_kinetic_energy() result(ke)
             double precision :: ke
 
-            !$omp parallel workshare
             ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
                          + vel(1:nz-1, :, :, 2) ** 2      &
                          + vel(1:nz-1, :, :, 3) ** 2)     &
@@ -90,7 +89,6 @@ module fields
                + f14 * sum(vel(nz, :, :, 1) ** 2          &
                          + vel(nz, :, :, 2) ** 2          &
                          + vel(nz, :, :, 3) ** 2)
-            !$omp end parallel workshare
 
             ! multiply with total volume
             ke = ke * vcell * dble(ncell)
@@ -99,7 +97,6 @@ module fields
         function get_enstrophy() result(en)
             double precision :: en
 
-            !$omp parallel workshare
             en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2      &
                          + vor(1:nz-1, :, :, 2) ** 2      &
                          + vor(1:nz-1, :, :, 3) ** 2)     &
@@ -109,7 +106,6 @@ module fields
                + f14 * sum(vor(nz, :, :, 1) ** 2          &
                          + vor(nz, :, :, 2) ** 2          &
                          + vor(nz, :, :, 3) ** 2)
-            !$omp end parallel workshare
 
             ! multiply with total volume
             en = en * vcell * dble(ncell)
