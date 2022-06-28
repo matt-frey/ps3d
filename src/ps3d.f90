@@ -6,7 +6,7 @@ program ps3d
     use timer
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
-    use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel
+    use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel, pres_timer
     use inversion_utils, only : init_inversion          &
                               , init_diffusion          &
                               , field_decompose_physical
@@ -44,6 +44,7 @@ program ps3d
             call register_timer('vor2vel', vor2vel_timer)
             call register_timer('vorticity tendency', vtend_timer)
             call register_timer('advance', advance_timer)
+            call register_timer('pressure calculation', pres_timer)
 
             call start_timer(ps_timer)
 

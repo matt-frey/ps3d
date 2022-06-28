@@ -9,7 +9,8 @@ module inversion_mod
     implicit none
 
     integer :: vor2vel_timer,   &
-               vtend_timer
+               vtend_timer,     &
+               pres_timer
 
     contains
 
@@ -97,7 +98,7 @@ module inversion_mod
 
             !Invert Laplacian to find the part of w expressible as a sine series:
             !$omp parallel workshare
-            ds(1:nz-1, :, :) = green * ds(1:nz-1, :, :)
+            ds(1:nz-1, :, :) = green(1:nz-1, :, :) * ds(1:nz-1, :, :)
             !$omp end parallel workshare
 
             ! Calculate d/dz of this sine series:
@@ -306,6 +307,8 @@ module inversion_mod
             double precision             :: rs(0:nz, 0:nx-1, 0:ny-1)   ! rhs in spectral space
             integer                      :: kx, ky
 
+            call start_timer(pres_timer)
+
             !-------------------------------------------------------
             ! Compute rhs (and store in pres) of Poisson equation to determine the pressure:
             ! J_xy(u, v) = du/dx * dv/dy - du/dy * dv/dx
@@ -339,7 +342,7 @@ module inversion_mod
             !-------------------------------------------------------
             !Invert Laplacian:
             !$omp parallel workshare
-            rs = presgreen * rs
+            rs = green * rs
             !$omp end parallel workshare
 
             !-------------------------------------------------------
@@ -353,6 +356,8 @@ module inversion_mod
             !$omp end parallel do
 
             call fftxys2p(rs, pres)
+
+            call stop_timer(pres_timer)
 
         end subroutine pressure
 
