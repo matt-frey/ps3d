@@ -144,21 +144,32 @@ module advance_mod
             t = t + dt
         end subroutine advance
 
-        subroutine adjust_vorticity_mean
-            double precision :: wk(1:nz), savg
+        function calc_vorticity_mean() result(savg)
+            double precision :: wk(1:nz)
             integer          :: nc
+            double precision :: savg(2)
 
-            ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
                 ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
                 wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
                 wk(nz) = zero
                 call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                ! Compute average, savg (first part is the part due to svor_L):
-                savg = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                ! Compute average (first part is the part due to svor_L):
+                savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+            enddo
+        end function calc_vorticity_mean
+
+        subroutine adjust_vorticity_mean
+            double precision :: wk(1:nz), savg(2)
+            integer          :: nc
+
+            savg = calc_vorticity_mean()
+
+            ! Ensure zero global mean horizontal vorticity conservation:
+            do nc = 1, 2
                 ! Remove from boundary values (0 & nz):
-                svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg
-                svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg
+                svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
             enddo
 
         end subroutine adjust_vorticity_mean

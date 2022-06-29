@@ -6,12 +6,19 @@ program ps3d
     use timer
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
-    use inversion_mod, only : vor2vel_timer, vtend_timer, vor2vel, pres_timer
+    use inversion_mod, only : vor2vel_timer &
+                            , vtend_timer   &
+                            , vor2vel       &
+                            , pres_timer
     use inversion_utils, only : init_inversion          &
                               , init_diffusion          &
                               , field_decompose_physical
-    use advance_mod, only : advance, advance_timer, WRITE_VOR, WRITE_ECOMP
-    use utils, only : write_last_step, setup_output_files,       &
+    use advance_mod, only : advance             &
+                          , calc_vorticity_mean &
+                          , advance_timer       &
+                          , WRITE_VOR           &
+                          , WRITE_ECOMP
+    use utils, only : write_last_step, setup_output_files,  &
                       setup_domain_and_parameters
     implicit none
 
@@ -37,7 +44,6 @@ program ps3d
                               , read_config_file    &
                               , time
             double precision :: bbdif, ke, en
-            double precision :: vormean(3)
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -62,11 +68,6 @@ program ps3d
 
             call read_netcdf_fields(trim(field_file))
 
-            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
-            vormean = get_mean_vorticity()
-            ini_vor_mean(1) = vormean(1)
-            ini_vor_mean(2) = vormean(2)
-
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
             call field_decompose_physical(buoy, sbuoy)
@@ -74,6 +75,9 @@ program ps3d
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
             call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+
+            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
+            ini_vor_mean = calc_vorticity_mean()
 
             call vor2vel
 #ifdef ENABLE_BUOYANCY
