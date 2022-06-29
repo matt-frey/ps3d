@@ -77,6 +77,8 @@ module utils
             call get_time_at_step(ncid, step, ini_time)
             time%initial = ini_time
 
+            print *, step, ini_time
+
             ! we must add +1 to nw if the initial time is not zero (a restart)
             ! to avoid that the same time is written twice
             if (time%initial > zero) then
