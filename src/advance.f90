@@ -266,8 +266,6 @@ module advance_mod
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorl1 = small
             vorl2 = zero
-            !$omp parallel private(ix, iy, iz, vortmp1, vortmp2, vortmp3) shared(vor)
-            !$omp do reduction(+:vorl1,vorl2) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 1, nz
@@ -281,8 +279,6 @@ module advance_mod
                     enddo
                 enddo
             enddo
-            !$omp end do
-            !$omp end parallel
             vorch = vorl2 / vorl1
 
             vormean = get_mean_vorticity()
@@ -322,8 +318,6 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
-            !$omp parallel private(strain, eigs) shared(dudx, dudy, dwdy, dvdy, vor)
-            !$omp do reduction(max:ggmax) collapse(3)
             do ix = 0, nx-1
                 do iy = 0, ny-1
                     do iz = 0, nz
@@ -367,8 +361,6 @@ module advance_mod
                     enddo
                 enddo
             enddo
-            !$omp end do
-            !$omp end parallel
 
             ! Pressure calculation:
             call pressure(dudx, dudy, dvdy, dwdx, dwdy)
