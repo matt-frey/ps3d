@@ -19,7 +19,7 @@ program test_diffz_4
     integer                       :: iz
     double precision              :: z
 
-    nx = 16
+    nx = 32
     ny = nx
     nz = nx
 
@@ -46,7 +46,7 @@ program test_diffz_4
 
     error = maxval(dabs(dfdz_ref - dfdz))
 
-    call print_result_dp('Test diffz', error, atol=1.0e-14)
+    call print_result_dp('Test diffz', error, atol=1.0e-1)
 
     deallocate(fp)
     deallocate(dfdz)
