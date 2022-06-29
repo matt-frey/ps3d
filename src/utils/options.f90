@@ -11,6 +11,8 @@ module options
 
     character(len=512) :: field_file = ''
 
+    integer :: field_step = -1
+
     ! print more info if true
     logical :: verbose = .false.
 

@@ -1,6 +1,6 @@
 module utils
     use constants, only : one
-    use options, only : output, verbose
+    use options, only : output, verbose, time
     use field_netcdf
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time, get_netcdf_box
@@ -72,6 +72,13 @@ module utils
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)
+            call get_time(ncid, time%initial)
+
+            ! we must add +1 to nw if the initial time is not zero (a restart)
+            ! to avoid that the same time is written twice
+            if (time%initial > zero) then
+                nfw = int(time%initial / output%field_freq) + 1
+            endif
 
             call close_netcdf_file(ncid)
 
