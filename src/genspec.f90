@@ -25,7 +25,7 @@ program genspec
     call parse_command_line
 
     ! read domain dimensions
-    call setup_domain_and_parameters(trim(filename))
+    call setup_domain_and_parameters(trim(filename), step)
 
     allocate(kmag(0:nz, 0:nx-1, 0:ny-1))
 

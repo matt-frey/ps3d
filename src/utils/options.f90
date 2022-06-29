@@ -76,7 +76,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, viscosity, output, time
+            namelist /PS3D/ field_file, field_step, viscosity, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
