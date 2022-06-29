@@ -66,7 +66,7 @@ module utils
         subroutine setup_domain_and_parameters(fname, step)
             character(*), intent(in) :: fname
             integer,      intent(in) :: step
-            integer                  :: ncid, n_steps
+            integer                  :: ncid
             integer                  :: ncells(3)
             double precision         :: ini_time
 
