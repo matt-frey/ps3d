@@ -19,6 +19,7 @@ module field_netcdf
     integer            :: dimids(4)     ! = (x, y, z)
     integer            :: coord_ids(3)  ! = (x, y, z)
     integer            :: t_axis_id
+    double precision   :: restart_time
 
     integer            :: x_vel_id, y_vel_id, z_vel_id,    &
                           x_vor_id, y_vor_id, z_vor_id,    &
@@ -37,7 +38,8 @@ module field_netcdf
 #ifdef ENABLE_BUOYANCY
                buoy_id,                         &
 #endif
-               n_writes
+               n_writes, restart_time
+
 
     contains
 
@@ -47,10 +49,24 @@ module field_netcdf
         subroutine create_netcdf_field_file(basename, overwrite)
             character(*), intent(in)  :: basename
             logical,      intent(in)  :: overwrite
+            logical                   :: l_exist
 
             ncfname =  basename // '_fields.nc'
 
+            restart_time = -one
             n_writes = 1
+
+            call exist_netcdf_file(ncfname, l_exist)
+
+            if (l_exist) then
+                call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+                call get_num_steps(ncid, n_writes)
+                call get_time(ncid, restart_time)
+                call read_netcdf_field_content
+                call close_netcdf_file(ncid)
+                n_writes = n_writes + 1
+                return
+            endif
 
             call create_netcdf_file(ncfname, overwrite, ncid)
 
@@ -202,6 +218,11 @@ module field_netcdf
 
             call start_timer(field_io_timer)
 
+            if (t <= restart_time) then
+                call stop_timer(field_io_timer)
+                return
+            endif
+
             call open_netcdf_file(ncfname, NF90_WRITE, ncid)
 
             if (n_writes == 1) then
@@ -263,7 +284,10 @@ module field_netcdf
             call get_num_steps(ncid, n_steps)
 
             if (present(step)) then
-                if (step > n_steps) then
+                if (step == -1) then
+                    ! do nothing
+                    print *, "Warning: Read the last time step."
+                else if (step > n_steps) then
                     print *, "Warning: NetCDF file has not enough records. The last step is chosen."
                 else
                     n_steps = step

@@ -40,6 +40,7 @@ program ps3d
 
         subroutine pre_run
             use options, only : field_file          &
+                              , field_step          &
                               , output              &
                               , read_config_file    &
                               , time
@@ -57,16 +58,16 @@ program ps3d
             ! parse the config file
             call read_config_file
 
+            time%initial = zero ! make sure user cannot start at arbitrary time
+
             ! read domain dimensions
             call setup_domain_and_parameters(trim(field_file))
-
-            time%initial = zero ! make sure user cannot start at arbirtrary time
 
             call init_inversion
 
             call field_default
 
-            call read_netcdf_fields(trim(field_file))
+            call read_netcdf_fields(trim(field_file), field_step)
 
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
