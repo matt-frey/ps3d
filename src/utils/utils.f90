@@ -3,7 +3,7 @@ module utils
     use options, only : output, verbose, time
     use field_netcdf
     use inversion_mod, only : vor2vel
-    use netcdf_reader, only : get_file_type, get_num_steps, get_time, get_netcdf_box
+    use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_netcdf_box
     use parameters, only : lower, extent, update_parameters
     use fields
     use physics, only : read_physical_quantities, print_physical_quantities
@@ -63,8 +63,9 @@ module utils
 
         end subroutine write_step
 
-        subroutine setup_domain_and_parameters(fname)
+        subroutine setup_domain_and_parameters(fname, step)
             character(*), intent(in) :: fname
+            integer,      intent(in) :: step
             integer                  :: ncid
             integer                  :: ncells(3)
 
@@ -72,7 +73,7 @@ module utils
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)
-            call get_time(ncid, time%initial)
+            call get_time_at_step(ncid, step, time%initial)
 
             ! we must add +1 to nw if the initial time is not zero (a restart)
             ! to avoid that the same time is written twice

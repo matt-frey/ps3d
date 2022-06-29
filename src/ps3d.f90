@@ -61,7 +61,7 @@ program ps3d
             time%initial = zero ! make sure user cannot start at arbitrary time
 
             ! read domain dimensions
-            call setup_domain_and_parameters(trim(field_file))
+            call setup_domain_and_parameters(trim(field_file), field_step)
 
             call init_inversion
 
