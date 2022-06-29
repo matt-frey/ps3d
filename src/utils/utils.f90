@@ -68,12 +68,14 @@ module utils
             integer,      intent(in) :: step
             integer                  :: ncid
             integer                  :: ncells(3)
+            double precision         :: ini_time
 
             call open_netcdf_file(fname, NF90_NOWRITE, ncid)
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)
-            call get_time_at_step(ncid, step, time%initial)
+            call get_time_at_step(ncid, step, ini_time)
+            time%initial = ini_time
 
             ! we must add +1 to nw if the initial time is not zero (a restart)
             ! to avoid that the same time is written twice
