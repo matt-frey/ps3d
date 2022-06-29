@@ -82,10 +82,8 @@ module utils
             time%initial = ini_time
 
 
-            ! we must add +1 to nw if the initial time is not zero (a restart)
-            ! to avoid that the same time is written twice
             if (time%initial > zero) then
-                nfw = int(time%initial / output%field_freq) + 1
+                nfw = int(time%initial / output%field_freq)
             endif
 
             call close_netcdf_file(ncid)
