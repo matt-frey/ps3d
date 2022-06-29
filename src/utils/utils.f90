@@ -73,7 +73,9 @@ module utils
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)
-            call get_time_at_step(ncid, step, time%initial)
+            if (step > 0) then
+                call get_time_at_step(ncid, step, time%initial)
+            endif
 
             ! we must add +1 to nw if the initial time is not zero (a restart)
             ! to avoid that the same time is written twice
