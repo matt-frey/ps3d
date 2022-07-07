@@ -20,6 +20,7 @@ AC_CONFIG_FILES([
     src/netcdf/Makefile
     src/fft/Makefile
     unit-tests/Makefile
+    tests/Makefile
 ])
 
 #######################################################################################

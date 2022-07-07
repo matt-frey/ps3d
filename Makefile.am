@@ -1,5 +1,6 @@
 SUBDIRS =		\
 	src		\
-	unit-tests
+	unit-tests	\
+	tests
 
 ACLOCAL_AMFLAGS = -I m4
