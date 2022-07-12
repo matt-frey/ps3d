@@ -42,10 +42,6 @@ ymax = origin[1] + extent[1]
 zmin = origin[2]
 zmax = origin[2] + extent[2]
 
-#colors = ['blue', 'orange', 'green']
-
-#vcell = np.prod(extent / ncells)
-
 ##pres = ncreader.get_dataset(step=step, name='pressure')
 x_vor = ncreader.get_dataset(step=step, name='x_vorticity')
 y_vor =	ncreader.get_dataset(step=step, name='y_vorticity')
@@ -147,13 +143,6 @@ camera = dict(
 
 
 fig.update_layout(
-    #title={
-        #'text': "t = " + str(round(t[step], 2)),
-        #'y':0.95,
-        #'x':0.05,
-        #'xanchor': 'left',
-        #'yanchor': 'top'
-    #},
     scene_camera=camera,
     scene = dict(
                     xaxis = dict(
@@ -183,10 +172,7 @@ fig.update_layout(
 )
 
 
-#import plotly.io as pio
-#pio.write_image(fig, 'image.pdf')
-fig.write_image("test_plotly.png", scale=1, width=1024, height=1024)
-#fig.show()
+fig.write_image("test_plotly.png", scale=1.5, width=1024, height=1024)
 
 image = plt.imread("test_plotly.png", format='png')
 plt.figure(figsize=(9, 9))
@@ -195,6 +181,6 @@ plt.axis('off')
 add_timestamp(plt, t[step], xy=(0.05, 0.95), fmt="%.2f")
 
 plt.tight_layout()
-plt.savefig('test_plotly.eps', format='eps', dpi=500)
+plt.savefig('test_plotly.eps', format='eps')
 
 ncreader.close()
