@@ -99,12 +99,27 @@ y = ncreader.get_all(name='y')
 z = ncreader.get_all(name='z')
 vor = copy_periodic_layers(vor)
 
-
 # add periodic values
 x = np.append(x, abs(x[0]))
 y = np.append(y, abs(y[0]))
 
-X, Y, Z = np.meshgrid(x, y, z)
+#vor[:, :, :] = 0.0
+#vor[:, 0, 0] = y
+
+vor = np.transpose(vor, axes=[2, 1, 0])
+
+#vor[:, :, :] = 0.0
+#vor[0, 0, :] = y
+
+X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+
+# 13 July 2022
+# https://stackoverflow.com/questions/1827489/numpy-meshgrid-in-3d
+assert np.all(X[:,0,0] == x)
+assert np.all(Y[0,:,0] == y)
+assert np.all(Z[0,0,:] == z)
+
+
 
 fig = go.Figure(data=go.Volume(
     x=X.flatten(),
