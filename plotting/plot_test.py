@@ -25,6 +25,7 @@ grid = '32'
 step = 62
 opacity = 0.01
 surface_count = 150
+cmap_name = 'rainbow4'
 
 ncreader = nc_reader()
 ncreader.open('../examples/beltrami_' + grid + '_fields.nc')
@@ -64,6 +65,7 @@ import numpy as np
 #import plotly.io as pio
 #pio.renderers.default = "png"
 
+# Python 2.7
 # 12 July 2022
 # https://plotly.com/python/v3/matplotlib-colorscales/#formatting-the-colormap
 def matplotlib_to_plotly(cmap, pl_entries):
@@ -71,16 +73,26 @@ def matplotlib_to_plotly(cmap, pl_entries):
     pl_colorscale = []
 
     for k in range(pl_entries):
-        #C = map(np.uint8, np.array(cmap(k*h)[:3])*255)
-        C = np.array(cmap(k*h)[:3])*255
+        C = map(np.uint8, np.array(cmap(k*h)[:3])*255)
         pl_colorscale.append([k*h, 'rgb'+str((C[0], C[1], C[2]))])
 
     return pl_colorscale
 
-kbc_cmap = cc.cm['kbc']
+# Python 3
+# 13 July 2022
+# https://github.com/plotly/plotly.py/issues/2189
+def mpl_to_plotly(cmap, pl_entries=11, rdigits=2):
+    # cmap - colormap
+    # pl_entries - int = number of Plotly colorscale entries
+    # rdigits - int -=number of digits for rounding scale values
+    scale = np.linspace(0, 1, pl_entries)
+    colors = (cmap(scale)[:, :3]*255).astype(np.uint8)
+    pl_colorscale = [[round(s, rdigits), f'rgb{tuple(color)}'] for s, color in zip(scale, colors)]
+    return pl_colorscale
 
-kbc = matplotlib_to_plotly(kbc_cmap, 256)
+kbc_cmap = cc.cm[cmap_name]
 
+kbc = mpl_to_plotly(kbc_cmap, kbc_cmap.N)
 
 #help(go.Volume)
 #exit()
@@ -153,7 +165,7 @@ ticktext = [' -3/2 ', ' -3/4 ', ' 0 ', ' 3/4 ', ' 3/2 ']
 camera = dict(
     up=dict(x=0, y=0, z=1),
     center=dict(x=0, y=0, z=-0.1),
-    eye=dict(x=1.4, y=1.4, z=1.4)
+    eye=dict(x=1.5, y=1.5, z=1.2)
 )
 
 
@@ -196,6 +208,6 @@ plt.axis('off')
 add_timestamp(plt, t[step], xy=(0.05, 0.95), fmt="%.2f")
 
 plt.tight_layout()
-plt.savefig('test_plotly.eps', format='eps')
+plt.savefig('plotly_volrender' + cmap_name + '.eps', format='eps')
 
 ncreader.close()
