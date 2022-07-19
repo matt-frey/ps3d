@@ -20,7 +20,6 @@ mpl.rcParams.update({
 
 mpl.rcParams['font.size'] = 10
 
-
 def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.2f"):
     bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none')
     label = r"t = " + fmt % (time)
@@ -83,4 +82,8 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
     cbar = None
     if colorbar:
         cbar = ax.cax.colorbar(im)
+        cbar.formatter.set_powerlimits((0, 0))
+        # 18 July 2022
+        # https://stackoverflow.com/questions/34039396/matplotlib-colorbar-scientific-notation-offset
+        cbar.ax.yaxis.set_offset_position('left')
     return im, cbar

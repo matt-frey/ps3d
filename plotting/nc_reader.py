@@ -7,6 +7,10 @@ class nc_reader:
     def __init__(self):
         self._ncfile = None
 
+        self._derived_fields = [
+            'vorticity_magnitude'
+        ]
+
     def open(self, fname):
         if not os.path.exists(fname):
             raise IOError("File '" + fname + "' does not exist.")
@@ -58,6 +62,9 @@ class nc_reader:
     # returns a dataset with axis ordering (x, y, z)
     def get_dataset(self, step, name):
 
+        if name in self._derived_fields:
+            return self._get_derived_dataset(step, name)
+
         if not name in self._ncfile.variables.keys():
             raise IOError("Dataset '" + name + "' unknown.")
 
@@ -71,6 +78,13 @@ class nc_reader:
         # change ordering from (z, y, x) to (x, y, z)
         fdata = np.transpose(fdata, axes=[2, 1, 0])
         return fdata
+
+    def _get_derived_dataset(self, step, name):
+        if name == 'vorticity_magnitude':
+            x_vor = self.get_dataset(step=step, name='x_vorticity')
+            y_vor = self.get_dataset(step=step, name='y_vorticity')
+            z_vor = self.get_dataset(step=step, name='z_vorticity')
+            return np.sqrt(x_vor ** 2 + y_vor ** 2 + z_vor ** 2)
 
     def get_dataset_attribute(self, name, attr):
         if not name in self._ncfile.variables.keys():

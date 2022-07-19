@@ -4,17 +4,43 @@ from nc_reader import nc_reader
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import ImageGrid
 from utils import *
+import argparse
 
-grid = '32'
+parser = argparse.ArgumentParser(description='Create figure xy')
+parser.add_argument('--filename',
+                    type=str,
+                    nargs=1,
+                    help='output file')
+parser.add_argument('--steps',
+                    type=int,
+                    nargs=6,
+                    help='add 6 steps to plot')
+
+parser.add_argument('--plane',
+                    type=str,
+                    nargs=1,
+                    help="'xy', 'xz' or 'yz'")
+
+parser.add_argument('--loc',
+                    type=int,
+                    nargs=1,
+                    help='index location to extract plane')
+
+args = parser.parse_args()
+fname = args.filename[0]
+steps = np.asarray(args.steps)
+plane = args.plane[0]
+loc = args.loc[0]
+
+print("Filename:", fname)
+print("Steps:   ", steps)
+print("Plane:   ", plane)
+print("Location:", loc)
 
 ncreader = nc_reader()
-ncreader.open('../examples/beltrami_' + grid + '_fields.nc')
+ncreader.open(fname)
 
 t = ncreader.get_all('t')
-
-steps = [0, 0, 0, 0, 0, 0]
-iz = 0
-
 
 #
 # Vorticity magnitude
@@ -32,23 +58,12 @@ grid = ImageGrid(fig, 111,
                  cbar_pad=0.1)
 
 for i, step in enumerate(steps):
-    x_vor = ncreader.get_dataset(step=step, name='x_vorticity')
-    y_vor = ncreader.get_dataset(step=step, name='y_vorticity')
-    z_vor = ncreader.get_dataset(step=step, name='z_vorticity')
-
-    vor = np.sqrt(x_vor ** 2 + y_vor ** 2 + z_vor ** 2)
-
-    axis = ncreader.get_axis('z')
-
-    vor[:, :, :] = 0
-    vor[:, 20, 0] = axis
-
-    print(t[step])
+    x_vor = ncreader.get_dataset(step=step, name='vorticity_magnitude')
 
     ax = grid[i]
     im, cbar = make_imshow(ax=ax,
-                           plane='xy',
-                           loc=iz,
+                           plane=plane,
+                           loc=loc,
                            fdata=vor,
                            ncr=ncreader,
                            cmap='rainbow4',
@@ -83,39 +98,15 @@ grid = ImageGrid(fig, 111,
                  cbar_mode='each',
                  cbar_size="4%",
                  cbar_pad=0.1)
-ticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
-ticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
-
-## find colorbar bounds
-#pmin = 1000000
-#pmax = -pmin
-#for i, step in enumerate(steps):
-    #pres = ncreader.get_dataset(step=step, name='pressure')
-    #pres = copy_periodic_layers(pres)
-    #pmin = min(pmin, pres[iz, :, :].min())
-    #pmax = max(pmax, pres[iz, :, :].max())
 
 for i, step in enumerate([0, 0]):
     pres = ncreader.get_dataset(step=step, name='pressure')
-
-    X, Y, Z = ncreader.get_meshgrid()
-
-
-    a = 2 * X + 2 * Y
-    p = 0.25 * (0.125 * np.cos(2.0 * a) - np.cos(-np.pi))
-
-    print (i)
-    if i > 0:
-        print ("HI")
-        pres[:, :, iz] = p[:, :, iz]
-
-    print(t[step])
 
     ax = grid[i]
 
     im, cbar = make_imshow(ax=ax,
                            plane='xy',
-                           loc=iz,
+                           loc=loc,
                            fdata=pres,
                            ncr=ncreader,
                            cmap='rainbow4',
@@ -128,14 +119,9 @@ for i, step in enumerate([0, 0]):
     else:
         remove_yticks(ax)
 
-    ax.set_xticks(ticks, ticklab)
-    ax.set_yticks(ticks, ticklab)
-    ax.set_xlabel(r'$x$')
-    ax.set_ylabel(r'$y$')
+    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
-    #add_timestamp(ax, t[step], xy=(0.03, 1.05), fmt="%.2f")
-
-add_annotation(grid[1], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
+add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
 
 plt.savefig('lower_surface_pressure.eps', format='eps')
 plt.close()
