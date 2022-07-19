@@ -4,44 +4,62 @@ from tools.nc_reader import nc_reader
 import matplotlib as mpl
 import colorcet as cc
 from mpl_toolkits.axes_grid1 import ImageGrid
+from utils import *
+import argparse
+import os
 
-def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.3f"):
-    # 29. Dec 2020
-    # https://matplotlib.org/3.1.1/gallery/pyplots/annotate_transform.html#sphx-glr-gallery-pyplots-annotate-transform-py
-    # https://stackoverflow.com/questions/7045729/automatically-position-text-box-in-matplotlib
-    # https://matplotlib.org/3.1.0/gallery/recipes/placing_text_boxes.html
-    bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none') #, alpha=0.5,
+parser = argparse.ArgumentParser(description='Create cross section figures.')
+parser.add_argument('--filename',
+                    type=str,
+                    help='output file')
+parser.add_argument('--steps',
+                    type=int,
+                    nargs=10,
+                    default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    help='add 6 steps to plot')
 
-    label = r"t = " + fmt % (time)
+parser.add_argument('--save_path',
+                    type=str,
+                    help='where to save the figures',
+                    default=os.getcwd())
 
-    plt.annotate(
-        label, xy=xy, xycoords="axes fraction", bbox=bbox
-    )
+parser.add_argument('--overwrite',
+                    help='overwrite figures',
+                    action='store_true')
 
-grid = '32'
-step = 10
+parser.add_argument('--fignums',
+                    type=int,
+                    nargs=2,
+                    help='figure numbers')
 
-mpl.rcParams['font.size'] = 8
+args = parser.parse_args()
+fname = args.filename
+steps = np.asarray(args.steps)
+save_path = args.save_path
+overwrite = args.overwrite
+fignums = args.fignums
+
+if fignums is None:
+    print("No figure numbers provided.")
+    exit()
+
+print()
+print("\tFilename:  ", fname)
+print("\tSteps:     ", steps)
+print("\tSave path: ", save_path)
+print("\tOverwrite: ", overwrite)
+print("\tFignums:   ", fignums)
+print()
 
 ncreader = nc_reader()
-ncreader.open('beltrami_' + grid + '_fields.nc')
+ncreader.open(fname)
 
-z = ncreader.get_all('z')
 t = ncreader.get_all('t')
-origin = ncreader.get_box_origin()
-extent = ncreader.get_box_extent()
-ncells = ncreader.get_box_ncells()
 
-colors = ['blue', 'orange', 'green']
-
-vcell = np.prod(extent / ncells)
-
-steps = [0, 55, 60, 62, 64, 66, 68, 70, 80, 100]
-
-n = len(z)
-fig = plt.figure(figsize=(len(steps)*1.0, 2*3), dpi=400)
-
-
+#
+# Vorticity mean profile
+#
+fig = plt.figure(figsize=(len(steps)*0.75, 5), dpi=400)
 grid = ImageGrid(fig, 111,
                  nrows_ncols=(2, 5),
                  aspect=True,
@@ -52,63 +70,84 @@ grid = ImageGrid(fig, 111,
                  cbar_mode=None,
                  cbar_size="4%",
                  cbar_pad=0.0)
-yticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
-yticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
 
 for i, step in enumerate(steps):
-    xibar = np.zeros(n)
-    etabar = np.zeros(n)
-    zetabar = np.zeros(n)
-    #ubar = np.zeros(n)
-    #vbar = np.zeros(n)
-    #wbar = np.zeros(n)
-
-    xi = ncreader.get_dataset(step=step, name='x_vorticity')
-    eta = ncreader.get_dataset(step=step, name='y_vorticity')
-    zeta = ncreader.get_dataset(step=step, name='z_vorticity')
-
-    #u = ncreader.get_dataset(step=step, name='x_velocity')
-    #v = ncreader.get_dataset(step=step, name='y_velocity')
-    #w = ncreader.get_dataset(step=step, name='z_velocity')
-
-
-    xibar = xi.mean(axis=(1, 2))
-    etabar = eta.mean(axis=(1, 2))
-    zetabar = zeta.mean(axis=(1, 2))
-
-    #ubar = u.mean(axis=(1, 2))
-    #vbar = v.mean(axis=(1, 2))
-    #wbar = w.mean(axis=(1, 2))
-
     ax = grid[i]
 
-    label1 = None
-    label2 = None
-    label3 = None
+    labels = [None] * 3
     if i == 2:
-        label1 = r'$\langle\mathcal{\xi}\rangle$'
-        label2 = r'$\langle\eta\rangle$'
-        label3 = r'$\langle\zeta\rangle$'
+        labels = [
+            r'$\langle\xi\rangle$',
+            r'$\langle\eta\rangle$',
+            r'$\langle\zeta\rangle$']
 
+    if i < 5:
+        remove_xticks(ax)
 
-    ax.plot(xibar, z, color='blue', marker='o', markersize=3, linewidth=0.75, label=label1)
-    ax.plot(etabar, z, color='red', marker='x', markersize=3, linewidth=0.75, label=label2)
-    ax.plot(zetabar, z, color='green', marker='+', markersize=3, linewidth=0.75, label=label3)
-    ax.set_aspect(1)
-    ax.set_yticks(ticks=yticks, labels=yticklab)
-    #ax.set_xlabel(r'magn.')
-    ax.set_xticks([-1, 0, 1])
-    ax.set_xlim([-1.1, 1.1])
+    if not i == 0 and not i == 5:
+        remove_yticks(ax)
 
-    add_timestamp(ax, t[step], xy=(0.03, 1.05), fmt="%.2f")
+    make_mean_profiles(ax=ax,
+                       ncr=ncreader,
+                       step=step,
+                       fields=['x_vorticity', 'y_vorticity', 'z_vorticity'],
+                       labels=labels)
+
+    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
 grid[0].set_ylabel(r'$z$')
 grid[5].set_ylabel(r'$z$')
 
-grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.25))
+grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.4))
 
-plt.tight_layout()
-#plt.show()
-plt.savefig('vor_profile.eps', dpi=400)
+save_figure(plt=plt, figpath=save_path, fignum=fignums[0], overwrite=overwrite)
+plt.close()
+
+#
+# Vorticity rms profile
+#
+fig = plt.figure(figsize=(len(steps)*0.75, 4), dpi=400)
+grid = ImageGrid(fig, 111,
+                 nrows_ncols=(2, 5),
+                 aspect=True,
+                 axes_pad=(0.1, 0.3),
+                 direction='row',
+                 share_all=True,
+                 cbar_location="bottom",
+                 cbar_mode=None,
+                 cbar_size="4%",
+                 cbar_pad=0.0)
+
+for i, step in enumerate(steps):
+    ax = grid[i]
+
+    labels = [None] * 3
+    if i == 2:
+        labels = [
+            r'$\xi_{\mathrm{rms}}$',
+            r'$\eta_{\mathrm{rms}}$',
+            r'$\zeta_{\mathrm{rms}}$']
+
+    if i < 5:
+        remove_xticks(ax)
+
+    if not i == 0 and not i == 5:
+        remove_yticks(ax)
+
+    make_rms_profiles(ax=ax,
+                      ncr=ncreader,
+                      step=step,
+                      fields=['x_vorticity', 'y_vorticity', 'z_vorticity'],
+                      labels=labels)
+
+    add_timestamp(ax, t[step], xy=(0.03, 1.08), fmt="%.2f")
+
+grid[0].set_ylabel(r'$z$')
+grid[5].set_ylabel(r'$z$')
+
+grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.6))
+
+save_figure(plt=plt, figpath=save_path, fignum=fignums[1], overwrite=overwrite)
+plt.close()
 
 ncreader.close()

@@ -10,6 +10,7 @@ mpl.rcParams.update({
     "font.family": "serif",
     "font.size": 20,
     "text.usetex": True,
+    'legend.framealpha': 1.0,
     'text.latex.preamble': "\n".join([
         r"\usepackage{amsmath}",
         r"\usepackage[utf8]{inputenc}",
@@ -88,6 +89,60 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
         # https://stackoverflow.com/questions/34039396/matplotlib-colorbar-scientific-notation-offset
         cbar.ax.yaxis.set_offset_position('left')
     return im, cbar
+
+def make_mean_profiles(ax, ncr, step, fields, labels):
+    z = ncr.get_all('z')
+    n = len(z)
+    zticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
+    zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
+    markersize = 3
+    markers = ['o', 'x', '+']
+    colors = ['blue', 'red', 'green']
+    linewidth = 0.75
+
+    for i, field in enumerate(fields):
+        bar = np.zeros(n)
+        data = ncr.get_dataset(step=step, name=field)
+        bar = data.mean(axis=(1, 2))
+        ax.plot(bar, z,
+                color=colors[i],
+                marker=markers[i],
+                markersize=markersize,
+                linewidth=linewidth,
+                label=labels[i])
+        ax.set_aspect(1)
+        ax.set_yticks(ticks=zticks, labels=zticklab)
+        ax.set_xticks([-1, 0, 1])
+        ax.set_xlim([-1.1, 1.1])
+    return ax
+
+def make_rms_profiles(ax, ncr, step, fields, labels):
+    z = ncr.get_all('z')
+    n = len(z)
+    zticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
+    zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
+    markersize = 3
+    markers = ['o', 'x', '+']
+    colors = ['blue', 'red', 'green']
+    linewidth = 0.75
+
+    for i, field in enumerate(fields):
+        rms = np.zeros(n)
+        data = ncr.get_dataset(step=step, name=field)
+        rms = np.sqrt((data ** 2).mean(axis=(1, 2)))
+
+        ax.plot(rms, z,
+                color=colors[i],
+                marker=markers[i],
+                markersize=markersize,
+                linewidth=linewidth,
+                label=labels[i])
+        ax.set_aspect(1)
+        ax.set_yticks(ticks=zticks, labels=zticklab)
+        ax.set_xticks([0, 1, 2, 3])
+        ax.set_xlim([-0.1, 3.1])
+    return ax
+
 
 def save_figure(plt, figpath, fignum=1, overwrite=False):
     figname = 'fig' + str(fignum) + '.eps'
