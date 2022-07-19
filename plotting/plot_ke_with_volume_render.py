@@ -52,11 +52,11 @@ rainbow4_cmap = cc.cm[cmap_name]
 
 rainbow4 = mpl_to_plotly(rainbow4_cmap, rainbow4_cmap.N)
 
-def get_screenshot(ax, step):
+def get_screenshot(step):
     ncreader = nc_reader()
     ncreader.open(os.path.join(filepath, 'beltrami_' + str(grid) + '_fields.nc'))
     t = ncreader.get_all('t')
-    image = make_volume_rendering(ax, ncr=ncreader, step=step, field='vorticity_magnitude')
+    image = make_volume_rendering(ncr=ncreader, step=step, field='vorticity_magnitude')
     ncreader.close()
     return t[step], image
 
@@ -71,12 +71,11 @@ def find_nearest(t, tref):
 
 def add_inset(ax, bounds, t, ke, step):
 
-    axins = ax.inset_axes(bounds=bounds, zorder=-1)
-
-    tref, arr = get_screenshot(axins, step)
+    tref, arr = get_screenshot(step)
 
     idx = find_nearest(t=t, tref=tref)
 
+    axins = ax.inset_axes(bounds=bounds, zorder=-1)
     ax.indicate_inset(bounds=[t[idx], ke[idx], 0.0, 0.0],
                     inset_ax=axins, zorder=1,
                     edgecolor='darkgrey', alpha=1.0)

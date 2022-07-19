@@ -170,7 +170,7 @@ def mpl_to_plotly(cmap, pl_entries=11, rdigits=2):
     pl_colorscale = [[round(s, rdigits), f'rgb{tuple(color)}'] for s, color in zip(scale, colors)]
     return pl_colorscale
 
-def make_volume_rendering(plt, ncr, step, field):
+def make_volume_rendering(ncr, step, field):
     opacity = 0.01
     surface_count = 150
     cmap_name = 'rainbow4'

@@ -52,7 +52,7 @@ ncreader.open(fname)
 t = ncreader.get_all('t')
 
 plt.figure(figsize=(9, 9))
-image = make_volume_rendering(plt, ncr=ncreader, step=step, field='vorticity_magnitude')
+image = make_volume_rendering(ncr=ncreader, step=step, field='vorticity_magnitude')
 add_timestamp(plt, t[step], xy=(0.05, 0.95), fmt="%.2f")
 
 plt.tight_layout()
