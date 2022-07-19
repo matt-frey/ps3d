@@ -44,6 +44,10 @@ parser.add_argument('--fields',
                     nargs='+',
                     help='fields to plot')
 
+parser.add_argument('--zlabel',
+                    default=r'$z = -\pi/2$',
+                    help='z-label for location')
+
 args = parser.parse_args()
 fname = args.filename
 steps = np.asarray(args.steps)
@@ -53,6 +57,7 @@ save_path = args.save_path
 overwrite = args.overwrite
 fields = args.fields
 fignums = args.fignums
+zlabel = args.zlabel
 
 
 if fields is None:
@@ -118,7 +123,8 @@ for j, field in enumerate(fields):
 
         add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
-    add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
+    if not zlabel is None:
+        add_annotation(grid[2], zlabel, xy=(0.6, 1.2), fontsize=12)
 
     save_figure(plt=plt, figpath=save_path, fignum=fignums[j], overwrite=overwrite)
     plt.close()
