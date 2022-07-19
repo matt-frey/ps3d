@@ -11,6 +11,7 @@ mpl.rcParams.update({
     "font.size": 20,
     "text.usetex": True,
     'legend.framealpha': 1.0,
+    'lines.linewidth': 0.75,
     'text.latex.preamble': "\n".join([
         r"\usepackage{amsmath}",
         r"\usepackage[utf8]{inputenc}",
