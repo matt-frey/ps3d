@@ -97,7 +97,7 @@ for j, field in enumerate(fields):
                     cbar_pad=0.1)
 
     for i, step in enumerate(steps):
-        fdata = ncreader.get_dataset(step=step, name='vorticity_magnitude')
+        fdata = ncreader.get_dataset(step=step, name=field)
 
         ax = grid[i]
         im, cbar = make_imshow(ax=ax,
