@@ -71,7 +71,7 @@ def get_screenshot(step):
     ncreader.close()
 
     opacity = 0.01
-    surface_count = 100
+    surface_count = 150
 
 
     fig = go.Figure(data=go.Volume(
@@ -164,7 +164,7 @@ def add_inset(ax, bounds, t, ke, step):
     axins = ax.inset_axes(bounds=bounds, zorder=-1)
     ax.indicate_inset(bounds=[t[idx], ke[idx], 0.0, 0.0],
                     inset_ax=axins, zorder=1,
-                    edgecolor='darkgrey', alpha=0.8)
+                    edgecolor='darkgrey', alpha=1.0)
     axins.imshow(arr)
     add_timestamp(axins, t[idx], xy=(0.05, 0.9), fmt="%.2f")
 
@@ -191,7 +191,7 @@ ncelli = 1.0 / grid ** 3
 
 # calculate mean KE and mean EN
 ke *= ncelli
-ax.plot(t, ke)
+ax.plot(t, ke, color='blue', linewidth=1.0)
 ax.set_xlabel(r'time, $t$')
 ax.set_ylabel(r'average kinetic energy, $\langle\mathcal{K}\rangle$')
 
