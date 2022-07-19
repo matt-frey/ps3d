@@ -89,7 +89,7 @@ plt.close()
 #
 fig = plt.figure(figsize=(8, 5), dpi=200)
 grid = ImageGrid(fig, 111,
-                 nrows_ncols=(1, 2),
+                 nrows_ncols=(2, 3),
                  aspect=True,
                  axes_pad=(0.4, 0.3),
                  direction='row',
