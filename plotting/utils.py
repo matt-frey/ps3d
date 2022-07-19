@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import colorcet as cc
 import matplotlib as mpl
 import numpy as np
+import os
 
 mpl.rcParams.update({
     "figure.figsize": (9, 6),
@@ -87,3 +88,25 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
         # https://stackoverflow.com/questions/34039396/matplotlib-colorbar-scientific-notation-offset
         cbar.ax.yaxis.set_offset_position('left')
     return im, cbar
+
+def save_figure(plt, figpath, fignum=1, auto=False):
+    if auto:
+        l_exist = True
+        fnum = 1
+        while l_exist:
+            figname = 'fig' + str(fnum) + '.eps'
+            fname = os.path.join(figpath, figname)
+            l_exist = os.path.exists(fname)
+            fnum = fnum + 1
+    else:
+        figname = 'fig' + str(fignum) + '.eps'
+        fname = os.path.join(figpath, figname)
+
+        if os.path.exists(fname):
+            print("Figure '" + fname + "' already exists.")
+            plt.close()
+            exit()
+
+    print("Save figure as:", fname)
+    plt.savefig(fname=fname, format='eps')
+    plt.close()

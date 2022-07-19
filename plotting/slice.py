@@ -5,11 +5,11 @@ import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import ImageGrid
 from utils import *
 import argparse
+import os
 
 parser = argparse.ArgumentParser(description='Create figure xy')
 parser.add_argument('--filename',
                     type=str,
-                    nargs=1,
                     help='output file')
 parser.add_argument('--steps',
                     type=int,
@@ -18,24 +18,35 @@ parser.add_argument('--steps',
 
 parser.add_argument('--plane',
                     type=str,
-                    nargs=1,
                     help="'xy', 'xz' or 'yz'")
 
 parser.add_argument('--loc',
                     type=int,
-                    nargs=1,
                     help='index location to extract plane')
 
-args = parser.parse_args()
-fname = args.filename[0]
-steps = np.asarray(args.steps)
-plane = args.plane[0]
-loc = args.loc[0]
+parser.add_argument('--save_path',
+                    type=str,
+                    help='where to save the figures',
+                    default=os.getcwd())
 
-print("Filename:", fname)
-print("Steps:   ", steps)
-print("Plane:   ", plane)
-print("Location:", loc)
+parser.add_argument('--auto_num',
+                    help='auto select figure number',
+                    action='store_true')
+
+args = parser.parse_args()
+fname = args.filename
+steps = np.asarray(args.steps)
+plane = args.plane
+loc = args.loc
+save_path = args.save_path
+auto_num = args.auto_num
+
+print("Filename: ", fname)
+print("Steps:    ", steps)
+print("Plane:    ", plane)
+print("Location: ", loc)
+print("Save path:", save_path)
+print("Auto num: ", auto_num)
 
 ncreader = nc_reader()
 ncreader.open(fname)
@@ -81,7 +92,7 @@ for i, step in enumerate(steps):
 
 add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
 
-plt.savefig('lower_surface_vorticity_magnitude.eps', format='eps')
+save_figure(plt=plt, figpath=save_path, fignum=1, auto=auto_num)
 plt.close()
 
 #
@@ -99,7 +110,7 @@ grid = ImageGrid(fig, 111,
                  cbar_size="4%",
                  cbar_pad=0.1)
 
-for i, step in enumerate([0, 0]):
+for i, step in enumerate(steps):
     pres = ncreader.get_dataset(step=step, name='pressure')
 
     ax = grid[i]
@@ -123,7 +134,6 @@ for i, step in enumerate([0, 0]):
 
 add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
 
-plt.savefig('lower_surface_pressure.eps', format='eps')
-plt.close()
+save_figure(plt=plt, figpath=save_path, fignum=2, auto=auto_num)
 
 ncreader.close()
