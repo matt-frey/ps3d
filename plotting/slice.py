@@ -58,7 +58,7 @@ grid = ImageGrid(fig, 111,
                  cbar_pad=0.1)
 
 for i, step in enumerate(steps):
-    x_vor = ncreader.get_dataset(step=step, name='vorticity_magnitude')
+    vor = ncreader.get_dataset(step=step, name='vorticity_magnitude')
 
     ax = grid[i]
     im, cbar = make_imshow(ax=ax,
