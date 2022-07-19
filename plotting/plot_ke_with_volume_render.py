@@ -46,104 +46,18 @@ print("\tFignum:    ", fignum)
 print()
 
 mpl.rcParams['font.size'] = 16
+cmap_name = 'rainbow4'
 
-# 12 July 2022
-# https://plotly.com/python/v3/matplotlib-colorscales/#formatting-the-colormap
-def matplotlib_to_plotly(cmap, pl_entries):
-    h = 1.0/(pl_entries-1)
-    pl_colorscale = []
+rainbow4_cmap = cc.cm[cmap_name]
 
-    for k in range(pl_entries):
-        #C = map(np.uint8, np.array(cmap(k*h)[:3])*255)
-        C = np.array(cmap(k*h)[:3])*255
-        pl_colorscale.append([k*h, 'rgb'+str((C[0], C[1], C[2]))])
+rainbow4 = mpl_to_plotly(rainbow4_cmap, rainbow4_cmap.N)
 
-    return pl_colorscale
-
-rainbow4 = matplotlib_to_plotly(cc.cm['rainbow4'], 256)
-
-def get_screenshot(step):
+def get_screenshot(ax, step):
     ncreader = nc_reader()
     ncreader.open(os.path.join(filepath, 'beltrami_' + str(grid) + '_fields.nc'))
     t = ncreader.get_all('t')
-    X, Y, Z = ncreader.get_meshgrid()
-    vor = ncreader.get_dataset(step=step, name='vorticity_magnitude')
+    image = make_volume_rendering(ax, ncr=ncreader, step=step, field='vorticity_magnitude')
     ncreader.close()
-
-    opacity = 0.01
-    surface_count = 150
-
-
-    fig = go.Figure(data=go.Volume(
-        x=X.flatten(),
-        y=Y.flatten(),
-        z=Z.flatten(),
-        value=vor.flatten(),
-        #isomin=0.01,
-        #isomax=0.99,
-        opacity=opacity, # needs to be small to see through all surfaces
-        surface_count=surface_count, # needs to be a large number for good volume rendering
-        colorscale=rainbow4,
-        colorbar=dict(
-                #title=dict(text='$|\omega|$', side='top'),
-                thickness = 20,
-                len=0.75,
-                xpad=5,
-                orientation='v',
-                tickfont=dict(
-                    size=22,
-                    color="black"
-                ),
-            )
-        ))
-
-
-    tickvals = np.array([-1.5, -0.75, 0.0, 0.75, 1.5])
-    ticktext = [' -3/2 ', ' -3/4 ', ' 0 ', ' 3/4 ', ' 3/2 ']
-
-    # 12 July 2022
-    # https://plotly.com/python/3d-camera-controls/
-    camera = dict(
-        up=dict(x=0, y=0, z=1),
-        center=dict(x=0, y=0, z=-0.1),
-        eye=dict(x=1.4, y=1.4, z=1.4)
-    )
-
-
-    fig.update_layout(
-        scene_camera=camera,
-        scene = dict(
-                        xaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext
-                        ),
-                        yaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext
-                        ),
-                        zaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext
-                        ),
-                        xaxis_title=dict(text=r'x', font=dict(size=24, color='black')),
-                        yaxis_title=dict(text=r'y', font=dict(size=24, color='black')),
-                        zaxis_title=dict(text=r'z', font=dict(size=24, color='black'))),
-                        margin=dict(r=10, b=5, l=10, t=5),
-        font=dict(
-            family="Arial", # Times New Roman
-            size=16,
-            color="black"
-        ),
-    )
-
-
-    fig.write_image("temp_fig.png", scale=1.5, width=1024, height=1024)
-
-    image = plt.imread("temp_fig.png", format='png')
-
     return t[step], image
 
 # 7 July 2022
@@ -157,11 +71,12 @@ def find_nearest(t, tref):
 
 def add_inset(ax, bounds, t, ke, step):
 
-    tref, arr = get_screenshot(step)
+    axins = ax.inset_axes(bounds=bounds, zorder=-1)
+
+    tref, arr = get_screenshot(axins, step)
 
     idx = find_nearest(t=t, tref=tref)
 
-    axins = ax.inset_axes(bounds=bounds, zorder=-1)
     ax.indicate_inset(bounds=[t[idx], ke[idx], 0.0, 0.0],
                     inset_ax=axins, zorder=1,
                     edgecolor='darkgrey', alpha=1.0)
