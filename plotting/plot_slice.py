@@ -31,9 +31,14 @@ parser.add_argument('--save_path',
                     help='where to save the figures',
                     default=os.getcwd())
 
-parser.add_argument('--auto_num',
-                    help='auto select figure number',
+parser.add_argument('--overwrite',
+                    help='overwrite figures',
                     action='store_true')
+
+parser.add_argument('--fignums',
+                    type=int,
+                    nargs='+',
+                    help='figure numbers')
 
 parser.add_argument('--fields',
                     nargs='+',
@@ -45,31 +50,39 @@ steps = np.asarray(args.steps)
 plane = args.plane
 loc = args.loc
 save_path = args.save_path
-auto_num = args.auto_num
+overwrite = args.overwrite
 fields = args.fields
+fignums = args.fignums
 
-print()
-print("\tFilename: ", fname)
-print("\tFields:   ", fields)
-print("\tSteps:    ", steps)
-print("\tPlane:    ", plane)
-print("\tLocation: ", loc)
-print("\tSave path:", save_path)
-print("\tAuto num: ", auto_num)
-print()
 
 if fields is None:
     print("No fields provided.")
     exit()
+
+if fignums is None:
+    fignums = np.arange(1, len(fields) + 1, dtype=int)
+
+if not len(fields) == len(fignums):
+    print("Number of fields and number of figures do not match.")
+    exit()
+
+print()
+print("\tFilename:  ", fname)
+print("\tFields:    ", fields)
+print("\tSteps:     ", steps)
+print("\tPlane:     ", plane)
+print("\tLocation:  ", loc)
+print("\tSave path: ", save_path)
+print("\tOverwrite: ", overwrite)
+print("\tFignums:   ", fignums)
+print()
 
 ncreader = nc_reader()
 ncreader.open(fname)
 
 t = ncreader.get_all('t')
 
-fignum = 1
-
-for field in fields:
+for j, field in enumerate(fields):
     print('Plotting', field)
     fig = plt.figure(figsize=(8, 5), dpi=200)
     grid = ImageGrid(fig, 111,
@@ -107,8 +120,7 @@ for field in fields:
 
     add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
 
-    save_figure(plt=plt, figpath=save_path, fignum=fignum, auto=auto_num)
-    fignum = fignum + 1
+    save_figure(plt=plt, figpath=save_path, fignum=fignums[j], overwrite=overwrite)
     plt.close()
 
 ncreader.close()

@@ -89,23 +89,14 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
         cbar.ax.yaxis.set_offset_position('left')
     return im, cbar
 
-def save_figure(plt, figpath, fignum=1, auto=False):
-    if auto:
-        l_exist = True
-        fnum = 1
-        while l_exist:
-            figname = 'fig' + str(fnum) + '.eps'
-            fname = os.path.join(figpath, figname)
-            l_exist = os.path.exists(fname)
-            fnum = fnum + 1
-    else:
-        figname = 'fig' + str(fignum) + '.eps'
-        fname = os.path.join(figpath, figname)
+def save_figure(plt, figpath, fignum=1, overwrite=False):
+    figname = 'fig' + str(fignum) + '.eps'
+    fname = os.path.join(figpath, figname)
 
-        if os.path.exists(fname):
-            print("Figure '" + fname + "' already exists.")
-            plt.close()
-            exit()
+    if os.path.exists(fname) and not overwrite:
+        print("Figure '" + fname + "' already exists.")
+        plt.close()
+        exit()
 
     print("Save figure as:", fname)
     plt.savefig(fname=fname, format='eps')
