@@ -7,13 +7,14 @@ from utils import *
 import argparse
 import os
 
-parser = argparse.ArgumentParser(description='Create figure xy')
+parser = argparse.ArgumentParser(description='Create cross section figures.')
 parser.add_argument('--filename',
                     type=str,
                     help='output file')
 parser.add_argument('--steps',
                     type=int,
                     nargs=6,
+                    default=[0, 1, 2, 3, 4, 5],
                     help='add 6 steps to plot')
 
 parser.add_argument('--plane',
@@ -22,6 +23,7 @@ parser.add_argument('--plane',
 
 parser.add_argument('--loc',
                     type=int,
+                    default=0,
                     help='index location to extract plane')
 
 parser.add_argument('--save_path',
@@ -33,6 +35,10 @@ parser.add_argument('--auto_num',
                     help='auto select figure number',
                     action='store_true')
 
+parser.add_argument('--fields',
+                    nargs='+',
+                    help='fields to plot')
+
 args = parser.parse_args()
 fname = args.filename
 steps = np.asarray(args.steps)
@@ -40,100 +46,69 @@ plane = args.plane
 loc = args.loc
 save_path = args.save_path
 auto_num = args.auto_num
+fields = args.fields
 
-print("Filename: ", fname)
-print("Steps:    ", steps)
-print("Plane:    ", plane)
-print("Location: ", loc)
-print("Save path:", save_path)
-print("Auto num: ", auto_num)
+print()
+print("\tFilename: ", fname)
+print("\tFields:   ", fields)
+print("\tSteps:    ", steps)
+print("\tPlane:    ", plane)
+print("\tLocation: ", loc)
+print("\tSave path:", save_path)
+print("\tAuto num: ", auto_num)
+print()
+
+if fields is None:
+    print("No fields provided.")
+    exit()
 
 ncreader = nc_reader()
 ncreader.open(fname)
 
 t = ncreader.get_all('t')
 
-#
-# Vorticity magnitude
-#
-fig = plt.figure(figsize=(8, 5), dpi=200)
-grid = ImageGrid(fig, 111,
-                 nrows_ncols=(2, 3),
-                 aspect=True,
-                 axes_pad=(0.4, 0.3),
-                 direction='row',
-                 share_all=True,
-                 cbar_location="right",
-                 cbar_mode='each',
-                 cbar_size="4%",
-                 cbar_pad=0.1)
+fignum = 1
 
-for i, step in enumerate(steps):
-    vor = ncreader.get_dataset(step=step, name='vorticity_magnitude')
+for field in fields:
+    print('Plotting', field)
+    fig = plt.figure(figsize=(8, 5), dpi=200)
+    grid = ImageGrid(fig, 111,
+                    nrows_ncols=(2, 3),
+                    aspect=True,
+                    axes_pad=(0.4, 0.3),
+                    direction='row',
+                    share_all=True,
+                    cbar_location="right",
+                    cbar_mode='each',
+                    cbar_size="4%",
+                    cbar_pad=0.1)
 
-    ax = grid[i]
-    im, cbar = make_imshow(ax=ax,
-                           plane=plane,
-                           loc=loc,
-                           fdata=vor,
-                           ncr=ncreader,
-                           cmap='rainbow4',
-                           colorbar=True)
+    for i, step in enumerate(steps):
+        fdata = ncreader.get_dataset(step=step, name='vorticity_magnitude')
 
-    if i < 3:
-        remove_xticks(ax)
+        ax = grid[i]
+        im, cbar = make_imshow(ax=ax,
+                            plane=plane,
+                            loc=loc,
+                            fdata=fdata,
+                            ncr=ncreader,
+                            cmap='rainbow4',
+                            colorbar=True)
 
-    if i == 0 and i == 3:
-        pass
-    else:
-        remove_yticks(ax)
+        if i < 3:
+            remove_xticks(ax)
 
-    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
+        if i == 0 and i == 3:
+            pass
+        else:
+            remove_yticks(ax)
 
-add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
+        add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
-save_figure(plt=plt, figpath=save_path, fignum=1, auto=auto_num)
-plt.close()
+    add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
 
-#
-# Pressure
-#
-fig = plt.figure(figsize=(8, 5), dpi=200)
-grid = ImageGrid(fig, 111,
-                 nrows_ncols=(2, 3),
-                 aspect=True,
-                 axes_pad=(0.4, 0.3),
-                 direction='row',
-                 share_all=True,
-                 cbar_location="right",
-                 cbar_mode='each',
-                 cbar_size="4%",
-                 cbar_pad=0.1)
-
-for i, step in enumerate(steps):
-    pres = ncreader.get_dataset(step=step, name='pressure')
-
-    ax = grid[i]
-
-    im, cbar = make_imshow(ax=ax,
-                           plane='xy',
-                           loc=loc,
-                           fdata=pres,
-                           ncr=ncreader,
-                           cmap='rainbow4',
-                           colorbar=True)
-    if i < -1:
-        remove_xticks(ax)
-
-    if i == 0 and i == 3:
-        pass
-    else:
-        remove_yticks(ax)
-
-    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
-
-add_annotation(grid[2], r'$z = -\pi/2$', xy=(0.6, 1.2), fontsize=12)
-
-save_figure(plt=plt, figpath=save_path, fignum=2, auto=auto_num)
+    save_figure(plt=plt, figpath=save_path, fignum=fignum, auto=auto_num)
+    fignum = fignum + 1
+    plt.close()
 
 ncreader.close()
