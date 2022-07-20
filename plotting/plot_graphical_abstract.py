@@ -21,27 +21,15 @@ parser.add_argument('--save_path',
                     help='where to save the figures',
                     default=os.getcwd())
 
-parser.add_argument('--overwrite',
-                    help='overwrite figures',
-                    action='store_true')
-
-parser.add_argument('--fignum',
-                    type=int,
-                    help='figure number')
-
 args = parser.parse_args()
 fname = args.filename
 step = args.step
 save_path = args.save_path
-overwrite = args.overwrite
-fignum = args.fignum
 
 print()
 print("\tFilename:  ", fname)
 print("\tStep:      ", step)
 print("\tSave path: ", save_path)
-print("\tOverwrite: ", overwrite)
-print("\tFignum:    ", fignum)
 print()
 
 mpl.rcParams['font.size'] = 16
