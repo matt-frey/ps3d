@@ -80,7 +80,7 @@ def add_inset(ax, bounds, t, ke, step):
                     inset_ax=axins, zorder=1,
                     edgecolor='darkgrey', alpha=1.0)
     axins.imshow(arr)
-    add_timestamp(axins, t[idx], xy=(0.05, 0.9), fmt="%.2f")
+    add_timestamp(axins, t[idx], xy=(0.05, 0.9), fmt="%.1f", fontsize=12)
 
     # 7 July 2022
     # https://stackoverflow.com/questions/37039685/hide-tick-label-values-but-keep-axis-labels

@@ -24,14 +24,14 @@ mpl.rcParams.update({
 
 mpl.rcParams['font.size'] = 10
 
-def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.2f"):
+def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.2f", **kwargs):
     bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none')
     label = r"t = " + fmt % (time)
-    plt.annotate(label, xy=xy, xycoords="axes fraction", bbox=bbox)
+    plt.annotate(label, xy=xy, xycoords="axes fraction", bbox=bbox, **kwargs)
 
 def add_annotation(ax, label, xy, **kwargs):
     bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none')
-    ax.annotate(label, xy=xy, xycoords="axes fraction", bbox=bbox)
+    ax.annotate(label, xy=xy, xycoords="axes fraction", bbox=bbox, **kwargs)
 
 def remove_xticks(ax):
     ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
@@ -245,6 +245,4 @@ def make_volume_rendering(ncr, step, field):
 
     fig.write_image("temp_figure.png", scale=1.5, width=1024, height=1024)
     image = plt.imread("temp_figure.png", format='png')
-    plt.imshow(image)
-    plt.axis('off')
     return image
