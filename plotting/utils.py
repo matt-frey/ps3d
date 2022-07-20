@@ -170,10 +170,17 @@ def mpl_to_plotly(cmap, pl_entries=11, rdigits=2):
     pl_colorscale = [[round(s, rdigits), f'rgb{tuple(color)}'] for s, color in zip(scale, colors)]
     return pl_colorscale
 
-def make_volume_rendering(ncr, step, field):
-    opacity = 0.01
-    surface_count = 150
-    cmap_name = 'rainbow4'
+def make_volume_rendering(ncr, step, field, **kwargs):
+    show_axes = kwargs.pop('show_axes', True)
+    show_colorbar = kwargs.pop('show_colorbar', True)
+    fmt = kwargs.pop('fmt', 'png')
+    width = kwargs.pop('width', 1024)
+    height = kwargs.pop('height', 1024)
+    opacity = kwargs.pop('opacity', 0.01)
+    surface_count = kwargs.pop('surface_count', 150)
+    cmap_name = kwargs.pop('cmap_name', 'rainbow4')
+    scale = kwargs.pop('scale', 1.5)
+    margin = kwargs.pop('margin', dict(r=10, b=5, l=10, t=5))
 
     X, Y, Z = ncr.get_meshgrid()
     vor = ncr.get_dataset(step=step, name=field)
@@ -199,7 +206,8 @@ def make_volume_rendering(ncr, step, field):
                     size=22,
                     color="black"
                 ),
-            )
+            ),
+        showscale=show_colorbar
         ))
 
 
@@ -220,22 +228,25 @@ def make_volume_rendering(ncr, step, field):
                         xaxis = dict(
                             tickmode = 'array',
                             tickvals = tickvals,
-                            ticktext = ticktext
+                            ticktext = ticktext,
+                            visible  = show_axes
                         ),
                         yaxis = dict(
                             tickmode = 'array',
                             tickvals = tickvals,
-                            ticktext = ticktext
+                            ticktext = ticktext,
+                            visible  = show_axes
                         ),
                         zaxis = dict(
                             tickmode = 'array',
                             tickvals = tickvals,
-                            ticktext = ticktext
+                            ticktext = ticktext,
+                            visible  = show_axes
                         ),
                         xaxis_title=dict(text=r'x', font=dict(size=24, color='black')),
                         yaxis_title=dict(text=r'y', font=dict(size=24, color='black')),
                         zaxis_title=dict(text=r'z', font=dict(size=24, color='black'))),
-                        margin=dict(r=10, b=5, l=10, t=5),
+        margin=margin,
         font=dict(
             family="Arial", # Times New Roman
             size=16,
@@ -243,6 +254,6 @@ def make_volume_rendering(ncr, step, field):
         ),
     )
 
-    fig.write_image("temp_figure.png", scale=1.5, width=1024, height=1024)
-    image = plt.imread("temp_figure.png", format='png')
+    fig.write_image("temp_figure." + fmt, scale=scale, width=width, height=height)
+    image = plt.imread("temp_figure." + fmt, format=fmt)
     return image
