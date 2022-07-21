@@ -13,6 +13,10 @@ mpl.rcParams.update({
     "text.usetex": True,
     'legend.framealpha': 1.0,
     'lines.linewidth': 0.75,
+    'grid.color':     'b0b0b0',
+    'grid.linestyle': 'dotted',
+    'grid.linewidth': 0.25,
+    'grid.alpha':     1.0,
     'text.latex.preamble': "\n".join([
         r"\usepackage{amsmath}",
         r"\usepackage[utf8]{inputenc}",
