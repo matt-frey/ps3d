@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from utils import *
 import argparse
 import os
+from numpy.polynomial import Polynomial as poly
 
 parser = argparse.ArgumentParser(
     description='Plot kinetic energy and enstrophy for different hyperdiffusion prefactors.')
@@ -45,8 +46,6 @@ maxen = np.zeros(len(grids))
 vmax = np.zeros(len(grids))
 vrms = np.zeros(len(grids))
 
-mpl.rcParams['font.size'] = 11
-
 fig, axs = plt.subplots(1, 1, figsize=(7, 2.5), dpi=200, sharex=True)
 
 for i, grid in enumerate(grids):
@@ -65,6 +64,21 @@ for i, grid in enumerate(grids):
     maxen[i] = en.max()
     vmax[i] = vormax.max()
     vrms[i] = vorrms.max()
+
+# ignore nz = 32
+log10_maxen = np.log(maxen[1:], base=10)
+log2_nz = np.log(grids[1:], base=2)
+
+p_fitted = poly.fit(x=log2_nz, y=log10_maxen, deg=1)
+p_fitted.convert()
+
+np.polynomial.set_default_printstyle('ascii')
+
+print(p_fitted)
+
+print(p.coef)
+
+#Could you fit log(max enstrophy) to a * log(nz) + b to see the slope a?  You might need to ignore 32^3 as it seems to be an outlier.
 
 axs.plot(grids, maxen, marker='o', markersize=4, label=r'$\langle\Upsilon\rangle$')
 axs.plot(grids, vmax, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\max}$')
