@@ -83,7 +83,7 @@ for pred in prediss:
     axs[1].plot(t, en, label=label)
 
 axs[1].set_xlabel(r'time, $t$')
-axs[1].set_ylabel(r'average enstrophy, $\langle\mathcal{\Upsilon}\rangle$')
+axs[1].set_ylabel(r'average enstrophy, $\langle\Upsilon\rangle$')
 
 axs[0].grid(zorder=-1)
 axs[1].grid(zorder=-1)
