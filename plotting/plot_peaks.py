@@ -54,7 +54,7 @@ for i, grid in enumerate(grids):
                           skiprows=1, unpack=True)
 
     # t max rms char <xi> <eta> <zeta>
-    _, vormax, vorrms, _, _, _, _ = np.loadtxt(os.path.join('beltrami_' + str(grid) + '_vorticity.asc'),
+    _, vormax, vorrms, _, _, _, _ = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_vorticity.asc'),
                                                skiprows=1, unpack=True)
 
     ncelli = 1.0 / grid ** 3
