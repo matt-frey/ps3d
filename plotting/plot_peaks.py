@@ -67,10 +67,10 @@ for i, grid in enumerate(grids):
 
 # ignore nz = 32
 log10_maxen = np.log10(maxen[1:])
-log2_nz = np.log2(grids[1:])
+log10_nz = np.log10(grids[1:])
 
-# linear fit: log10(maxen) = m * log2(nz) + q
-p_fitted = poly.fit(x=log2_nz, y=log10_maxen, deg=1) #, domain=[6, 8], window=[6, 8])
+# linear fit: log10(maxen) = m * log10(nz) + q
+p_fitted = poly.fit(x=log10_nz, y=log10_maxen, deg=1) #, domain=[6, 8], window=[6, 8])
 p_fitted = p_fitted.convert() # to unscale, i.e. makes domain == window --> same result as np.polyfit
 
 np.polynomial.set_default_printstyle('ascii')
@@ -78,14 +78,14 @@ print("Fitted polynomial:", p_fitted)
 q = p_fitted.coef[0]
 m = p_fitted.coef[1]
 
-#print("polyfit:", np.polyfit(x=log2_nz, y=log10_maxen, deg=1))
+#print("polyfit:", np.polyfit(x=log10_nz, y=log10_maxen, deg=1))
 #print(p_fitted.coef)
 
 axs.plot(grids, maxen, marker='o', markersize=4, label=r'$\langle\Upsilon\rangle$')
 axs.plot(grids, vmax, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\max}$')
 axs.plot(grids, vrms, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\mathrm{rms}}$')
-axs.plot(grids[1:], 10 ** (m * log2_nz + q), linestyle='dashed', color='black',
-         label=r'$\log_{10}\langle\Upsilon\rangle=' + str(round(m, 3)) + '\log_{2}n_{z}+' +
+axs.plot(grids[1:], 10 ** (m * log10_nz + q), linestyle='dashed', color='black',
+         label=r'$\log_{10}\langle\Upsilon\rangle=' + str(round(m, 3)) + '\log_{10}n_{z}+' +
          str(round(q, 3)) + '$')
 axs.set_xscale('log', base=2)
 axs.set_yscale('log', base=10)
