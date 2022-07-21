@@ -47,7 +47,7 @@ vrms = np.zeros(len(grids))
 
 mpl.rcParams['font.size'] = 11
 
-fig, axs = plt.subplots(1, 1, figsize=(7, 2.5), dpi=200, sharex=True)
+fig, axs = plt.subplots(1, 1, figsize=(7, 2), dpi=200, sharex=True)
 
 for i, grid in enumerate(grids):
     _, _, en = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_ecomp.asc'),
