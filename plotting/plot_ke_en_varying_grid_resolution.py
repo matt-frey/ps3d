@@ -1,21 +1,42 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+from utils import *
+import argparse
+import os
 
-mpl.rcParams.update({
-    "figure.figsize": (9, 6),
-    "figure.dpi": 200,
-    "font.family": "serif",
-    "font.size": 20,
-    "text.usetex": True,
-    'text.latex.preamble': "\n".join([
-        r"\usepackage{amsmath}",
-        r"\usepackage[utf8]{inputenc}",
-        r"\usepackage[T1]{fontenc}",
-#        r"\usepackage{siunitx}",
-        ])
-})
+parser = argparse.ArgumentParser(
+    description='Plot kinetic energy and enstrophy for different grid resolutions.')
 
+parser.add_argument('--filepath',
+                    type=str,
+                    help='path to files')
+
+parser.add_argument('--save_path',
+                    type=str,
+                    help='where to save the figures',
+                    default=os.getcwd())
+
+parser.add_argument('--overwrite',
+                    help='overwrite figures',
+                    action='store_true')
+
+parser.add_argument('--fignum',
+                    type=int,
+                    default=3,
+                    help='figure number')
+
+args = parser.parse_args()
+fpath = args.filepath
+save_path = args.save_path
+overwrite = args.overwrite
+fignum = args.fignum
+
+print()
+print("\tFilepath:  ", fpath)
+print("\tSave path: ", save_path)
+print("\tOverwrite: ", overwrite)
+print("\tFignum:    ", fignum)
+print()
 
 labels = [r'$32^3$',
           r'$64^3$',
@@ -25,34 +46,34 @@ labels = [r'$32^3$',
 
 grids = [32, 64, 128, 256]
 
-mpl.rcParams['font.size'] = 11
-
 fig, axs = plt.subplots(2, 1, figsize=(7, 2*2.5), dpi=200, sharex=True)
 
 i = 0
 
-
 for grid in grids:
-        t, ke, en = np.loadtxt('paper_runs/beltrami_' + str(grid) + '_ecomp.asc',
-                               skiprows=1, unpack=True)
-        
-        ncelli = 1.0 / grid ** 3
-        
-        # calculate mean KE and mean EN
-        ke *= ncelli
-        en *= ncelli
-        
-        print("initial <KE>", ke[0])
-        print("initial <EN>", en[0])
-        
-        label = labels[i]
-        i = i + 1
-                
-        axs[0].plot(t, ke, label=label)        
-        axs[1].plot(t, en, label=label)
+    t, ke, en = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_ecomp.asc'),
+                           skiprows=1, unpack=True)
+
+    ncelli = 1.0 / grid ** 3
+
+    # calculate mean KE and mean EN
+    ke *= ncelli
+    en *= ncelli
+
+    #print("initial <KE>", ke[0])
+    #print("initial <EN>", en[0])
+
+    label = labels[i]
+    i = i + 1
+
+    axs[0].plot(t, ke, label=label)
+    axs[1].plot(t, en, label=label)
 
 axs[1].set_xlabel(r'time, $t$')
 axs[1].set_ylabel(r'average enstrophy, $\langle\Upsilon\rangle$')
+
+axs[0].grid(zorder=-1)
+axs[1].grid(zorder=-1)
 
 axs[0].set_ylabel(r'average kinetic energy, $\langle\mathcal{K}\rangle$')
 
@@ -60,6 +81,5 @@ axs[0].legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.2))
 
 plt.tight_layout()
 
-plt.savefig('fig2.eps', format='eps') #, bbox_inches='tight', dpi=200)
-
+save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()

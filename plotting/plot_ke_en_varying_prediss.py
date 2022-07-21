@@ -5,7 +5,7 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(
-    description='Plot kinetic energy and enstrophy for different hyperdiffusion prefactors')
+    description='Plot kinetic energy and enstrophy for different hyperdiffusion prefactors.')
 
 parser.add_argument('--filepath',
                     type=str,
@@ -69,8 +69,8 @@ for pred in prediss:
     ke *= ncelli
     en *= ncelli
 
-    print("initial <KE>", ke[0])
-    print("initial <EN>", en[0])
+    #print("initial <KE>", ke[0])
+    #print("initial <EN>", en[0])
 
     if labels[i]:
         label = labels[i]
