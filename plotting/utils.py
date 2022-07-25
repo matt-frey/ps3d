@@ -185,6 +185,7 @@ def make_volume_rendering(ncr, step, field, **kwargs):
     cmap_name = kwargs.pop('cmap_name', 'rainbow4')
     scale = kwargs.pop('scale', 1.5)
     margin = kwargs.pop('margin', dict(r=10, b=5, l=10, t=5))
+    export = kwargs.pop('export', False)
 
     X, Y, Z = ncr.get_meshgrid()
     vor = ncr.get_dataset(step=step, name=field)
@@ -259,5 +260,15 @@ def make_volume_rendering(ncr, step, field, **kwargs):
     )
 
     fig.write_image("temp_figure." + fmt, scale=scale, width=width, height=height)
-    image = plt.imread("temp_figure." + fmt, format=fmt)
-    return image
+
+    if not export:
+        image = plt.imread("temp_figure." + fmt, format=fmt)
+        return image
+    return None
+
+# 7 July 2022
+# https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
+def find_nearest(t, tref):
+    idx = (np.abs(tref - t)).argmin()
+    print('Closest time to', tref, 'is', t[idx])
+    return idx

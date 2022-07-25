@@ -11,6 +11,10 @@ parser.add_argument('--filename',
                     type=str,
                     help='output file')
 
+parser.add_argument('--restartfile',
+                    type=str,
+                    help="another file restarted from the first one")
+
 parser.add_argument('--save_path',
                     type=str,
                     help='where to save the figures',
@@ -26,28 +30,63 @@ parser.add_argument('--fignum',
 
 args = parser.parse_args()
 fname = args.filename
+restart_file = args.restartfile
 save_path = args.save_path
 overwrite = args.overwrite
 fignum = args.fignum
 
 print()
-print("\tFilename:  ", fname)
-print("\tSave path: ", save_path)
-print("\tOverwrite: ", overwrite)
-print("\tFignum:    ", fignum)
+print("\tFilename:   ", fname)
+print("\Restart file:", restart_file
+print("\tSave path:  ", save_path)
+print("\tOverwrite:  ", overwrite)
+print("\tFignum:     ", fignum)
 print()
+
+def fill_steps(ncr, lo, hi):
+    for step in range(lo, hi):
+        x_vor = ncr.get_dataset(step, 'x_vorticity')
+        y_vor = ncr.get_dataset(step, 'y_vorticity')
+        z_vor = ncr.get_dataset(step, 'z_vorticity')
+
+        x_vel = ncr.get_dataset(step, 'x_velocity')
+        y_vel = ncr.get_dataset(step, 'y_velocity')
+        z_vel = ncr.get_dataset(step, 'z_velocity')
+
+        nz, ny, nx = x_vor.shape
+
+        # add +1 to nz to include nz in the list
+        izs = np.arange(0, nz+1, int(nz/4))
+        for i, iz in enumerate(izs):
+            u_rms[step, i]    = np.sqrt((x_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            v_rms[step, i]    = np.sqrt((y_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            w_rms[step, i]    = np.sqrt((z_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            xi_rms[step, i]   = np.sqrt((x_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            eta_rms[step, i]  = np.sqrt((y_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            zeta_rms[step, i] = np.sqrt((z_vor[iz, :, :] ** 2).sum() / (nx * ny))
+
+
+ncr1 = nc_reader()
+ncr2 = nc_reader()
+
+ncr1.open(fname)
+
+t1 = ncr1.get_all('t')
+n = len(t1)
+
+if not restart_file is None:
+    ncr2.open(restart_file)
+    t2 = ncr2.get_all('t')
+    lo1 = find_nearest(t1, t2[0])
+    hi1 = find_nearest(t1, t2[-1])
+    n = len(t1[0:lo1]) + len(t2) + len(t1[hi1:])
 
 mpl.rcParams['font.size'] = 10
 
 fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
 grid = axs.flatten()
 
-ncreader = nc_reader()
-ncreader.open(fname)
 
-t = ncreader.get_all('t')
-
-n = len(t)
 
 u_rms = np.zeros((n, 5))
 v_rms = np.zeros((n, 5))
@@ -57,29 +96,15 @@ xi_rms = np.zeros((n, 5))
 eta_rms = np.zeros((n, 5))
 zeta_rms = np.zeros((n, 5))
 
-for step in range(n):
+if restart_file is None:
+    fill_steps(ncr1, 0, n)
+else:
+    fill_steps(ncr1, 0, lo1)
+    fill_steps(ncr2, 0, len(t2))
+    fill_steps(ncr1, hi1, len(t1))
+    ncr2.close()
 
-    x_vor = ncreader.get_dataset(step, 'x_vorticity')
-    y_vor = ncreader.get_dataset(step, 'y_vorticity')
-    z_vor = ncreader.get_dataset(step, 'z_vorticity')
-
-    x_vel = ncreader.get_dataset(step, 'x_velocity')
-    y_vel = ncreader.get_dataset(step, 'y_velocity')
-    z_vel = ncreader.get_dataset(step, 'z_velocity')
-
-    nz, ny, nx = x_vor.shape
-
-    # add +1 to nz to include nz in the list
-    izs = np.arange(0, nz+1, int(nz/4))
-    for i, iz in enumerate(izs):
-        u_rms[step, i]    = np.sqrt((x_vel[iz, :, :] ** 2).sum() / (nx * ny))
-        v_rms[step, i]    = np.sqrt((y_vel[iz, :, :] ** 2).sum() / (nx * ny))
-        w_rms[step, i]    = np.sqrt((z_vel[iz, :, :] ** 2).sum() / (nx * ny))
-        xi_rms[step, i]   = np.sqrt((x_vor[iz, :, :] ** 2).sum() / (nx * ny))
-        eta_rms[step, i]  = np.sqrt((y_vor[iz, :, :] ** 2).sum() / (nx * ny))
-        zeta_rms[step, i] = np.sqrt((z_vor[iz, :, :] ** 2).sum() / (nx * ny))
-
-ncreader.close()
+ncr1.close()
 
 # bottom
 grid[0].plot(t, u_rms[:, 0], label=r'$u_{\mathrm{rms}}(z = -\pi/2)$',
