@@ -37,13 +37,16 @@ fignum = args.fignum
 
 print()
 print("\tFilename:   ", fname)
-print("\Restart file:", restart_file
+print("\Restart file:", restart_file)
 print("\tSave path:  ", save_path)
 print("\tOverwrite:  ", overwrite)
 print("\tFignum:     ", fignum)
 print()
 
-def fill_steps(ncr, lo, hi):
+def fill_steps(ncr, j, lo, hi):
+
+    t_all = ncr.get_all('t')
+
     for step in range(lo, hi):
         x_vor = ncr.get_dataset(step, 'x_vorticity')
         y_vor = ncr.get_dataset(step, 'y_vorticity')
@@ -55,15 +58,18 @@ def fill_steps(ncr, lo, hi):
 
         nz, ny, nx = x_vor.shape
 
+        t[j] = t_all[step]
+
         # add +1 to nz to include nz in the list
         izs = np.arange(0, nz+1, int(nz/4))
         for i, iz in enumerate(izs):
-            u_rms[step, i]    = np.sqrt((x_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            v_rms[step, i]    = np.sqrt((y_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            w_rms[step, i]    = np.sqrt((z_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            xi_rms[step, i]   = np.sqrt((x_vor[iz, :, :] ** 2).sum() / (nx * ny))
-            eta_rms[step, i]  = np.sqrt((y_vor[iz, :, :] ** 2).sum() / (nx * ny))
-            zeta_rms[step, i] = np.sqrt((z_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            u_rms[j, i]    = np.sqrt((x_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            v_rms[j, i]    = np.sqrt((y_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            w_rms[j, i]    = np.sqrt((z_vel[iz, :, :] ** 2).sum() / (nx * ny))
+            xi_rms[j, i]   = np.sqrt((x_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            eta_rms[j, i]  = np.sqrt((y_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            zeta_rms[j, i] = np.sqrt((z_vor[iz, :, :] ** 2).sum() / (nx * ny))
+        j = j + 1
 
 
 ncr1 = nc_reader()
@@ -87,7 +93,7 @@ fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False
 grid = axs.flatten()
 
 
-
+t = np.zeros(n)
 u_rms = np.zeros((n, 5))
 v_rms = np.zeros((n, 5))
 w_rms = np.zeros((n, 5))
@@ -97,14 +103,27 @@ eta_rms = np.zeros((n, 5))
 zeta_rms = np.zeros((n, 5))
 
 if restart_file is None:
-    fill_steps(ncr1, 0, n)
+    fill_steps(ncr1, 0, 0, n)
 else:
-    fill_steps(ncr1, 0, lo1)
-    fill_steps(ncr2, 0, len(t2))
-    fill_steps(ncr1, hi1, len(t1))
+    fill_steps(ncr1, 0, 0, lo1)
+    fill_steps(ncr2, lo1, 0, len(t2))
+    fill_steps(ncr1, lo1+len(t2), hi1, len(t1))
     ncr2.close()
 
+#    # average results at upper boundary to smooth transition
+#    u_rms[len(t2), :] = 0.5 * (u_rms[len(t2)-1, :] + u_rms[len(t2), :])
+#    v_rms[len(t2), :] = 0.5 * (v_rms[len(t2)-1, :] + v_rms[len(t2), :])
+#    w_rms[len(t2), :] = 0.5 * (w_rms[len(t2)-1, :] + w_rms[len(t2), :])
+
+#    xi_rms[len(t2), :] = 0.5 * (xi_rms[len(t2)-1, :] + xi_rms[len(t2), :])
+#    eta_rms[len(t2), :] = 0.5 * (eta_rms[len(t2)-1, :] + eta_rms[len(t2), :])
+#    zeta_rms[len(t2), :] = 0.5 * (zeta_rms[len(t2)-1, :] + zeta_rms[len(t2), :])
+
+
 ncr1.close()
+
+grid[0].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
+grid[1].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
 
 # bottom
 grid[0].plot(t, u_rms[:, 0], label=r'$u_{\mathrm{rms}}(z = -\pi/2)$',
