@@ -157,7 +157,7 @@ ax.set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
 ax.set_ylim([0.001, 10**8])
 ax.set_xlim([1, 400])
 
-ax.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.28))
+ax.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.35))
 
 plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
