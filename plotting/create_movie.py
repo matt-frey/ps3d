@@ -49,7 +49,7 @@ def create_images(fn, lo, hi):
         fname = 'fig' + str(i).zfill(5) + '.jpeg'
         plt.savefig(fname=fname, format='jpeg')
         plt.close()
-        os.replace(fname, os.path.join('movie_temp_dir', fname))
+        os.replace(fname, os.path.join(save_path, 'movie_temp_dir', fname))
         i = i + 1
         print("done.")
     ncreader.close()
@@ -59,8 +59,8 @@ mpl.rcParams['font.size'] = 16
 fname1 'beltrami_256_fields.nc'
 fname2 = 'beltrami_256_restart_fields.nc'
 
-if not os.path.exists('movie_temp_dir'):
-    os.mkdir('movie_temp_dir')
+if not os.path.exists(os.path.join(save_path, 'movie_temp_dir')):
+    os.mkdir(os.path.join(save_path, 'movie_temp_dir'))
 
 
 
