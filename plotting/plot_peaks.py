@@ -40,7 +40,7 @@ print("\tFignum:    ", fignum)
 print()
 
 
-grids = [32, 64, 128, 256]
+grids = np.array([32, 64, 128, 256])
 
 maxen = np.zeros(len(grids))
 vmax = np.zeros(len(grids))
@@ -66,29 +66,33 @@ for i, grid in enumerate(grids):
     vrms[i] = vorrms.max()
 
 # ignore nz = 32
-log10_maxen = np.log(maxen[1:], base=10)
-log2_nz = np.log(grids[1:], base=2)
+log10_maxen = np.log10(maxen[1:])
+log10_nz = np.log10(grids[1:])
 
-p_fitted = poly.fit(x=log2_nz, y=log10_maxen, deg=1)
-p_fitted.convert()
+# linear fit: log10(maxen) = m * log10(nz) + q
+p_fitted = poly.fit(x=log10_nz, y=log10_maxen, deg=1) #, domain=[6, 8], window=[6, 8])
+p_fitted = p_fitted.convert() # to unscale, i.e. makes domain == window --> same result as np.polyfit
 
 np.polynomial.set_default_printstyle('ascii')
+print("Fitted polynomial:", p_fitted)
+q = p_fitted.coef[0]
+m = p_fitted.coef[1]
 
-print(p_fitted)
-
-print(p.coef)
-
-#Could you fit log(max enstrophy) to a * log(nz) + b to see the slope a?  You might need to ignore 32^3 as it seems to be an outlier.
+#print("polyfit:", np.polyfit(x=log10_nz, y=log10_maxen, deg=1))
+#print(p_fitted.coef)
 
 axs.plot(grids, maxen, marker='o', markersize=4, label=r'$\langle\Upsilon\rangle$')
 axs.plot(grids, vmax, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\max}$')
 axs.plot(grids, vrms, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\mathrm{rms}}$')
+axs.plot(grids[1:], 10 ** (m * log10_nz + q), linestyle='dashed', color='black',
+         label=r'$\log_{10}\langle\Upsilon\rangle=' + str(round(m, 3)) + '\log_{10}n_{z}+' +
+         str(round(q, 3)) + '$')
 axs.set_xscale('log', base=2)
 axs.set_yscale('log', base=10)
 
 axs.grid(zorder=-1)
 
-axs.set_xlabel(r'grid resolution')
+axs.set_xlabel(r'grid resolution ($n_x = n_y = n_z$)')
 axs.set_ylabel(r'peak values')
 axs.legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.35))
 
