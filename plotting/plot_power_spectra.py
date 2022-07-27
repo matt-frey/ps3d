@@ -5,7 +5,8 @@ import matplotlib as mpl
 from utils import *
 import argparse
 import os
-#from numpy.polynomial import Polynomial as poly
+from mpl_toolkits.axes_grid1 import ImageGrid
+from numpy.polynomial import Polynomial as poly
 
 parser = argparse.ArgumentParser(description='Create power spectrum plot.')
 
@@ -54,7 +55,7 @@ print()
 
 for i, nc in enumerate(ncfile):
     ncfile[i] = os.path.join(path, nc)
-    
+
 efile = os.path.join(path, efile)
 
 sp1 = os.path.join(path, 'spectrum_exp1_decay.asc')
@@ -119,45 +120,55 @@ def plot_spectrum(ax, ff, label, fit=False):
     if fit:
         hi = find_nearest(k, 300)
         plt.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
-                   linestyle='dashed', color='black',
-                   label=r'$P(|\bm{K}|)\propto P_{\max}|(\bm{K})|^{-5/3}$', zorder=10)
+                   linestyle='dashed', color='gray',
+                   label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
-#        lo = find_nearest(k, 1)
-#        hi = find_nearest(k, 250)
-#        # linear fit: log10(p) = m * log10(k) + q
-#        # p = 10 ** (m * log10(k) + q)
-#        p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
-#        p_fitted = p_fitted.convert()
-#        np.polynomial.set_default_printstyle('ascii')
-#        print("Fitted polynomial:", p_fitted)
-#        q = p_fitted.coef[0]
-#        m = p_fitted.coef[1]
-#        ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
-#                  color='black', zorder=10,
-#                  label=r'$\log_{10}\mathcal{K}=' + str(round(m, 3)) + '\log_{10}|k|+'+str(round(q, 3)) + '$')
+       lo = find_nearest(k, 10)
+       hi = find_nearest(k, 250)
+       # linear fit: log10(p) = m * log10(k) + q
+       # p = 10 ** (m * log10(k) + q)
+       p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
+       p_fitted = p_fitted.convert()
+       np.polynomial.set_default_printstyle('ascii')
+       print("Fitted polynomial:", p_fitted)
+       q = p_fitted.coef[0]
+       m = p_fitted.coef[1]
+       ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
+                 color='black', zorder=10,
+                 label=r'$\log_{10}\mathcal{K}=' + str(round(m, 3)) + '\log_{10}|k|+'+str(round(q, 3)) + '$')
 
-    
+
     ax.loglog(k, p, label=label)
 
 mpl.rcParams['font.size'] = 10
 
-plt.figure(figsize=(8, 2.5), dpi=400)
+grid = ImageGrid(fig, 111,
+                 nrows_ncols=(1, 2),
+                 aspect=True,
+                 axes_pad=(0.4, 0.3),
+                 direction='row',
+                 share_all=True,
+                 cbar_location="right",
+                 cbar_mode='none',
+                 cbar_size="4%",
+                 cbar_pad=0.1)
 #fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
 #grid = axs.flatten()
 
-ax = plt.gca()
+plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}_{\max}/e$', fit=True)
+plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}_{\max}/e^2$', fit=True)
 
-plot_spectrum(ax, sp1, label=r'$\mathcal{K}_{\max}/e$', fit=True)
-plot_spectrum(ax, sp2, label=r'$\mathcal{K}_{\max}/e^2$')
+xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 
-ax.grid(which='both', zorder=-1)
-ax.set_xlabel(r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$')
-ax.set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
+grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
 
-ax.set_ylim([0.001, 10**8])
-ax.set_xlim([1, 400])
+for i in range(2)
+    grid[i].grid(which='both', zorder=-1)
+    grid[i].set_xlabel(xlab)
+    grid[i].set_ylim([0.001, 10**8])
+    grid[i].set_xlim([1, 400])
 
-ax.legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.35))
+grid[0].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.35))
 
 plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
