@@ -119,32 +119,34 @@ def plot_spectrum(ax, ff, label, fit=False):
 
     if fit:
         hi = find_nearest(k, 300)
-        plt.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
-                   linestyle='dashed', color='gray',
-                   label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
+        ax.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
+                  linestyle='dashed', color='gray',
+                  label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
-       lo = find_nearest(k, 10)
-       hi = find_nearest(k, 250)
-       # linear fit: log10(p) = m * log10(k) + q
-       # p = 10 ** (m * log10(k) + q)
-       p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
-       p_fitted = p_fitted.convert()
-       np.polynomial.set_default_printstyle('ascii')
-       print("Fitted polynomial:", p_fitted)
-       q = p_fitted.coef[0]
-       m = p_fitted.coef[1]
-       ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
-                 color='black', zorder=10,
-                 label=r'$\log_{10}\mathcal{K}=' + str(round(m, 3)) + '\log_{10}|k|+'+str(round(q, 3)) + '$')
+        lo = find_nearest(k, 10)
+        hi = find_nearest(k, 250)
+        # linear fit: log10(p) = m * log10(k) + q
+        # p = 10 ** (m * log10(k) + q)
+        p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
+        p_fitted = p_fitted.convert()
+        np.polynomial.set_default_printstyle('ascii')
+        print("Fitted polynomial:", p_fitted)
+        q = p_fitted.coef[0]
+        m = p_fitted.coef[1]
+        ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
+                  color='black', zorder=10,
+                  label=r'$\log_{10}P\propto' + str(round(m, 2)) + '\log_{10}|\bm{K}|+'+str(round(q, 1)) + '$')
 
 
     ax.loglog(k, p, label=label)
+    ax.legend(loc='lower left', ncol=1) #, bbox_to_anchor=(0.5, 1.35))
 
 mpl.rcParams['font.size'] = 10
 
+fig = plt.figure(figsize=(9, 4), dpi=200)
 grid = ImageGrid(fig, 111,
                  nrows_ncols=(1, 2),
-                 aspect=True,
+                 aspect=False,
                  axes_pad=(0.4, 0.3),
                  direction='row',
                  share_all=True,
@@ -162,14 +164,12 @@ xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 
 grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
 
-for i in range(2)
+for i in range(2):
     grid[i].grid(which='both', zorder=-1)
     grid[i].set_xlabel(xlab)
     grid[i].set_ylim([0.001, 10**8])
     grid[i].set_xlim([1, 400])
 
-grid[0].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.35))
-
-plt.tight_layout()
+#plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
