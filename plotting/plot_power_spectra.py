@@ -135,7 +135,7 @@ def plot_spectrum(ax, ff, label, fit=False):
         m = p_fitted.coef[1]
         ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
                   color='black', zorder=10,
-                  label=r'$\log_{10}P\propto' + str(round(m, 2)) + '\log_{10}|\bm{K}|+'+str(round(q, 1)) + '$')
+                  label=r'$\log_{10}P\propto' + str(round(m, 2)) + r'\log_{10}|\bm{K}|+'+str(round(q, 1)) + '$')
 
 
     ax.loglog(k, p, label=label)
