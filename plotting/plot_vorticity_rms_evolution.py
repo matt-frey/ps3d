@@ -181,6 +181,7 @@ grid[1].plot(t, avg, label=r'$\langle\zeta_{\mathrm{rms}}\rangle$', color=colors
 for k in range(2):
     grid[k].legend(loc='right', ncol=1, bbox_to_anchor=(1.2, 0.5))
     grid[k].set_xlim([-1, 101])
+    grid[k].grid(zorder=-2)
 grid[1].set_xlabel(r'time, $t$')
 
 
