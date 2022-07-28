@@ -46,7 +46,7 @@ maxen = np.zeros(len(grids))
 vmax = np.zeros(len(grids))
 vrms = np.zeros(len(grids))
 
-fig, axs = plt.subplots(1, 1, figsize=(7, 2.5), dpi=200, sharex=True)
+fig, axs = plt.subplots(1, 1, figsize=(8, 4), dpi=200, sharex=False)
 
 for i, grid in enumerate(grids):
     _, _, en = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_ecomp.asc'),
@@ -94,7 +94,7 @@ axs.grid(zorder=-1)
 
 axs.set_xlabel(r'grid resolution ($n_x = n_y = n_z$)')
 axs.set_ylabel(r'peak values')
-axs.legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.35))
+axs.legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.15))
 
 plt.tight_layout()
 

@@ -121,27 +121,31 @@ def plot_spectrum(ax, ff, label, fit=False):
         hi = find_nearest(k, 300)
         ax.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
                   linestyle='dashed', color='gray',
-                  label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
+                  label=r'$\propto|\bm{K}|^{-5/3}$', zorder=10)
+                  #label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
         lo = find_nearest(k, 10)
         hi = find_nearest(k, 250)
-        # linear fit: log10(p) = m * log10(k) + q
-        # p = 10 ** (m * log10(k) + q)
+
+        plo = p[lo]
+        # linear fit: log10(p) = log10(p[lo]) + m * log10(K)
+        # --> p = p[lo] * K^m
         p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
         p_fitted = p_fitted.convert()
         np.polynomial.set_default_printstyle('ascii')
         print("Fitted polynomial:", p_fitted)
         q = p_fitted.coef[0]
         m = p_fitted.coef[1]
-        ax.loglog(k[lo:hi], 10 ** (m * np.log10(k[lo:hi]) + q), linestyle='dashed',
+        print("val", 10 ** q * k[lo] ** m)
+        ax.loglog(k[lo:hi], 10 ** q * k[lo:hi] ** m, linestyle='dashed',
                   color='black', zorder=10,
-                  label=r'$\log_{10}P\propto' + str(round(m, 2)) + r'\log_{10}|\bm{K}|+'+str(round(q, 1)) + '$')
+                  label=r'$\propto|\bm{K}|^{'+str(round(m, 2)) + '}$')
+#                  label=r'$\propto' + str(round(10 ** q, 2)) + r'|\bm{K}|^{'+str(round(m, 2)) + '}$')
 
 
     ax.loglog(k, p, label=label)
     ax.legend(loc='lower left', ncol=1) #, bbox_to_anchor=(0.5, 1.35))
 
-mpl.rcParams['font.size'] = 10
 
 fig = plt.figure(figsize=(9, 4), dpi=200)
 grid = ImageGrid(fig, 111,
