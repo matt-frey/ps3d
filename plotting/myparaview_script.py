@@ -61,6 +61,44 @@ renderView1.ResetCamera(False)
 
 renderView1.CenterAxesVisibility = 1
 
+# Properties modified on renderView1
+renderView1.OrientationAxesVisibility = 0
+
+# Properties modified on renderView1.AxesGrid
+renderView1.AxesGrid.Visibility = 1
+
+# Properties modified on renderView1.AxesGrid
+renderView1.AxesGrid.DataBoundsScaleFactor = 1.008
+
+axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
+
+# Properties modified on renderView1.AxesGrid
+renderView1.AxesGrid.XAxisUseCustomLabels = 1
+renderView1.AxesGrid.XAxisLabels = axis_labels[0:-1]
+
+renderView1.AxesGrid.YAxisUseCustomLabels = 1
+renderView1.AxesGrid.YAxisLabels = axis_labels
+
+renderView1.AxesGrid.ZAxisUseCustomLabels = 1
+renderView1.AxesGrid.ZAxisLabels = axis_labels
+
+# Properties modified on renderView1.AxesGrid
+renderView1.AxesGrid.XTitle = 'x'
+renderView1.AxesGrid.YTitle = 'y'
+renderView1.AxesGrid.ZTitle = 'z'
+renderView1.AxesGrid.XTitleFontFamily = 'Courier'
+renderView1.AxesGrid.XTitleFontSize = 30
+renderView1.AxesGrid.YTitleFontFamily = 'Courier'
+renderView1.AxesGrid.YTitleFontSize = 30
+renderView1.AxesGrid.ZTitleFontFamily = 'Courier'
+renderView1.AxesGrid.ZTitleFontSize = 30
+renderView1.AxesGrid.XLabelFontFamily = 'Courier'
+renderView1.AxesGrid.XLabelFontSize = 25
+renderView1.AxesGrid.YLabelFontFamily = 'Courier'
+renderView1.AxesGrid.YLabelFontSize = 25
+renderView1.AxesGrid.ZLabelFontFamily = 'Courier'
+renderView1.AxesGrid.ZLabelFontSize = 25
+
 renderView1.Update()
 
 # create a new 'Programmable Filter'
@@ -75,10 +113,11 @@ programmableFilter1.Script = """import numpy as np
 xvor = inputs[0].PointData['x_vorticity']
 yvor = inputs[0].PointData['y_vorticity']
 zvor = inputs[0].PointData['z_vorticity']
-output.PointData.append(np.sqrt(xvor ** 2 + yvor ** 2 + zvor ** 2), 'vorticity_magnitude')"""
+output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'vorticity_magnitude')"""
 programmableFilter1.RequestInformationScript = ''
 programmableFilter1.RequestUpdateExtentScript = ''
 programmableFilter1.PythonPath = ''
+
 
 ############################################################################################################
 # create a new 'Contour'
@@ -96,6 +135,8 @@ contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
 
 # set scalar coloring
 ColorBy(contour1Display, ('POINTS', 'vorticity_magnitude'))
+
+#https://docs.paraview.org/en/latest/ReferenceManual/colorMapping.html
 
 # rescale color and/or opacity maps used to include current data range
 contour1Display.RescaleTransferFunctionToDataRange(True, False)
@@ -115,10 +156,10 @@ vorticity_magnitudeLUT.ApplyPreset('MyRainbow', True)
 vorticity_magnitudePWF = GetOpacityTransferFunction('vorticity_magnitude')
 
 ## Rescale transfer function
-vorticity_magnitudeLUT.RescaleTransferFunction(vmin, vmax)
+vorticity_magnitudeLUT.RescaleTransferFunction(0.0, vmax)
 
 ## Rescale transfer function
-vorticity_magnitudePWF.RescaleTransferFunction(vmin, vmax)
+vorticity_magnitudePWF.RescaleTransferFunction(0.0, vmax)
 
 # Properties modified on vorticity_magnitudePWF
 #vorticity_magnitudePWF.Points = np.linspace(0, 1, niso) #[vmin, vmax]
@@ -162,10 +203,21 @@ vmagLUTColorBar.ScalarBarThickness = 20
 vmagLUTColorBar.ScalarBarLength = 0.5
 vmagLUTColorBar.WindowLocation = 'Any Location'
 vmagLUTColorBar.Position = [0.85, 0.25]
-vmagLUTColorBar.Title = 'vorticity magnitude'
+vmagLUTColorBar.Title = 'vorticity magnitude squared'
 
 # Properties modified on pressureLUTColorBar
 vmagLUTColorBar.TitleJustification = 'Centered'
+
+
+vmagLUTColorBar.AddRangeLabels = 0
+vmagLUTColorBar.RangeLabelFormat = ''
+
+vmagLUTColorBar.AutomaticLabelFormat = 0
+vmagLUTColorBar.LabelFormat = '%-#6.2g'
+
+# Properties modified on vorticity_magnitudeLUTColorBar
+vmagLUTColorBar.UseCustomLabels = 1
+vmagLUTColorBar.CustomLabels = np.linspace(0, vmax, 10)
 
 
 renderView1.Update()
@@ -190,7 +242,6 @@ programmableFilter1Display.ColorArrayName = ['POINTS', 'vorticity_magnitude']
 programmableFilter1Display.OpacityArray = ['POINTS', 'vorticity_magnitude']
 programmableFilter1Display.OpacityTransferFunction = 'PiecewiseFunction'
 programmableFilter1Display.LookupTable = vorticity_magnitudeLUT
-
 
 
 ## Rescale transfer function
@@ -228,8 +279,8 @@ layout1.SetSize(1951, 1660)
 #renderView1.CameraViewUp = [0.011834494288939401, -0.2520690992266268, 0.9676368709180123]
 renderView1.CameraPosition = [-10, 4, 4]
 renderView1.CameraViewUp = [0.0, 0.0, 1.0]
-renderView1.CameraFocalPoint = [-0.04908740520477295, -0.04908740520477295, -1.1192220824532735e-18]
-renderView1.CameraParallelScale = 2.664319347929923
+renderView1.CameraFocalPoint = [-0.6, 0, 0] #[-0.04908740520477295, -0.04908740520477295, -1.1192220824532735e-18]
+renderView1.CameraParallelScale = 2.0 #.664319347929923
 
 renderView1.Update()
 
