@@ -99,6 +99,22 @@ renderView1.AxesGrid.YLabelFontSize = 25
 renderView1.AxesGrid.ZLabelFontFamily = 'Courier'
 renderView1.AxesGrid.ZLabelFontSize = 25
 
+# create a new 'Annotate Time Filter'
+annotateTimeFilter1 = AnnotateTimeFilter(registrationName='AnnotateTimeFilter1', Input=beltrami_32_fieldsnc)
+
+# set active source
+SetActiveSource(annotateTimeFilter1)
+
+# show data in view
+annotateTimeFilter1Display = Show(annotateTimeFilter1, renderView1, 'TextSourceRepresentation')
+# Properties modified on annotateTimeFilter1Display
+annotateTimeFilter1Display.FontFamily = 'Courier'
+# Properties modified on annotateTimeFilter1Display
+annotateTimeFilter1Display.FontSize = 40
+
+# Properties modified on annotateTimeFilter1
+annotateTimeFilter1.Format = 't = {time:3.5f}'
+
 renderView1.Update()
 
 # create a new 'Programmable Filter'
