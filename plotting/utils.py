@@ -9,7 +9,7 @@ mpl.rcParams.update({
     "figure.figsize": (9, 6),
     "figure.dpi": 200,
     "font.family": "serif",
-    "font.size": 20,
+    "font.size": 11,
     "text.usetex": True,
     'legend.framealpha': 1.0,
     'lines.linewidth': 0.75,
@@ -26,7 +26,9 @@ mpl.rcParams.update({
         ])
 })
 
-mpl.rcParams['font.size'] = 10
+# 28 July 2022
+# https://stackoverflow.com/questions/42086276/get-default-line-colour-cycle
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.2f", **kwargs):
     bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none')
@@ -186,6 +188,7 @@ def make_volume_rendering(ncr, step, field, **kwargs):
     scale = kwargs.pop('scale', 1.5)
     margin = kwargs.pop('margin', dict(r=10, b=5, l=10, t=5))
     export = kwargs.pop('export', False)
+    engine = kwargs.pop('engine', 'kaleido')
 
     X, Y, Z = ncr.get_meshgrid()
     vor = ncr.get_dataset(step=step, name=field)
@@ -215,6 +218,10 @@ def make_volume_rendering(ncr, step, field, **kwargs):
         showscale=show_colorbar
         ))
 
+    vor = None
+    X = None
+    Y = None
+    Z = None
 
     tickvals = np.array([-1.5, -0.75, 0.0, 0.75, 1.5])
     ticktext = [' -3/2 ', ' -3/4 ', ' 0 ', ' 3/4 ', ' 3/2 ']
@@ -259,8 +266,11 @@ def make_volume_rendering(ncr, step, field, **kwargs):
         ),
     )
 
-    fig.write_image("temp_figure." + fmt, scale=scale, width=width, height=height)
+    fig.write_image("temp_figure." + fmt, scale=scale, width=width,
+                    height=height, engine=engine, validate=False)
 
+#    fig.write_html("test.html", include_plotlyjs="cdn")
+    exit()
     if not export:
         image = plt.imread("temp_figure." + fmt, format=fmt)
         return image

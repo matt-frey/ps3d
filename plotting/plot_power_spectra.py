@@ -146,7 +146,6 @@ def plot_spectrum(ax, ff, label, fit=False):
     ax.loglog(k, p, label=label)
     ax.legend(loc='lower left', ncol=1) #, bbox_to_anchor=(0.5, 1.35))
 
-mpl.rcParams['font.size'] = 10
 
 fig = plt.figure(figsize=(9, 4), dpi=200)
 grid = ImageGrid(fig, 111,
