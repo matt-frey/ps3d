@@ -23,6 +23,12 @@ class iso_surface:
         colorPalette = GetSettingsProxy('ColorPalette')
         self.colormap = 'Cool to Warm'
 
+        self._field_label = {
+            'vorticity_magnitude': 'vorticity magnitude',
+            'helicity': 'helicity'
+        }
+
+
         # black font
         colorPalette.Text = [0.0, 0.0, 0.0]
         colorPalette.Foreground = [0.0, 0.0, 0.0]
@@ -70,7 +76,7 @@ class iso_surface:
         self._animation_scene.UpdateAnimationUsingDataTimeSteps()
         self._set_basic_render_view()
         self._create_time_stamp_filter()
-        self._create_programmable_filter()
+        self._create_programmable_filters()
 
         self._layout = GetLayout()
         # layout/tab size in pixels
@@ -78,16 +84,16 @@ class iso_surface:
         self._height = kwargs.pop('height', 1660)
         self._layout.SetSize(self._width, self._height)
 
-    def render(self, step, n_iso, **kwargs):
-        vmag = self._ncreader.get_dataset(step=step, name='vorticity_magnitude')
-        vmag = vmag ** 2
+    def render(self, field_name, step, n_iso, **kwargs):
+        field_data = self._ncreader.get_dataset(step=step, name='vorticity_magnitude')
+        field_data = field_data ** 2
         vmax = kwargs.pop('vmax', vmag.max())
         vmin = kwargs.pop('vmin', vmag.min())
 
         self._animation_scene.AnimationTime = self._times[step]
-        self._create_contours(vmin=vmin, vmax=vmax, n_iso=n_iso)
+        self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
         self._create_color_bar(vmax=vmax)
-        self._create_surface()
+        self._create_surface(fieldn_name)
         self._set_camera_position()
 
     def save_camera_orbiting_animation(self, step, n_frames, **kwargs):
@@ -252,27 +258,56 @@ class iso_surface:
         time_filter_display.Position = [0.05, 0.9]
         self._render_view.Update()
 
-    def _create_programmable_filter(self):
-        self._prog_filter = ProgrammableFilter(registrationName='ProgrammableFilter', Input=self._pvnc)
-        self._prog_filter.Script = ''
-        self._prog_filter.RequestInformationScript = ''
-        self._prog_filter.RequestUpdateExtentScript = ''
-        self._prog_filter.PythonPath = ''
+    def _create_programmable_filters(self):
+        #
+        # vorticity magnitude
+        #
+        self._prog_filter1 = ProgrammableFilter(registrationName='ProgrammableFilter1', Input=self._pvnc)
+        self._prog_filter1.Script = ''
+        self._prog_filter1.RequestInformationScript = ''
+        self._prog_filter1.RequestUpdateExtentScript = ''
+        self._prog_filter1.PythonPath = ''
 
-        # Properties modified on self._prog_filter
-        self._prog_filter.Script = """
+        self._prog_filter1.Script = """
 import numpy as np
-xvor = inputs[0].PointData['x_vorticity']
-yvor = inputs[0].PointData['y_vorticity']
-zvor = inputs[0].PointData['z_vorticity']
-output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
-        self._prog_filter.RequestInformationScript = ''
-        self._prog_filter.RequestUpdateExtentScript = ''
-        self._prog_filter.PythonPath = ''
+xi = inputs[0].PointData['x_vorticity']
+eta = inputs[0].PointData['y_vorticity']
+zeta = inputs[0].PointData['z_vorticity']
+output.PointData.append(np.sqrt(xi ** 2 + eta ** 2 + zeta ** 2), 'vorticity_magnitude')"""
+        self._prog_filter1.RequestInformationScript = ''
+        self._prog_filter1.RequestUpdateExtentScript = ''
+        self._prog_filter1.PythonPath = ''
 
-    def _create_contours(self, vmin, vmax, n_iso):
-        contour = Contour(registrationName='Contour1', Input=self._prog_filter)
-        contour.ContourBy = ['POINTS', 'sq_vor_mag']
+        #
+        # helicity
+        #
+        self._prog_filter2 = ProgrammableFilter(registrationName='ProgrammableFilter2', Input=self._pvnc)
+        self._prog_filter2.Script = ''
+        self._prog_filter2.RequestInformationScript = ''
+        self._prog_filter2.RequestUpdateExtentScript = ''
+        self._prog_filter2.PythonPath = ''
+
+        self._prog_filter2.Script = """
+import numpy as np
+u = inputs[0].PointData['x_velocity']
+v = inputs[0].PointData['y_velocity']
+w = inputs[0].PointData['z_velocity']
+xi = inputs[0].PointData['x_vorticity']
+eta = inputs[0].PointData['y_vorticity']
+zeta = inputs[0].PointData['z_vorticity']
+output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
+        self._prog_filter2.RequestInformationScript = ''
+        self._prog_filter2.RequestUpdateExtentScript = ''
+        self._prog_filter2.PythonPath = ''
+
+        self._prog_filters = {
+            'vorticity_magnitude': self._prog_filter1,
+            'helicity': self._prog_filter2
+        }
+
+    def _create_contours(self, field_name, vmin, vmax, n_iso):
+        contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
+        contour.ContourBy = ['POINTS', field_name]
         contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
         contour.PointMergeMethod = 'Uniform Binning'
 
@@ -283,7 +318,7 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         self._contour_display = Show(contour, self._render_view, 'GeometryRepresentation')
 
         # set scalar coloring
-        ColorBy(self._contour_display, ('POINTS', 'sq_vor_mag'))
+        ColorBy(self._contour_display, ('POINTS', field_name))
 
         # rescale color and/or opacity maps used to include current data range
         self._contour_display.RescaleTransferFunctionToDataRange(True, False)
@@ -291,15 +326,15 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         # show color bar/color legend
         self._contour_display.SetScalarBarVisibility(self._render_view, True)
 
-        # get color transfer function/color map for 'sq_vor_mag'
-        self._lut = GetColorTransferFunction('sq_vor_mag')
+        # get color transfer function/color map for field_name
+        self._lut = GetColorTransferFunction(field_name)
 
         self._lut.EnableOpacityMapping = 1
 
         self._lut.ApplyPreset(self.colormap, True)
 
-        # get opacity transfer function/opacity map for 'sq_vor_mag'
-        self._pwf = GetOpacityTransferFunction('sq_vor_mag')
+        # get opacity transfer function/opacity map for field_name
+        self._pwf = GetOpacityTransferFunction(field_name)
 
         ## Rescale transfer function
         self._lut.RescaleTransferFunction(0.0, vmax)
@@ -309,28 +344,28 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
 
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
-        self._contour_display.ColorArrayName = ['POINTS', 'sq_vor_mag']
+        self._contour_display.ColorArrayName = ['POINTS', field_name]
         self._contour_display.SelectTCoordArray = 'None'
         self._contour_display.SelectNormalArray = 'Normals'
         self._contour_display.SelectTangentArray = 'None'
-        self._contour_display.OSPRayScaleArray = 'sq_vor_mag'
+        self._contour_display.OSPRayScaleArray = field_name
         self._contour_display.OSPRayScaleFunction = 'PiecewiseFunction'
         self._contour_display.SelectOrientationVectors = 'None'
         self._contour_display.ScaleFactor = 0.30434179306030273
-        self._contour_display.SelectScaleArray = 'sq_vor_mag'
+        self._contour_display.SelectScaleArray = field_name
         self._contour_display.GlyphType = 'Arrow'
-        self._contour_display.GlyphTableIndexArray = 'sq_vor_mag'
+        self._contour_display.GlyphTableIndexArray = field_name
         self._contour_display.GaussianRadius = 0.015217089653015136
-        self._contour_display.SetScaleArray = ['POINTS', 'sq_vor_mag']
+        self._contour_display.SetScaleArray = ['POINTS', field_name]
         self._contour_display.ScaleTransferFunction = 'PiecewiseFunction'
-        self._contour_display.OpacityArray = ['POINTS', 'sq_vor_mag']
+        self._contour_display.OpacityArray = ['POINTS', field_name]
         self._contour_display.OpacityTransferFunction = 'PiecewiseFunction'
         self._contour_display.DataAxesGrid = 'GridAxesRepresentation'
         self._contour_display.PolarAxes = 'PolarAxesRepresentation'
         self._contour_display.LookupTable = self._lut
         self._render_view.Update()
 
-    def _create_color_bar(self, vmax):
+    def _create_color_bar(self, field_name, vmax):
         self._color_bar = GetScalarBar(self._lut, self._render_view)
 
         self._color_bar.TitleFontFamily = 'Courier'
@@ -342,7 +377,7 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         self._color_bar.ScalarBarLength = 0.5
         self._color_bar.WindowLocation = 'Any Location'
         self._color_bar.Position = [0.85, 0.25]
-        self._color_bar.Title = 'squared vorticity magnitude'
+        self._color_bar.Title = self._field_label[field_name]
 
         self._color_bar.TitleJustification = 'Centered'
 
@@ -356,8 +391,9 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         self._color_bar.CustomLabels = np.linspace(0, vmax, 10)
         self._render_view.Update()
 
-    def _create_surface(self):
-        self._prog_filter_display = Show(self._prog_filter, self._render_view, 'UniformGridRepresentation')
+    def _create_surface(self, field_name):
+        self._prog_filter_display = Show(self._prog_filters[field_name],
+                                         self._render_view, 'UniformGridRepresentation')
 
         SetActiveSource(self._prog_filter_display)
 
@@ -366,10 +402,10 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         self._prog_filter_display.ScaleFactor = 0.323976504603413
         self._prog_filter_display.DataAxesGrid = 'GridAxesRepresentation'
         self._prog_filter_display.PolarAxes = 'PolarAxesRepresentation'
-        self._prog_filter_display.SetScaleArray = ['POINTS', 'sq_vor_mag']
+        self._prog_filter_display.SetScaleArray = ['POINTS', field_name]
         self._prog_filter_display.ScaleTransferFunction = 'PiecewiseFunction'
-        self._prog_filter_display.ColorArrayName = ['POINTS', 'sq_vor_mag']
-        self._prog_filter_display.OpacityArray = ['POINTS', 'sq_vor_mag']
+        self._prog_filter_display.ColorArrayName = ['POINTS', field_name]
+        self._prog_filter_display.OpacityArray = ['POINTS', field_name]
         self._prog_filter_display.OpacityTransferFunction = 'PiecewiseFunction'
         self._prog_filter_display.LookupTable = self._lut
         self._render_view.Update()
