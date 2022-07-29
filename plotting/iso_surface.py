@@ -87,11 +87,23 @@ class iso_surface:
         self._create_surface()
         self._set_camera_position()
 
-    def save_camera_orbiting_animation(self, step, n_frames, file_path, file_name):
+    def save_camera_orbiting_animation(self, step, n_frames, **kwargs):
         """
         29 July 2022
         https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
         """
+        tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+
+        if os.path.exists(tmp_dir):
+            print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
+            exit()
+
+        os.mkdir(tmp_dir)
+
+        file_name = kwargs.pop('file_name', 'orbit_movie.mp4')
+        file_path = kwargs.pop('file_path', './')
+        fps = kwargs.pop('fps', 25)
+        keep_frames = kwargs.pop('keep_frames', False)
 
         self.render(step=step, niso=10)
 
@@ -106,9 +118,15 @@ class iso_surface:
         for i in range(0, n_frames):
             camera.Azimuth(dtheta)
             self._render_view.Update()
-            self.export(file_path='./movie_temp_dir', file_name='frame' + str(i).zfill(5) + '.png')
+            self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
 
-        os.system('ffmpeg -r 1/5 -i frame%05d.png -c:v libx264 -vf fps=25 -pix_fmt yuv420p ' + file_name)
+        os.system('ffmpeg -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
+                  ' -c:v libx264 -vf fps=' + str(fps) + ' ' + file_name)
+
+        if not keep_frames:
+            for i in range(0, n_frames):
+                os.remove(os.path.join(tmp_dir, 'frame' + str(i).zfill(5) + '.png'))
+            os.rmdir(tmp_dir)
 
     def export(self, file_path, file_name):
         # make sure we have recent view
