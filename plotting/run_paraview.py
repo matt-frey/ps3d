@@ -39,13 +39,14 @@ parser.add_argument('--fignums',
 
 args = parser.parse_args()
 fname = args.filename
+field = args.field
 steps = args.steps
 n_iso = args.n_iso
 save_path = args.save_path
 overwrite = args.overwrite
 fignums = args.fignums
 
-if not field == 'vorticity_magnitude' or not field == 'helicity':
+if not field == 'vorticity_magnitude' and not field == 'helicity':
     print("Error: We can only plot the vorticity magnitude and helicity. Exiting.")
     exit()
 
