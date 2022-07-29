@@ -6,6 +6,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from utils import *
 import argparse
 import os
+from iso_surface import iso_surface
 
 parser = argparse.ArgumentParser(description='Create iso-surface figure.')
 parser.add_argument('--filename',

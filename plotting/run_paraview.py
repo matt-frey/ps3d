@@ -57,7 +57,7 @@ if not len(fignums) == len(steps):
 for i, step in enumerate(steps):
     iso = iso_surface()
 
-    figure = 'fig' + str(fignums[i]) + '.eps'
+    figure = 'fig' + str(fignums[i]) + '.png'
     full_path = os.path.join(save_path, figure)
 
     if os.path.exists(full_path) and overwrite:
@@ -66,7 +66,7 @@ for i, step in enumerate(steps):
 
     iso.open(fname)
     iso.render(step=step, n_iso=n_iso)
-    iso.export(file_path=save_path, file_name='fig' + str(fignums[i]) + '.eps')
+    iso.export(file_path=save_path, file_name='fig' + str(fignums[i]) + '.png')
     iso.close()
     iso = None
 
