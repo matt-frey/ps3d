@@ -60,6 +60,7 @@ class iso_surface:
         self._ncreader.open(fname)
         basename = os.path.basename(fname)
         self._times = self._ncreader.get_all('t')
+        self._nsteps = len(self._times)
         self._pvnc = NetCDFReader(registrationName=basename, FileName=[fname])
         self._pvnc.Dimensions = '(z, y, x)'
         self._pvnc.SphericalCoordinates = 0
@@ -85,6 +86,29 @@ class iso_surface:
         self._create_color_bar(vmax=vmax)
         self._create_surface()
         self._set_camera_position()
+
+    def save_camera_orbiting_animation(self, step, n_frames, file_path, file_name):
+        """
+        29 July 2022
+        https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
+        """
+
+        self.render(step=step, niso=10)
+
+        self._render_view.CameraPosition = [-10, 4, 4]
+        self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
+        self._render_view.CameraFocalPoint = [0, 0, 0]
+        self._render_view.Update()
+
+        camera = self._render_view.GetActiveCamera()
+
+        dtheta = 360 / n_frames
+        for i in range(0, n_frames):
+            camera.Azimuth(dtheta)
+            self._render_view.Update()
+            self.export(file_path='./movie_temp_dir', file_name='frame' + str(i).zfill(5) + '.png')
+
+        os.system('ffmpeg -r 1/5 -i frame%05d.png -c:v libx264 -vf fps=25 -pix_fmt yuv420p ' + file_name)
 
     def export(self, file_path, file_name):
         # make sure we have recent view
