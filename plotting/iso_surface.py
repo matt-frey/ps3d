@@ -21,7 +21,7 @@ class iso_surface:
 
         # find settings proxy
         colorPalette = GetSettingsProxy('ColorPalette')
-        colormap = 'Cool to Warm'
+        self.colormap = 'Cool to Warm'
 
         # black font
         colorPalette.Text = [0.0, 0.0, 0.0]
@@ -78,14 +78,16 @@ class iso_surface:
         self._height = 1660
         self._layout.SetSize(self._width, self._height)
 
-    def render(self, step, niso, **kwargs):
+    def render(self, step, n_iso, **kwargs):
         vmag = self._ncreader.get_dataset(step=step, name='vorticity_magnitude')
         vmag = vmag ** 2
         vmax = kwargs.pop('vmax', vmag.max())
         vmin = kwargs.pop('vmin', vmag.min())
 
+        print("vmin = ", vmin, "vmax = ", vmax)
+
         self._animation_scene.AnimationTime = self._times[step]
-        self._create_contours(vmin=vmin, vmax=vmax, niso=niso)
+        self._create_contours(vmin=vmin, vmax=vmax, n_iso=n_iso)
         self._create_color_bar(vmax=vmax)
         self._create_surface()
         self._set_camera_position()
@@ -96,6 +98,7 @@ class iso_surface:
         https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
         """
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+        n_iso = kwargs.pop('n_iso', 20)
 
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
@@ -108,7 +111,7 @@ class iso_surface:
         fps = kwargs.pop('fps', 25)
         keep_frames = kwargs.pop('keep_frames', False)
 
-        self.render(step=step, niso=10)
+        self.render(step=step, n_iso=n_iso)
 
         self._render_view.CameraPosition = [-10, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
@@ -159,6 +162,7 @@ class iso_surface:
     def save_animation(self, beg, end, **kwargs):
 
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+        n_iso = kwargs.pop('n_iso', 20)
 
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
@@ -173,7 +177,7 @@ class iso_surface:
 
 
         for i in range(beg, end+1):
-            self.render(step=i, niso=20, vmin=0.0)
+            self.render(step=i, n_iso=n_iso, vmin=0.0)
             self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
             self._clear()
 
@@ -268,10 +272,10 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
         self._prog_filter.RequestUpdateExtentScript = ''
         self._prog_filter.PythonPath = ''
 
-    def _create_contours(self, vmin, vmax, niso):
+    def _create_contours(self, vmin, vmax, n_iso):
         contour = Contour(registrationName='Contour1', Input=self._prog_filter)
         contour.ContourBy = ['POINTS', 'sq_vor_mag']
-        contour.Isosurfaces = np.linspace(vmin, vmax, niso)
+        contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
         contour.PointMergeMethod = 'Uniform Binning'
 
         # set active source
@@ -294,7 +298,7 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
 
         self._lut.EnableOpacityMapping = 1
 
-        self._lut.ApplyPreset(colormap, True)
+        self._lut.ApplyPreset(self.colormap, True)
 
         # get opacity transfer function/opacity map for 'sq_vor_mag'
         self._pwf = GetOpacityTransferFunction('sq_vor_mag')
