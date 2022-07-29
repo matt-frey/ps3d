@@ -15,17 +15,19 @@ paraview.simple._DisableFirstRenderCameraReset()
 
 class iso_surface:
 
-    def __init__(self, create_cmap=False):
+    def __init__(self):
         self._ncreader = nc_reader()
         self._pvnc = None
 
         # find settings proxy
         colorPalette = GetSettingsProxy('ColorPalette')
+        colormap = 'Cool to Warm'
 
         # black font
         colorPalette.Text = [0.0, 0.0, 0.0]
         colorPalette.Foreground = [0.0, 0.0, 0.0]
 
+        create_cmap = False
         if create_cmap:
             self._create_colormap()
 
@@ -292,7 +294,7 @@ output.PointData.append(xvor ** 2 + yvor ** 2 + zvor ** 2, 'sq_vor_mag')"""
 
         self._lut.EnableOpacityMapping = 1
 
-        #self._lut.ApplyPreset('rainbow4', True)
+        self._lut.ApplyPreset(colormap, True)
 
         # get opacity transfer function/opacity map for 'sq_vor_mag'
         self._pwf = GetOpacityTransferFunction('sq_vor_mag')
