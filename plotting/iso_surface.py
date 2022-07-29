@@ -76,11 +76,12 @@ class iso_surface:
         self._height = 1660
         self._layout.SetSize(self._width, self._height)
 
-    def render(self, step, niso):
+    def render(self, step, niso, **kwargs):
         vmag = self._ncreader.get_dataset(step=step, name='vorticity_magnitude')
         vmag = vmag ** 2
-        vmin = vmag.min()
-        vmax = vmag.max()
+        vmax = kwargs.pop('vmax', vmag.max())
+        vmin = kwargs.pop('vmin', vmag.min())
+
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(vmin=vmin, vmax=vmax, niso=niso)
         self._create_color_bar(vmax=vmax)
@@ -110,6 +111,11 @@ class iso_surface:
         self._render_view.CameraPosition = [-10, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
         self._render_view.CameraFocalPoint = [0, 0, 0]
+        self._render_view.AxesGrid.Visibility = 0
+
+        self._color_bar.ScalarBarLength = 0.25
+        self._color_bar.Position = [0.89, 0.15]
+
         self._render_view.Update()
 
         camera = self._render_view.GetActiveCamera()
@@ -148,11 +154,44 @@ class iso_surface:
         else:
             print("The " + ext.upper() + " file format is not supported.")
 
-    def save_animation(self, beg, end):
-        os.mkdir('movie_temp_dir')
-        SaveAnimation(os.path.join('movie_temp_dir', 'animation.png'),
-                      self._render_view, ImageResolution=[self._width, self._height],
-                      FrameWindow=[beg, end])
+    def save_animation(self, beg, end, **kwargs):
+
+        tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+
+        if os.path.exists(tmp_dir):
+            print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
+            exit()
+
+        os.mkdir(tmp_dir)
+
+        file_name = kwargs.pop('file_name', 'beltrami_instability.mp4')
+        file_path = kwargs.pop('file_path', './')
+        fps = kwargs.pop('fps', 25)
+        keep_frames = kwargs.pop('keep_frames', False)
+
+
+        for i in range(beg, end+1):
+            self.render(step=i, niso=20, vmin=0.0)
+            self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
+            self._clear()
+
+        #SaveAnimation(os.path.join(tmp_dir, 'frame.png'),
+                      #self._render_view, ImageResolution=[self._width, self._height],
+                      #FrameWindow=[beg, end])
+
+        os.system('ffmpeg -r 2 -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
+                  ' -c:v libx264 -vf fps=' + str(fps) + ' ' + file_name)
+
+        if not keep_frames:
+            for i in range(beg, end+1):
+                os.remove(os.path.join(tmp_dir, 'frame' + str(i).zfill(5) + '.png'))
+            os.rmdir(tmp_dir)
+
+    def _clear(self):
+        self._contour_display.Visibility = 0
+        self._color_bar.Visibility = 0
+        self._prog_filter_display.Visibility = 0
+        self._render_view.Update()
 
     def close(self):
         self._ncreader.close()
