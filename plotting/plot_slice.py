@@ -93,13 +93,13 @@ for j, field in enumerate(fields):
     grid = ImageGrid(fig, 111,
                     nrows_ncols=(2, 3),
                     aspect=True,
-                    axes_pad=(0.4, 0.3),
+                    axes_pad=(0.45, 0.3),
                     direction='row',
                     share_all=True,
                     cbar_location="right",
                     cbar_mode='each',
                     cbar_size="4%",
-                    cbar_pad=0.1)
+                    cbar_pad=0.05)
 
     for i, step in enumerate(steps):
         fdata = ncreader.get_dataset(step=step, name=field)
@@ -116,7 +116,7 @@ for j, field in enumerate(fields):
         if i < 3:
             remove_xticks(ax)
 
-        if i == 0 and i == 3:
+        if i == 0 or i == 3:
             pass
         else:
             remove_yticks(ax)

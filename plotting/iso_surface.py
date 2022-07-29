@@ -93,7 +93,7 @@ class iso_surface:
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
         self._create_color_bar(field_name=field_name, vmax=vmax)
-        self._create_surface(fieldn_name)
+        self._create_surface(field_name)
         self._set_camera_position()
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
