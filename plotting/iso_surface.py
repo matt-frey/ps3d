@@ -243,6 +243,9 @@ class iso_surface:
         time_filter_display = Show(time_filter, self._render_view, 'TextSourceRepresentation')
         time_filter_display.FontFamily = 'Courier'
         time_filter_display.FontSize = 40
+        time_filter_display.Bold = 1
+        time_filter_display.WindowLocation = 'Any Location'
+        time_filter_display.Position = [0.05, 0.9]
         self._render_view.Update()
 
     def _create_programmable_filter(self):
