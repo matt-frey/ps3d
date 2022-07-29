@@ -3,7 +3,6 @@ import colorcet as cc
 import matplotlib as mpl
 import numpy as np
 import os
-import plotly.graph_objects as go
 
 mpl.rcParams.update({
     "figure.figsize": (9, 6),
@@ -164,117 +163,6 @@ def save_figure(plt, figpath, fignum=1, overwrite=False):
     print("Save figure as:", fname)
     plt.savefig(fname=fname, format='eps')
     plt.close()
-
-# 13 July 2022
-# https://github.com/plotly/plotly.py/issues/2189
-def mpl_to_plotly(cmap, pl_entries=11, rdigits=2):
-    # cmap - colormap
-    # pl_entries - int = number of Plotly colorscale entries
-    # rdigits - int -=number of digits for rounding scale values
-    scale = np.linspace(0, 1, pl_entries)
-    colors = (cmap(scale)[:, :3]*255).astype(np.uint8)
-    pl_colorscale = [[round(s, rdigits), f'rgb{tuple(color)}'] for s, color in zip(scale, colors)]
-    return pl_colorscale
-
-def make_volume_rendering(ncr, step, field, **kwargs):
-    show_axes = kwargs.pop('show_axes', True)
-    show_colorbar = kwargs.pop('show_colorbar', True)
-    fmt = kwargs.pop('fmt', 'png')
-    width = kwargs.pop('width', 1024)
-    height = kwargs.pop('height', 1024)
-    opacity = kwargs.pop('opacity', 0.01)
-    surface_count = kwargs.pop('surface_count', 150)
-    cmap_name = kwargs.pop('cmap_name', 'rainbow4')
-    scale = kwargs.pop('scale', 1.5)
-    margin = kwargs.pop('margin', dict(r=10, b=5, l=10, t=5))
-    export = kwargs.pop('export', False)
-    engine = kwargs.pop('engine', 'kaleido')
-
-    X, Y, Z = ncr.get_meshgrid()
-    vor = ncr.get_dataset(step=step, name=field)
-
-    rainbow4_cmap = cc.cm[cmap_name]
-    rainbow4 = mpl_to_plotly(rainbow4_cmap, rainbow4_cmap.N)
-
-    fig = go.Figure(data=go.Volume(
-        x=X.flatten(),
-        y=Y.flatten(),
-        z=Z.flatten(),
-        value=vor.flatten(),
-        opacity=opacity, # needs to be small to see through all surfaces
-        surface_count=surface_count, # needs to be a large number for good volume rendering
-        colorscale=rainbow4,
-        colorbar=dict(
-                #title=dict(text='$|\omega|$', side='top'),
-                thickness = 20,
-                len=0.75,
-                xpad=5,
-                orientation='v',
-                tickfont=dict(
-                    size=22,
-                    color="black"
-                ),
-            ),
-        showscale=show_colorbar
-        ))
-
-    vor = None
-    X = None
-    Y = None
-    Z = None
-
-    tickvals = np.array([-1.5, -0.75, 0.0, 0.75, 1.5])
-    ticktext = [' -3/2 ', ' -3/4 ', ' 0 ', ' 3/4 ', ' 3/2 ']
-
-    # 12 July 2022
-    # https://plotly.com/python/3d-camera-controls/
-    camera = dict(
-        up=dict(x=0, y=0, z=1),
-        center=dict(x=0, y=0, z=-0.1),
-        eye=dict(x=1.5, y=1.5, z=1.2)
-    )
-
-    fig.update_layout(
-        scene_camera=camera,
-        scene = dict(
-                        xaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext,
-                            visible  = show_axes
-                        ),
-                        yaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext,
-                            visible  = show_axes
-                        ),
-                        zaxis = dict(
-                            tickmode = 'array',
-                            tickvals = tickvals,
-                            ticktext = ticktext,
-                            visible  = show_axes
-                        ),
-                        xaxis_title=dict(text=r'x', font=dict(size=24, color='black')),
-                        yaxis_title=dict(text=r'y', font=dict(size=24, color='black')),
-                        zaxis_title=dict(text=r'z', font=dict(size=24, color='black'))),
-        margin=margin,
-        font=dict(
-            family="Arial", # Times New Roman
-            size=16,
-            color="black"
-        ),
-    )
-
-    fig.write_image("temp_figure." + fmt, scale=scale, width=width,
-                    height=height, engine=engine, validate=False)
-
-#    fig.write_html("test.html", include_plotlyjs="cdn")
-    exit()
-    if not export:
-        image = plt.imread("temp_figure." + fmt, format=fmt)
-        return image
-    return None
 
 # 7 July 2022
 # https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
