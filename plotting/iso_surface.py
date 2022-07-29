@@ -85,10 +85,10 @@ class iso_surface:
         self._layout.SetSize(self._width, self._height)
 
     def render(self, field_name, step, n_iso, **kwargs):
-        field_data = self._ncreader.get_dataset(step=step, name='vorticity_magnitude')
+        field_data = self._ncreader.get_dataset(step=step, name=field_name)
         field_data = field_data ** 2
-        vmax = kwargs.pop('vmax', vmag.max())
-        vmin = kwargs.pop('vmin', vmag.min())
+        vmax = kwargs.pop('vmax', field_data.max())
+        vmin = kwargs.pop('vmin', field_data.min())
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
