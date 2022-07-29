@@ -6,7 +6,6 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from utils import *
 import argparse
 import os
-from iso_surface import iso_surface
 
 parser = argparse.ArgumentParser(description='Create iso-surface figure.')
 parser.add_argument('--filename',
@@ -84,7 +83,7 @@ for i, step in enumerate(steps):
     grid[i].imshow(im)
     grid[i].axis('off')
 
-        #add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
+    add_timestamp(grid[i], t[step], xy=(0.03, 1.06), fmt="%.2f")
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()

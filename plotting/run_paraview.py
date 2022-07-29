@@ -12,6 +12,10 @@ parser.add_argument('--save_path',
                     help='where to save the figures',
                     default=os.getcwd())
 
+parser.add_argument('--field',
+                    type=str,
+                    help='which field to plot')
+
 parser.add_argument('--steps',
                     type=int,
                     nargs='+',
@@ -41,8 +45,13 @@ save_path = args.save_path
 overwrite = args.overwrite
 fignums = args.fignums
 
+if not field == 'vorticity_magnitude' or not field == 'helicity':
+    print("Error: We can only plot the vorticity magnitude and helicity. Exiting.")
+    exit()
+
 print()
 print("\tFilename:               ", fname)
+print("\tField:                  ", field)
 print("\tSteps:                  ", steps)
 print("\tNumber of iso-surfaces: ", n_iso)
 print("\tSave path:              ", save_path)
@@ -65,7 +74,7 @@ for i, step in enumerate(steps):
         exit()
 
     iso.open(fname)
-    iso.render(step=step, n_iso=n_iso)
+    iso.render(field_name=field, step=step, n_iso=n_iso)
     iso.export(file_path=save_path, file_name='fig' + str(fignums[i]) + '.png')
     iso.close()
     iso = None

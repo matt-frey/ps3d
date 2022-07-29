@@ -96,7 +96,7 @@ class iso_surface:
         self._create_surface(fieldn_name)
         self._set_camera_position()
 
-    def save_camera_orbiting_animation(self, step, n_frames, **kwargs):
+    def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
         """
         29 July 2022
         https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
@@ -115,7 +115,7 @@ class iso_surface:
         fps = kwargs.pop('fps', 25)
         keep_frames = kwargs.pop('keep_frames', False)
 
-        self.render(step=step, n_iso=n_iso)
+        self.render(field_name=field_name, step=step, n_iso=n_iso)
 
         self._render_view.CameraPosition = [-10, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
@@ -163,7 +163,7 @@ class iso_surface:
         else:
             print("The " + ext.upper() + " file format is not supported.")
 
-    def save_animation(self, beg, end, **kwargs):
+    def save_animation(self, field_name, beg, end, **kwargs):
 
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
         n_iso = kwargs.pop('n_iso', 20)
@@ -181,7 +181,7 @@ class iso_surface:
 
 
         for i in range(beg, end+1):
-            self.render(step=i, n_iso=n_iso, vmin=0.0)
+            self.render(field_name=field_name, step=i, n_iso=n_iso, vmin=0.0)
             self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
             self._clear()
 
