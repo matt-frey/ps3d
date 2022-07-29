@@ -84,14 +84,15 @@ class iso_surface:
         self._height = kwargs.pop('height', 1660)
         self._layout.SetSize(self._width, self._height)
 
-    def render(self, field_name, step, n_iso, **kwargs):
+    def render(self, field_name, step, **kwargs):
         field_data = self._ncreader.get_dataset(step=step, name=field_name)
         vmax = kwargs.pop('vmax', field_data.max())
         vmin = kwargs.pop('vmin', field_data.min())
+        n_iso = kwargs.pop('n_iso', 40)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
-        self._create_color_bar(field_name=field_name, vmax=vmax)
+        self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
         self._create_surface(field_name)
         self._set_camera_position()
 
@@ -101,7 +102,6 @@ class iso_surface:
         https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
         """
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
-        n_iso = kwargs.pop('n_iso', 20)
 
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
@@ -114,7 +114,7 @@ class iso_surface:
         fps = kwargs.pop('fps', 25)
         keep_frames = kwargs.pop('keep_frames', False)
 
-        self.render(field_name=field_name, step=step, n_iso=n_iso)
+        self.render(field_name=field_name, step=step, **kwargs)
 
         self._render_view.CameraPosition = [-10, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
@@ -165,8 +165,7 @@ class iso_surface:
     def save_animation(self, field_name, beg, end, **kwargs):
 
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
-        n_iso = kwargs.pop('n_iso', 20)
-
+        
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
             exit()
@@ -180,7 +179,7 @@ class iso_surface:
 
 
         for i in range(beg, end+1):
-            self.render(field_name=field_name, step=i, n_iso=n_iso, vmin=0.0)
+            self.render(field_name=field_name, step=i, **kwargs)
             self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
             self._clear()
 
@@ -336,10 +335,10 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._pwf = GetOpacityTransferFunction(field_name)
 
         ## Rescale transfer function
-        self._lut.RescaleTransferFunction(0.0, vmax)
+        self._lut.RescaleTransferFunction(vmin, vmax)
 
         ## Rescale transfer function
-        self._pwf.RescaleTransferFunction(0.0, vmax)
+        self._pwf.RescaleTransferFunction(vmax, vmax)
 
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
@@ -364,7 +363,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour_display.LookupTable = self._lut
         self._render_view.Update()
 
-    def _create_color_bar(self, field_name, vmax):
+    def _create_color_bar(self, field_name, vmin, vmax):
         self._color_bar = GetScalarBar(self._lut, self._render_view)
 
         self._color_bar.TitleFontFamily = 'Courier'
@@ -387,7 +386,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.LabelFormat = '%-#6.2g'
 
         self._color_bar.UseCustomLabels = 1
-        self._color_bar.CustomLabels = np.linspace(0, vmax, 10)
+        self._color_bar.CustomLabels = np.linspace(vmin, vmax, 10)
         self._render_view.Update()
 
     def _create_surface(self, field_name):
