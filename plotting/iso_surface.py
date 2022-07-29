@@ -58,7 +58,7 @@ class iso_surface:
             fid.write('</ColorMaps>')
         ImportPresets(filename='rainbow4.xml')
 
-    def open(self, fname):
+    def open(self, fname, **kwargs):
         self._ncreader.open(fname)
         basename = os.path.basename(fname)
         self._times = self._ncreader.get_all('t')
@@ -74,8 +74,8 @@ class iso_surface:
 
         self._layout = GetLayout()
         # layout/tab size in pixels
-        self._width = 1951
-        self._height = 1660
+        self._width = kwargs.pop('width', 1951)
+        self._height = kwargs.pop('height', 1660)
         self._layout.SetSize(self._width, self._height)
 
     def render(self, step, n_iso, **kwargs):
@@ -83,8 +83,6 @@ class iso_surface:
         vmag = vmag ** 2
         vmax = kwargs.pop('vmax', vmag.max())
         vmin = kwargs.pop('vmin', vmag.min())
-
-        print("vmin = ", vmin, "vmax = ", vmax)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(vmin=vmin, vmax=vmax, n_iso=n_iso)
