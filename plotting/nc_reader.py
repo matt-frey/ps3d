@@ -9,7 +9,9 @@ class nc_reader:
 
         self._derived_fields = [
             'vorticity_magnitude',
-            'helicity'
+            'helicity',
+            'enstrophy',
+            'kinetic_energy'
         ]
 
     def open(self, fname):
@@ -94,6 +96,16 @@ class nc_reader:
             eta = self.get_dataset(step=step, name='y_vorticity')
             zeta = self.get_dataset(step=step, name='z_vorticity')
             return u * xi + v * eta + w * zeta
+        if name == 'kinetic energy':
+            u = self.get_dataset(step=step, name='x_velocity')
+            v = self.get_dataset(step=step, name='y_velocity')
+            w = self.get_dataset(step=step, name='z_velocity')
+            return 0.5 * (u ** 2 + v ** 2 + w ** 2)
+        if name == 'enstrophy':
+            xi = self.get_dataset(step=step, name='x_vorticity')
+            eta = self.get_dataset(step=step, name='y_vorticity')
+            zeta = self.get_dataset(step=step, name='z_vorticity')
+            return 0.5 * (xi ** 2 + eta ** 2 + zeta ** 2)
 
     def get_dataset_attribute(self, name, attr):
         if not name in self._ncfile.variables.keys():

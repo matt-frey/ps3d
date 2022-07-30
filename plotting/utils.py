@@ -104,7 +104,6 @@ def make_mean_profiles(ax, ncr, step, fields, labels):
     zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
     markersize = 3
     markers = ['o', 'x', '+']
-    colors = ['blue', 'red', 'green']
     linewidth = 0.75
 
     for i, field in enumerate(fields):
@@ -130,7 +129,6 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
     zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
     markersize = 3
     markers = ['o', 'x', '+']
-    colors = ['blue', 'red', 'green']
     linewidth = 0.75
 
     for i, field in enumerate(fields):
