@@ -96,7 +96,7 @@ class nc_reader:
             eta = self.get_dataset(step=step, name='y_vorticity')
             zeta = self.get_dataset(step=step, name='z_vorticity')
             return u * xi + v * eta + w * zeta
-        if name == 'kinetic energy':
+        if name == 'kinetic_energy':
             u = self.get_dataset(step=step, name='x_velocity')
             v = self.get_dataset(step=step, name='y_velocity')
             w = self.get_dataset(step=step, name='z_velocity')

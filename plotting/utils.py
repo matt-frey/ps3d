@@ -97,29 +97,31 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
         cbar.ax.yaxis.set_offset_position('left')
     return im, cbar
 
-def make_mean_profiles(ax, ncr, step, fields, labels):
+def make_mean_profiles(ax, ncr, step, fields, labels, normalise=False, **kwargs):
     z = ncr.get_all('z')
     n = len(z)
     zticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
     zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
-    markersize = 3
-    markers = ['o', 'x', '+']
-    linewidth = 0.75
+
+    xticks = kwargs.pop('xticks', [-1, 0, 1])
+    xlim = kwargs.pop('xlim', [-1.1, 1.1])
 
     for i, field in enumerate(fields):
         bar = np.zeros(n)
         data = ncr.get_dataset(step=step, name=field)
-        bar = data.mean(axis=(1, 2))
+        bar = data.mean(axis=(0, 1))
+
+        if normalise:
+            bar = bar / bar.max()
+        
         ax.plot(bar, z,
                 color=colors[i],
-                marker=markers[i],
-                markersize=markersize,
-                linewidth=linewidth,
                 label=labels[i])
+        ax.grid(zorder=-1)
         ax.set_aspect(1)
         ax.set_yticks(ticks=zticks, labels=zticklab)
-        ax.set_xticks([-1, 0, 1])
-        ax.set_xlim([-1.1, 1.1])
+        ax.set_xticks(ticks=xticks)
+        ax.set_xlim(xlim)
     return ax
 
 def make_rms_profiles(ax, ncr, step, fields, labels):
@@ -127,9 +129,6 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
     n = len(z)
     zticks   = np.pi * np.array([-0.5, -0.25, 0.0, 0.25, 0.5])
     zticklab = [r'$-\pi/2$', r'$-\pi/4$', r'$0$', r'$\pi/4$', r'$\pi/2$']
-    markersize = 3
-    markers = ['o', 'x', '+']
-    linewidth = 0.75
 
     for i, field in enumerate(fields):
         rms = np.zeros(n)
@@ -138,10 +137,8 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
 
         ax.plot(rms, z,
                 color=colors[i],
-                marker=markers[i],
-                markersize=markersize,
-                linewidth=linewidth,
                 label=labels[i])
+        ax.grid(zorder=-1)
         ax.set_aspect(1)
         ax.set_yticks(ticks=zticks, labels=zticklab)
         ax.set_xticks([0, 1, 2, 3])
