@@ -44,7 +44,6 @@ grids = np.array([32, 64, 128, 256])
 
 maxen = np.zeros(len(grids))
 vmax = np.zeros(len(grids))
-vrms = np.zeros(len(grids))
 
 fig, axs = plt.subplots(1, 1, figsize=(8, 4), dpi=200, sharex=False)
 
@@ -53,18 +52,18 @@ for i, grid in enumerate(grids):
                           skiprows=1, unpack=True)
 
     # t max rms char <xi> <eta> <zeta>
-    _, vormax, vorrms, _, _, _, _ = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_vorticity.asc'),
+    _, vormax, _, _, _, _, _ = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_vorticity.asc'),
                                                skiprows=1, unpack=True)
 
     ncelli = 1.0 / grid ** 3
+    voli = 1.0 / np.pi ** 3
 
     # calculate mean KE and mean EN
-    en *= ncelli
+    en *= ncelli * voli
 
     maxen[i] = en.max()
     vmax[i] = vormax.max()
-    vrms[i] = vorrms.max()
-
+    
 # ignore nz = 32
 log10_maxen = np.log10(maxen[1:])
 log10_nz = np.log10(grids[1:])
@@ -81,12 +80,10 @@ m = p_fitted.coef[1]
 #print("polyfit:", np.polyfit(x=log10_nz, y=log10_maxen, deg=1))
 #print(p_fitted.coef)
 
-axs.plot(grids, maxen, marker='o', markersize=4, label=r'$\langle\Upsilon\rangle$')
+axs.plot(grids, maxen, marker='o', markersize=4, label=r'$\Upsilon$')
 axs.plot(grids, vmax, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\max}$')
-axs.plot(grids, vrms, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\mathrm{rms}}$')
 axs.plot(grids[1:], 10 ** (m * log10_nz + q), linestyle='dashed', color='black',
-         label=r'$\log_{10}\langle\Upsilon\rangle=' + str(round(m, 3)) + '\log_{10}n_{z}+' +
-         str(round(q, 3)) + '$')
+         label=r'$\log_{10}\Upsilon\propto' + str(round(m, 3)) + '\log_{10}n_{z}$')
 axs.set_xscale('log', base=2)
 axs.set_yscale('log', base=10)
 

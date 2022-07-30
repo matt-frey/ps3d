@@ -54,11 +54,12 @@ for grid in grids:
     t, ke, en = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_ecomp.asc'),
                            skiprows=1, unpack=True)
 
+    voli = 1.0 / np.pi ** 3
     ncelli = 1.0 / grid ** 3
 
     # calculate mean KE and mean EN
-    ke *= ncelli
-    en *= ncelli
+    ke *= voli * ncelli
+    en *= voli * ncelli
 
     #print("initial <KE>", ke[0])
     #print("initial <EN>", en[0])
@@ -70,12 +71,12 @@ for grid in grids:
     axs[1].plot(t, en, label=label)
 
 axs[1].set_xlabel(r'time, $t$')
-axs[1].set_ylabel(r'average enstrophy, $\langle\Upsilon\rangle$')
+axs[1].set_ylabel(r'enstrophy, $\Upsilon$')
 
 axs[0].grid(zorder=-1)
 axs[1].grid(zorder=-1)
 
-axs[0].set_ylabel(r'average kinetic energy, $\langle\mathcal{K}\rangle$')
+axs[0].set_ylabel(r'kinetic energy, $\mathcal{K}$')
 
 axs[0].legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.2))
 
