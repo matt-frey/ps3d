@@ -64,7 +64,7 @@ sp2 = os.path.join(path, 'spectrum_exp2_decay.asc')
 
 def find_steps():
     ts, kes, _ = np.loadtxt(efile, skiprows=1, unpack=True)
-    kemax = kes.max()
+    kemax = kes[0]
     e1 = np.exp(1.0)
     e2 = np.exp(2.0)
     idx1 = find_nearest(kes, kemax / e1)
@@ -161,8 +161,8 @@ grid = ImageGrid(fig, 111,
 #fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
 #grid = axs.flatten()
 
-plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}_{\max}/e$', fit=True)
-plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}_{\max}/e^2$', fit=True)
+plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True)
+plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=True)
 
 xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 
