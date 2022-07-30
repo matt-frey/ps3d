@@ -27,10 +27,10 @@ parser.add_argument('--overwrite',
                     help='overwrite figures',
                     action='store_true')
 
-parser.add_argument('--fignums',
+parser.add_argument('--fignum',
                     type=int,
-                    nargs=2,
-                    help='figure numbers')
+                    help='figure number',
+                    default=12)
 
 
 args = parser.parse_args()
@@ -38,38 +38,21 @@ fname = args.filename
 steps = np.asarray(args.steps)
 save_path = args.save_path
 overwrite = args.overwrite
-fignums = args.fignums
-
-if fignums is None:
-    print("No figure numbers provided.")
-    exit()
+fignum = args.fignum
 
 print()
 print("\tFilename:  ", fname)
 print("\tSteps:     ", steps)
 print("\tSave path: ", save_path)
 print("\tOverwrite: ", overwrite)
-print("\tFignums:   ", fignums)
+print("\tFignum:   ", fignum)
 print()
 
 ncreader = nc_reader()
 ncreader.open(fname)
 t = ncreader.get_all('t')
 
-origin = ncreader.get_box_origin()
-extent = ncreader.get_box_extent()
-ncells = ncreader.get_box_ncells()
-
-colors = ['blue', 'orange', 'green']
-
-vcell = np.prod(extent / ncells)
-
-steps = [0, 55, 60, 62, 64, 66, 68, 70, 80, 100]
-
-n = len(z)
 fig = plt.figure(figsize=(len(steps)*1.0, 5), dpi=400)
-
-
 grid = ImageGrid(fig, 111,
                  nrows_ncols=(2, 5),
                  aspect=True,
@@ -110,7 +93,7 @@ grid[2].legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.4))
 
 #plt.tight_layout()
 
-save_figure(plt=plt, figpath=save_path, fignum=fignums[0], overwrite=overwrite)
+save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
 
 ncreader.close()
