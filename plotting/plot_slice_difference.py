@@ -74,12 +74,13 @@ fields = ['x_velocity',
           'y_vorticity',
           'z_vorticity']
 
-labels = [r'$u(t) - u(0)$',
-          r'$v(t) - v(0)$',
-          r'$w(t) - w(0)$',
-          r'$\xi(t) - \xi(0)$',
-          r'$\eta(t) - \eta(0)$',
-          r'$\zeta(t) - \zeta(0)$']
+# r'$(v(t) - v(0)) / |\bm{u}(t) - \bm{u}(0)|_{\mathrm{\max}}$',
+labels = [r'$\Delta u(t) / |\Delta\bm{u}(t))|_{\mathrm{\max}}$',
+          r'$\Delta v(t) / |\Delta\bm{u}(t)|_{\mathrm{\max}}$',
+          r'$\Delta w(t) / |\Delta\bm{u}(t)|_{\mathrm{\max}}$',
+          r'$\Delta\xi(t) / |\Delta\bm{u}(t)|_{\mathrm{\max}}$',
+          r'$\Delta\eta(t) / |\Delta\bm{u}(t)|_{\mathrm{\max}}$',
+          r'$\Delta\zeta(t) / |\Delta\bm{u}(t)|_{\mathrm{\max}}$']
 
 fig = plt.figure(figsize=(8, 5), dpi=200)
 grid = ImageGrid(fig, 111,
@@ -93,10 +94,24 @@ grid = ImageGrid(fig, 111,
                 cbar_size="4%",
                 cbar_pad=0.05)
 
+# find normalization: we normalize the differences by the maximum
+# magnitude of the velocity field difference:
+udiff = ncreader.get_dataset(step=step, name='x_velocity') - \
+    ncreader.get_dataset(step=0, name='x_velocity')
+
+vdiff =	ncreader.get_dataset(step=step, name='y_velocity') - \
+    ncreader.get_dataset(step=0, name='y_velocity')
+
+wdiff =	ncreader.get_dataset(step=step, name='z_velocity') - \
+    ncreader.get_dataset(step=0, name='z_velocity')
+
+max_magn = get_max_magnitude(udiff, vdiff, wdiff, plane, loc)
+
 for i, field in enumerate(fields):
     fdata = ncreader.get_dataset(step=step, name=field)
     idata = ncreader.get_dataset(step=0, name=field)
-    fdata = fdata - idata
+
+    fdata = (fdata - idata) / max_magn
 
     ax = grid[i]
     im, cbar = make_imshow(ax=ax,
@@ -118,10 +133,10 @@ for i, field in enumerate(fields):
 
     add_annotation(ax, labels[i], xy=(0.03, 1.06))
 
-add_timestamp(grid[0], t[step], xy=(-0.5, 1.22), fontsize=12)
+add_timestamp(grid[0], t[step], xy=(-0.18, 1.25), fontsize=12)
 
 if not zlabel is None:
-    add_annotation(grid[2], zlabel, xy=(1.2, 1.22), fontsize=12)
+    add_annotation(grid[0], zlabel, xy=(-0.5, 1.25), fontsize=12)
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()

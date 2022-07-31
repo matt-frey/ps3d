@@ -44,6 +44,16 @@ def remove_xticks(ax):
 def remove_yticks(ax):
     ax.tick_params(axis='y', which='both', right=False, left=False)
 
+# assumes data in ordering (x, y, z)
+def get_max_magnitude(xcomp, ycomp, zcomp, plane, loc):
+    if plane == 'xy':
+        magn = xcomp[:, :, loc] ** 2 + ycomp[:, :, loc] ** 2 + zcomp[:, :, loc] ** 2
+    elif plane == 'xz':
+        magn = xcomp[:, loc, :] ** 2 + ycomp[:, loc, :] ** 2 + zcomp[:, loc, :] ** 2
+    elif plane == 'yz':
+        magn = xcomp[loc, :, :] ** 2 + ycomp[loc, :, :] ** 2 + zcomp[loc, :, :] ** 2
+    return np.sqrt(magn.max())
+            
 # assumes fdata ordering (x, y, z)
 def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm=None):
     origin = ncr.get_box_origin()
@@ -60,7 +70,7 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm
         pl = fdata[:, :, loc]
         xlab = r'$x$'
         ylab = r'$y$'
-    if plane == 'xz':
+    elif plane == 'xz':
         jmin = origin[2]
         jmax = origin[2] + extent[2]
         pl = fdata[:, loc, :]
