@@ -31,7 +31,7 @@ colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
 def add_timestamp(plt, time, xy=(0.75, 1.05), fmt="%.2f", **kwargs):
     bbox = dict(boxstyle="round", facecolor="wheat", edgecolor='none')
-    label = r"t = " + fmt % (time)
+    label = r"$t = " + fmt % (time) + "$"
     plt.annotate(label, xy=xy, xycoords="axes fraction", bbox=bbox, **kwargs)
 
 def add_annotation(ax, label, xy, **kwargs):
@@ -45,7 +45,7 @@ def remove_yticks(ax):
     ax.tick_params(axis='y', which='both', right=False, left=False)
 
 # assumes fdata ordering (x, y, z)
-def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
+def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm=None):
     origin = ncr.get_box_origin()
     extent = ncr.get_box_extent()
 
@@ -77,6 +77,7 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True):
 
     im = ax.imshow(X=pl.transpose(),
                    cmap=cc.cm[cmap],
+                   norm=norm,
                    interpolation='bilinear',
                    origin='lower',
                    extent=[imin, imax, jmin, jmax])
