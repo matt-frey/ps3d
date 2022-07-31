@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tools.nc_reader import nc_reader
+from nc_reader import nc_reader
 import matplotlib as mpl
 import colorcet as cc
 from mpl_toolkits.axes_grid1 import ImageGrid
@@ -9,14 +9,22 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description='Create vorticity height profile figures.')
-parser.add_argument('--filename',
+parser.add_argument('--filenames',
                     type=str,
+                    nargs='+',
                     help='output file')
+
 parser.add_argument('--steps',
                     type=int,
-                    nargs=10,
-                    default=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                    help='add 6 steps to plot')
+                    nargs=9,
+                    default=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+                    help='9 steps to plot')
+
+parser.add_argument('--file_numbers',
+                    type=int,
+                    nargs=9,
+                    default=[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    help='file numbers')
 
 parser.add_argument('--save_path',
                     type=str,
@@ -33,7 +41,8 @@ parser.add_argument('--fignums',
                     help='figure numbers')
 
 args = parser.parse_args()
-fname = args.filename
+fnames = args.filenames
+file_numbers = args.file_numbers
 steps = np.asarray(args.steps)
 save_path = args.save_path
 overwrite = args.overwrite
@@ -44,17 +53,15 @@ if fignums is None:
     exit()
 
 print()
-print("\tFilename:  ", fname)
-print("\tSteps:     ", steps)
-print("\tSave path: ", save_path)
-print("\tOverwrite: ", overwrite)
-print("\tFignums:   ", fignums)
+print("\tFilename:    ", fnames)
+print("\tFile numbers:", file_numbers)
+print("\tSteps:       ", steps)
+print("\tSave path:   ", save_path)
+print("\tOverwrite:   ", overwrite)
+print("\tFignums:     ", fignums)
 print()
 
 ncreader = nc_reader()
-ncreader.open(fname)
-
-t = ncreader.get_all('t')
 
 #
 # Vorticity mean profile
@@ -72,6 +79,10 @@ grid = ImageGrid(fig, 111,
                  cbar_pad=0.0)
 
 for i, step in enumerate(steps):
+
+    ncreader.open(fnames[file_numbers[i]])
+    t = ncreader.get_all('t')
+    
     ax = grid[i]
 
     labels = [None] * 3
@@ -92,6 +103,8 @@ for i, step in enumerate(steps):
                        step=step,
                        fields=['x_vorticity', 'y_vorticity', 'z_vorticity'],
                        labels=labels)
+
+    ncreader.close()
 
     add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
@@ -119,6 +132,9 @@ grid = ImageGrid(fig, 111,
                  cbar_pad=0.0)
 
 for i, step in enumerate(steps):
+    ncreader.open(fnames[file_numbers[i]])
+    t = ncreader.get_all('t')
+
     ax = grid[i]
 
     labels = [None] * 3
@@ -140,7 +156,9 @@ for i, step in enumerate(steps):
                       fields=['x_vorticity', 'y_vorticity', 'z_vorticity'],
                       labels=labels)
 
-    add_timestamp(ax, t[step], xy=(0.03, 1.08), fmt="%.2f")
+    ncreader.close()
+    
+    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
 grid[0].set_ylabel(r'$z$')
 grid[5].set_ylabel(r'$z$')
@@ -149,5 +167,3 @@ grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.6))
 
 save_figure(plt=plt, figpath=save_path, fignum=fignums[1], overwrite=overwrite)
 plt.close()
-
-ncreader.close()

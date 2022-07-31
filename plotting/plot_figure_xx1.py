@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from mayavi import mlab
-from tools.nc_reader import nc_reader
+from nc_reader import nc_reader
 
 grid = 32
 mpl.rcParams['font.size'] = 12

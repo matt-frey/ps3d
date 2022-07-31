@@ -1,4 +1,4 @@
-from tools.nc_reader import nc_reader
+from nc_reader import nc_reader
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib as mpl

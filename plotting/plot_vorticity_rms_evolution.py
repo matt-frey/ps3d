@@ -1,4 +1,4 @@
-from tools.nc_reader import nc_reader
+from nc_reader import nc_reader
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib as mpl
@@ -63,12 +63,12 @@ def fill_steps(ncr, j, lo, hi):
         # add +1 to nz to include nz in the list
         izs = np.arange(0, nz+1, int(nz/4))
         for i, iz in enumerate(izs):
-            u_rms[j, i]    = np.sqrt((x_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            v_rms[j, i]    = np.sqrt((y_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            w_rms[j, i]    = np.sqrt((z_vel[iz, :, :] ** 2).sum() / (nx * ny))
-            xi_rms[j, i]   = np.sqrt((x_vor[iz, :, :] ** 2).sum() / (nx * ny))
-            eta_rms[j, i]  = np.sqrt((y_vor[iz, :, :] ** 2).sum() / (nx * ny))
-            zeta_rms[j, i] = np.sqrt((z_vor[iz, :, :] ** 2).sum() / (nx * ny))
+            u_rms[j, i]    = np.sqrt((x_vel[:, :, iz] ** 2).sum() / (nx * ny))
+            v_rms[j, i]    = np.sqrt((y_vel[:, :, iz] ** 2).sum() / (nx * ny))
+            w_rms[j, i]    = np.sqrt((z_vel[:, :, iz] ** 2).sum() / (nx * ny))
+            xi_rms[j, i]   = np.sqrt((x_vor[:, :, iz] ** 2).sum() / (nx * ny))
+            eta_rms[j, i]  = np.sqrt((y_vor[:, :, iz] ** 2).sum() / (nx * ny))
+            zeta_rms[j, i] = np.sqrt((z_vor[:, :, iz] ** 2).sum() / (nx * ny))
         j = j + 1
 
 
