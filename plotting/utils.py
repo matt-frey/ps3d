@@ -144,16 +144,13 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
     for i, field in enumerate(fields):
         rms = np.zeros(n)
         data = ncr.get_dataset(step=step, name=field)
-        rms = np.sqrt((data ** 2).mean(axis=(1, 2)))
+        rms = np.sqrt((data ** 2).mean(axis=(0, 1)))
 
         ax.plot(rms, z,
                 color=colors[i],
                 label=labels[i])
         ax.grid(zorder=-1)
-        ax.set_aspect(1)
         ax.set_yticks(ticks=zticks, labels=zticklab)
-        ax.set_xticks([0, 1, 2, 3])
-        ax.set_xlim([-0.1, 3.1])
     return ax
 
 
