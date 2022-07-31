@@ -66,9 +66,9 @@ ncreader = nc_reader()
 #
 # Vorticity mean profile
 #
-fig = plt.figure(figsize=(len(steps)*0.75, 5), dpi=400)
+fig = plt.figure(figsize=(9, 3), dpi=400)
 grid = ImageGrid(fig, 111,
-                 nrows_ncols=(2, 5),
+                 nrows_ncols=(1, 9),
                  aspect=True,
                  axes_pad=(0.1, 0.3),
                  direction='row',
@@ -86,16 +86,13 @@ for i, step in enumerate(steps):
     ax = grid[i]
 
     labels = [None] * 3
-    if i == 2:
+    if i == 4:
         labels = [
             r'$\langle\xi\rangle$',
             r'$\langle\eta\rangle$',
             r'$\langle\zeta\rangle$']
 
-    if i < 5:
-        remove_xticks(ax)
-
-    if not i == 0 and not i == 5:
+    if not i == 0:
         remove_yticks(ax)
 
     make_mean_profiles(ax=ax,
@@ -111,7 +108,7 @@ for i, step in enumerate(steps):
 grid[0].set_ylabel(r'$z$')
 grid[5].set_ylabel(r'$z$')
 
-grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.4))
+grid[4].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.4))
 
 save_figure(plt=plt, figpath=save_path, fignum=fignums[0], overwrite=overwrite)
 plt.close()
@@ -119,51 +116,66 @@ plt.close()
 #
 # Vorticity rms profile
 #
-fig = plt.figure(figsize=(len(steps)*0.75, 4), dpi=400)
-grid = ImageGrid(fig, 111,
-                 nrows_ncols=(2, 5),
-                 aspect=True,
-                 axes_pad=(0.1, 0.3),
-                 direction='row',
-                 share_all=True,
-                 cbar_location="bottom",
-                 cbar_mode=None,
-                 cbar_size="4%",
-                 cbar_pad=0.0)
+#fig = plt.figure(figsize=(9, 3), dpi=400)
+fig, axs = plt.subplots(2, 9, figsize=(9, 6), dpi=400, sharey=True)
+grid = axs.flatten()
+#grid = ImageGrid(fig, 111,
+#                 nrows_ncols=(1, 9),
+#                 aspect=True,
+#                 axes_pad=(0.1, 0.3),
+#                 direction='row',
+#                 share_all=True,
+#                 cbar_location="bottom",
+#                 cbar_mode=None,
+#                 cbar_size="4%",
+#                 cbar_pad=0.0)
 
 for i, step in enumerate(steps):
     ncreader.open(fnames[file_numbers[i]])
     t = ncreader.get_all('t')
 
-    ax = grid[i]
+    vel_ax = grid[i]
+    vor_ax = grid[i+9]
 
-    labels = [None] * 3
-    if i == 2:
-        labels = [
+    vel_labels = [None] * 3
+    vor_labels = [None] * 3
+    if i == 4:
+        vel_labels = [
+            r'$u_{\mathrm{rms}}$',
+            r'$v_{\mathrm{rms}}$',
+            r'$w_{\mathrm{rms}}$']
+        vor_labels = [
             r'$\xi_{\mathrm{rms}}$',
             r'$\eta_{\mathrm{rms}}$',
             r'$\zeta_{\mathrm{rms}}$']
 
-    if i < 5:
-        remove_xticks(ax)
+    if not i == 0 and not i == 9:
+        remove_yticks(vel_ax)
+        remove_yticks(vor_ax)
 
-    if not i == 0 and not i == 5:
-        remove_yticks(ax)
+    make_rms_profiles(ax=vel_ax,
+                      ncr=ncreader,
+                      step=step,
+                      fields=['x_velocity', 'y_velocity', 'z_velocity'],
+                      labels=vel_labels)
 
-    make_rms_profiles(ax=ax,
+    make_rms_profiles(ax=vor_ax,
                       ncr=ncreader,
                       step=step,
                       fields=['x_vorticity', 'y_vorticity', 'z_vorticity'],
-                      labels=labels)
+                      labels=vor_labels)
 
     ncreader.close()
     
-    add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
+    add_timestamp(vel_ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
 grid[0].set_ylabel(r'$z$')
-grid[5].set_ylabel(r'$z$')
+grid[9].set_ylabel(r'$z$')
 
-grid[2].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.6))
+grid[4].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.35))
+grid[9+4].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.2))
+
+plt.subplots_adjust(hspace=0.3)
 
 save_figure(plt=plt, figpath=save_path, fignum=fignums[1], overwrite=overwrite)
 plt.close()
