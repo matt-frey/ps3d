@@ -29,8 +29,7 @@ class iso_surface:
         ]
 
         self._field_label = {
-            'vorticity_magnitude': 'vorticity magnitude',
-            'helicity': 'helicity'
+            'vorticity_magnitude': 'vorticity magnitude'
         }
 
 
@@ -386,7 +385,11 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.ScalarBarLength = 0.5
         self._color_bar.WindowLocation = 'Any Location'
         self._color_bar.Position = [0.85, 0.25]
-        self._color_bar.Title = self._field_label[field_name]
+
+        if field_name in self._field_label.keys():
+            self._color_bar.Title = self._field_label[field_name]
+        else:
+            self._color_bar.Title = field_name
 
         self._color_bar.TitleJustification = 'Centered'
 
