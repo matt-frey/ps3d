@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mpl_colors
 from nc_reader import nc_reader
 import matplotlib.colors as mpl_colors
 from mpl_toolkits.axes_grid1 import ImageGrid
@@ -50,6 +51,16 @@ parser.add_argument('--fields',
                     nargs=6,
                     help='fields to plot')
 
+parser.add_argument('--norms',
+                    nargs=6,
+                    help='color map norms',
+                    default=[None]*6)
+
+parser.add_argument('--colormaps',
+                    nargs=6,
+                    help='color maps',
+                    default=['rainbow4']*6)
+
 parser.add_argument('--zlabel',
                     default=r'$z = -\pi/2$',
                     help='z-label for location')
@@ -57,6 +68,8 @@ parser.add_argument('--zlabel',
 args = parser.parse_args()
 fnames = args.filenames
 steps = np.asarray(args.steps)
+cmaps = args.colormaps
+norms = args.norms
 file_numbers = np.asarray(args.file_numbers)
 plane = args.plane
 loc = args.loc
@@ -74,6 +87,8 @@ print()
 print("\tFiles:       ", fnames)
 print("\tFields:      ", fields)
 print("\tSteps:       ", steps)
+print("\tColormaps:   ", cmaps)
+print("\tNorms:       ", norms)
 print("\tFile numbers:", file_numbers)
 print("\tPlane:       ", plane)
 print("\tLocation:    ", loc)
@@ -103,13 +118,19 @@ for i, field in enumerate(fields):
     step = steps[i]
     fdata = ncreader.get_dataset(step=step, name=field)
 
+    if norms[i] == 'centered':
+        norm = mpl_colors.CenteredNorm(vcenter=0.0)
+    else:
+        norm = None
+    
     ax = grid[i]
     im, cbar = make_imshow(ax=ax,
                            plane=plane,
                            loc=loc,
                            fdata=fdata,
                            ncr=ncreader,
-                           cmap='rainbow4',
+                           cmap=cmaps[i],
+                           norm=norm,
                            colorbar=True)
 
     ncreader.close()

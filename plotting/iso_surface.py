@@ -21,7 +21,6 @@ class iso_surface:
 
         # find settings proxy
         colorPalette = GetSettingsProxy('ColorPalette')
-        self.colormap = 'Cool to Warm'
 
         self._derived_fields = [
             'vorticity_magnitude',
@@ -95,6 +94,13 @@ class iso_surface:
         vmax = kwargs.pop('vmax', field_data.max())
         vmin = kwargs.pop('vmin', field_data.min())
         n_iso = kwargs.pop('n_iso', 40)
+        self.colormap = kwargs.pop('colormap', 'Cool to Warm')
+        self._invert_colormap = kwargs.pop('invert_colormap', False)
+        self._enable_opacity = kwargs.pop('enable_opacity', False)
+        self._opacity_vmin = kwargs.pop('opacity_vmin', 1.0)
+        self._opacity_vmax = kwargs.pop('opacity_vmax', 1.0)
+        self._opacity_points = kwargs.pop('opacity_points', [])
+        self._opacity_values = kwargs.pop('opacity_values', [])
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
@@ -337,7 +343,10 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         # get color transfer function/color map for field_name
         self._lut = GetColorTransferFunction(field_name)
 
-        self._lut.EnableOpacityMapping = 1
+        if self._enable_opacity:
+            self._lut.EnableOpacityMapping = 1
+        else:
+            self._lut.EnableOpacityMapping = 0
 
         self._lut.ApplyPreset(self.colormap, True)
 
@@ -347,8 +356,20 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         ## Rescale transfer function
         self._lut.RescaleTransferFunction(vmin, vmax)
 
+        if self._invert_colormap:
+            self._lut.InvertTransferFunction()
+
         ## Rescale transfer function
-        self._pwf.RescaleTransferFunction(0, vmax)
+        self._pwf.RescaleTransferFunction(vmin, vmax)
+
+        points = [vmin, self._opacity_vmin, 0.5, 0.0]
+        if self._opacity_points:
+            for i, p in enumerate(self._opacity_points):
+                v = self._opacity_values[i]
+                points = points + [vmax * p, v, 0.5, 0.0]
+        points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
+
+        self._pwf.Points = points
 
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
