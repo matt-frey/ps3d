@@ -23,6 +23,11 @@ class iso_surface:
         colorPalette = GetSettingsProxy('ColorPalette')
         self.colormap = 'Cool to Warm'
 
+        self._derived_fields = [
+            'vorticity_magnitude',
+            'helicity'
+        ]
+
         self._field_label = {
             'vorticity_magnitude': 'vorticity magnitude',
             'helicity': 'helicity'
@@ -95,7 +100,6 @@ class iso_surface:
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
         self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
-        #self._create_surface(field_name)
         self._set_camera_position()
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
@@ -167,7 +171,7 @@ class iso_surface:
     def save_animation(self, field_name, beg, end, **kwargs):
 
         tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
-        
+
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
             exit()
@@ -277,7 +281,7 @@ output.PointData.append(np.sqrt(xi ** 2 + eta ** 2 + zeta ** 2), 'vorticity_magn
         self._prog_filter1.RequestInformationScript = ''
         self._prog_filter1.RequestUpdateExtentScript = ''
         self._prog_filter1.PythonPath = ''
-        
+
         #
         # helicity
         #
@@ -306,7 +310,12 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         }
 
     def _create_contours(self, field_name, vmin, vmax, n_iso):
-        contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
+
+        if field_name in self._derived_fields:
+            contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
+        else:
+            contour = Contour(registrationName='Contour1', Input=self._pvnc)
+
         contour.ContourBy = ['POINTS', field_name]
         contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
         contour.PointMergeMethod = 'Uniform Binning'
@@ -390,25 +399,6 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.UseCustomLabels = 1
         self._color_bar.CustomLabels = np.linspace(vmin, vmax, 10)
         self._render_view.Update()
-
-    #def _create_surface(self, field_name):
-    #    self._prog_filter_display = Show(self._prog_filters[field_name],
-    #                                     self._render_view, 'UniformGridRepresentation')
-    #
-    #    SetActiveSource(self._prog_filter_display)
-    #
-    #    self._prog_filter_display.SetRepresentationType('Surface')
-    #    self._prog_filter_display.Opacity = 0.5
-    #    self._prog_filter_display.ScaleFactor = 0.323976504603413
-    #    self._prog_filter_display.DataAxesGrid = 'GridAxesRepresentation'
-    #    self._prog_filter_display.PolarAxes = 'PolarAxesRepresentation'
-    #    self._prog_filter_display.SetScaleArray = ['POINTS', field_name]
-    #    self._prog_filter_display.ScaleTransferFunction = 'PiecewiseFunction'
-    #    self._prog_filter_display.ColorArrayName = ['POINTS', field_name]
-    #    self._prog_filter_display.OpacityArray = ['POINTS', field_name]
-    #    self._prog_filter_display.OpacityTransferFunction = 'PiecewiseFunction'
-    #    self._prog_filter_display.LookupTable = self._lut
-    #    self._render_view.Update()
 
     def _set_camera_position(self):
         self._render_view.CameraPosition = [-10, 4, 4]
