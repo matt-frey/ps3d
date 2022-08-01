@@ -75,7 +75,9 @@ class iso_surface:
         self._animation_scene = GetAnimationScene()
         self._animation_scene.UpdateAnimationUsingDataTimeSteps()
         self._set_basic_render_view()
-        self._create_time_stamp_filter()
+
+        if kwargs.pop('add_time', True):
+            self._create_time_stamp_filter()
         self._create_programmable_filters()
 
         self._layout = GetLayout()
@@ -93,7 +95,7 @@ class iso_surface:
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
         self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
-        self._create_surface(field_name)
+        #self._create_surface(field_name)
         self._set_camera_position()
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
@@ -198,7 +200,7 @@ class iso_surface:
     def _clear(self):
         self._contour_display.Visibility = 0
         self._color_bar.Visibility = 0
-        self._prog_filter_display.Visibility = 0
+        #self._prog_filter_display.Visibility = 0
         self._render_view.Update()
 
     def close(self):
@@ -275,7 +277,7 @@ output.PointData.append(np.sqrt(xi ** 2 + eta ** 2 + zeta ** 2), 'vorticity_magn
         self._prog_filter1.RequestInformationScript = ''
         self._prog_filter1.RequestUpdateExtentScript = ''
         self._prog_filter1.PythonPath = ''
-
+        
         #
         # helicity
         #
@@ -338,7 +340,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._lut.RescaleTransferFunction(vmin, vmax)
 
         ## Rescale transfer function
-        self._pwf.RescaleTransferFunction(vmax, vmax)
+        self._pwf.RescaleTransferFunction(0, vmax)
 
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
@@ -389,24 +391,24 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.CustomLabels = np.linspace(vmin, vmax, 10)
         self._render_view.Update()
 
-    def _create_surface(self, field_name):
-        self._prog_filter_display = Show(self._prog_filters[field_name],
-                                         self._render_view, 'UniformGridRepresentation')
-
-        SetActiveSource(self._prog_filter_display)
-
-        self._prog_filter_display.SetRepresentationType('Surface')
-        self._prog_filter_display.Opacity = 0.5
-        self._prog_filter_display.ScaleFactor = 0.323976504603413
-        self._prog_filter_display.DataAxesGrid = 'GridAxesRepresentation'
-        self._prog_filter_display.PolarAxes = 'PolarAxesRepresentation'
-        self._prog_filter_display.SetScaleArray = ['POINTS', field_name]
-        self._prog_filter_display.ScaleTransferFunction = 'PiecewiseFunction'
-        self._prog_filter_display.ColorArrayName = ['POINTS', field_name]
-        self._prog_filter_display.OpacityArray = ['POINTS', field_name]
-        self._prog_filter_display.OpacityTransferFunction = 'PiecewiseFunction'
-        self._prog_filter_display.LookupTable = self._lut
-        self._render_view.Update()
+    #def _create_surface(self, field_name):
+    #    self._prog_filter_display = Show(self._prog_filters[field_name],
+    #                                     self._render_view, 'UniformGridRepresentation')
+    #
+    #    SetActiveSource(self._prog_filter_display)
+    #
+    #    self._prog_filter_display.SetRepresentationType('Surface')
+    #    self._prog_filter_display.Opacity = 0.5
+    #    self._prog_filter_display.ScaleFactor = 0.323976504603413
+    #    self._prog_filter_display.DataAxesGrid = 'GridAxesRepresentation'
+    #    self._prog_filter_display.PolarAxes = 'PolarAxesRepresentation'
+    #    self._prog_filter_display.SetScaleArray = ['POINTS', field_name]
+    #    self._prog_filter_display.ScaleTransferFunction = 'PiecewiseFunction'
+    #    self._prog_filter_display.ColorArrayName = ['POINTS', field_name]
+    #    self._prog_filter_display.OpacityArray = ['POINTS', field_name]
+    #    self._prog_filter_display.OpacityTransferFunction = 'PiecewiseFunction'
+    #    self._prog_filter_display.LookupTable = self._lut
+    #    self._render_view.Update()
 
     def _set_camera_position(self):
         self._render_view.CameraPosition = [-10, 4, 4]
