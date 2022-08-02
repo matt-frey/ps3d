@@ -14,7 +14,7 @@ program genspec2d
     character(len=512)            :: filename
     integer, allocatable          :: kmag(:, :)
     integer                       :: kx, ky, kmax, k
-    double precision              :: dk, snorm, ke
+    double precision              :: dk, dki, snorm, ke
     integer                       :: step
     double precision              :: rkxmax, rkymax
 
@@ -52,6 +52,7 @@ program genspec2d
 
     ! spacing of the shells
     dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
+    dki = one / dk
 
     !
     ! LOWER BOUNDARY SPECTRUM
@@ -86,7 +87,8 @@ program genspec2d
             !Compute spectrum for v part:
             call calculate_spectrum_contribution(v, vspec)
 
-            spec = uspec ** 2 + vspec ** 2
+            ! uspec and vspec are already squared
+            spec = uspec + vspec
 
             ! calculate domain-average kinetic energy at surface with u and v part only:
             ke = f12 * sum(u ** 2 + v ** 2)
@@ -106,6 +108,7 @@ program genspec2d
             double precision, intent(in)  :: fp(0:ny-1, 0:nx-1)
             double precision, intent(out) :: fspec(0:kmax)
             double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1)
+            integer                       :: num(0:kmax)
 
             pp = fp
 
@@ -116,28 +119,19 @@ program genspec2d
                 fspec(k) = zero
             enddo
 
-            !x and y-independent mode:
-            k = kmag(0, 0)
-            fspec(k) = fspec(k) + f14 * ss(0, 0) ** 2
-
-            !y-independent mode:
-            do kx = 1, nx - 1
-                k = kmag(kx, 0)
-                fspec(k) = fspec(k) + f12 * ss(kx, 0) ** 2
-            enddo
-
-            !x-independent mode:
-            do ky = 1, ny - 1
-                k = kmag(0, ky)
-                fspec(k) = fspec(k) + f12 * ss(0, ky) ** 2
-            enddo
-
-            !All other modes:
-            do ky = 1, ny - 1
-                do kx = 1, nx - 1
-                    k = kmag(kx, ky)
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    k = int(dble(kmag(kx, ky)) * dki)
                     fspec(k) = fspec(k) + ss(kx, ky) ** 2
                 enddo
+            enddo
+
+            do k = 0, kmax
+                if (num(k) > 0) then
+                   spec(k) = spec(k) / dble(num(k))
+                else
+                   print *, "Bin", k, " is empty!"
+                endif
             enddo
         end subroutine calculate_spectrum_contribution
 

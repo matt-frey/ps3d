@@ -102,18 +102,22 @@ def find_steps():
     print("Step of exp(-2) decay:", steps[1])
     return steps[0], steps[1], fn[0], fn[1]
 
-def plot_spectrum(ax, ff, label, fit=False):
+def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None):
     k, p = np.loadtxt(ff, skiprows=3 ,unpack=True)
 
     if fit:
-        hi = find_nearest(k, 300)
+        if surface:
+            lab = r'$\propto|\bm{k}|^{-5/3}$'
+        else:
+            lab = r'$\propto|\bm{K}|^{-5/3}$'
+        hi = find_nearest(k, k53)
         ax.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
                   linestyle='dashed', color='gray',
-                  label=r'$\propto|\bm{K}|^{-5/3}$', zorder=10)
+                  label=lab, zorder=10)
                   #label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
-        lo = find_nearest(k, 10)
-        hi = find_nearest(k, 250)
+        lo = find_nearest(k, kbegin)
+        hi = find_nearest(k, kend)
 
         plo = p[lo]
         # linear fit: log10(p) = log10(p[lo]) + m * log10(K)
@@ -125,9 +129,15 @@ def plot_spectrum(ax, ff, label, fit=False):
         q = p_fitted.coef[0]
         m = p_fitted.coef[1]
         print("val", 10 ** q * k[lo] ** m)
+
+        if surface:
+            lab = r'$\propto|\bm{k}|$'
+        else:
+            lab = r'$\propto|\bm{K}|$'
+        
         ax.loglog(k[lo:hi], 10 ** q * k[lo:hi] ** m, linestyle='dashed',
                   color='black', zorder=10,
-                  label=r'$\propto|\bm{K}|^{'+str(round(m, 2)) + '}$')
+                  label=lab + r'$^{'+str(round(m, 2)) + '}$')
 #                  label=r'$\propto' + str(round(10 ** q, 2)) + r'|\bm{K}|^{'+str(round(m, 2)) + '}$')
 
 
@@ -170,11 +180,14 @@ if surface:
                     cbar_size="4%",
                     cbar_pad=0.1)
 
-    plot_spectrum(grid[0], lo1, label=r'$z = -\pi/2$', fit=False)
+    plot_spectrum(grid[0], lo1, label=r'$z = -\pi/2$', fit=True, kbegin=2, kend=100, k53=100)
     plot_spectrum(grid[0], up1, label=r'$z =  \pi/2$', fit=False)
-    plot_spectrum(grid[1], lo2, label=r'$z = -\pi/2$', fit=False)
+    plot_spectrum(grid[1], lo2, label=r'$z = -\pi/2$', fit=True, kbegin=2, kend=100, k53=100)
     plot_spectrum(grid[1], up2, label=r'$z =  \pi/2$', fit=False)
 
+    add_annotation(grid[0], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', xy=(0.03, 1.06))
+    add_annotation(grid[1], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', xy=(0.03, 1.06))
+    
     xlab = r'wavenumber magnitude, $|\bm{k}| = (k, l)$'
 
     grid[0].set_ylabel(r'power spectrum, $P(|\bm{k}|)$')
@@ -182,8 +195,8 @@ if surface:
     for i in range(2):
         grid[i].grid(which='both', zorder=-1)
         grid[i].set_xlabel(xlab)
-        grid[i].set_ylim([1.0e-8, 0.15])
-        grid[i].set_xlim([1, 400])
+        grid[i].set_ylim([1.0e-6, 0.15])
+        grid[i].set_xlim([1, 200])
 
 else:
     sp1 = os.path.join(path, 'spectrum_exp1_decay.asc')
@@ -215,8 +228,10 @@ else:
     #fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
     #grid = axs.flatten()
 
-    plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True)
-    plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=True)
+    plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$',
+                  fit=True, kbegin=10, kend=250, k53=300)
+    plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
+                  fit=True, kbegin=10, kend=250, k53=300)
 
     xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 
