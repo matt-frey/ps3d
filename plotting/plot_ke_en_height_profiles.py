@@ -7,12 +7,21 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description='Create kinetic energy and enstrophy height profile figures.')
-parser.add_argument('--filename',
+parser.add_argument('--filenames',
                     type=str,
+                    nargs='+',
                     help='output file')
+
+parser.add_argument('--file_numbers',
+                    type=int,
+                    nargs=9,
+                    default=[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    help='the file by index to read data from')
+
 parser.add_argument('--steps',
                     type=int,
-                    nargs='+',
+                    nargs=9,
+                    default=[0, 1, 2, 3, 4, 5, 6, 7, 8],
                     help='add steps to plot')
 
 parser.add_argument('--save_path',
@@ -23,7 +32,7 @@ parser.add_argument('--save_path',
 parser.add_argument('--fignum',
                     type=int,
                     help='figure number',
-                    default=12)
+                    default=14)
 
 parser.add_argument('--overwrite',
                     help='overwrite figures',
@@ -31,29 +40,27 @@ parser.add_argument('--overwrite',
 
 
 args = parser.parse_args()
-fname = args.filename
+fnames = args.filenames
+file_numbers = args.file_numbers
 steps = np.asarray(args.steps)
 save_path = args.save_path
 overwrite = args.overwrite
 fignum = args.fignum
 
 print()
-print("\tFilename:  ", fname)
-print("\tSteps:     ", steps)
-print("\tSave path: ", save_path)
-print("\tOverwrite: ", overwrite)
-print("\tFignum:   ", fignum)
+print("\tFilenames:   ", fnames)
+print("\tFile numbers:", file_numbers)
+print("\tSteps:       ", steps)
+print("\tSave path:   ", save_path)
+print("\tOverwrite:   ", overwrite)
+print("\tFignum:      ", fignum)
 print()
 
 ncreader = nc_reader()
-ncreader.open(fname)
-t = ncreader.get_all('t')
 
-n = len(steps)
-
-fig = plt.figure(figsize=(n, 3), dpi=400)
+fig = plt.figure(figsize=(9, 3), dpi=400)
 grid = ImageGrid(fig, 111,
-                 nrows_ncols=(1, n),
+                 nrows_ncols=(1, 9),
                  aspect=True,
                  axes_pad=(0.2, 0.3),
                  direction='row',
@@ -64,10 +71,13 @@ grid = ImageGrid(fig, 111,
                  cbar_pad=0.0)
 
 for i, step in enumerate(steps):
+    ncreader.open(fnames[file_numbers[i]])
+    t = ncreader.get_all('t')
+    
     ax = grid[i]
 
     labels = [None] * 2
-    if i == int(n / 2):
+    if i == 4:
         labels = [
             r'$\langle|\bm{u}|^2\rangle/2$',
             r'$\langle|\bm{\omega}|^2\rangle/2$']
@@ -84,14 +94,14 @@ for i, step in enumerate(steps):
                        xticks=[0, 0.5, 1],
                        xlim=[-0.1, 1.1])
 
+    ncreader.close()
+
     add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
 grid[0].set_ylabel(r'$z$')
-grid[5].set_ylabel(r'$z$')
 
-grid[int(n / 2)].legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.4))
+grid[4].legend(loc='upper center', ncol=2, bbox_to_anchor=(0.5, 1.4))
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
 
-ncreader.close()

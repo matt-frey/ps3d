@@ -56,7 +56,7 @@ print()
 
 ncreader = nc_reader()
 
-fig = plt.figure(figsize=(7.5, 7), dpi=500)
+fig = plt.figure(figsize=(7.5, 4.5), dpi=500)
 grid = ImageGrid(fig, 111,
                  nrows_ncols=(2, 3),
                  aspect=True,
@@ -68,47 +68,10 @@ grid = ImageGrid(fig, 111,
                  cbar_size="4%",
                  cbar_pad=0.05)
 
-# create pressure images:
-for i in range(3):
-    step = steps[i]
-    
-    iso = iso_surface()
-    iso.open(fnames[file_numbers[i]], add_time=False, width=1750, height=1600)
-    iso.render(field_name='pressure', step=step,
-               n_iso=40,
-               colormap='Cool to Warm',
-               enable_opacity=True,
-               opacity_vmax=1.0,
-               opacity_vmin=1.0,
-               opacity_points=[0.0],
-               opacity_values=[0.0])
-    iso.export(file_path=save_path, file_name='temp_fig' + str(fignum) + '_' + str(i) + '.png')
-    iso.close()
-    iso = None
-
-#create helicity figures
-for i in range(3):
-    step = steps[i]
-
-    iso = iso_surface()
-    iso.open(fnames[file_numbers[i]], add_time=False, width=1750, height=1600)
-    iso.render(field_name='helicity', step=step,
-               n_iso=40,
-               colormap='Cool to warm',
-               enable_opacity=True,
-               opacity_vmax=1.0,
-               opacity_vmin=1.0,
-               opacity_points=[0.0],
-               opacity_values=[0.0])
-    iso.export(file_path=save_path, file_name='temp_fig' + str(fignum) + '_' + str(i+3) + '.png')
-    iso.close()
-    iso = None
-
-
 for i in range(3):
     ncreader.open(fnames[file_numbers[i]])
     t = ncreader.get_all('t')
-    nreader.close()
+    ncreader.close()
     step = steps[i]
     
     im = plt.imread(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i) + '.png'))
@@ -120,7 +83,7 @@ for i in range(3):
 for i in range(3):
     ncreader.open(fnames[file_numbers[i]])
     t = ncreader.get_all('t')
-    nreader.close()
+    ncreader.close()
     step = steps[i]
 
     im = plt.imread(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i+3) + '.png'))
@@ -132,5 +95,5 @@ for i in range(3):
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
 
-for i in range(6):
-    os.remove(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i) + '.png'))
+#for i in range(6):
+#    os.remove(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i) + '.png'))

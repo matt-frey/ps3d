@@ -15,7 +15,7 @@ paraview.simple._DisableFirstRenderCameraReset()
 
 class iso_surface:
 
-    def __init__(self):
+    def __init__(self, create_cmaps=False):
         self._ncreader = nc_reader()
         self._pvnc = None
 
@@ -36,36 +36,39 @@ class iso_surface:
         colorPalette.Text = [0.0, 0.0, 0.0]
         colorPalette.Foreground = [0.0, 0.0, 0.0]
 
-        create_cmap = False
-        if create_cmap:
-            self._create_colormap()
+        if create_cmaps:
+            self._create_colormaps()
 
-    def _create_colormap(self):
+    def _create_colormaps(self):
         """
         27 July 2022
         https://discourse.paraview.org/t/how-to-export-paraview-colormap-into-a-format-that-could-be-read-by-matplotlib/2436/2
         https://www.paraview.org/Wiki/Colormaps
         """
-        cmap = cc.cm['rainbow4']
-        scheme = 'rainbow4'
+        cc_maps = ['rainbow4', 'blues', 'coolwarm']
+        cc_names = ['rainbow4', 'cc_blues', 'cc_coolwarm']
 
-        with open('rainbow4.xml', 'w') as fid:
-            fid.write('<ColorMaps>\n')
-            fid.write('<ColorMap name="{}" space="RGB">\n'.format(scheme))
-            N = cmap.N
-            scale = np.linspace(0, 1, cmap.N)
-            colors = cmap(scale)[:, :]
-            for i in range(N):
-                x = [(i-1)/(N-1)] + colors[i,:].tolist()
-                fid.write(
-                    '<Point x="{:2f}" o="{:2f}" r="{:2f}" g="{:2f}" b="{:2f}" />\n'.format(x[0],x[4],
-                                                                                           x[1],
-                                                                                           x[2],
-                                                                                           x[3]))
+        for j, name in enumerate(cc_maps):
+            cmap = cc.cm[name]
 
-            fid.write('</ColorMap>\n')
-            fid.write('</ColorMaps>')
-        ImportPresets(filename='rainbow4.xml')
+            with open(cc_names[j] + '.xml', 'w') as fid:
+                fid.write('<ColorMaps>\n')
+                fid.write('<ColorMap name="{}" space="RGB">\n'.format(cc_names[j]))
+                N = cmap.N
+                scale = np.linspace(0, 1, cmap.N)
+                colors = cmap(scale)[:, :]
+                for i in range(N):
+                    x = [(i-1)/(N-1)] + colors[i,:].tolist()
+                    fid.write(
+                        '<Point x="{:2f}" o="{:2f}" r="{:2f}" g="{:2f}" b="{:2f}" />\n'.format(x[0],x[4],
+                                                                                               x[1],
+                                                                                               x[2],
+                                                                                               x[3]))
+                    
+                fid.write('</ColorMap>\n')
+                fid.write('</ColorMaps>')
+                
+            ImportPresets(filename=cc_names[j] + '.xml')
 
     def open(self, fname, **kwargs):
         self._ncreader.open(fname)
@@ -79,28 +82,37 @@ class iso_surface:
         self._animation_scene.UpdateAnimationUsingDataTimeSteps()
         self._set_basic_render_view()
 
-        if kwargs.pop('add_time', True):
+        if kwargs.get('add_time', True):
             self._create_time_stamp_filter()
         self._create_programmable_filters()
 
         self._layout = GetLayout()
         # layout/tab size in pixels
-        self._width = kwargs.pop('width', 1951)
-        self._height = kwargs.pop('height', 1660)
+        self._width = kwargs.get('width', 1951)
+        self._height = kwargs.get('height', 1660)
         self._layout.SetSize(self._width, self._height)
 
     def render(self, field_name, step, **kwargs):
         field_data = self._ncreader.get_dataset(step=step, name=field_name)
-        vmax = kwargs.pop('vmax', field_data.max())
-        vmin = kwargs.pop('vmin', field_data.min())
-        n_iso = kwargs.pop('n_iso', 40)
-        self.colormap = kwargs.pop('colormap', 'Cool to Warm')
-        self._invert_colormap = kwargs.pop('invert_colormap', False)
-        self._enable_opacity = kwargs.pop('enable_opacity', False)
-        self._opacity_vmin = kwargs.pop('opacity_vmin', 1.0)
-        self._opacity_vmax = kwargs.pop('opacity_vmax', 1.0)
-        self._opacity_points = kwargs.pop('opacity_points', [])
-        self._opacity_values = kwargs.pop('opacity_values', [])
+        vmax = kwargs.get('vmax', field_data.max())
+        vmin = kwargs.get('vmin', field_data.min())
+        if vmin is None:
+            vmin = field_data.min()
+        if vmax is None:
+            vmax = field_data.max()        
+        n_iso = kwargs.get('n_iso', 40)
+        self.colormap = kwargs.get('colormap', 'Cool to Warm')
+        self._invert_colormap = kwargs.get('invert_colormap', False)
+        self._enable_opacity = kwargs.get('enable_opacity', False)
+        self._opacity_vmin = kwargs.get('opacity_vmin', 1.0)
+        self._opacity_vmax = kwargs.get('opacity_vmax', 1.0)
+        self._opacity_points = kwargs.get('opacity_points', [])
+        self._opacity_values = kwargs.get('opacity_values', [])
+        self._color_vmin = kwargs.get('color_vmin', None)
+        self._color_vmax = kwargs.get('color_vmax', None)
+        self._color_points = kwargs.get('color_points', [])
+        self._color_values = kwargs.get('color_values', [])
+        self._add_clabel = kwargs.get('add_clabel', True)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
@@ -112,7 +124,7 @@ class iso_surface:
         29 July 2022
         https://discourse.paraview.org/t/animation-camera-orbit-python/2907/3
         """
-        tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+        tmp_dir = kwargs.get('tmp_dir', 'temp_dir')
 
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
@@ -120,10 +132,10 @@ class iso_surface:
 
         os.mkdir(tmp_dir)
 
-        file_name = kwargs.pop('file_name', 'orbit_movie.mp4')
-        file_path = kwargs.pop('file_path', './')
-        fps = kwargs.pop('fps', 25)
-        keep_frames = kwargs.pop('keep_frames', False)
+        file_name = kwargs.get('file_name', 'orbit_movie.mp4')
+        file_path = kwargs.get('file_path', './')
+        fps = kwargs.get('fps', 25)
+        keep_frames = kwargs.get('keep_frames', False)
 
         self.render(field_name=field_name, step=step, **kwargs)
 
@@ -175,7 +187,7 @@ class iso_surface:
 
     def save_animation(self, field_name, beg, end, **kwargs):
 
-        tmp_dir = kwargs.pop('tmp_dir', 'temp_dir')
+        tmp_dir = kwargs.get('tmp_dir', 'temp_dir')
 
         if os.path.exists(tmp_dir):
             print("Error: Directory '" + tmp_dir + "' already exists. Exiting.")
@@ -183,10 +195,10 @@ class iso_surface:
 
         os.mkdir(tmp_dir)
 
-        file_name = kwargs.pop('file_name', 'beltrami_instability.mp4')
-        file_path = kwargs.pop('file_path', './')
-        fps = kwargs.pop('fps', 25)
-        keep_frames = kwargs.pop('keep_frames', False)
+        file_name = kwargs.get('file_name', 'beltrami_instability.mp4')
+        file_path = kwargs.get('file_path', './')
+        fps = kwargs.get('fps', 25)
+        keep_frames = kwargs.get('keep_frames', False)
 
 
         for i in range(beg, end+1):
@@ -207,14 +219,28 @@ class iso_surface:
             os.rmdir(tmp_dir)
 
     def _clear(self):
-        self._contour_display.Visibility = 0
-        self._color_bar.Visibility = 0
-        #self._prog_filter_display.Visibility = 0
-        self._render_view.Update()
+        # destroy programmable filter instances
+        Delete(self._prog_filter1)
+        del self._prog_filter1
+        Delete(self._prog_filter2)
+        del self._prog_filter2
+
+        # destroy contour instance
+        Delete(self._contour)
+        del self._contour
+
+        # destroy NetCDF reader instance
+        Delete(self._pvnc)
+        del self._pvnc
+
+        # update animation scene based on data timesteps
+        self._animation_scene.UpdateAnimationUsingDataTimeSteps()
+
+        ResetSession()
 
     def close(self):
         self._ncreader.close()
-        self._pvnc = None
+        self._clear()
 
     def _set_basic_render_view(self):
         self._render_view = GetActiveViewOrCreate('RenderView')
@@ -317,19 +343,19 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
     def _create_contours(self, field_name, vmin, vmax, n_iso):
 
         if field_name in self._derived_fields:
-            contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
+            self._contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
         else:
-            contour = Contour(registrationName='Contour1', Input=self._pvnc)
+            self._contour = Contour(registrationName='Contour1', Input=self._pvnc)
 
-        contour.ContourBy = ['POINTS', field_name]
-        contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
-        contour.PointMergeMethod = 'Uniform Binning'
+        self._contour.ContourBy = ['POINTS', field_name]
+        self._contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
+        self._contour.PointMergeMethod = 'Uniform Binning'
 
         # set active source
-        SetActiveSource(contour)
+        SetActiveSource(self._contour)
 
         # show data in view
-        self._contour_display = Show(contour, self._render_view, 'GeometryRepresentation')
+        self._contour_display = Show(self._contour, self._render_view, 'GeometryRepresentation')
 
         # set scalar coloring
         ColorBy(self._contour_display, ('POINTS', field_name))
@@ -371,6 +397,17 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
 
         self._pwf.Points = points
 
+
+        if not self._color_vmin is None:
+            points = []
+            points = [vmin] + self._color_vmin # rgb
+            if self._color_points:
+                for i, p in enumerate(self._color_points):
+                    v = self._color_values[3*i:3*i+3] # rgb
+                    points = points + [p] + v
+            points = points + [vmax] + self._color_vmax # rgb
+            self._lut.RGBPoints = points
+
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
         self._contour_display.ColorArrayName = ['POINTS', field_name]
@@ -397,8 +434,9 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
     def _create_color_bar(self, field_name, vmin, vmax):
         self._color_bar = GetScalarBar(self._lut, self._render_view)
 
-        self._color_bar.TitleFontFamily = 'Courier'
-        self._color_bar.TitleFontSize = 30
+        if self._add_clabel:
+            self._color_bar.TitleFontFamily = 'Courier'
+            self._color_bar.TitleFontSize = 30
         self._color_bar.LabelFontFamily = 'Courier'
         self._color_bar.LabelFontSize = 30
 
@@ -407,12 +445,15 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.WindowLocation = 'Any Location'
         self._color_bar.Position = [0.85, 0.25]
 
-        if field_name in self._field_label.keys():
-            self._color_bar.Title = self._field_label[field_name]
-        else:
-            self._color_bar.Title = field_name
+        if self._add_clabel:
+            if field_name in self._field_label.keys():
+                self._color_bar.Title = self._field_label[field_name]
+            else:
+                self._color_bar.Title = field_name
 
-        self._color_bar.TitleJustification = 'Centered'
+            self._color_bar.TitleJustification = 'Centered'
+        else:
+            self._color_bar.Title = ''
 
         self._color_bar.AddRangeLabels = 0
         self._color_bar.RangeLabelFormat = ''

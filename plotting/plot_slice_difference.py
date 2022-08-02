@@ -96,16 +96,31 @@ grid = ImageGrid(fig, 111,
 
 # find normalization: we normalize the differences by the maximum
 # magnitude of the velocity field difference:
-udiff = ncreader.get_dataset(step=step, name='x_velocity') - \
-    ncreader.get_dataset(step=0, name='x_velocity')
+u50 = ncreader.get_dataset(step=step, name='x_velocity')
+u0 = ncreader.get_dataset(step=0, name='x_velocity')
+udiff = u50 - u0
 
-vdiff =	ncreader.get_dataset(step=step, name='y_velocity') - \
-    ncreader.get_dataset(step=0, name='y_velocity')
+v50 = ncreader.get_dataset(step=step, name='y_velocity')
+v0 = ncreader.get_dataset(step=0, name='y_velocity')
+vdiff =	v50 - v0
 
-wdiff =	ncreader.get_dataset(step=step, name='z_velocity') - \
-    ncreader.get_dataset(step=0, name='z_velocity')
+w50 = ncreader.get_dataset(step=step, name='z_velocity')
+w0 = ncreader.get_dataset(step=0, name='z_velocity')
+wdiff = w50 - w0
 
 max_magn = get_max_magnitude(udiff, vdiff, wdiff, plane, loc)
+
+
+diff = np.sqrt(udiff ** 2 + vdiff ** 2 + wdiff ** 2)
+u50mag = np.sqrt(u50 ** 2 + v50 ** 2 + w50 ** 2)
+u0mag = np.sqrt(u0 ** 2 + v0 ** 2 + w0 ** 2)
+
+diff_rms = np.sqrt((diff ** 2).mean(axis=(0, 1, 2)))
+u50mag_rms = np.sqrt((u50mag ** 2).mean(axis=(0, 1, 2)))
+u0mag_rms = np.sqrt((u0mag ** 2).mean(axis=(0, 1, 2)))
+print("initial rms of velocity magnitude:", u0mag_rms)
+
+print("relative rms in percent", diff_rms / u50mag_rms * 100.0)
 
 for i, field in enumerate(fields):
     fdata = ncreader.get_dataset(step=step, name=field)
