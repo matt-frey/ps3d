@@ -37,6 +37,18 @@ program genspec
 
     call init_inversion
 
+    ! calculate domain-average kinetic energy
+    ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
+                 + vel(1:nz-1, :, :, 2) ** 2      &
+                 + vel(1:nz-1, :, :, 3) ** 2)     &
+       + f14 * sum(vel(0,  :, :, 1) ** 2          &
+                 + vel(0,  :, :, 2) ** 2          &
+                 + vel(0,  :, :, 3) ** 2)         &
+       + f14 * sum(vel(nz, :, :, 1) ** 2          &
+                 + vel(nz, :, :, 2) ** 2          &
+                 + vel(nz, :, :, 3) ** 2)
+    ke = ke * ncelli
+
     ! (1) compute the 3D spectrum of each velocity component:
     do nc = 1, 3
         call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
@@ -90,18 +102,6 @@ program genspec
             print *, "Bin", m, " is empty!"
         endif
     enddo
-
-    ! calculate domain-average kinetic energy
-    ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
-                 + vel(1:nz-1, :, :, 2) ** 2      &
-                 + vel(1:nz-1, :, :, 3) ** 2)     &
-       + f14 * sum(vel(0,  :, :, 1) ** 2          &
-                 + vel(0,  :, :, 2) ** 2          &
-                 + vel(0,  :, :, 3) ** 2)         &
-         f14 * sum(vel(nz, :, :, 1) ** 2          &
-                 + vel(nz, :, :, 2) ** 2          &
-                 + vel(nz, :, :, 3) ** 2)
-    ke = ke * ncelli
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)

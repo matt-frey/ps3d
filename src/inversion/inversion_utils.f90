@@ -76,7 +76,8 @@ module inversion_utils
             , dthetap               &
             , dthetam               &
             , gambot                &
-            , gamtop
+            , gamtop                &
+            , call_ptospc
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -85,6 +86,14 @@ module inversion_utils
 
     contains
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! this routine is call by the genspec2d program
+        subroutine call_ptospc(pp, ss)
+            double precision, intent(inout) :: pp(0:ny-1, 0:nx-1)
+            double precision, intent(out)   :: ss(0:nx-1, 0:ny-1)
+            call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
+        end subroutine call_ptospc
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

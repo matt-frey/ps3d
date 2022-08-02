@@ -47,7 +47,7 @@ genspec2d_SOURCES = 			\
 	utils/utils.f90			\
 	genspec2d.f90
 
-genspec_LDADD = 					\
+genspec2d_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
 	$(top_builddir)/src/fft/libps_fft.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la

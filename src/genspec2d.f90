@@ -13,8 +13,8 @@ program genspec2d
 
     character(len=512)            :: filename
     integer, allocatable          :: kmag(:, :)
-    integer                       :: kx, ky, kmax
-    double precision              :: dk, snorm
+    integer                       :: kx, ky, kmax, k
+    double precision              :: dk, snorm, ke
     integer                       :: step
     double precision              :: rkxmax, rkymax
 
@@ -51,7 +51,7 @@ program genspec2d
     allocate(spec(0:kmax))
 
     ! spacing of the shells
-    dk = dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
+    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
 
     !
     ! LOWER BOUNDARY SPECTRUM
@@ -66,7 +66,7 @@ program genspec2d
     !
     spec = zero
 
-    call calculate_spectrum(vel(nz, :, :, 1), vel(nz :, :, 2))
+    call calculate_spectrum(vel(nz, :, :, 1), vel(nz, :, :, 2))
 
     !Write spectrum contained in spec(k):
     call write_spectrum('upper')
@@ -105,12 +105,12 @@ program genspec2d
         subroutine calculate_spectrum_contribution(fp, fspec)
             double precision, intent(in)  :: fp(0:ny-1, 0:nx-1)
             double precision, intent(out) :: fspec(0:kmax)
-            double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1))
+            double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1)
 
             pp = fp
 
             !Transform data in pp to spectral space: (periodic in x and in y)
-            call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
+            call call_ptospc(pp, ss)
 
             do k = 0, kmax
                 fspec(k) = zero
