@@ -14,18 +14,12 @@ program genspec2d
     character(len=512)            :: filename
     integer, allocatable          :: kmag(:, :)
     integer                       :: kx, ky, kmax
-    double precision              :: delk, delki, snorm
+    double precision              :: dk, dki, snorm
     integer                       :: step
-    double precision              :: scx, scy, rkxmax, rkymax
-
-    ! Array to contain data:
-    double precision, allocatable :: pp(:, :)
-
-    ! Its Fourier transform:
-    double precision, allocatable :: ss(:, :)
+    double precision              :: rkxmax, rkymax
 
     ! The spectrum:
-    double precision, allocatable :: spec(:)
+    double precision, allocatable :: spec(:), uspec(:), vspec(:)
 
     call register_timer('field I/O', field_io_timer)
 
@@ -35,8 +29,6 @@ program genspec2d
     call setup_domain_and_parameters(trim(filename), step)
 
     allocate(kmag(0:nx-1, 0:ny-1))
-    allocate(pp(0:ny-1, 0:nx-1))
-    allocate(ss(0:nx-1, 0:ny-1))
 
     call field_default
 
@@ -48,37 +40,38 @@ program genspec2d
 
 
     !Initialise arrays for computing the spectrum:
-    scx = pi / extent(1)
-    rkxmax = maxval(rkx)
-    scy = pi / extent(2)
-    rkymax = maxval(rky)
-    delk = dsqrt(scx ** 2 + scy **2)
-    delki = one / delk
-    kmax = nint(dsqrt(rkxmax ** 2 + rkymax ** 2) * delki)
-    do ky = 0, ny - 1
-        do kx = 0, nx - 1
-            kmag(kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2) * delki)
+    do ky = 0, ny-1
+        do kx = 0, nx-1
+            kmag(kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2))
         enddo
-    enddo
+     enddo
+
+    kmax = maxval(kmag)
+
+    allocate(spec(0:kmax))
+    allocate(uspec(0:kmax))
+    allocate(vspec(0:kmax))
+
+    ! spacing of the shells
+    dk = dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
+    dki = one / dk
 
     !Compute spectrum multiplication factor (snorm) so that the sum
     !of the spectrum is equal to the L2 norm of the original field:
-    snorm = two * dx(1) * dx(2) * delki
+    snorm = two * dx(1) * dx(2) * dki
 
     !
     ! LOWER BOUNDARY SPECTRUM
     !
 
-    ! kinetic energy at lower surface omitting 1/2 factor
-    pp = vel(0, :, :, 1) ** 2 &
-       + vel(0, :, :, 2) ** 2 &
-       + vel(0, :, :, 3) ** 2
+    !Compute spectrum for u part:
+    call calculate_spectrum(vel(0, :, :, 1), uspec)
 
-    !---------------------------------------------------------------------
-    !Compute spectrum:
-    call calculate_spectrum
+    !Compute spectrum for v part:
+    call calculate_spectrum(vel(0, :, :, 2), vspec)
 
-    !---------------------------------------------------------------------
+    spec = uspec ** 2 + vspec ** 2
+
     !Write spectrum contained in spec(k):
     call write_spectrum('lower')
 
@@ -86,55 +79,64 @@ program genspec2d
     ! UPPER BOUNDARY SPECTRUM
     !
 
-    ! kinetic energy at upper surface omitting 1/2 factor
-    pp = vel(nz, :, :, 1) ** 2 &
-       + vel(nz, :, :, 2) ** 2 &
-       + vel(nz, :, :, 3) ** 2
+    !Compute spectrum for u part:
+    call calculate_spectrum(vel(nz, :, :, 1), uspec)
 
-    !---------------------------------------------------------------------
-    !Compute spectrum:
-    call calculate_spectrum
+    !Compute spectrum for v part:
+    call calculate_spectrum(vel(nz :, :, 2), vspec)
 
-    !---------------------------------------------------------------------
+    spec = uspec ** 2 + vspec ** 2
+
     !Write spectrum contained in spec(k):
     call write_spectrum('upper')
 
+    deallocate(kmag)
+    deallocate(spec)
+    deallocate(uspec)
+    deallocate(vspec)
+
     contains
 
-        subroutine calculate_spectrum
+        subroutine calculate_spectrum(fp, fspec)
+            double precision, intent(in)  :: fp(0:ny-1, 0:nx-1)
+            double precision, intent(out) :: fspec(0:)
+            double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1))
+
+            pp = fp
+
             !Transform data in pp to spectral space: (periodic in x and in y)
             call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
 
             do k = 0, kmax
-                spec(k) = zero
+                fspec(k) = zero
             enddo
 
             !x and y-independent mode:
             k = kmag(0, 0)
-            spec(k) = spec(k) + f14 * ss(0, 0) ** 2
+            fspec(k) = fspec(k) + f14 * ss(0, 0) ** 2
 
             !y-independent mode:
             do kx = 1, nx - 1
                 k = kmag(kx, 0)
-                spec(k) = spec(k) + f12 * ss(kx, 0) ** 2
+                fspec(k) = fspec(k) + f12 * ss(kx, 0) ** 2
             enddo
 
             !x-independent mode:
             do ky = 1, ny - 1
                 k = kmag(0, ky)
-                spec(k) = spec(k) + f12 * ss(0, ky) ** 2
+                fspec(k) = fspec(k) + f12 * ss(0, ky) ** 2
             enddo
 
             !All other modes:
             do ky = 1, ny - 1
                 do kx = 1, nx - 1
                     k = kmag(kx, ky)
-                    spec(k) = spec(k) + ss(kx, ky) ** 2
+                    fspec(k) = fspec(k) + ss(kx, ky) ** 2
                 enddo
             enddo
 
             !Normalise:
-            spec(0:kmax) = snorm * spec(0:kmax)
+            fspec(0:kmax) = snorm * fspec(0:kmax)
         end subroutine calculate_spectrum
 
         subroutine write_spectrum(boundary)
@@ -165,7 +167,7 @@ program genspec2d
             endif
 
             do k = 0, kmax
-                write(1235, *) dble(k) * delk, spec(k)
+                write(1235, *) dble(k) * dk, spec(k)
             enddo
 
             close(1235)
