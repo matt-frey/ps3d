@@ -14,12 +14,12 @@ program genspec2d
     character(len=512)            :: filename
     integer, allocatable          :: kmag(:, :)
     integer                       :: kx, ky, kmax
-    double precision              :: dk, dki, snorm
+    double precision              :: dk, snorm
     integer                       :: step
     double precision              :: rkxmax, rkymax
 
     ! The spectrum:
-    double precision, allocatable :: spec(:), uspec(:), vspec(:)
+    double precision, allocatable :: spec(:)
 
     call register_timer('field I/O', field_io_timer)
 
@@ -49,28 +49,14 @@ program genspec2d
     kmax = maxval(kmag)
 
     allocate(spec(0:kmax))
-    allocate(uspec(0:kmax))
-    allocate(vspec(0:kmax))
 
     ! spacing of the shells
     dk = dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
-    dki = one / dk
-
-    !Compute spectrum multiplication factor (snorm) so that the sum
-    !of the spectrum is equal to the L2 norm of the original field:
-    snorm = two * dx(1) * dx(2) * dki
 
     !
     ! LOWER BOUNDARY SPECTRUM
     !
-
-    !Compute spectrum for u part:
-    call calculate_spectrum(vel(0, :, :, 1), uspec)
-
-    !Compute spectrum for v part:
-    call calculate_spectrum(vel(0, :, :, 2), vspec)
-
-    spec = uspec ** 2 + vspec ** 2
+    call calculate_spectrum(vel(0, :, :, 1), vel(0, :, :, 2))
 
     !Write spectrum contained in spec(k):
     call write_spectrum('lower')
@@ -78,28 +64,47 @@ program genspec2d
     !
     ! UPPER BOUNDARY SPECTRUM
     !
+    spec = zero
 
-    !Compute spectrum for u part:
-    call calculate_spectrum(vel(nz, :, :, 1), uspec)
-
-    !Compute spectrum for v part:
-    call calculate_spectrum(vel(nz :, :, 2), vspec)
-
-    spec = uspec ** 2 + vspec ** 2
+    call calculate_spectrum(vel(nz, :, :, 1), vel(nz :, :, 2))
 
     !Write spectrum contained in spec(k):
     call write_spectrum('upper')
 
     deallocate(kmag)
     deallocate(spec)
-    deallocate(uspec)
-    deallocate(vspec)
 
     contains
 
-        subroutine calculate_spectrum(fp, fspec)
+        subroutine calculate_spectrum(u, v)
+            double precision, intent(in) :: u(0:ny-1, 0:nx-1), v(0:ny-1, 0:nx-1)
+            double precision             :: uspec(0:kmax), vspec(0:kmax)
+
+            !Compute spectrum for u part:
+            call calculate_spectrum_contribution(u, uspec)
+
+            !Compute spectrum for v part:
+            call calculate_spectrum_contribution(v, vspec)
+
+            spec = uspec ** 2 + vspec ** 2
+
+            ! calculate domain-average kinetic energy at surface with u and v part only:
+            ke = f12 * sum(u ** 2 + v ** 2)
+            ke = ke / dble(nx * ny)
+
+            ! calculate spectrum normalisation factor (snorm)
+            ! that ensures Parceval's identity, so that the spectrum S(K)
+            ! has the property that its integral over K gives the total kinetic energy
+            snorm = ke / sum(spec * dk)
+
+            !Normalise:
+            spec = snorm * spec
+
+        end subroutine calculate_spectrum
+
+        subroutine calculate_spectrum_contribution(fp, fspec)
             double precision, intent(in)  :: fp(0:ny-1, 0:nx-1)
-            double precision, intent(out) :: fspec(0:)
+            double precision, intent(out) :: fspec(0:kmax)
             double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1))
 
             pp = fp
@@ -134,10 +139,7 @@ program genspec2d
                     fspec(k) = fspec(k) + ss(kx, ky) ** 2
                 enddo
             enddo
-
-            !Normalise:
-            fspec(0:kmax) = snorm * fspec(0:kmax)
-        end subroutine calculate_spectrum
+        end subroutine calculate_spectrum_contribution
 
         subroutine write_spectrum(boundary)
             character(*)              :: boundary

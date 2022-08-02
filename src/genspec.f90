@@ -4,7 +4,7 @@ program genspec
     use netcdf_writer
     use inversion_utils
     use sta2dfft, only : dct, dst
-    use parameters, only : nx, ny, nz
+    use parameters, only : nx, ny, nz, ncelli
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
@@ -91,8 +91,17 @@ program genspec
         endif
     enddo
 
-    ! calculate kinetic energy
-    ke = get_kinetic_energy()
+    ! calculate domain-average kinetic energy
+    ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
+                 + vel(1:nz-1, :, :, 2) ** 2      &
+                 + vel(1:nz-1, :, :, 3) ** 2)     &
+       + f14 * sum(vel(0,  :, :, 1) ** 2          &
+                 + vel(0,  :, :, 2) ** 2          &
+                 + vel(0,  :, :, 3) ** 2)         &
+         f14 * sum(vel(nz, :, :, 1) ** 2          &
+                 + vel(nz, :, :, 2) ** 2          &
+                 + vel(nz, :, :, 3) ** 2)
+    ke = ke * ncelli
 
     ! calculate spectrum normalisation factor (snorm)
     ! that ensures Parceval's identity, so that the spectrum S(K)
