@@ -171,7 +171,7 @@ grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
 for i in range(2):
     grid[i].grid(which='both', zorder=-1)
     grid[i].set_xlabel(xlab)
-    grid[i].set_ylim([0.001, 10**8])
+    grid[i].set_ylim([1.0e-8, 0.15])
     grid[i].set_xlim([1, 400])
 
 #plt.tight_layout()
