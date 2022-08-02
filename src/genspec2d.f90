@@ -117,12 +117,14 @@ program genspec2d
 
             do k = 0, kmax
                 fspec(k) = zero
+                num(k) = 0
             enddo
 
             do ky = 0, ny-1
                 do kx = 0, nx-1
                     k = int(dble(kmag(kx, ky)) * dki)
                     fspec(k) = fspec(k) + ss(kx, ky) ** 2
+                    num(k) = num(k) + 1
                 enddo
             enddo
 

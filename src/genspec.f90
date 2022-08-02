@@ -87,7 +87,8 @@ program genspec
         do kx = 0, nx-1
             do kz = 0, nz
                 m = int(dble(kmag(kz, kx, ky)) * dki)
-                spec(m) = svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
+                spec(m) = spec(m) &
+                        + svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo

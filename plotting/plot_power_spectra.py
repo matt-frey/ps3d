@@ -112,7 +112,7 @@ def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None):
             lab = r'$\propto|\bm{K}|^{-5/3}$'
         hi = find_nearest(k, k53)
         ax.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
-                  linestyle='dashed', color='gray',
+                  linestyle='dashdot', color='gray',
                   label=lab, zorder=10)
                   #label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
@@ -228,19 +228,22 @@ else:
     #fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
     #grid = axs.flatten()
 
-    plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$',
-                  fit=True, kbegin=10, kend=250, k53=300)
-    plot_spectrum(grid[1], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
-                  fit=True, kbegin=10, kend=250, k53=300)
+    plot_spectrum(grid[0], sp1, label=None, #r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$',
+                  fit=True, kbegin=2, kend=200, k53=300)
+    plot_spectrum(grid[1], sp2, label=None, #r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
+                  fit=True, kbegin=2, kend=200, k53=300)
 
     xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 
     grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
 
+    add_annotation(grid[0], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', xy=(0.03, 1.06))
+    add_annotation(grid[1], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', xy=(0.03, 1.06))
+    
     for i in range(2):
         grid[i].grid(which='both', zorder=-1)
         grid[i].set_xlabel(xlab)
-        grid[i].set_ylim([1.0e-8, 0.15])
+        grid[i].set_ylim([1.0e-6, 0.15])
         grid[i].set_xlim([1, 400])
 
 #plt.tight_layout()
