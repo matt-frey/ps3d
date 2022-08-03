@@ -163,7 +163,7 @@ for j, field in enumerate(fields):
     ncreader.open(fname)
     t = ncreader.get_all('t')
     ncreader.close()
-    
+
     iso = iso_surface(create_cmaps=True)
     iso.open(fname, add_time=False, width=1750, height=1600)
     iso.render(field_name=field, step=step,
