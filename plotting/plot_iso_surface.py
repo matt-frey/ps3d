@@ -100,6 +100,12 @@ parser.add_argument('--use_log_scale',
                     help='use log scale',
                     action='store_true')
 
+parser.add_argument('--n_color_bar_ticks',
+                    type=int,
+                    default=10,
+                    help='number of color bar ticks')
+
+
 args = parser.parse_args()
 fname = args.filename
 step = args.step
@@ -121,6 +127,7 @@ color_points = args.color_points
 color_values = args.color_values
 color_vmax = args.color_vmax
 color_vmin = args.color_vmin
+n_color_bar_ticks = args.n_color_bar_ticks
 
 if fields is None:
     print("No fields provided.")
@@ -140,6 +147,7 @@ print("\tColor vmin:      ", color_vmin)
 print("\tColor points:    ", color_points)
 print("\tColor values:    ", color_values)
 print("\tColorbar vmin:   ", vmin)
+print("\tColorbar ticks:  ", n_color_bar_ticks)
 print("\tUse log scale:   ", use_log)
 print("\tStep:            ", step)
 print("\tSave path:       ", save_path)
@@ -173,6 +181,7 @@ for j, field in enumerate(fields):
                color_points=color_points,
                color_values=color_values,
                use_log_scale=use_log,
+               n_color_bar_ticks=n_color_bar_ticks,
                add_clabel=False)
     iso.export(file_path=save_path, file_name='temp_fig' + str(fignum) + '_' + str(subfignum) + '.png')
     iso.close()

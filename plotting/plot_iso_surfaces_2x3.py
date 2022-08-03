@@ -14,14 +14,14 @@ parser.add_argument('--filenames',
                     help='output file')
 parser.add_argument('--steps',
                     type=int,
-                    nargs=3,
-                    default=[0, 1, 2],
+                    nargs=6,
+                    default=[0, 1, 2, 3, 4, 5],
                     help='add 3 steps to plot')
 
 parser.add_argument('--file_numbers',
                     type=int,
-                    nargs=3,
-                    default=[0, 0, 0],
+                    nargs=6,
+                    default=[0, 0, 0, 0, 0, 0],
                     help='the file by index to read data from')
 
 parser.add_argument('--save_path',
@@ -68,7 +68,7 @@ grid = ImageGrid(fig, 111,
                  cbar_size="4%",
                  cbar_pad=0.05)
 
-for i in range(3):
+for i in range(6):
     ncreader.open(fnames[file_numbers[i]])
     t = ncreader.get_all('t')
     ncreader.close()
@@ -80,18 +80,6 @@ for i in range(3):
     ax.axis('off')
     add_timestamp(ax, t[step], xy=(0.2, 0.95), fmt="%.2f", fontsize=8)
 
-for i in range(3):
-    ncreader.open(fnames[file_numbers[i]])
-    t = ncreader.get_all('t')
-    ncreader.close()
-    step = steps[i]
-
-    im = plt.imread(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i+3) + '.png'))
-    ax = grid[i+3]
-    ax.imshow(im)
-    ax.axis('off')
-    add_timestamp(ax, t[step], xy=(0.2, 0.95), fmt="%.2f", fontsize=8)
-   
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
 

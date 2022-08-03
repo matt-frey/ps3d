@@ -114,6 +114,7 @@ class iso_surface:
         self._color_values = kwargs.get('color_values', [])
         self._add_clabel = kwargs.get('add_clabel', True)
         self._use_log_scale = kwargs.get('use_log_scale', False)
+        self._n_color_bar_ticks = kwargs.get('n_color_bar_ticks', 10)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
@@ -349,7 +350,9 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
             self._contour = Contour(registrationName='Contour1', Input=self._pvnc)
 
         self._contour.ContourBy = ['POINTS', field_name]
-        self._contour.Isosurfaces = np.linspace(vmin, vmax, n_iso)
+
+        self._contour.Isosurfaces = np.linspace(vmin, vmax, n_iso, endpoint=True)
+            
         self._contour.PointMergeMethod = 'Uniform Binning'
 
         # set active source
@@ -449,7 +452,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.ScalarBarThickness = 20
         self._color_bar.ScalarBarLength = 0.5
         self._color_bar.WindowLocation = 'Any Location'
-        self._color_bar.Position = [0.9, 0.25]
+        self._color_bar.Position = [0.89, 0.25]
 
         if self._add_clabel:
             if field_name in self._field_label.keys():
@@ -468,12 +471,22 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.LabelFormat = '%-#6.2g'
 
         self._color_bar.UseCustomLabels = 1
-        self._color_bar.CustomLabels = np.linspace(vmin, vmax, 10)
+        if self._use_log_scale:
+            if vmin < 1:
+                cst = -len(str(int(1.0 / vmin)))
+            else:
+                cst = len(str(int(vmin))) - 1
+            cen = len(str(int(vmax)))
+            self._color_bar.CustomLabels = np.logspace(cst, cen, self._n_color_bar_ticks,
+                                                       endpoint=True)
+        else:
+            self._color_bar.CustomLabels = np.linspace(vmin, vmax, self._n_color_bar_ticks,
+                                                       endpoint=True)
         self._render_view.Update()
 
     def _set_camera_position(self):
         self._render_view.CameraPosition = [-8, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
-        self._render_view.CameraFocalPoint = [-0.6, 0, 0]
-        self._render_view.CameraParallelScale = 2.0
+        self._render_view.CameraFocalPoint = [-0.75, 0, 0]
+        #self._render_view.CameraParallelScale = 2.0
         self._render_view.Update()
