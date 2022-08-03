@@ -112,33 +112,33 @@ def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None):
             lab = r'$\propto|\bm{K}|^{-5/3}$'
         hi = find_nearest(k, k53)
         ax.loglog(k[1:hi], max(p) * k[1:hi] ** (-5.0 / 3.0),
-                  linestyle='dashdot', color='gray',
+                  linestyle='dashdot', color='black',
                   label=lab, zorder=10)
                   #label=r'$\propto P_{\max}|\bm{K}|^{-5/3}$', zorder=10)
 
-        lo = find_nearest(k, kbegin)
-        hi = find_nearest(k, kend)
-
-        plo = p[lo]
-        # linear fit: log10(p) = log10(p[lo]) + m * log10(K)
-        # --> p = p[lo] * K^m
-        p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
-        p_fitted = p_fitted.convert()
-        np.polynomial.set_default_printstyle('ascii')
-        print("Fitted polynomial:", p_fitted)
-        q = p_fitted.coef[0]
-        m = p_fitted.coef[1]
-        print("val", 10 ** q * k[lo] ** m)
-
-        if surface:
-            lab = r'$\propto|\bm{k}|$'
-        else:
-            lab = r'$\propto|\bm{K}|$'
-        
-        ax.loglog(k[lo:hi], 10 ** q * k[lo:hi] ** m, linestyle='dashed',
-                  color='black', zorder=10,
-                  label=lab + r'$^{'+str(round(m, 2)) + '}$')
-#                  label=r'$\propto' + str(round(10 ** q, 2)) + r'|\bm{K}|^{'+str(round(m, 2)) + '}$')
+        #lo = find_nearest(k, kbegin)
+        #hi = find_nearest(k, kend)
+        #
+        #plo = p[lo]
+        ## linear fit: log10(p) = log10(p[lo]) + m * log10(K)
+        ## --> p = p[lo] * K^m
+        #p_fitted = poly.fit(x=np.log10(k[lo:hi]), y=np.log10(p[lo:hi]), deg=1)
+        #p_fitted = p_fitted.convert()
+        #np.polynomial.set_default_printstyle('ascii')
+        #print("Fitted polynomial:", p_fitted)
+        #q = p_fitted.coef[0]
+        #m = p_fitted.coef[1]
+        #print("val", 10 ** q * k[lo] ** m)
+        #
+        #if surface:
+        #    lab = r'$\propto|\bm{k}|$'
+        #else:
+        #    lab = r'$\propto|\bm{K}|$'
+        #
+        #ax.loglog(k[lo:hi], 10 ** q * k[lo:hi] ** m, linestyle='dashed',
+        #          color='gray', zorder=10,
+        #          label=lab + r'$^{'+str(round(m, 2)) + '}$')
+#       #           label=r'$\propto' + str(round(10 ** q, 2)) + r'|\bm{K}|^{'+str(round(m, 2)) + '}$')
 
 
     ax.loglog(k, p, label=label)
