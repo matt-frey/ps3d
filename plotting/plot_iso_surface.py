@@ -96,6 +96,10 @@ parser.add_argument('--color_vmin',
                     help='rgb color at vmin',
                     default=None)
 
+parser.add_argument('--use_log_scale',
+                    help='use log scale',
+                    action='store_true')
+
 args = parser.parse_args()
 fname = args.filename
 step = args.step
@@ -107,6 +111,7 @@ fields = args.fields
 fignum = args.fignum
 subfignum = args.subfignum
 colormap = args.colormap
+use_log = args.use_log_scale
 vmin = args.vmin
 opacity_points = args.opacity_points
 opacity_values = args.opacity_values
@@ -133,8 +138,9 @@ print("\tOpacity vmin:    ", opacity_vmin)
 print("\tColor vmax:      ", color_vmax)
 print("\tColor vmin:      ", color_vmin)
 print("\tColor points:    ", color_points)
-print("\tColor vlaues:    ", color_values)
+print("\tColor values:    ", color_values)
 print("\tColorbar vmin:   ", vmin)
+print("\tUse log scale:   ", use_log)
 print("\tStep:            ", step)
 print("\tSave path:       ", save_path)
 print("\tOverwrite:       ", overwrite)
@@ -166,6 +172,7 @@ for j, field in enumerate(fields):
                color_vmin=color_vmin,
                color_points=color_points,
                color_values=color_values,
+               use_log_scale=use_log,
                add_clabel=False)
     iso.export(file_path=save_path, file_name='temp_fig' + str(fignum) + '_' + str(subfignum) + '.png')
     iso.close()

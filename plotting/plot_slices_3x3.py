@@ -51,6 +51,11 @@ parser.add_argument('--fields',
                     nargs='+',
                     help='fields to plot')
 
+parser.add_argument('--norms',
+                    nargs=9,
+                    help='color map norms',
+                    default=[None]*9)
+
 parser.add_argument('--zlabel',
                     default=r'$z = -\pi/2$',
                     help='z-label for location')
@@ -64,6 +69,7 @@ loc = args.loc
 save_path = args.save_path
 overwrite = args.overwrite
 fields = args.fields
+norms = args.norms
 fignums = args.fignums
 zlabel = args.zlabel
 
@@ -84,6 +90,7 @@ print("\tFiles:       ", fnames)
 print("\tFields:      ", fields)
 print("\tSteps:       ", steps)
 print("\tFile numbers:", file_numbers)
+print("\tNorms:       ", norms)
 print("\tPlane:       ", plane)
 print("\tLocation:    ", loc)
 print("\tSave path:   ", save_path)
@@ -115,12 +122,13 @@ for j, field in enumerate(fields):
 
         ax = grid[i]
         im, cbar = make_imshow(ax=ax,
-                            plane=plane,
-                            loc=loc,
-                            fdata=fdata,
-                            ncr=ncreader,
-                            cmap='rainbow4',
-                            colorbar=True)
+                               plane=plane,
+                               loc=loc,
+                               fdata=fdata,
+                               ncr=ncreader,
+                               cmap='rainbow4',
+                               cmap_norm=norms[i],
+                               colorbar=True)
 
         ncreader.close()
         

@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.colors as mpl_colors
 from nc_reader import nc_reader
-import matplotlib.colors as mpl_colors
 from mpl_toolkits.axes_grid1 import ImageGrid
 from utils import *
 import argparse
@@ -94,7 +92,7 @@ print("\tPlane:       ", plane)
 print("\tLocation:    ", loc)
 print("\tSave path:   ", save_path)
 print("\tOverwrite:   ", overwrite)
-print("\tFignum:     ", fignum)
+print("\tFignum:      ", fignum)
 print()
     
 ncreader = nc_reader()
@@ -118,11 +116,6 @@ for i, field in enumerate(fields):
     step = steps[i]
     fdata = ncreader.get_dataset(step=step, name=field)
 
-    if norms[i] == 'centered':
-        norm = mpl_colors.CenteredNorm(vcenter=0.0)
-    else:
-        norm = None
-    
     ax = grid[i]
     im, cbar = make_imshow(ax=ax,
                            plane=plane,
@@ -130,7 +123,7 @@ for i, field in enumerate(fields):
                            fdata=fdata,
                            ncr=ncreader,
                            cmap=cmaps[i],
-                           norm=norm,
+                           cmap_norm=norms[i],
                            colorbar=True)
 
     ncreader.close()
@@ -146,7 +139,7 @@ for i, field in enumerate(fields):
     add_timestamp(grid[i], t[step], xy=(0.03, 1.06), fontsize=12)
 
 if not zlabel is None:
-    add_annotation(grid[0], zlabel, xy=(-0.5, 1.25), fontsize=12)
+    add_annotation(grid[0], zlabel, xy=(-0.4, 1.25), fontsize=12)
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()

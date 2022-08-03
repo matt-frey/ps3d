@@ -8,6 +8,8 @@ import os
 from mpl_toolkits.axes_grid1 import ImageGrid
 from numpy.polynomial import Polynomial as poly
 
+mpl.rcParams['font.size'] = 13
+
 parser = argparse.ArgumentParser(description='Create power spectrum plot.')
 
 parser.add_argument('--path',
@@ -96,7 +98,7 @@ def find_steps():
     print("Step of exp(-2) decay:", steps[1])
     return steps[0], steps[1], fn[0], fn[1]
 
-def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None):
+def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None, surface=False):
     k, p = np.loadtxt(ff, skiprows=3 ,unpack=True)
 
     if fit:
@@ -176,7 +178,7 @@ if not os.path.exists(sp2):
     os.system('genspec --filename ' + fn2 + ' --step ' + str(step2))
     os.replace(pathname + '_spectrum.asc', sp2)
 
-fig = plt.figure(figsize=(9, 4), dpi=200)
+fig = plt.figure(figsize=(13.5, 4), dpi=200)
 grid = ImageGrid(fig, 111,
                 nrows_ncols=(1, 3),
                 aspect=False,
@@ -195,10 +197,10 @@ plot_spectrum(grid[0], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
 
 
 plot_spectrum(grid[1], lo1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True,
-              kbegin=2, kend=100, k53=100)
+              kbegin=2, kend=100, k53=100, surface=True)
 plot_spectrum(grid[1], lo2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=False)
 plot_spectrum(grid[2], up1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True,
-              kbegin=2, kend=100, k53=100)
+              kbegin=2, kend=100, k53=100, surface=True)
 plot_spectrum(grid[2], up2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=False)
 
 add_annotation(grid[0], r'$z = [-\pi/2, \pi/2]$', xy=(0.03, 1.06))
@@ -206,8 +208,7 @@ add_annotation(grid[1], r'$z = -\pi/2$', xy=(0.03, 1.06))
 add_annotation(grid[2], r'$z =  \pi/2$', xy=(0.03, 1.06))
 
 
-grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
-grid[1].set_ylabel(r'power spectrum, $P(|\bm{k}|)$')
+grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$ or $P(|\bm{k}|)$')
 
 xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
 grid[0].set_xlabel(xlab)
@@ -219,7 +220,7 @@ grid[2].set_xlabel(xlab)
 for i in range(3):
     grid[i].grid(which='both', zorder=-1)
     grid[i].set_ylim([1.0e-6, 0.15])
-    grid[i].set_xlim([1, 200])
+    grid[i].set_xlim([1, 300])
 
 #plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)

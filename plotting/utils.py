@@ -3,6 +3,7 @@ import colorcet as cc
 import matplotlib as mpl
 import numpy as np
 import os
+import matplotlib.colors as mpl_colors
 
 mpl.rcParams.update({
     "figure.figsize": (9, 6),
@@ -55,7 +56,7 @@ def get_max_magnitude(xcomp, ycomp, zcomp, plane, loc):
     return np.sqrt(magn.max())
             
 # assumes fdata ordering (x, y, z)
-def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm=None):
+def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, cmap_norm=None):
     origin = ncr.get_box_origin()
     extent = ncr.get_box_extent()
 
@@ -85,6 +86,15 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm
         xlab = r'$y$'
         ylab = r'$z$'
 
+    if cmap_norm == 'centered':
+        norm = mpl_colors.CenteredNorm(vcenter=0.0)
+    elif cmap_norm == 'symlog':
+        norm = mpl_colors.SymLogNorm(linthresh=1, base=10)
+    elif cmap_norm == 'log':
+        norm = mpl_colors.LogNorm()
+    else:
+        norm = None
+
     im = ax.imshow(X=pl.transpose(),
                    cmap=cc.cm[cmap],
                    norm=norm,
@@ -102,10 +112,12 @@ def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, norm
     cbar = None
     if colorbar:
         cbar = ax.cax.colorbar(im)
-        cbar.formatter.set_powerlimits((0, 0))
-        # 18 July 2022
-        # https://stackoverflow.com/questions/34039396/matplotlib-colorbar-scientific-notation-offset
-        cbar.ax.yaxis.set_offset_position('left')
+
+        if not cmap_norm == 'symlog' and not cmap_norm == 'log': 
+            cbar.formatter.set_powerlimits((0, 0))
+            # 18 July 2022
+            # https://stackoverflow.com/questions/34039396/matplotlib-colorbar-scientific-notation-offset
+            cbar.ax.yaxis.set_offset_position('left')
     return im, cbar
 
 def make_mean_profiles(ax, ncr, step, fields, labels, normalise=False, **kwargs):
@@ -155,7 +167,7 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
 
 
 def save_figure(plt, figpath, fignum=1, overwrite=False):
-    figname = 'fig' + str(fignum) + '.eps'
+    figname = 'fig' + str(fignum) + '.pdf'
     fname = os.path.join(figpath, figname)
 
     if os.path.exists(fname) and not overwrite:
@@ -164,7 +176,7 @@ def save_figure(plt, figpath, fignum=1, overwrite=False):
         exit()
 
     print("Save figure as:", fname)
-    plt.savefig(fname=fname, format='eps')
+    plt.savefig(fname=fname, format='pdf', bbox_inches='tight')
     plt.close()
 
 # 7 July 2022

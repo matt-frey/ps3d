@@ -113,6 +113,7 @@ class iso_surface:
         self._color_points = kwargs.get('color_points', [])
         self._color_values = kwargs.get('color_values', [])
         self._add_clabel = kwargs.get('add_clabel', True)
+        self._use_log_scale = kwargs.get('use_log_scale', False)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
@@ -408,6 +409,11 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
             points = points + [vmax] + self._color_vmax # rgb
             self._lut.RGBPoints = points
 
+        if self._use_log_scale:
+            # convert to log space
+            self._lut.MapControlPointsToLogSpace()
+            self._lut.UseLogScale = 1
+
         # trace defaults for the display properties.
         self._contour_display.Representation = 'Surface'
         self._contour_display.ColorArrayName = ['POINTS', field_name]
@@ -443,7 +449,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._color_bar.ScalarBarThickness = 20
         self._color_bar.ScalarBarLength = 0.5
         self._color_bar.WindowLocation = 'Any Location'
-        self._color_bar.Position = [0.85, 0.25]
+        self._color_bar.Position = [0.9, 0.25]
 
         if self._add_clabel:
             if field_name in self._field_label.keys():
@@ -466,7 +472,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._render_view.Update()
 
     def _set_camera_position(self):
-        self._render_view.CameraPosition = [-10, 4, 4]
+        self._render_view.CameraPosition = [-8, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
         self._render_view.CameraFocalPoint = [-0.6, 0, 0]
         self._render_view.CameraParallelScale = 2.0
