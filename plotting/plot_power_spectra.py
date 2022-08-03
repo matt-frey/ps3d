@@ -36,17 +36,12 @@ parser.add_argument('--fignum',
                     type=int,
                     help='figure number')
 
-parser.add_argument('--surface',
-                    action='store_true',
-                    help='do surface power spectrum figure')
-
 args = parser.parse_args()
 path = args.path
 ncfile = args.ncfile
 efile = args.efile
 save_path = args.save_path
 overwrite = args.overwrite
-surface = args.surface
 fignum = args.fignum
 
 print()
@@ -54,7 +49,6 @@ print("\tPath:       ", path)
 print("\tFilename:   ", ncfile)
 print("\tEnergy file:", efile)
 print("\tSave path:  ", save_path)
-print("\tSurface:    ", surface)
 print("\tOverwrite:  ", overwrite)
 print("\tFignum:     ", fignum)
 print()
@@ -148,103 +142,84 @@ def plot_spectrum(ax, ff, label, fit=False, kbegin=None, kend=None, k53=None):
 step1, step2, fn1, fn2 = find_steps()
 
 
-if surface:
-    lo1 = os.path.join(path, 'lower_spectrum_exp1_decay.asc')
-    up1 = os.path.join(path, 'upper_spectrum_exp1_decay.asc')
-    lo2 = os.path.join(path, 'lower_spectrum_exp2_decay.asc')
-    up2 = os.path.join(path, 'upper_spectrum_exp2_decay.asc')
+lo1 = os.path.join(path, 'lower_spectrum_exp1_decay.asc')
+up1 = os.path.join(path, 'upper_spectrum_exp1_decay.asc')
+lo2 = os.path.join(path, 'lower_spectrum_exp2_decay.asc')
+up2 = os.path.join(path, 'upper_spectrum_exp2_decay.asc')
 
-    if not os.path.exists(lo1) or not os.path.exists(up1):
-        pathname = os.path.splitext(fn1)[0]
-        print('genspec2d --filename ' + fn1 + ' --step ' + str(step1))
-        os.system('genspec2d --filename ' + fn1 + ' --step ' + str(step1))
-        os.replace(pathname + '_lower_boundary_spectrum.asc', lo1)
-        os.replace(pathname + '_upper_boundary_spectrum.asc', up1)
+if not os.path.exists(lo1) or not os.path.exists(up1):
+    pathname = os.path.splitext(fn1)[0]
+    print('genspec2d --filename ' + fn1 + ' --step ' + str(step1))
+    os.system('genspec2d --filename ' + fn1 + ' --step ' + str(step1))
+    os.replace(pathname + '_lower_boundary_spectrum.asc', lo1)
+    os.replace(pathname + '_upper_boundary_spectrum.asc', up1)
 
-    if not os.path.exists(lo2) or not os.path.exists(up2):
-        pathname = os.path.splitext(fn2)[0]
-        print('genspec2d --filename ' + fn2 + ' --step ' + str(step2))
-        os.system('genspec2d --filename ' + fn2 + ' --step ' + str(step2))
-        os.replace(pathname + '_lower_boundary_spectrum.asc', lo2)
-        os.replace(pathname + '_upper_boundary_spectrum.asc', up2)
+if not os.path.exists(lo2) or not os.path.exists(up2):
+    pathname = os.path.splitext(fn2)[0]
+    print('genspec2d --filename ' + fn2 + ' --step ' + str(step2))
+    os.system('genspec2d --filename ' + fn2 + ' --step ' + str(step2))
+    os.replace(pathname + '_lower_boundary_spectrum.asc', lo2)
+    os.replace(pathname + '_upper_boundary_spectrum.asc', up2)
 
-    fig = plt.figure(figsize=(9, 4), dpi=200)
-    grid = ImageGrid(fig, 111,
-                    nrows_ncols=(1, 2),
-                    aspect=False,
-                    axes_pad=(0.4, 0.3),
-                    direction='row',
-                    share_all=True,
-                    cbar_location="right",
-                    cbar_mode='none',
-                    cbar_size="4%",
-                    cbar_pad=0.1)
+sp1 = os.path.join(path, 'spectrum_exp1_decay.asc')
+sp2 = os.path.join(path, 'spectrum_exp2_decay.asc')
 
-    plot_spectrum(grid[0], lo1, label=r'$z = -\pi/2$', fit=True, kbegin=2, kend=100, k53=100)
-    plot_spectrum(grid[0], up1, label=r'$z =  \pi/2$', fit=False)
-    plot_spectrum(grid[1], lo2, label=r'$z = -\pi/2$', fit=True, kbegin=2, kend=100, k53=100)
-    plot_spectrum(grid[1], up2, label=r'$z =  \pi/2$', fit=False)
+if not os.path.exists(sp1):
+    pathname = os.path.splitext(fn1)[0]
+    print('genspec --filename ' + fn1 + ' --step ' + str(step1))
+    os.system('genspec --filename ' + fn1 + ' --step ' + str(step1))
+    os.replace(pathname + '_spectrum.asc', sp1)
 
-    add_annotation(grid[0], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', xy=(0.03, 1.06))
-    add_annotation(grid[1], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', xy=(0.03, 1.06))
-    
-    xlab = r'wavenumber magnitude, $|\bm{k}| = (k, l)$'
+if not os.path.exists(sp2):
+    pathname = os.path.splitext(fn2)[0]
+    print('genspec --filename ' + fn2 + ' --step ' + str(step2))
+    os.system('genspec --filename ' + fn2 + ' --step ' + str(step2))
+    os.replace(pathname + '_spectrum.asc', sp2)
 
-    grid[0].set_ylabel(r'power spectrum, $P(|\bm{k}|)$')
+fig = plt.figure(figsize=(9, 4), dpi=200)
+grid = ImageGrid(fig, 111,
+                nrows_ncols=(1, 3),
+                aspect=False,
+                axes_pad=(0.4, 0.3),
+                direction='row',
+                share_all=True,
+                cbar_location="right",
+                cbar_mode='none',
+                cbar_size="4%",
+                cbar_pad=0.1)
 
-    for i in range(2):
-        grid[i].grid(which='both', zorder=-1)
-        grid[i].set_xlabel(xlab)
-        grid[i].set_ylim([1.0e-6, 0.15])
-        grid[i].set_xlim([1, 200])
+plot_spectrum(grid[0], sp1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$',
+              fit=True, kbegin=2, kend=200, k53=300)
+plot_spectrum(grid[0], sp2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
+              fit=False, kbegin=2, kend=200, k53=300)
 
-else:
-    sp1 = os.path.join(path, 'spectrum_exp1_decay.asc')
-    sp2 = os.path.join(path, 'spectrum_exp2_decay.asc')
 
-    if not os.path.exists(sp1):
-        pathname = os.path.splitext(fn1)[0]
-        print('genspec --filename ' + fn1 + ' --step ' + str(step1))
-        os.system('genspec --filename ' + fn1 + ' --step ' + str(step1))
-        os.replace(pathname + '_spectrum.asc', sp1)
+plot_spectrum(grid[1], lo1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True,
+              kbegin=2, kend=100, k53=100)
+plot_spectrum(grid[1], lo2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=False)
+plot_spectrum(grid[2], up1, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', fit=True,
+              kbegin=2, kend=100, k53=100)
+plot_spectrum(grid[2], up2, label=r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', fit=False)
 
-    if not os.path.exists(sp2):
-        pathname = os.path.splitext(fn2)[0]
-        print('genspec --filename ' + fn2 + ' --step ' + str(step2))
-        os.system('genspec --filename ' + fn2 + ' --step ' + str(step2))
-        os.replace(pathname + '_spectrum.asc', sp2)
+add_annotation(grid[0], r'$z = [-\pi/2, \pi/2]$', xy=(0.03, 1.06))
+add_annotation(grid[1], r'$z = -\pi/2$', xy=(0.03, 1.06))
+add_annotation(grid[2], r'$z =  \pi/2$', xy=(0.03, 1.06))
 
-    fig = plt.figure(figsize=(9, 4), dpi=200)
-    grid = ImageGrid(fig, 111,
-                    nrows_ncols=(1, 2),
-                    aspect=False,
-                    axes_pad=(0.4, 0.3),
-                    direction='row',
-                    share_all=True,
-                    cbar_location="right",
-                    cbar_mode='none',
-                    cbar_size="4%",
-                    cbar_pad=0.1)
-    #fig, axs = plt.subplots(2, 1, figsize=(8, 5), dpi=400, sharex=True, sharey=False)
-    #grid = axs.flatten()
 
-    plot_spectrum(grid[0], sp1, label=None, #r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$',
-                  fit=True, kbegin=2, kend=200, k53=300)
-    plot_spectrum(grid[1], sp2, label=None, #r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$',
-                  fit=True, kbegin=2, kend=200, k53=300)
+grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
+grid[1].set_ylabel(r'power spectrum, $P(|\bm{k}|)$')
 
-    xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
+xlab = r'wavenumber magnitude, $|\bm{K}| = |(\bm{k}, m)|$'
+grid[0].set_xlabel(xlab)
 
-    grid[0].set_ylabel(r'power spectrum, $P(|\bm{K}|)$')
+xlab = r'wavenumber magnitude, $|\bm{k}| = (k, l)$'
+grid[1].set_xlabel(xlab)
+grid[2].set_xlabel(xlab)
 
-    add_annotation(grid[0], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e$', xy=(0.03, 1.06))
-    add_annotation(grid[1], r'$\mathcal{K}(t)\approx\mathcal{K}(0)/e^2$', xy=(0.03, 1.06))
-    
-    for i in range(2):
-        grid[i].grid(which='both', zorder=-1)
-        grid[i].set_xlabel(xlab)
-        grid[i].set_ylim([1.0e-6, 0.15])
-        grid[i].set_xlim([1, 400])
+for i in range(3):
+    grid[i].grid(which='both', zorder=-1)
+    grid[i].set_ylim([1.0e-6, 0.15])
+    grid[i].set_xlim([1, 200])
 
 #plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
