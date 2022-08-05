@@ -46,7 +46,7 @@ labels = [r'$32^3$',
 
 grids = [32, 64, 128, 256]
 
-fig, axs = plt.subplots(2, 1, figsize=(7, 2*2.5), dpi=200, sharex=True)
+fig, axs = plt.subplots(2, 1, figsize=(7, 4), dpi=200, sharex=True)
 
 i = 0
 
@@ -73,12 +73,17 @@ for grid in grids:
 axs[1].set_xlabel(r'time, $t$')
 axs[1].set_ylabel(r'enstrophy, $\Upsilon$')
 
+axs[0].tick_params(axis='x', which='both', length=0)
+
 axs[0].grid(zorder=-1)
 axs[1].grid(zorder=-1)
 
+axs[0].set_xlim([-1, 101])
+axs[1].set_xlim([-1, 101])
+
 axs[0].set_ylabel(r'kinetic energy, $\mathcal{K}$')
 
-axs[0].legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.2))
+axs[0].legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.3))
 
 plt.tight_layout()
 

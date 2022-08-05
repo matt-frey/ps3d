@@ -56,7 +56,7 @@ print()
 
 ncreader = nc_reader()
 
-fig = plt.figure(figsize=(7.5, 4.5), dpi=500)
+fig = plt.figure(figsize=(7.5, 4.5), dpi=550)
 grid = ImageGrid(fig, 111,
                  nrows_ncols=(2, 3),
                  aspect=True,

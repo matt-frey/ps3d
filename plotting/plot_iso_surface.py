@@ -167,7 +167,7 @@ for j, field in enumerate(fields):
     iso = iso_surface(create_cmaps=True)
     iso.open(fname, add_time=False, width=1750, height=1600)
     iso.render(field_name=field, step=step,
-               n_iso=40,
+               n_iso=100,
                vmin=vmin,
                colormap=colormap,
                enable_opacity=enable_opacity,

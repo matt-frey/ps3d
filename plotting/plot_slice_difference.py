@@ -135,7 +135,7 @@ for i, field in enumerate(fields):
                            fdata=fdata,
                            ncr=ncreader,
                            cmap='coolwarm',
-                           norm=mpl_colors.CenteredNorm(vcenter=0.0),
+                           cmap_norm='centered',
                            colorbar=True)
 
     if i < 3:

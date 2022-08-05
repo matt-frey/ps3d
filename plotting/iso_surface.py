@@ -99,7 +99,9 @@ class iso_surface:
         if vmin is None:
             vmin = field_data.min()
         if vmax is None:
-            vmax = field_data.max()        
+            vmax = field_data.max()
+        print("vmin", vmin)
+        print("vmax", vmax)
         n_iso = kwargs.get('n_iso', 40)
         self.colormap = kwargs.get('colormap', 'Cool to Warm')
         self._invert_colormap = kwargs.get('invert_colormap', False)
@@ -117,7 +119,7 @@ class iso_surface:
         self._n_color_bar_ticks = kwargs.get('n_color_bar_ticks', 10)
 
         self._animation_scene.AnimationTime = self._times[step]
-        self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso)
+        self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso, step=step)
         self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
         self._set_camera_position()
 
@@ -342,7 +344,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
             'helicity': self._prog_filter2
         }
 
-    def _create_contours(self, field_name, vmin, vmax, n_iso):
+    def _create_contours(self, field_name, vmin, vmax, n_iso, step):
 
         if field_name in self._derived_fields:
             self._contour = Contour(registrationName='Contour1', Input=self._prog_filters[field_name])
@@ -392,13 +394,24 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         ## Rescale transfer function
         self._pwf.RescaleTransferFunction(vmin, vmax)
 
-        points = [vmin, self._opacity_vmin, 0.5, 0.0]
-        if self._opacity_points:
-            for i, p in enumerate(self._opacity_points):
-                v = self._opacity_values[i]
-                points = points + [vmax * p, v, 0.5, 0.0]
-        points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
+        self._lut.UseOpacityControlPointsFreehandDrawing = 1
+        
+#        points = [vmin, self._opacity_vmin, 0.5, 0.0]
+#        if self._opacity_points:
+#            for i, p in enumerate(self._opacity_points):
+#                v = self._opacity_values[i]
+#                points = points + [vmax * p, v, 0.5, 0.0]
+#        points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
 
+        #self._pwf.Points = points
+
+        points = []
+        vv = np.linspace(0.0, 1.0, n_iso, endpoint=True)
+        pp = np.linspace(vmin, vmax, n_iso, endpoint=True)
+        for i in range(n_iso):
+            p = pp[i]
+            v = vv[i]
+            points = points + [p, v, 0.5, 0.0]
         self._pwf.Points = points
 
 

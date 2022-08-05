@@ -45,9 +45,8 @@ parser.add_argument('--fignum',
                     type=int,
                     help='figure number')
 
-parser.add_argument('--fields',
-                    nargs=6,
-                    help='fields to plot')
+parser.add_argument('--field',
+                    help='field to plot')
 
 parser.add_argument('--norms',
                     nargs=6,
@@ -73,17 +72,17 @@ plane = args.plane
 loc = args.loc
 save_path = args.save_path
 overwrite = args.overwrite
-fields = args.fields
+field = args.field
 fignum = args.fignum
 zlabel = args.zlabel
 
-if fields is None:
-    print("No fields provided.")
+if field is None:
+    print("No field provided.")
     exit()
 
 print()
 print("\tFiles:       ", fnames)
-print("\tFields:      ", fields)
+print("\tField:       ", field)
 print("\tSteps:       ", steps)
 print("\tColormaps:   ", cmaps)
 print("\tNorms:       ", norms)
@@ -109,11 +108,10 @@ grid = ImageGrid(fig, 111,
                 cbar_size="4%",
                 cbar_pad=0.05)
 
-for i, field in enumerate(fields):
+for i, step in enumerate(steps):
     ncreader.open(fnames[file_numbers[i]])
     t = ncreader.get_all('t')
 
-    step = steps[i]
     fdata = ncreader.get_dataset(step=step, name=field)
 
     ax = grid[i]
