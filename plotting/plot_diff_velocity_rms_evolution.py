@@ -5,7 +5,6 @@ import matplotlib as mpl
 from utils import *
 import argparse
 import os
-from scipy.optimize import curve_fit
 
 parser = argparse.ArgumentParser(description='Create cross section figures.')
 parser.add_argument('--filename',
@@ -73,18 +72,13 @@ print("Fit start: ", t[idx1])
 print("Fit end:   ", t[idx2])
 print("Num points:", idx2 - idx1 + 1)
 
-def linear_fit_func(x, a, b):
-    return a * x + b
-
 xdata = t[idx1:idx2+1]
 ydata = log_diff_mag_rms[idx1:idx2+1]
 
 
-popt, pcov = curve_fit(linear_fit_func, xdata, ydata, method='lm', ftol=1e-8,
-                       absolute_sigma=True)
+a, b = np.polyfit(xdata, ydata, deg=1)
 
-
-ypred = linear_fit_func(xdata, *popt)
+ypred = a * xdata + b
 
 #
 # Bootstrap growth rate and calculate standard deviation:
@@ -102,13 +96,10 @@ aas = np.zeros(n_sample)
 bbs = np.zeros(n_sample)
 for i in range(n_sample):
     x, y = get_sample(xdata, ydata)
-    popt, pcov = curve_fit(linear_fit_func, x, y, method='lm', ftol=1e-8, absolute_sigma=True)
-    aas[i], bbs[i] = popt
-
+    aas[i], bbs[i] = np.polyfit(x, y, deg=1)
 a_std = aas.std()
 b_std = bbs.std()
 
-a, b = popt
 print("Fit: y = a x + b")
 print("Coefficients a =", a, "b =", b)
 print("Std. dev. of a = ", a_std, "and of b = ", b_std)
