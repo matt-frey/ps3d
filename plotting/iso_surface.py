@@ -395,24 +395,26 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._pwf.RescaleTransferFunction(vmin, vmax)
 
         self._lut.UseOpacityControlPointsFreehandDrawing = 1
-        
-#        points = [vmin, self._opacity_vmin, 0.5, 0.0]
-#        if self._opacity_points:
-#            for i, p in enumerate(self._opacity_points):
-#                v = self._opacity_values[i]
-#                points = points + [vmax * p, v, 0.5, 0.0]
-#        points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
 
-        #self._pwf.Points = points
+        if self._opacity_points:
+            points = [vmin, self._opacity_vmin, 0.5, 0.0]
 
-        points = []
-        vv = np.linspace(0.0, 1.0, n_iso, endpoint=True)
-        pp = np.linspace(vmin, vmax, n_iso, endpoint=True)
-        for i in range(n_iso):
-            p = pp[i]
-            v = vv[i]
-            points = points + [p, v, 0.5, 0.0]
-        self._pwf.Points = points
+            for i, p in enumerate(self._opacity_points):
+                v = self._opacity_values[i]
+                points = points + [vmax * p, v, 0.5, 0.0]
+                points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
+                
+            self._pwf.Points = points
+
+        else:
+            points = []
+            vv = np.linspace(0.0, 1.0, n_iso, endpoint=True)
+            pp = np.linspace(vmin, vmax, n_iso, endpoint=True)
+            for i in range(n_iso):
+                p = pp[i]
+                v = vv[i]
+                points = points + [p, v, 0.5, 0.0]
+            self._pwf.Points = points
 
 
         if not self._color_vmin is None:
