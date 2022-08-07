@@ -121,7 +121,7 @@ plt.semilogy(xdata, np.exp(ypred), 'k--', base=np.e,
 plt.semilogy(t, diff_mag_rms, base=np.e, color=colors[0])
 plt.grid(zorder=-2)
 plt.xlabel(r'time, $t$')
-plt.ylabel(r'$|\Delta\bm{u}|_{\mathrm{rms}}$')
+plt.ylabel(r'$\ln|\Delta\bm{u}|_{\mathrm{rms}}$')
 
 plt.yticks([np.exp(-6), np.exp(-5), np.exp(-4), np.exp(-3), np.exp(-2), np.exp(-1)],
            [r'$e^{-6}$', r'$e^{-5}$', r'$e^{-4}$', r'$e^{-3}$', r'$e^{-2}$', r'$e^{-1}$'])
