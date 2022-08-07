@@ -106,8 +106,8 @@ print("Std. dev. of a = ", a_std, "and of b = ", b_std)
 
 plt.figure(figsize=(7, 3), dpi=200)
 plt.semilogy(xdata, np.exp(ypred), 'k--', base=np.e,
-             label=r'$\ln|\Delta\bm{u}|_{\mathrm{rms}}\propto(' + str(round(a, 4)) + \
-             '\pm' + str(round(a_std, 4)) + ')t$')
+             label=r'$\ln|\Delta\bm{u}|_{\mathrm{rms}}\propto(' + str(round(a, 3)) + \
+             '\pm' + str(round(a_std, 3)) + ')t$')
 
 plt.semilogy(t, diff_mag_rms, base=np.e, color=colors[0])
 plt.grid(zorder=-2)
