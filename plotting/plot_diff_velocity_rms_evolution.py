@@ -126,7 +126,7 @@ plt.ylabel(r'$\ln|\Delta\bm{u}|_{\mathrm{rms}}$')
 plt.yticks([np.exp(-6), np.exp(-5), np.exp(-4), np.exp(-3), np.exp(-2), np.exp(-1)],
            [r'$e^{-6}$', r'$e^{-5}$', r'$e^{-4}$', r'$e^{-3}$', r'$e^{-2}$', r'$e^{-1}$'])
 
-plt.legend(loc='upper left')
+plt.legend(loc='lower right')
 plt.tight_layout()
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
