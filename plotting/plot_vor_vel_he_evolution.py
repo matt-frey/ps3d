@@ -62,7 +62,7 @@ def fill_steps(ncr, j, lo, hi):
         nx, ny, nz = H.shape
 
         # number of cells is nx*ny*(nz-1)
-        he[j] = (0.5 * (H[:, :, 0] + H[:, :, nz-1]) + H[:, :, 1:nz]).sum() / (nx * ny * (nz-1))
+        he[j] = ((0.5 * (H[:, :, 0] + H[:, :, nz-1]).sum()) + H[:, :, 1:nz-1].sum()) / (nx*ny*(nz-1))
 
         nx, ny, nz = x_vor.shape
 
