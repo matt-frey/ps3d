@@ -1,29 +1,41 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+from utils import *
+import argparse
 
-mpl.rcParams.update({
-    "figure.figsize": (9, 6),
-    "figure.dpi": 200,
-    "font.family": "serif",
-    "font.size": 20,
-    "text.usetex": True,
-    'text.latex.preamble': "\n".join([
-        r"\usepackage{amsmath}",
-        r"\usepackage[utf8]{inputenc}",
-        r"\usepackage[T1]{fontenc}",
-        r"\usepackage{bm}"
-#        r"\usepackage{siunitx}",
-        ])
-})
+parser = argparse.ArgumentParser(description='Create vor2vel convergence plot.')
+parser.add_argument('--path',
+                    type=str,
+                    help='output path')
+parser.add_argument('--save_path',
+                    type=str,
+                    help='where to save the figures',
+                    default=os.getcwd())
 
+parser.add_argument('--overwrite',
+                    help='overwrite figures',
+                    action='store_true')
 
-mpl.rcParams['font.size'] = 12
+parser.add_argument('--fignum',
+                    type=int,
+                    help='figure number')
+
+args = parser.parse_args()
+path = args.path
+save_path = args.save_path
+overwrite = args.overwrite
+fignum = args.fignum
 
 fig, axs = plt.subplots(1, 2, figsize=(7, 3.5), dpi=200, sharex=True)
 
 for i in [2, 5]: #range(1, 6)
-    nz, emax, erms = np.loadtxt('../running/test_vor2vel_' + str(i) + '.asc', skiprows=0, unpack=True)
+    fname = os.path.join(path, 'test_vor2vel_' + str(i) + '.asc')
+
+    if not os.path.exists(fname):
+        print("Error: You need to run 'tests/test_vor2vel' first. Exiting.")
+        exit()
+
+    nz, emax, erms = np.loadtxt(fname, skiprows=0, unpack=True)
 
     axs[0].plot(nz, emax, label=r'$\bm{\omega}_' + str(i) + r'$')
     axs[1].plot(nz, erms)
@@ -56,7 +68,5 @@ plt.figlegend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.0))
 plt.tight_layout()
 fig.subplots_adjust(top=0.88)
 
-#plt.show()
-plt.savefig('figxx.eps', format='eps') #, bbox_inches='tight', dpi=200)
-
+save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
