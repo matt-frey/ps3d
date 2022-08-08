@@ -110,12 +110,10 @@ program test_hyper
     dq = dqs
 
     write (fname, "(a16,i1,a4)") 'q_profile_hyper_', file_num, '.asc'
-    print *, fname
     do while (l_exist)
         file_num = file_num + 1
         write (fname, "(a16,i1,a4)") 'q_profile_hyper_', file_num, '.asc'
         inquire(file=fname, exist=l_exist)
-        print *, fname, l_exist
     enddo
     open(80, file = fname, status = 'replace')
     write(80,*) '#', nz, eps, nnu
