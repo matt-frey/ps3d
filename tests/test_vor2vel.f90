@@ -232,7 +232,7 @@ program test_vor2vel
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine get_erms
-            erms = f12 * sum(mag(0, :, :) + mag(nz, :, :)) + sum(mag(1:nz-1, :, :))
+            erms = f12 * sum(mag(0, :, :) ** 2 + mag(nz, :, :) ** 2) + sum(mag(1:nz-1, :, :) ** 2)
             erms = dsqrt(erms / dble(nz*nx*ny))
         end subroutine get_erms
 
