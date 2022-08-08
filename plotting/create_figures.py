@@ -217,10 +217,10 @@ if 12 in figures:
 # Figure 13:
 # create velocity, vorticity and helicity evolution:
 if 13 in figures:
-    os.system("python " + os.path.join(spath, "plot_vorticity_rms_evolution.py") + \
+    os.system("python " + os.path.join(spath, "plot_vor_vel_he_evolution.py") + \
               " --filename " + os.path.join(fpath, "beltrami_256_fields.nc") + \
               " --restartfile " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
-              " --fignum 13" + \
+              " --fignum 110 13" + \
               " --overwrite" + \
               " --save_path " + save_path)
 
@@ -234,9 +234,18 @@ if 14 in figures:
               " --fignum 14" + \
               " --overwrite" + \
               " --save_path " + save_path)
-####
+
+if 16 in figures:
+    os.system("python " + os.path.join(spath, "plot_vor2vel_conv.py") + \
+              " --path " + os.path(fpath, "..", "test_vor2vel") + \
+              " --fignum 16" + \
+              " --overwrite" + \
+              " --save_path " + save_path)
 
 exit()
+
+
+####################
 
 os.system("python " + os.path.join(spath, "plot_slices_2x3.py") + \
           " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \

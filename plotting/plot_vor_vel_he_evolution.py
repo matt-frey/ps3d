@@ -111,18 +111,19 @@ else:
 
 ncr1.close()
 
-restart_label = ['restart', None]
-
-
 #
 # Helicity:
 #
-fig, ax = plt.subplots(1, 1, figsize=(8, 2), dpi=200)
+fig, ax = plt.subplots(1, 1, figsize=(8, 3), dpi=200)
 
-ax.axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1, label=restart_label[0])
+print("Initial helicity:", he[0])
+print("Final helicity:", he[-1])
+print("Remaining percent:", he[-1] / he[0] * 100.0)
+
+ax.axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
 ax.plot(t, he, label=r'$\mathcal{H}(t)$', color=colors[0])
 ax.axhline(he[0], color='black', linestyle='dashdot', label=r'$\mathcal{H}(0)$')
-ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.32))
+ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.22))
 ax.set_xlim([-1, 101])
 ax.grid(zorder=-2)
 ax.set_xlabel(r'time, $t$')
@@ -139,7 +140,7 @@ fig, axs = plt.subplots(2, 1, figsize=(8, 4), dpi=200, sharex=True, sharey=False
 grid = axs.flatten()
 
 for k in range(2):
-    grid[k].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1, label=restart_label[k])
+    grid[k].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
 
 
 # average lower and upper surface values:
@@ -190,7 +191,7 @@ grid[1].plot(t, avg, label=r'$\langle\zeta_{\mathrm{rms}}\rangle$', color=colors
              linestyle='solid')
 
 for k in range(2):
-    grid[k].legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.32))
+    grid[k].legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.35))
     grid[k].set_xlim([-1, 101])
     grid[k].grid(zorder=-2)
 grid[1].set_xlabel(r'time, $t$')
