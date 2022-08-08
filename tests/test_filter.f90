@@ -13,6 +13,10 @@ program test_filter
     ! Resolution in z:
     integer,parameter:: nz = 32
 
+    logical        :: l_exist = .true.
+    integer        :: file_num = 0
+    character(512) :: fname
+
     ! Generic double precision numerical constants:
     double precision,parameter:: hpi = pi/two
 
@@ -93,13 +97,20 @@ program test_filter
     call dst(1, nz, qs(1:nz), ztrig, zfactors)
     call dct(1, nz, dqs, ztrig, zfactors)
 
-    open(80, file = 'q_profile_filter.asc', status = 'replace')
+    write (fname, "(a14,i4)") 'q_profile_filter_', file_num
+    do while (l_exist)
+        file_num = file_num + 1
+        inquire(file=fname // '.asc', exist=l_exist)
+        write (fname, "(a14,i4)") 'q_profile_filter_', file_num
+    enddo
+    open(80, file = fname, status = 'replace')
     do iz = 0, nz
         write(80,*) z(iz), qs(iz), q(iz), qs(iz) - q(iz)
     enddo
     close(80)
 
-    open(80, file = 'dq_profile_filter.asc', status = 'replace')
+    write (fname, "(a14,i4)") 'dq_profile_filter_', file_num, '.asc'
+    open(80, file = fname, status = 'replace')
     do iz = 0, nz
         write(80,*) z(iz), dqs(iz), dq(iz), dqs(iz) - dq(iz)
     enddo

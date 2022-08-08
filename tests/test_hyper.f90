@@ -14,6 +14,10 @@ program test_hyper
     ! Resolution in z:
     integer,parameter:: nz = 32
 
+    logical        :: l_exist = .true.
+    integer        :: file_num = 0
+    character(512) :: fname
+
     ! Generic double precision numerical constants:
     double precision,parameter:: hpi = pi/two
 
@@ -89,13 +93,22 @@ program test_hyper
     q = qs
     dq = dqs
 
-    open(80, file = 'q_profile_hyper.asc', status = 'replace')
+    write (fname, "(a14,i4)") 'q_profile_hyper_', file_num
+    do while (l_exist)
+        file_num = file_num + 1
+        inquire(file=fname // '.asc', exist=l_exist)
+        write (fname, "(a14,i4)") 'q_profile_hyper_', file_num
+    enddo
+    open(80, file = fname, status = 'replace')
+    write(80,*) '#', eps, nnu
     do iz = 0, nz
         write(80,*) z(iz), q(iz), q0(iz), q(iz) - q0(iz)
     enddo
     close(80)
 
-    open(80, file = 'dq_profile_hyper.asc', status = 'replace')
+    write (fname, "(a14,i4)") 'dq_profile_hyper_', file_num, '.asc'
+    open(80, file = fname, status = 'replace')
+    write(80,*) '#', eps, nnu
     do iz = 0, nz
         write(80,*) z(iz), dq(iz), dq0(iz), dq(iz) - dq0(iz)
     enddo
