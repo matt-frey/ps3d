@@ -49,18 +49,22 @@ def fill_steps(ncr, j, lo, hi):
     t_all = ncr.get_all('t')
 
     for step in range(lo, hi):
-        x_vor = ncr.get_dataset(step, 'x_vorticity')
-        y_vor = ncr.get_dataset(step, 'y_vorticity')
-        z_vor = ncr.get_dataset(step, 'z_vorticity')
+        x_vor = ncr.get_dataset(step, 'x_vorticity', copy_periodic=False)
+        y_vor = ncr.get_dataset(step, 'y_vorticity', copy_periodic=False)
+        z_vor = ncr.get_dataset(step, 'z_vorticity', copy_periodic=False)
 
-        x_vel = ncr.get_dataset(step, 'x_velocity')
-        y_vel = ncr.get_dataset(step, 'y_velocity')
-        z_vel = ncr.get_dataset(step, 'z_velocity')
+        x_vel = ncr.get_dataset(step, 'x_velocity', copy_periodic=False)
+        y_vel = ncr.get_dataset(step, 'y_velocity', copy_periodic=False)
+        z_vel = ncr.get_dataset(step, 'z_velocity', copy_periodic=False)
 
-        H = ncr.get_dataset(step, 'helicity')
-        he[j] = H.mean(axis=(0, 1, 2))
+        H = ncr.get_dataset(step, 'helicity', copy_periodic=False)
 
-        nz, ny, nx = x_vor.shape
+        nx, ny, nz = H.shape
+
+        # number of cells is nx*ny*(nz-1)
+        he[j] = (0.5 * (H[:, :, 0] + H[:, :, nz-1]) + H[:, :, 1:nz]).sum() / (nx * ny * (nz-1))
+
+        nx, ny, nz = x_vor.shape
 
         t[j] = t_all[step]
 
