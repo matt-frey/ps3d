@@ -93,11 +93,13 @@ program test_hyper
     q = qs
     dq = dqs
 
-    write (fname, "(a14,i4)") 'q_profile_hyper_', file_num
+    write (fname, "(a16,i1,a4)") 'q_profile_hyper_', file_num, '.asc'
+    print *, fname
     do while (l_exist)
         file_num = file_num + 1
-        inquire(file=fname // '.asc', exist=l_exist)
-        write (fname, "(a14,i4)") 'q_profile_hyper_', file_num
+        write (fname, "(a16,i1,a4)") 'q_profile_hyper_', file_num, '.asc'
+        inquire(file=fname, exist=l_exist)
+        print *, fname, l_exist
     enddo
     open(80, file = fname, status = 'replace')
     write(80,*) '#', eps, nnu
@@ -106,7 +108,7 @@ program test_hyper
     enddo
     close(80)
 
-    write (fname, "(a14,i4)") 'dq_profile_hyper_', file_num, '.asc'
+    write (fname, "(a17,i1,a4)") 'dq_profile_hyper_', file_num, '.asc'
     open(80, file = fname, status = 'replace')
     write(80,*) '#', eps, nnu
     do iz = 0, nz

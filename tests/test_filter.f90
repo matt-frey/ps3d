@@ -97,19 +97,24 @@ program test_filter
     call dst(1, nz, qs(1:nz), ztrig, zfactors)
     call dct(1, nz, dqs, ztrig, zfactors)
 
-    write (fname, "(a14,i4)") 'q_profile_filter_', file_num
+    write (fname, "(a17,i1,a4)") 'q_profile_filter_', file_num, '.asc'
     do while (l_exist)
         file_num = file_num + 1
-        inquire(file=fname // '.asc', exist=l_exist)
-        write (fname, "(a14,i4)") 'q_profile_filter_', file_num
+        write (fname, "(a17,i1,a4)") 'q_profile_filter_', file_num, '.asc'
+        inquire(file=fname, exist=l_exist)
     enddo
     open(80, file = fname, status = 'replace')
+    if (iopt == 1) then
+        write(80,*) '#', eps, '2/3 rule filter'
+    else
+        write(80,*) '#', eps, 'Hou and Li filter'
+    endif
     do iz = 0, nz
         write(80,*) z(iz), qs(iz), q(iz), qs(iz) - q(iz)
     enddo
     close(80)
 
-    write (fname, "(a14,i4)") 'dq_profile_filter_', file_num, '.asc'
+    write (fname, "(a18,i1,a4)") 'dq_profile_filter_', file_num, '.asc'
     open(80, file = fname, status = 'replace')
     do iz = 0, nz
         write(80,*) z(iz), dqs(iz), dq(iz), dqs(iz) - dq(iz)
