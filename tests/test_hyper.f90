@@ -12,7 +12,7 @@ program test_hyper
     implicit none
 
     ! Resolution in z:
-    integer,parameter:: nz = 32
+    integer :: nz
 
     logical        :: l_exist = .true.
     integer        :: file_num = 0
@@ -22,22 +22,38 @@ program test_hyper
     double precision,parameter:: hpi = pi/two
 
     ! Domain height and grid length:
-    double precision,parameter:: Lz = pi, dz = Lz/dble(nz)
-    double precision,parameter:: dzi = one/dz, hdzi = one/(two*dz)
-    double precision,parameter:: zmin = -Lz/two, zmax = zmin + Lz
+    double precision, parameter :: Lz = pi
+    double precision, parameter :: zmin = -Lz/two, zmax = zmin + Lz
+    double precision            :: dz
 
     ! Arrays:
-    double precision:: z(0:nz), q(0:nz), qs(0:nz), diss(0:nz)
-    double precision:: dq(0:nz), dqs(0:nz)
-    double precision:: q0(0:nz), dq0(0:nz)
+    double precision, allocatable :: z(:), q(:), qs(:), diss(:)
+    double precision, allocatable :: dq(:), dqs(:), q0(:), dq0(:)
+
 
     ! FFT arrays:
-    integer:: zfactors(5)
-    double precision:: ztrig(2*nz), rkz(nz)
+    integer :: zfactors(5)
+    double precision, allocatable :: ztrig(:), rkz(:)
 
     ! Others:
     double precision:: eps, t, fac
     integer:: iz, nnu
+
+    write(*,*) ' Enter number of cells:'
+    read(*,*) nz
+
+    allocate(z(0:nz))
+    allocate(q(0:nz))
+    allocate(qs(0:nz))
+    allocate(diss(0:nz))
+    allocate(dq(0:nz))
+    allocate(dqs(0:nz))
+    allocate(q0(0:nz))
+    allocate(dq0(0:nz))
+    allocate(ztrig(2*nz))
+    allocate(rkz(nz))
+
+    dz = Lz / dble(nz)
 
     !-------------------------------------------------------------
     ! Initialise Fourier transform and wavenumbers:
@@ -102,7 +118,7 @@ program test_hyper
         print *, fname, l_exist
     enddo
     open(80, file = fname, status = 'replace')
-    write(80,*) '#', eps, nnu
+    write(80,*) '#', nz, eps, nnu
     do iz = 0, nz
         write(80,*) z(iz), q(iz), q0(iz), q(iz) - q0(iz)
     enddo
@@ -110,9 +126,20 @@ program test_hyper
 
     write (fname, "(a17,i1,a4)") 'dq_profile_hyper_', file_num, '.asc'
     open(80, file = fname, status = 'replace')
-    write(80,*) '#', eps, nnu
+    write(80,*) '#', nz, eps, nnu
     do iz = 0, nz
         write(80,*) z(iz), dq(iz), dq0(iz), dq(iz) - dq0(iz)
     enddo
     close(80)
+
+    deallocate(z)
+    deallocate(q)
+    deallocate(qs)
+    deallocate(diss)
+    deallocate(dq)
+    deallocate(dqs)
+    deallocate(q0)
+    deallocate(dq0)
+    deallocate(ztrig)
+    deallocate(rkz)
 end program test_hyper

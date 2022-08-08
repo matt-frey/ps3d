@@ -11,31 +11,45 @@ program test_filter
     implicit none
 
     ! Resolution in z:
-    integer,parameter:: nz = 32
+    integer :: nz
 
     logical        :: l_exist = .true.
     integer        :: file_num = 0
     character(512) :: fname
 
     ! Generic double precision numerical constants:
-    double precision,parameter:: hpi = pi/two
+    double precision, parameter:: hpi = pi / two
 
     ! Domain height and grid length:
-    double precision,parameter:: Lz = pi, dz = Lz/dble(nz)
-    double precision,parameter:: dzi = one/dz, hdzi = one/(two*dz)
-    double precision,parameter:: zmin = -Lz/two, zmax = zmin + Lz
+    double precision, parameter :: Lz = pi
+    double precision, parameter :: zmin = -Lz/two, zmax = zmin + Lz
+    double precision            :: dz
 
     ! Arrays:
-    double precision:: z(0:nz), q(0:nz), qs(0:nz), filt(0:nz)
-    double precision:: dq(0:nz), dqs(0:nz)
+    double precision, allocatable :: z(:), q(:), qs(:), filt(:)
+    double precision, allocatable :: dq(:), dqs(:)
 
     ! FFT arrays:
-    integer:: zfactors(5)
-    double precision:: ztrig(2*nz), rkz(nz)
+    integer :: zfactors(5)
+    double precision, allocatable :: ztrig(:), rkz(:)
 
     ! Others:
     double precision:: eps, t, fac
     integer:: iz, kz, iopt
+
+    write(*,*) ' Enter number of cells:'
+    read(*,*) nz
+
+    allocate(z(0:nz))
+    allocate(q(0:nz))
+    allocate(qs(0:nz))
+    allocate(filt(0:nz))
+    allocate(dq(0:nz))
+    allocate(dqs(0:nz))
+    allocate(ztrig(2*nz))
+    allocate(rkz(nz))
+
+    dz = Lz / dble(nz)
 
     !-------------------------------------------------------------
     ! Initialise Fourier transform and wavenumbers:
@@ -105,9 +119,9 @@ program test_filter
     enddo
     open(80, file = fname, status = 'replace')
     if (iopt == 1) then
-        write(80,*) '#', eps, '2/3 rule filter'
+        write(80,*) '#', nz, eps, '2/3 rule filter'
     else
-        write(80,*) '#', eps, 'Hou and Li filter'
+        write(80,*) '#', nz, eps, 'Hou and Li filter'
     endif
     do iz = 0, nz
         write(80,*) z(iz), qs(iz), q(iz), qs(iz) - q(iz)
@@ -116,8 +130,22 @@ program test_filter
 
     write (fname, "(a18,i1,a4)") 'dq_profile_filter_', file_num, '.asc'
     open(80, file = fname, status = 'replace')
+    if (iopt == 1) then
+        write(80,*) '#', nz, eps, '2/3 rule filter'
+    else
+        write(80,*) '#', nz, eps, 'Hou and Li filter'
+    endif
     do iz = 0, nz
         write(80,*) z(iz), dqs(iz), dq(iz), dqs(iz) - dq(iz)
     enddo
     close(80)
+
+    deallocate(z)
+    deallocate(q)
+    deallocate(qs)
+    deallocate(filt)
+    deallocate(dq)
+    deallocate(dqs)
+    deallocate(ztrig)
+    deallocate(rkz)
 end program test_filter
