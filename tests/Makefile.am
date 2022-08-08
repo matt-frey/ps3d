@@ -20,7 +20,15 @@ libcombi_la_LIBADD =                            	\
 
 
 tests_PROGRAMS =   		\
-        test_vor2vel
+        test_vor2vel		\
+        test_filter		\
+        test_hyper
 
 test_vor2vel_SOURCES = test_vor2vel.f90
 test_vor2vel_LDADD = libcombi.la
+
+test_filter_SOURCES = test_filter.f90
+test_filter_LDADD = libcombi.la
+
+test_hyper_SOURCES = test_hyper.f90
+test_hyper_LDADD = libcombi.la
