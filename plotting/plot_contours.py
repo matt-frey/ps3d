@@ -40,6 +40,7 @@ ncr.open(fname)
 
 t = ncr.get_all('t')
 
+n_levels = 25
 ix = 32 # - 3\pi/8
 iys = 64  # -pi/4
 iye = 145 # it is actually 144 due to the : operator, hence \pi/16
@@ -76,11 +77,11 @@ for i in range(2):
                    units='xy')
 
 cf1 = grid[0].contourf(yg[ix, iys:iye, izs:ize], zg[ix, iys:iye, izs:ize],
-                       zeta[ix, iys:iye, izs:ize], levels=50,
+                       zeta[ix, iys:iye, izs:ize], levels=n_levels,
                        cmap=cc.cm['rainbow4_r'], zorder=-2)
 
 cf2 = grid[1].contourf(yg[ix, iys:iye, izs:ize], zg[ix, iys:iye, izs:ize],
-                       u[ix, iys:iye, izs:ize], levels=50,
+                       u[ix, iys:iye, izs:ize], levels=n_levels,
                        cmap=cc.cm['rainbow4_r'], zorder=-2)
 
 cbar1 = grid[0].cax.colorbar(cf1)

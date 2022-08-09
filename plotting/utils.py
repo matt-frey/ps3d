@@ -131,7 +131,7 @@ def make_mean_profiles(ax, ncr, step, fields, labels, normalise=False, **kwargs)
 
     for i, field in enumerate(fields):
         bar = np.zeros(n)
-        data = ncr.get_dataset(step=step, name=field)
+        data = ncr.get_dataset(step=step, name=field, copy_periodic=False)
         bar = data.mean(axis=(0, 1))
 
         if normalise:
@@ -155,7 +155,7 @@ def make_rms_profiles(ax, ncr, step, fields, labels):
 
     for i, field in enumerate(fields):
         rms = np.zeros(n)
-        data = ncr.get_dataset(step=step, name=field)
+        data = ncr.get_dataset(step=step, name=field, copy_periodic=False)
         rms = np.sqrt((data ** 2).mean(axis=(0, 1)))
 
         ax.plot(rms, z,

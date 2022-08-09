@@ -33,7 +33,7 @@ fignum = args.fignum
 
 fig, axs = plt.subplots(1, 2, figsize=(7, 3.5), dpi=200, sharey=True)
 
-for i in range(2, len(labels)):
+for i in range(len(labels)):
     fname = os.path.join(path, 'q_profile_filter_' + str(i+1) + '.asc')
 
     if not os.path.exists(fname):

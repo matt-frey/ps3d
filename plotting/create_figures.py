@@ -208,9 +208,9 @@ if 12 in figures:
     os.system("python " + os.path.join(spath, "plot_vorticity_profiles.py") + \
               " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc ") + \
               os.path.join(fpath, "beltrami_256_fields.nc") + \
-              " --steps 0 10 12 14 16 18 20 40 10" + \
-              " --file_numbers 0 0 0 0 0 0 0 0 1" + \
-              " --fignums 112 12" + \
+              " --steps 0 10 16 20 26 40 10" + \
+              " --file_numbers 0 0 0 0 0 0 1" + \
+              " --fignum 12" + \
               " --overwrite" + \
               " --save_path " + save_path)
 
@@ -245,7 +245,7 @@ if 16 in figures:
 if 17 in figures:
     os.system("python " + os.path.join(spath, "plot_filter_hyper.py") + \
               " --path " + os.path.join(fpath, "..", "tests") + \
-              " --labels '$nz = 32$' '$nz = 64$' '$nz = 128$' '$nz = 256$'" + \
+              " --labels '$nz = 128$' '$nz = 256$'" + \
               " --fignum 170" + \
               " --overwrite" + \
               " --save_path " + save_path)
