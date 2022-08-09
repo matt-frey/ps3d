@@ -74,6 +74,10 @@ for grid in grids:
     #print("initial <KE>", ke[0])
     #print("initial <EN>", en[0])
 
+    print("Initial KE of grid", grid, "is", ke[0])
+    print("Final KE of grid", grid, "is", ke[-1])
+    print("Remaining KE in percent:", ke[-1]/ke[0] * 100.0)
+
     label = labels[i]
     i = i + 1
 

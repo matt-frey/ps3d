@@ -49,18 +49,22 @@ def fill_steps(ncr, j, lo, hi):
     t_all = ncr.get_all('t')
 
     for step in range(lo, hi):
-        x_vor = ncr.get_dataset(step, 'x_vorticity')
-        y_vor = ncr.get_dataset(step, 'y_vorticity')
-        z_vor = ncr.get_dataset(step, 'z_vorticity')
+        x_vor = ncr.get_dataset(step, 'x_vorticity', copy_periodic=False)
+        y_vor = ncr.get_dataset(step, 'y_vorticity', copy_periodic=False)
+        z_vor = ncr.get_dataset(step, 'z_vorticity', copy_periodic=False)
 
-        x_vel = ncr.get_dataset(step, 'x_velocity')
-        y_vel = ncr.get_dataset(step, 'y_velocity')
-        z_vel = ncr.get_dataset(step, 'z_velocity')
+        x_vel = ncr.get_dataset(step, 'x_velocity', copy_periodic=False)
+        y_vel = ncr.get_dataset(step, 'y_velocity', copy_periodic=False)
+        z_vel = ncr.get_dataset(step, 'z_velocity', copy_periodic=False)
 
-        H = ncr.get_dataset(step, 'helicity')
-        he[j] = H.mean(axis=(0, 1, 2))
+        H = ncr.get_dataset(step, 'helicity', copy_periodic=False)
 
-        nz, ny, nx = x_vor.shape
+        nx, ny, nz = H.shape
+
+        # number of cells is nx*ny*(nz-1)
+        he[j] = ((0.5 * (H[:, :, 0] + H[:, :, nz-1]).sum()) + H[:, :, 1:nz-1].sum()) / (nx*ny*(nz-1))
+
+        nx, ny, nz = x_vor.shape
 
         t[j] = t_all[step]
 
@@ -111,18 +115,19 @@ else:
 
 ncr1.close()
 
-restart_label = ['restart', None]
-
-
 #
 # Helicity:
 #
-fig, ax = plt.subplots(1, 1, figsize=(8, 2), dpi=200)
+fig, ax = plt.subplots(1, 1, figsize=(8, 3), dpi=200)
 
-ax.axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1, label=restart_label[0])
+print("Initial helicity:", he[0])
+print("Final helicity:", he[-1])
+print("Remaining percent:", he[-1] / he[0] * 100.0)
+
+ax.axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
 ax.plot(t, he, label=r'$\mathcal{H}(t)$', color=colors[0])
 ax.axhline(he[0], color='black', linestyle='dashdot', label=r'$\mathcal{H}(0)$')
-ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.32))
+ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.22))
 ax.set_xlim([-1, 101])
 ax.grid(zorder=-2)
 ax.set_xlabel(r'time, $t$')
@@ -139,7 +144,7 @@ fig, axs = plt.subplots(2, 1, figsize=(8, 4), dpi=200, sharex=True, sharey=False
 grid = axs.flatten()
 
 for k in range(2):
-    grid[k].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1, label=restart_label[k])
+    grid[k].axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
 
 
 # average lower and upper surface values:
@@ -190,7 +195,7 @@ grid[1].plot(t, avg, label=r'$\langle\zeta_{\mathrm{rms}}\rangle$', color=colors
              linestyle='solid')
 
 for k in range(2):
-    grid[k].legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.32))
+    grid[k].legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.35))
     grid[k].set_xlim([-1, 101])
     grid[k].grid(zorder=-2)
 grid[1].set_xlabel(r'time, $t$')

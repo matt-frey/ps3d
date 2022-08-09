@@ -41,21 +41,20 @@ for i in [2, 5]: #range(1, 6)
     axs[1].plot(nz, erms)
 
     if i == 2 or i == 5:
-        label2 = None
         label3 = None
         if i == 2:
-            label2 = r'$h^{2}$'
             label3 = r'$h^{3}$'
         h = 1.0 / np.asarray(nz)
         axs[0].plot(nz, emax[0] * (h / h[0]) ** 3, label=label3,
-                    linestyle='dashed', color='black', linewidth=1)
-        axs[1].plot(nz, erms[0] * (h / h[0]) ** 2, label=label2,
-                    linestyle='dotted', color='black', linewidth=1)
+                    linestyle='dashed', color='black') #
+        axs[1].plot(nz, erms[0] * (h / h[0]) ** 3, label=None, #label2,
+                    linestyle='dashed', color='black') 
 
 #plt.plot(nz, err[0]* (h / h[0]) ** 2, label=r'$h^{2}$', linestyle='dashed')
 #plt.plot(nz, err[0]* (h / h[0]), label=r'$h$', linestyle='dashed')
 
-
+axs[0].grid(which='both')
+axs[1].grid(which='both')
 axs[0].set_xlabel(r'$n_x = n_y = n_z$')
 axs[0].set_xscale('log', base=2)
 axs[0].set_yscale('log', base=10)
@@ -64,7 +63,7 @@ axs[1].set_xlabel(r'$n_x = n_y = n_z$')
 axs[1].set_xscale('log', base=2)
 axs[1].set_yscale('log', base=10)
 axs[1].set_ylabel(r'$|\bm{u}_{\mathrm{ref}} - \bm{u}|_{\mathrm{rms}}$')
-plt.figlegend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.0))
+plt.figlegend(loc='upper center', ncol=5, bbox_to_anchor=(0.55, 1.0))
 plt.tight_layout()
 fig.subplots_adjust(top=0.88)
 
