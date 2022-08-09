@@ -251,6 +251,23 @@ if 17 in figures:
               " --save_path " + save_path)
 
 
+if 150 in figures:
+    os.system("python " + os.path.join(spath, "plot_contours.py") + \
+              " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+              " --step 26"
+              " --fignum 150" + \
+              " --overwrite" + \
+              " --save_path " + save_path)
+
+if 130 in figures:
+    os.system("python " + os.path.join(spath, "plot_volume_fraction.py") + \
+              " --filename " + os.path.join(fpath, "beltrami_256_fields.nc") + \
+              " --restartfile " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+              " --fignum 130" + \
+              " --overwrite" + \
+              " --save_path " + save_path)
+
+    
 exit()
 
 
