@@ -1,6 +1,7 @@
 from utils import *
 from nc_reader import nc_reader
 import matplotlib.pyplot as plt
+
 import argparse
 import os
 from mpl_toolkits.axes_grid1 import ImageGrid
@@ -113,7 +114,3 @@ add_timestamp(grid[0], t[step], xy=(0.05, 1.25), fontsize=12)
     
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
-
-
-
-#In line 637 of the paper, I discuss the velocity and vorticity field crossing a front.  I wonder if we could make a zoom showing the behaviour described, maybe as a contour plot with arrows showing the sense of the flow field, and contours showing the vertical vorticity field?  I imagine this will not be that easy, so only attempt it if you think you'd be keen to try!  I think the front seen on the left at t = 63 in fig10 would be interesting to examine; I would take ix = 32 then consider 70 <= iy <= 134 and 192 <= iz <= 256.  This should cross the middle of the front in a yz plane.

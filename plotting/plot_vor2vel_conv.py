@@ -43,7 +43,7 @@ for i in [2, 5]: #range(1, 6)
     if i == 2 or i == 5:
         label3 = None
         if i == 2:
-            label3 = r'$h^{3}$'
+            label3 = r'$(\Delta z)^{3}$'
         h = 1.0 / np.asarray(nz)
         axs[0].plot(nz, emax[0] * (h / h[0]) ** 3, label=label3,
                     linestyle='dashed', color='black') #

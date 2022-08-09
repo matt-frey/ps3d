@@ -237,10 +237,19 @@ if 14 in figures:
 
 if 16 in figures:
     os.system("python " + os.path.join(spath, "plot_vor2vel_conv.py") + \
-              " --path " + os.path(fpath, "..", "test_vor2vel") + \
+              " --path " + os.path.join(fpath, "..", "tests") + \
               " --fignum 16" + \
               " --overwrite" + \
               " --save_path " + save_path)
+
+if 17 in figures:
+    os.system("python " + os.path.join(spath, "plot_filter_hyper.py") + \
+              " --path " + os.path.join(fpath, "..", "tests") + \
+              " --labels '$nz = 32$' '$nz = 64$' '$nz = 128$' '$nz = 256$'" + \
+              " --fignum 170" + \
+              " --overwrite" + \
+              " --save_path " + save_path)
+
 
 exit()
 
