@@ -6,7 +6,7 @@ from utils import *
 import argparse
 import os
 
-parser = argparse.ArgumentParser(description='Create cross section figures.')
+parser = argparse.ArgumentParser(description='Plot RMS of magnitude of velocity difference.')
 parser.add_argument('--filename',
                     type=str,
                     help='output file')
@@ -44,20 +44,26 @@ ncr.open(fname)
 t = ncr.get_all('t')
 n = len(t)
 
-u0 = ncr.get_dataset(0, 'x_velocity')
-v0 = ncr.get_dataset(0, 'y_velocity')
-w0 = ncr.get_dataset(0, 'z_velocity')
+u0 = ncr.get_dataset(0, 'x_velocity', copy_periodic=False)
+v0 = ncr.get_dataset(0, 'y_velocity', copy_periodic=False)
+w0 = ncr.get_dataset(0, 'z_velocity', copy_periodic=False)
 
 # exclude first entry since it is obviously zero --> vector length n-1
 diff_mag_rms = np.zeros(n-1)
 t = t[1:]
 for step in range(1, n):
-    u = ncr.get_dataset(step, 'x_velocity')
-    v = ncr.get_dataset(step, 'y_velocity')
-    w = ncr.get_dataset(step, 'z_velocity')
+    u = ncr.get_dataset(step, 'x_velocity', copy_periodic=False)
+    v = ncr.get_dataset(step, 'y_velocity', copy_periodic=False)
+    w = ncr.get_dataset(step, 'z_velocity', copy_periodic=False)
 
-    diff_mag = np.sqrt((u - u0) ** 2 + (v - v0) ** 2 + (w - w0) ** 2)
-    diff_mag_rms[step-1] = np.sqrt((diff_mag ** 2).mean(axis=(0, 1, 2)))
+    dmagsq = (u - u0) ** 2 + (v - v0) ** 2 + (w - w0) ** 2
+
+    nx, ny, nz = dmagsq.shape
+    ncells = nx * ny * (nz-1)
+    
+    # we use squared magnitude, hence we do not need to square when calculating RMS
+    diff_mag_rms[step-1] = (0.5 * (dmagsq[:,:,0]+dmagsq[:,:,nz-1])).sum() + dmagsq[:,:,1:nz-1].sum()
+    diff_mag_rms[step-1] = np.sqrt(diff_mag_rms[step-1] / ncells)
 
 ncr.close()
 

@@ -6,7 +6,7 @@ from utils import *
 import argparse
 import os
 
-parser = argparse.ArgumentParser(description='Create cross section figures.')
+parser = argparse.ArgumentParser(description='Plot volume fraction of vorticity magnitude.')
 parser.add_argument('--filename',
                     type=str,
                     help='output file')

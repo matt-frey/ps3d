@@ -267,7 +267,13 @@ if 130 in figures:
               " --overwrite" + \
               " --save_path " + save_path)
 
-    
+
+if 100 in figures:
+    os.system("python " + os.path.join(spath, "plot_diff_velocity_rms_evolution.py") + \
+              " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+              " --fignum 100" + \
+              " --overwrite" + \
+              " --save_path figures")
 exit()
 
 
