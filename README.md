@@ -10,7 +10,7 @@ $ cd $PS3D_ROOT
 $ ./bootstrap
 $ mkdir build
 $ cd build
-$ ../configure --prefix=$PS3D_PREFIX --enable-openmp --enable-verboseq
+$ ../configure --prefix=$PS3D_PREFIX --enable-openmp --enable-verbose
 $ make
 $ make install
 ```
@@ -27,3 +27,4 @@ This will generate a field file in NetCDF format. The name of the file is specif
 ```
 $ ps3d --config beltrami_32.config
 ```
+The NetCDF file is specified in the configuration file too.
