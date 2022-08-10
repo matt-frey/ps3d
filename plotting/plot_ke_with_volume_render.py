@@ -60,14 +60,6 @@ def get_screenshot(step):
     ncreader.close()
     return t[step], image
 
-# 7 July 2022
-# https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
-def find_nearest(t, tref):
-    idx = (np.abs(tref - t)).argmin()
-    print('Closest time to', tref, 'is', t[idx])
-    return idx
-
-
 
 def add_inset(ax, bounds, t, ke, step):
 

@@ -1,10 +1,10 @@
-program genspec
+program genspec2d
     use constants
-    use netcdf_reader
-    use netcdf_writer
     use inversion_utils
-    use sta2dfft, only : dct, dst
-    use parameters, only : nx, ny, nz, ncelli
+    use netcdf_writer
+    use netcdf_reader
+    use sta2dfft
+    use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
@@ -12,13 +12,14 @@ program genspec
     implicit none
 
     character(len=512)            :: filename
-    integer, allocatable          :: kmag(:, :, :)
-    double precision, allocatable :: spec(:)
-    integer, allocatable          :: num(:)
-    integer                       :: nc, kx, ky, kz, m, kmax
-    double precision              :: dk, dki, prefactor, snorm
-    double precision              :: ke ! kinetic energy
+    integer, allocatable          :: kmag(:, :)
+    integer                       :: kx, ky, kmax, k
+    double precision              :: dk, dki, snorm, ke
     integer                       :: step
+    double precision              :: rkxmax, rkymax
+
+    ! The spectrum:
+    double precision, allocatable :: spec(:)
 
     call register_timer('field I/O', field_io_timer)
 
@@ -27,7 +28,7 @@ program genspec
     ! read domain dimensions
     call setup_domain_and_parameters(trim(filename), step)
 
-    allocate(kmag(0:nz, 0:nx-1, 0:ny-1))
+    allocate(kmag(0:nx-1, 0:ny-1))
 
     call field_default
 
@@ -37,90 +38,107 @@ program genspec
 
     call init_inversion
 
-    ! calculate domain-average kinetic energy
-    ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
-                 + vel(1:nz-1, :, :, 2) ** 2      &
-                 + vel(1:nz-1, :, :, 3) ** 2)     &
-       + f14 * sum(vel(0,  :, :, 1) ** 2          &
-                 + vel(0,  :, :, 2) ** 2          &
-                 + vel(0,  :, :, 3) ** 2)         &
-       + f14 * sum(vel(nz, :, :, 1) ** 2          &
-                 + vel(nz, :, :, 2) ** 2          &
-                 + vel(nz, :, :, 3) ** 2)
-    ke = ke * ncelli
 
-    ! (1) compute the 3D spectrum of each velocity component:
-    do nc = 1, 3
-        call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
-    enddo
+    !Initialise arrays for computing the spectrum:
     do ky = 0, ny-1
         do kx = 0, nx-1
-            call dct(1, nz, svel(0:nz, kx, ky, 1), ztrig, zfactors) ! u
-            call dct(1, nz, svel(0:nz, kx, ky, 2), ztrig, zfactors) ! v
-            call dst(1, nz, svel(1:nz, kx, ky, 3), ztrig, zfactors) ! w
-        enddo
-    enddo
-
-    ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
-    do ky = 0, ny-1
-        do kx = 0, nx-1
-            do kz = 0, nz
-                kmag(kz, kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
-            enddo
+            kmag(kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2))
         enddo
      enddo
 
     kmax = maxval(kmag)
 
     allocate(spec(0:kmax))
-    allocate(num(0:kmax))
 
     ! spacing of the shells
-    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2)
     dki = one / dk
 
-    ! (3) accumulate spectrum
+    !
+    ! LOWER BOUNDARY SPECTRUM
+    !
+    call calculate_spectrum(vel(0, :, :, 1), vel(0, :, :, 2))
+
+    !Write spectrum contained in spec(k):
+    call write_spectrum('lower')
+
+    !
+    ! UPPER BOUNDARY SPECTRUM
+    !
     spec = zero
-    num = 0
 
-    do ky = 0, ny-1
-        do kx = 0, nx-1
-            do kz = 0, nz
-                m = int(dble(kmag(kz, kx, ky)) * dki)
-                spec(m) = spec(m) &
-                        + svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
-                num(m) = num(m) + 1
-            enddo
-        enddo
-     enddo
+    call calculate_spectrum(vel(nz, :, :, 1), vel(nz, :, :, 2))
 
-    prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
-
-    do m = 0, kmax
-        if (num(m) > 0) then
-            spec(m) = spec(m) * prefactor * dble((m+1) ** 3 - m ** 3) / dble(num(m))
-        else
-            print *, "Bin", m, " is empty!"
-        endif
-    enddo
-
-    ! calculate spectrum normalisation factor (snorm)
-    ! that ensures Parceval's identity, so that the spectrum S(K)
-    ! has the property that its integral over K gives the total kinetic energy
-    snorm = ke / sum(spec * dk)
-
-    ! normalise the spectrum
-    spec = spec * snorm
-
-    call write_spectrum
+    !Write spectrum contained in spec(k):
+    call write_spectrum('upper')
 
     deallocate(kmag)
-    deallocate(num)
     deallocate(spec)
 
     contains
 
-        subroutine write_spectrum
+        subroutine calculate_spectrum(u, v)
+            double precision, intent(in) :: u(0:ny-1, 0:nx-1), v(0:ny-1, 0:nx-1)
+            double precision             :: uspec(0:kmax), vspec(0:kmax)
+
+            !Compute spectrum for u part:
+            call calculate_spectrum_contribution(u, uspec)
+
+            !Compute spectrum for v part:
+            call calculate_spectrum_contribution(v, vspec)
+
+            ! uspec and vspec are already squared
+            spec = uspec + vspec
+
+            ! calculate domain-average kinetic energy at surface with u and v part only:
+            ke = f12 * sum(u ** 2 + v ** 2)
+            ke = ke / dble(nx * ny)
+
+            ! calculate spectrum normalisation factor (snorm)
+            ! that ensures Parceval's identity, so that the spectrum S(K)
+            ! has the property that its integral over K gives the total kinetic energy
+            snorm = ke / sum(spec * dk)
+
+            !Normalise:
+            spec = snorm * spec
+
+        end subroutine calculate_spectrum
+
+        subroutine calculate_spectrum_contribution(fp, fspec)
+            double precision, intent(in)  :: fp(0:ny-1, 0:nx-1)
+            double precision, intent(out) :: fspec(0:kmax)
+            double precision              :: ss(0:nx-1, 0:ny-1), pp(0:ny-1, 0:nx-1)
+            integer                       :: num(0:kmax)
+
+            pp = fp
+
+            !Transform data in pp to spectral space: (periodic in x and in y)
+            call call_ptospc(pp, ss)
+
+            do k = 0, kmax
+                fspec(k) = zero
+                num(k) = 0
+            enddo
+
+            do ky = 0, ny-1
+                do kx = 0, nx-1
+                    k = int(dble(kmag(kx, ky)) * dki)
+                    fspec(k) = fspec(k) + ss(kx, ky) ** 2
+                    num(k) = num(k) + 1
+                enddo
+            enddo
+
+            do k = 0, kmax
+                if (num(k) > 0) then
+                   spec(k) = spec(k) / dble(num(k))
+                else
+                   print *, "Bin", k, " is empty!"
+                endif
+            enddo
+        end subroutine calculate_spectrum_contribution
+
+        subroutine write_spectrum(boundary)
+            character(*)              :: boundary
             logical                   :: exists = .false.
             character(:), allocatable :: fname
             integer                   :: pos, k
@@ -130,7 +148,7 @@ program genspec
             pos = scan(trim(filename), '.', back=.true.)
 
             if (pos > 0) then
-                fname = filename(1:pos-1) // '_spectrum.asc'
+                fname = filename(1:pos-1) // '_' // boundary // '_boundary_spectrum.asc'
             else
                 print *, "Error in reading the filename. File extension not found."
             endif
@@ -185,7 +203,7 @@ program genspec
                 else if (arg == '--help') then
                     print *, 'This program computes the power spectrum and writes it to file.'
                     print *, 'A PS3D field output must be provided with the step number to analyse.'
-                    print *, 'Run code with "genspec --filename [field file] --step [step number]"'
+                    print *, 'Run code with "genspec2d --filename [field file] --step [step number]"'
                     stop
                 endif
                 i = i+1
@@ -211,4 +229,4 @@ program genspec
             endif
         end subroutine parse_command_line
 
-end program genspec
+end program genspec2d

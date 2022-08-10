@@ -8,14 +8,21 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description='Create cross section figures.')
-parser.add_argument('--filename',
+parser.add_argument('--filenames',
                     type=str,
+                    nargs='+',
                     help='output file')
 parser.add_argument('--steps',
                     type=int,
-                    nargs=6,
-                    default=[0, 1, 2, 3, 4, 5],
-                    help='add 6 steps to plot')
+                    nargs=9,
+                    default=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+                    help='add 9 steps to plot')
+
+parser.add_argument('--file_numbers',
+                    type=int,
+                    nargs=9,
+                    default=[0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    help='the file by index to read data from')
 
 parser.add_argument('--plane',
                     type=str,
@@ -44,18 +51,25 @@ parser.add_argument('--fields',
                     nargs='+',
                     help='fields to plot')
 
+parser.add_argument('--norms',
+                    nargs=9,
+                    help='color map norms',
+                    default=[None]*9)
+
 parser.add_argument('--zlabel',
                     default=r'$z = -\pi/2$',
                     help='z-label for location')
 
 args = parser.parse_args()
-fname = args.filename
+fnames = args.filenames
 steps = np.asarray(args.steps)
+file_numbers = np.asarray(args.file_numbers)
 plane = args.plane
 loc = args.loc
 save_path = args.save_path
 overwrite = args.overwrite
 fields = args.fields
+norms = args.norms
 fignums = args.fignums
 zlabel = args.zlabel
 
@@ -72,26 +86,25 @@ if not len(fields) == len(fignums):
     exit()
 
 print()
-print("\tFilename:  ", fname)
-print("\tFields:    ", fields)
-print("\tSteps:     ", steps)
-print("\tPlane:     ", plane)
-print("\tLocation:  ", loc)
-print("\tSave path: ", save_path)
-print("\tOverwrite: ", overwrite)
-print("\tFignums:   ", fignums)
+print("\tFiles:       ", fnames)
+print("\tFields:      ", fields)
+print("\tSteps:       ", steps)
+print("\tFile numbers:", file_numbers)
+print("\tNorms:       ", norms)
+print("\tPlane:       ", plane)
+print("\tLocation:    ", loc)
+print("\tSave path:   ", save_path)
+print("\tOverwrite:   ", overwrite)
+print("\tFignums:     ", fignums)
 print()
 
 ncreader = nc_reader()
-ncreader.open(fname)
-
-t = ncreader.get_all('t')
 
 for j, field in enumerate(fields):
     print('Plotting', field)
-    fig = plt.figure(figsize=(8, 5), dpi=200)
+    fig = plt.figure(figsize=(8, 7.5), dpi=200)
     grid = ImageGrid(fig, 111,
-                    nrows_ncols=(2, 3),
+                    nrows_ncols=(3, 3),
                     aspect=True,
                     axes_pad=(0.45, 0.3),
                     direction='row',
@@ -102,21 +115,27 @@ for j, field in enumerate(fields):
                     cbar_pad=0.05)
 
     for i, step in enumerate(steps):
+        ncreader.open(fnames[file_numbers[i]])
+        t = ncreader.get_all('t')
+                      
         fdata = ncreader.get_dataset(step=step, name=field)
 
         ax = grid[i]
         im, cbar = make_imshow(ax=ax,
-                            plane=plane,
-                            loc=loc,
-                            fdata=fdata,
-                            ncr=ncreader,
-                            cmap='rainbow4',
-                            colorbar=True)
+                               plane=plane,
+                               loc=loc,
+                               fdata=fdata,
+                               ncr=ncreader,
+                               cmap='rainbow4',
+                               cmap_norm=norms[i],
+                               colorbar=True)
 
-        if i < 3:
+        ncreader.close()
+        
+        if i < 6:
             remove_xticks(ax)
 
-        if i == 0 or i == 3:
+        if i == 0 or i == 3 or i == 6:
             pass
         else:
             remove_yticks(ax)
@@ -124,9 +143,7 @@ for j, field in enumerate(fields):
         add_timestamp(ax, t[step], xy=(0.03, 1.06), fmt="%.2f")
 
     if not zlabel is None:
-        add_annotation(grid[2], zlabel, xy=(0.6, 1.2), fontsize=12)
+        add_annotation(grid[0], zlabel, xy=(-0.5, 1.25), fontsize=12)
 
     save_figure(plt=plt, figpath=save_path, fignum=fignums[j], overwrite=overwrite)
     plt.close()
-
-ncreader.close()
