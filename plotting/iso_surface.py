@@ -124,7 +124,7 @@ class iso_surface:
 
         if self._add_color_bar:
             self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
-        self._set_camera_position()
+        self._set_camera_position(**kwargs)
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
         """
@@ -172,7 +172,7 @@ class iso_surface:
                 os.remove(os.path.join(tmp_dir, 'frame' + str(i).zfill(5) + '.png'))
             os.rmdir(tmp_dir)
 
-    def export(self, file_path, file_name):
+    def export(self, file_path, file_name, **kwargs):
         # make sure we have recent view
         self._render_view.Update()
         # get extension
@@ -181,12 +181,12 @@ class iso_surface:
             SaveScreenshot(os.path.join(file_path, file_name),
                            self._render_view,
                            ImageResolution=[self._width, self._height],
-                           CompressionLevel=5)
-        elif ext == '.jpg':
+                           CompressionLevel=kwargs.get('compression_level', 5))
+        elif ext == '.jpeg' or ext == '.jpg':
             SaveScreenshot(os.path.join(file_path, file_name),
                            self._render_view,
                            ImageResolution=[self._width, self._height],
-                           Quality=50)
+                           Quality=kwargs.get('quality', 50))
         elif ext == '.eps':
             ExportView(os.path.join(file_path, file_name), view=self._render_view)
         else:
@@ -461,6 +461,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour_display.DataAxesGrid = 'GridAxesRepresentation'
         self._contour_display.PolarAxes = 'PolarAxesRepresentation'
         self._contour_display.LookupTable = self._lut
+        self._contour_display.SetScalarBarVisibility(self._render_view, False)
         self._render_view.Update()
 
     def _create_color_bar(self, field_name, vmin, vmax):
@@ -507,9 +508,9 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
                                                        endpoint=True)
         self._render_view.Update()
 
-    def _set_camera_position(self):
+    def _set_camera_position(self, **kwargs):
         self._render_view.CameraPosition = [-8, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
-        self._render_view.CameraFocalPoint = [-0.75, 0, 0]
+        self._render_view.CameraFocalPoint = kwargs.get('cam_focal_point', [-0.75, 0, 0])
         #self._render_view.CameraParallelScale = 2.0
         self._render_view.Update()

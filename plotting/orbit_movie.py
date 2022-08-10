@@ -24,7 +24,7 @@ parser.add_argument('--step',
 args = parser.parse_args()
 fname = args.filename
 field = args.field
-steps = args.steps
+step = args.step
 save_path = args.save_path
 
 print()
@@ -34,15 +34,20 @@ print("\tStep:                   ", step)
 print("\tSave path:              ", save_path)
 print()
 
-iso.save_camera_orbiting_animation(step=step, n_frames=360,
+iso = iso_surface(create_cmaps=True)
+iso.open(fname, width=1750, height=1600)
+
+iso.save_camera_orbiting_animation(field_name=field,
+                                   step=step,
+                                   n_frames=360,
                                    file_path='./movies',
                                    file_name="movie1.mp4",
-                                   keep_frames=False)
-
-
-#iso.save_animation(beg=0, end=100,
-                   #fps=25,
-                   #file_path='./',
-                   #file_name="animation.mp4",
-                   #keep_frames=True)
+                                   keep_frames=False,
+                                   n_iso=100,
+                                   vmin=0.0,
+                                   colormap='rainbow4',
+                                   enable_opacity=True,
+                                   opacity_vmax=1.0,
+                                   opacity_vmin=0.0,
+                                   invert_colormap=True)
 

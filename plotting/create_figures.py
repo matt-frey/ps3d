@@ -29,8 +29,8 @@ parser.add_argument('--figures',
                     help='which figures to plot',
                     default=np.arange(2, 16, dtype=int))
 
-parser.add_argument('--supplementary',
-                    help='create supplementary material',
+parser.add_argument('--movies',
+                    help='create movies',
                     action='store_true')
 
 parser.add_argument('--graphical_abstract',
@@ -43,7 +43,7 @@ spath = args.script_path
 save_path = args.save_path
 overwrite = args.overwrite
 figures = args.figures
-sup = args.supplementary
+movies = args.movies
 ga = args.graphical_abstract
 
 # Figure 2:
@@ -282,23 +282,17 @@ if 100 in figures:
               " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
               " --fignum 100" + \
               " --overwrite" + \
-              " --save_path figures")
+              " --save_path " + save_path)
 
-if sup:
-    os.system("python " + os.path.join(spath, "plot_slices_2x3.py") + \
-            " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
-            " --plane 'xy'" + \
-            " --loc 256" + \
-            " --zlabel '$z = \pi/2$'" + \
-            " --steps 0 10 16 20 26 40" + \
-            " --file_numbers 0 0 0 0 0 0" + \
-            " --field pressure" + \
-            " --colormaps coolwarm coolwarm coolwarm coolwarm coolwarm coolwarm" + \
-            " --norms centered centered centered centered centered centered" + \
-            " --fignum 100" + \
-            " --overwrite" + \
-            " --save_path " + save_path)
-    os.rename(os.path.join(save_path, 'fig100.pdf'),
-              os.path.join(save_path, 'pressure_slice_plots_xy_plane_z_top.pdf')
+if movies:
+    os.system("python " + os.path.join(spath, "orbit_movie.py") + \
+              " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+              " --step 26" + \
+              " --field vorticity_magnitude" + \
+              " --save_path " + save_path)
 
 if ga:
+    os.system("python " + os.path.join(spath, "plot_graphical_abstract.py") + \
+              " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+              " --step 20" + \
+              " --save_path " + save_path)
