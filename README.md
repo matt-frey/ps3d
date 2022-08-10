@@ -1,5 +1,5 @@
 <!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5940225.svg)](https://doi.org/10.5281/zenodo.5940225) -->
-[![License](https://img.shields.io/github/license/matt-frey/epic)](https://github.com/matt-frey/ps3d/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/matt-frey/ps3d)](https://github.com/matt-frey/ps3d/blob/main/LICENSE)
 
 
 # Pseudo-spectral code for turbulent flows in 3D
@@ -43,4 +43,5 @@ matplotlib (version 3.5.2) and ParaView (version 5.10.1). You can install the Py
 ```
 $ conda create --name <env> --file requirements.txt
 ```
-where `<env>` denotes a user-defined environment name like `ps3d-env`.
+where `<env>` denotes a user-defined environment name like `ps3d-env`. To install conda, please read the relevant
+documentation.
