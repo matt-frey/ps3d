@@ -27,4 +27,6 @@ This will generate a field file in NetCDF format. The name of the file is specif
 ```
 $ ps3d --config beltrami_32.config
 ```
-The NetCDF file is specified in the configuration file too.
+The NetCDF file is specified in the configuration file too. In order to restart a simulation from a previous
+simulation, you need to update `field_file` and the step number with `field_step` to the configuration file.
+Please see the file `beltrami_256_restart.config` in the `examples` directory for an example.
