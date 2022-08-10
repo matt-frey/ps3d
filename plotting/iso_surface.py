@@ -64,10 +64,10 @@ class iso_surface:
                                                                                                x[1],
                                                                                                x[2],
                                                                                                x[3]))
-                    
+
                 fid.write('</ColorMap>\n')
                 fid.write('</ColorMaps>')
-                
+
             ImportPresets(filename=cc_names[j] + '.xml')
 
     def open(self, fname, **kwargs):
@@ -80,7 +80,7 @@ class iso_surface:
         self._pvnc.SphericalCoordinates = 0
         self._animation_scene = GetAnimationScene()
         self._animation_scene.UpdateAnimationUsingDataTimeSteps()
-        self._set_basic_render_view()
+        self._set_basic_render_view(**kwargs)
 
         if kwargs.get('add_time', True):
             self._create_time_stamp_filter()
@@ -117,10 +117,13 @@ class iso_surface:
         self._add_clabel = kwargs.get('add_clabel', True)
         self._use_log_scale = kwargs.get('use_log_scale', False)
         self._n_color_bar_ticks = kwargs.get('n_color_bar_ticks', 10)
+        self._add_color_bar = kwargs.get('add_color_bar', True)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso, step=step)
-        self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
+
+        if self._add_color_bar:
+            self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
         self._set_camera_position()
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
@@ -246,41 +249,46 @@ class iso_surface:
         self._ncreader.close()
         self._clear()
 
-    def _set_basic_render_view(self):
+    def _set_basic_render_view(self, **kwargs):
         self._render_view = GetActiveViewOrCreate('RenderView')
         self._render_view.UseColorPaletteForBackground = 0
         self._render_view.Background = [1, 1, 1] # white background
         self._render_view.ResetCamera(False)
         self._render_view.CenterAxesVisibility = 0
         self._render_view.OrientationAxesVisibility = 0
-        self._render_view.AxesGrid.Visibility = 1
+        self._render_view.AxesGrid.Visibility = int(kwargs.get('add_axes', True))
         self._render_view.AxesGrid.DataBoundsScaleFactor = 1.008
 
-        axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
-        self._render_view.AxesGrid.XAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.XAxisLabels = axis_labels[0:-1]
+        if kwargs.get('add_axes', True):
+            axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
+            self._render_view.AxesGrid.XAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.XAxisLabels = axis_labels[0:-1]
 
-        self._render_view.AxesGrid.YAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.YAxisLabels = axis_labels
+            self._render_view.AxesGrid.YAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.YAxisLabels = axis_labels
 
-        self._render_view.AxesGrid.ZAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.ZAxisLabels = axis_labels
+            self._render_view.AxesGrid.ZAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.ZAxisLabels = axis_labels
 
-        self._render_view.AxesGrid.XTitle = 'x'
-        self._render_view.AxesGrid.YTitle = 'y'
-        self._render_view.AxesGrid.ZTitle = 'z'
-        self._render_view.AxesGrid.XTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.XTitleFontSize = 30
-        self._render_view.AxesGrid.YTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.YTitleFontSize = 30
-        self._render_view.AxesGrid.ZTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.ZTitleFontSize = 30
-        self._render_view.AxesGrid.XLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.XLabelFontSize = 25
-        self._render_view.AxesGrid.YLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.YLabelFontSize = 25
-        self._render_view.AxesGrid.ZLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.ZLabelFontSize = 25
+            self._render_view.AxesGrid.XTitle = 'x'
+            self._render_view.AxesGrid.YTitle = 'y'
+            self._render_view.AxesGrid.ZTitle = 'z'
+            self._render_view.AxesGrid.XTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.XTitleFontSize = 30
+            self._render_view.AxesGrid.YTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.YTitleFontSize = 30
+            self._render_view.AxesGrid.ZTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.ZTitleFontSize = 30
+            self._render_view.AxesGrid.XLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.XLabelFontSize = 25
+            self._render_view.AxesGrid.YLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.YLabelFontSize = 25
+            self._render_view.AxesGrid.ZLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.ZLabelFontSize = 25
+        else:
+            self._render_view.AxesGrid.XTitle = ''
+            self._render_view.AxesGrid.YTitle = ''
+            self._render_view.AxesGrid.ZTitle = ''
         self._render_view.Update()
 
     def _create_time_stamp_filter(self):
@@ -354,7 +362,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour.ContourBy = ['POINTS', field_name]
 
         self._contour.Isosurfaces = np.linspace(vmin, vmax, n_iso, endpoint=True)
-            
+
         self._contour.PointMergeMethod = 'Uniform Binning'
 
         # set active source
@@ -403,7 +411,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
                 v = self._opacity_values[i]
                 points = points + [vmax * p, v, 0.5, 0.0]
                 points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
-                
+
             self._pwf.Points = points
 
         else:

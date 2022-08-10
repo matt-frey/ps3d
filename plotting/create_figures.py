@@ -1,3 +1,4 @@
+#python create_figures.py --file_path paper_runs/ --save_path ./figures/ --script_path $HOME/ps3d/plotting
 import argparse
 import numpy as np
 import os
@@ -28,7 +29,13 @@ parser.add_argument('--figures',
                     help='which figures to plot',
                     default=np.arange(2, 16, dtype=int))
 
-#python create_figures.py --file_path paper_runs/ --save_path ./figures/ --script_path $HOME/ps3d/plotting
+parser.add_argument('--supplementary',
+                    help='create supplementary material',
+                    action='store_true')
+
+parser.add_argument('--graphical_abstract',
+                    help='create graphical abstract',
+                    action='store_true')
 
 args = parser.parse_args()
 fpath = args.file_path
@@ -36,6 +43,8 @@ spath = args.script_path
 save_path = args.save_path
 overwrite = args.overwrite
 figures = args.figures
+sup = args.supplementary
+ga = args.graphical_abstract
 
 # Figure 2:
 if 2 in figures:
@@ -52,7 +61,7 @@ if 3 in figures:
               " --fignum 3" + \
               " --overwrite" + \
               " --save_path " + save_path)
-    
+
 # Figure 4:
 if 4 in figures:
     os.system("python " + os.path.join(spath, "plot_slice_difference.py") + \
@@ -99,8 +108,8 @@ if 6 in figures:
                   " --fignum 6" + \
                   " --overwrite" + \
                   " --save_path " + save_path)
-        
-        
+
+
     os.system("python " + os.path.join(spath, "plot_iso_surfaces_2x3.py") + \
               " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc ") + \
               " --steps 0 10 16 20 26 40" + \
@@ -205,7 +214,7 @@ if 11 in figures:
 
 # Figure 12:
 if 12 in figures:
-    os.system("python " + os.path.join(spath, "plot_vorticity_profiles.py") + \
+    os.system("python " + os.path.join(spath, "plot_vor_vel_profiles.py") + \
               " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc ") + \
               os.path.join(fpath, "beltrami_256_fields.nc") + \
               " --steps 0 10 16 20 26 40 10" + \
@@ -274,21 +283,22 @@ if 100 in figures:
               " --fignum 100" + \
               " --overwrite" + \
               " --save_path figures")
-exit()
 
+if sup:
+    os.system("python " + os.path.join(spath, "plot_slices_2x3.py") + \
+            " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
+            " --plane 'xy'" + \
+            " --loc 256" + \
+            " --zlabel '$z = \pi/2$'" + \
+            " --steps 0 10 16 20 26 40" + \
+            " --file_numbers 0 0 0 0 0 0" + \
+            " --field pressure" + \
+            " --colormaps coolwarm coolwarm coolwarm coolwarm coolwarm coolwarm" + \
+            " --norms centered centered centered centered centered centered" + \
+            " --fignum 100" + \
+            " --overwrite" + \
+            " --save_path " + save_path)
+    os.rename(os.path.join(save_path, 'fig100.pdf'),
+              os.path.join(save_path, 'pressure_slice_plots_xy_plane_z_top.pdf')
 
-####################
-
-os.system("python " + os.path.join(spath, "plot_slices_2x3.py") + \
-          " --filenames " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
-          " --plane 'xy'" + \
-          " --loc 256" + \
-          " --zlabel '$z = \pi/2$'" + \
-          " --steps 0 10 16 18 20 40" + \
-          " --file_numbers 0 0 0 0 0 0" + \
-          " --fields pressure pressure pressure pressure pressure pressure" + \
-          " --colormaps coolwarm coolwarm coolwarm coolwarm coolwarm coolwarm" + \
-          " --norms centered centered centered centered centered centered" + \
-          " --fignum 12" + \
-          " --overwrite" + \
-          " --save_path " + save_path)
+if ga:

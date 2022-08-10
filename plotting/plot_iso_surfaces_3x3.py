@@ -42,59 +42,14 @@ parser.add_argument('--fields',
                     nargs='+',
                     help='fields to plot')
 
-#parser.add_argument('--colormap',
-#                    default='Cool to Warm',
-#                    help='color map')
-
-#parser.add_argument('--enable_opacity',
-#                    help='activate opacity',
-#                    action='store_true')
-
-#parser.add_argument('--vmin',
-#                    type=float,
-#                    help='set vmin',
-#                    default=None)
-
-#parser.add_argument('--invert_colormap',
-#                    help='invert the colormap',
-#                    action='store_true')
-
-#parser.add_argument('--opacity_points',
-#                    type=float,
-#                    nargs='+',
-#                    help='additional opacity points w.r.t. vmax',
-#                    default=[])
-
-#parser.add_argument('--opacity_values',
-#                    type=float,
-#                    nargs='+',
-#                    help='opacity values associated with the opacity points',
-#                    default=[])
-
-#parser.add_argument('--opacity_vmax',
-#                    type=float,
-#                    help='opacity at vmax')
-
-#parser.add_argument('--opacity_vmin',
-#                    type=float,
-#                    help='opacity at vmin')
-
 args = parser.parse_args()
 fnames = args.filenames
 steps = np.asarray(args.steps)
 file_numbers = np.asarray(args.file_numbers)
-#enable_opacity = args.enable_opacity
-#invert_colormap = args.invert_colormap
 save_path = args.save_path
 overwrite = args.overwrite
 fields = args.fields
 fignums = args.fignums
-#colormap = args.colormap
-#vmin = args.vmin
-#opacity_points = args.opacity_points
-#opacity_values = args.opacity_values
-#opacity_vmax = args.opacity_vmax
-#opacity_vmin = args.opacity_vmin
 
 if fields is None:
     print("No fields provided.")
@@ -110,12 +65,6 @@ if not len(fields) == len(fignums):
 print()
 print("\tFiles:           ", fnames)
 print("\tFields:          ", fields)
-#print("\tColor map:       ", colormap)
-#print("\tInvert color map:", invert_colormap)
-#print("\tEnable opacity:  ", enable_opacity)
-#print("\tOpacity vmax:    ", opacity_vmax)
-#print("\tOpacity vmin:    ", opacity_vmin)
-#print("\tColorbar vmin:   ", vmin)
 print("\tSteps:           ", steps)
 print("\tFile numbers:    ", file_numbers)
 print("\tSave path:       ", save_path)
@@ -139,30 +88,8 @@ for j, field in enumerate(fields):
                     cbar_size="4%",
                     cbar_pad=0.05)
 
-#    for i, step in enumerate(steps):
-#        ncreader.open(fnames[file_numbers[i]])
-#        t = ncreader.get_all('t')
-#        ncreader.close()
-
-#        iso = iso_surface(create_cmaps=True)
-#        iso.open(fnames[file_numbers[i]], add_time=False, width=1750, height=1600)
-#        iso.render(field_name=field, step=step,
-#                   n_iso=40,
-#                   vmin=vmin,
-#                   colormap=colormap,
-#                   enable_opacity=enable_opacity,
-#                   opacity_vmax=opacity_vmax,
-#                   opacity_vmin=opacity_vmin,
-#                   opacity_points=opacity_points,
-#                   opacity_values=opacity_values,
-#                   invert_colormap=invert_colormap,
-#                   add_clabel=False)
-#        iso.export(file_path=save_path, file_name='temp_fig' + str(fignums[j]) + '_' + str(i) + '.png')
-#        iso.close()
-#        iso = None
-
     for i, step in enumerate(steps):
-        ncreader.open(fnames[file_numbers[i]])                                                          
+        ncreader.open(fnames[file_numbers[i]])
         t = ncreader.get_all('t')
         ncreader.close()
         im = plt.imread(os.path.join(save_path, 'temp_fig' + str(fignums[j]) + '_' + str(i) + '.png'))
@@ -173,6 +100,3 @@ for j, field in enumerate(fields):
 
     save_figure(plt=plt, figpath=save_path, fignum=fignums[j], overwrite=overwrite)
     plt.close()
-
-    #for i in range(9):
-    #    os.remove(os.path.join(save_path, 'temp_fig' + str(fignums[j]) + '_' + str(i) + '.png'))
