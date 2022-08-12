@@ -105,6 +105,17 @@ parser.add_argument('--n_color_bar_ticks',
                     default=10,
                     help='number of color bar ticks')
 
+parser.add_argument('--add_time',
+                    type=bool,
+                    default=False)
+
+parser.add_argument('--time_format',
+                    type=str,
+                    default='3.5f')
+
+parser.add_argument('--add_clabel',
+                    type=bool,
+                    default=False)
 
 args = parser.parse_args()
 fname = args.filename
@@ -167,7 +178,11 @@ for j, field in enumerate(fields):
     ncreader.close()
 
     iso = iso_surface(create_cmaps=True)
-    iso.open(fname, add_time=False, width=1750, height=1600)
+    iso.open(fname,
+             add_time=args.add_time,
+             time_format=args.time_format,
+             width=1750,
+             height=1600)
     iso.render(field_name=field, step=step,
                n_iso=100,
                vmin=vmin,
@@ -184,7 +199,7 @@ for j, field in enumerate(fields):
                color_values=color_values,
                use_log_scale=use_log,
                n_color_bar_ticks=n_color_bar_ticks,
-               add_clabel=False)
+               add_clabel=args.add_clabel)
     iso.export(file_path=save_path, file_name='temp_fig' + str(fignum) + '_' + str(subfignum) + '.png')
     iso.close()
     iso = None

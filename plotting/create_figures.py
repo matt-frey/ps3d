@@ -29,8 +29,12 @@ parser.add_argument('--figures',
                     help='which figures to plot',
                     default=np.arange(2, 16, dtype=int))
 
-parser.add_argument('--movies',
-                    help='create movies',
+parser.add_argument('--movie1',
+                    help='create movie 1',
+                    action='store_true')
+
+parser.add_argument('--movie2',
+                    help='create movie 2',
                     action='store_true')
 
 parser.add_argument('--graphical_abstract',
@@ -43,7 +47,8 @@ spath = args.script_path
 save_path = args.save_path
 overwrite = args.overwrite
 figures = args.figures
-movies = args.movies
+movie1 = args.movie1
+movie2 = args.movie2
 ga = args.graphical_abstract
 
 # Figure 2:
@@ -286,7 +291,21 @@ if 100 in figures:
               " --overwrite" + \
               " --save_path " + save_path)
 
-if movies:
+if movie1:
+    if not os.path.exists('movie1'):
+        os.mkdir('movie1')
+    os.system("python " + os.path.join(spath, "time_elapse_movie.py") + \
+              " --filenames " + os.path.join(fpath, "beltrami_256_fields.nc ") + \
+              os.path.join(fpath, "beltrami_256_restart_fields.nc ") + \
+              os.path.join(fpath, "beltrami_256_fields.nc") + \
+              " --script_path " + spath + \
+              " --start_step 0 0 8" + \
+              " --end_step 4 40 10" + \
+              " --field vorticity_magnitude" + \
+              " --movie_name movie1.mp4" + \
+              " --save_path movie1")
+
+if movie2:
     os.system("python " + os.path.join(spath, "orbit_movie.py") + \
               " --filename " + os.path.join(fpath, "beltrami_256_restart_fields.nc") + \
               " --step 26" + \

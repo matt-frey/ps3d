@@ -35,19 +35,20 @@ print("\tSave path:              ", save_path)
 print()
 
 iso = iso_surface(create_cmaps=True)
-iso.open(fname, width=1750, height=1600)
+iso.open(fname, width=1750, height=1600, add_time=False)
 
 iso.save_camera_orbiting_animation(field_name=field,
                                    step=step,
                                    n_frames=360,
                                    file_path='./movies',
-                                   file_name="movie1.mp4",
-                                   keep_frames=False,
+                                   file_name="movie2.mp4",
+                                   keep_frames=True,
                                    n_iso=100,
                                    vmin=0.0,
                                    colormap='rainbow4',
                                    enable_opacity=True,
                                    opacity_vmax=1.0,
                                    opacity_vmin=0.0,
+                                   add_color_bar=True,
                                    invert_colormap=True)
 

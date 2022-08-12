@@ -83,7 +83,7 @@ class iso_surface:
         self._set_basic_render_view(**kwargs)
 
         if kwargs.get('add_time', True):
-            self._create_time_stamp_filter()
+            self._create_time_stamp_filter(**kwargs)
         self._create_programmable_filters()
 
         self._layout = GetLayout()
@@ -151,8 +151,9 @@ class iso_surface:
         self._render_view.CameraFocalPoint = [0, 0, 0]
         self._render_view.AxesGrid.Visibility = 0
 
-        self._color_bar.ScalarBarLength = 0.25
-        self._color_bar.Position = [0.89, 0.15]
+        if self._add_color_bar:
+            self._color_bar.ScalarBarLength = 0.25
+            self._color_bar.Position = [0.89, 0.15]
 
         self._render_view.Update()
 
@@ -161,10 +162,10 @@ class iso_surface:
         dtheta = 360 / n_frames
         for i in range(0, n_frames):
             camera.Azimuth(dtheta)
-            self._render_view.Update()
+            #self._render_view.Update()
             self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
-
-        os.system('ffmpeg -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
+        
+        os.system('ffmpeg -r 10 -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
                   ' -c:v libx264 -vf fps=' + str(fps) + ' ' + file_name)
 
         if not keep_frames:
@@ -291,9 +292,10 @@ class iso_surface:
             self._render_view.AxesGrid.ZTitle = ''
         self._render_view.Update()
 
-    def _create_time_stamp_filter(self):
+    def _create_time_stamp_filter(self, **kwargs):
         time_filter = AnnotateTimeFilter(registrationName='TimeStampFilter', Input=self._pvnc)
-        time_filter.Format = 't = {time:3.5f}'
+        time_format = kwargs.get('time_format', '3.5f')
+        time_filter.Format = 'Time: {time:'+time_format+'}'
 
         SetActiveSource(time_filter)
 
@@ -302,7 +304,7 @@ class iso_surface:
         time_filter_display.FontSize = 40
         time_filter_display.Bold = 1
         time_filter_display.WindowLocation = 'Any Location'
-        time_filter_display.Position = [0.05, 0.9]
+        time_filter_display.Position = [0.05, 0.95]
         self._render_view.Update()
 
     def _create_programmable_filters(self):
@@ -376,9 +378,6 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
 
         # rescale color and/or opacity maps used to include current data range
         self._contour_display.RescaleTransferFunctionToDataRange(True, False)
-
-        # show color bar/color legend
-        self._contour_display.SetScalarBarVisibility(self._render_view, True)
 
         # get color transfer function/color map for field_name
         self._lut = GetColorTransferFunction(field_name)
@@ -461,7 +460,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour_display.DataAxesGrid = 'GridAxesRepresentation'
         self._contour_display.PolarAxes = 'PolarAxesRepresentation'
         self._contour_display.LookupTable = self._lut
-        self._contour_display.SetScalarBarVisibility(self._render_view, False)
+        self._contour_display.SetScalarBarVisibility(self._render_view, self._add_color_bar)
         self._render_view.Update()
 
     def _create_color_bar(self, field_name, vmin, vmax):
