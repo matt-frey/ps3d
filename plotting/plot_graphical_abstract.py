@@ -6,6 +6,7 @@ import colorcet as cc
 from utils import *
 import argparse
 import os
+from iso_surface import *
 
 parser = argparse.ArgumentParser(description='Create graphical abstract.')
 parser.add_argument('--filename',
@@ -32,23 +33,21 @@ print("\tStep:      ", step)
 print("\tSave path: ", save_path)
 print()
 
-mpl.rcParams['font.size'] = 16
+iso = iso_surface(create_cmaps=True)
 
-ncreader = nc_reader()
-ncreader.open(fname)
-
-#t = ncreader.get_all('t')
-
-# ratio 1.2:1
-# 1 cm = 37.7952755906 pixel
-px = 37.7952755906
-height_pixels = 5 * px
-image = make_volume_rendering(ncr=ncreader, step=step, field='vorticity_magnitude',
-                              show_axes=False, show_colorbar=False, fmt='jpeg',
-                              surface_count=150, width=1.2*height_pixels, height=height_pixels,
-                              scale=10.0, margin={'r': 1, 'b': 1, 'l': 1, 't': 1})
-
-os.rename('temp_figure.jpeg', 'graphical_abstract.jpeg')
-plt.close()
-
-ncreader.close()
+# ratio must be 1.2 : 1
+iso.open(fname, add_time=False, width=1920, height=1600,
+         add_axes=False)
+iso.render(field_name='vorticity_magnitude', step=step,
+           n_iso=100,
+           vmin=0.0,
+           colormap='rainbow4',
+           enable_opacity=True,
+           opacity_vmax=1.0,
+           opacity_vmin=0.0,
+           invert_colormap=True,
+           cam_focal_point=[0, 0, 0],
+           add_color_bar=False)
+iso.export(file_path=save_path, file_name='graphical_abstract.jpeg', quality=100)
+iso.close()
+iso = None

@@ -152,6 +152,9 @@ u_rms[:, 0] = 0.5 * (u_rms[:, 0] + u_rms[:, 4])
 v_rms[:, 0] = 0.5 * (v_rms[:, 0] + v_rms[:, 4])
 w_rms[:, 0] = 0.5 * (w_rms[:, 0] + w_rms[:, 4])
 
+print("Maximum boundary u r.m.s. divided by initial:", u_rms[:, 0].max() / u_rms[0, 0])
+print("Maximum boundary v r.m.s. divided by initial:", v_rms[:, 0].max() / v_rms[0, 0])
+
 grid[0].plot(t, u_rms[:, 0], label=r'$\langle \partial u_{\mathrm{rms}}\rangle$',
              color=colors[0], linestyle='dashed')
 grid[0].plot(t, v_rms[:, 0], label=r'$\langle \partial v_{\mathrm{rms}}\rangle$',
@@ -175,6 +178,10 @@ grid[0].plot(t, avg, label=r'$\langle w_{\mathrm{rms}}\rangle$', color=colors[2]
 xi_rms[:, 0] = 0.5 * (xi_rms[:, 0] + xi_rms[:, 4])
 eta_rms[:, 0] = 0.5 * (eta_rms[:, 0] + eta_rms[:, 4])
 zeta_rms[:, 0] = 0.5 * (zeta_rms[:, 0] + zeta_rms[:, 4])
+
+print("Maximum boundary xi r.m.s. divided by initial:", xi_rms[:, 0].max() / xi_rms[0, 0])
+print("Maximum boundary eta r.m.s. divided by initial:", eta_rms[:, 0].max() / eta_rms[0, 0])
+print("Maximum boundary zeta r.m.s. divided by initial:", zeta_rms[:, 0].max() / zeta_rms[0, 0])
 
 grid[1].plot(t, xi_rms[:, 0], label=r'$\langle\partial\xi_{\mathrm{rms}}\rangle$',
              color=colors[0], linestyle='dashed')

@@ -64,10 +64,10 @@ class iso_surface:
                                                                                                x[1],
                                                                                                x[2],
                                                                                                x[3]))
-                    
+
                 fid.write('</ColorMap>\n')
                 fid.write('</ColorMaps>')
-                
+
             ImportPresets(filename=cc_names[j] + '.xml')
 
     def open(self, fname, **kwargs):
@@ -80,10 +80,10 @@ class iso_surface:
         self._pvnc.SphericalCoordinates = 0
         self._animation_scene = GetAnimationScene()
         self._animation_scene.UpdateAnimationUsingDataTimeSteps()
-        self._set_basic_render_view()
+        self._set_basic_render_view(**kwargs)
 
         if kwargs.get('add_time', True):
-            self._create_time_stamp_filter()
+            self._create_time_stamp_filter(**kwargs)
         self._create_programmable_filters()
 
         self._layout = GetLayout()
@@ -117,11 +117,14 @@ class iso_surface:
         self._add_clabel = kwargs.get('add_clabel', True)
         self._use_log_scale = kwargs.get('use_log_scale', False)
         self._n_color_bar_ticks = kwargs.get('n_color_bar_ticks', 10)
+        self._add_color_bar = kwargs.get('add_color_bar', True)
 
         self._animation_scene.AnimationTime = self._times[step]
         self._create_contours(field_name, vmin=vmin, vmax=vmax, n_iso=n_iso, step=step)
-        self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
-        self._set_camera_position()
+
+        if self._add_color_bar:
+            self._create_color_bar(field_name=field_name, vmin=vmin, vmax=vmax)
+        self._set_camera_position(**kwargs)
 
     def save_camera_orbiting_animation(self, field_name, step, n_frames, **kwargs):
         """
@@ -148,8 +151,9 @@ class iso_surface:
         self._render_view.CameraFocalPoint = [0, 0, 0]
         self._render_view.AxesGrid.Visibility = 0
 
-        self._color_bar.ScalarBarLength = 0.25
-        self._color_bar.Position = [0.89, 0.15]
+        if self._add_color_bar:
+            self._color_bar.ScalarBarLength = 0.25
+            self._color_bar.Position = [0.89, 0.15]
 
         self._render_view.Update()
 
@@ -158,10 +162,10 @@ class iso_surface:
         dtheta = 360 / n_frames
         for i in range(0, n_frames):
             camera.Azimuth(dtheta)
-            self._render_view.Update()
+            #self._render_view.Update()
             self.export(file_path=tmp_dir, file_name='frame' + str(i).zfill(5) + '.png')
-
-        os.system('ffmpeg -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
+        
+        os.system('ffmpeg -r 10 -i ' + os.path.join(tmp_dir, 'frame%05d.png') +
                   ' -c:v libx264 -vf fps=' + str(fps) + ' ' + file_name)
 
         if not keep_frames:
@@ -169,7 +173,7 @@ class iso_surface:
                 os.remove(os.path.join(tmp_dir, 'frame' + str(i).zfill(5) + '.png'))
             os.rmdir(tmp_dir)
 
-    def export(self, file_path, file_name):
+    def export(self, file_path, file_name, **kwargs):
         # make sure we have recent view
         self._render_view.Update()
         # get extension
@@ -178,12 +182,12 @@ class iso_surface:
             SaveScreenshot(os.path.join(file_path, file_name),
                            self._render_view,
                            ImageResolution=[self._width, self._height],
-                           CompressionLevel=5)
-        elif ext == '.jpg':
+                           CompressionLevel=kwargs.get('compression_level', 5))
+        elif ext == '.jpeg' or ext == '.jpg':
             SaveScreenshot(os.path.join(file_path, file_name),
                            self._render_view,
                            ImageResolution=[self._width, self._height],
-                           Quality=50)
+                           Quality=kwargs.get('quality', 50))
         elif ext == '.eps':
             ExportView(os.path.join(file_path, file_name), view=self._render_view)
         else:
@@ -246,46 +250,52 @@ class iso_surface:
         self._ncreader.close()
         self._clear()
 
-    def _set_basic_render_view(self):
+    def _set_basic_render_view(self, **kwargs):
         self._render_view = GetActiveViewOrCreate('RenderView')
         self._render_view.UseColorPaletteForBackground = 0
         self._render_view.Background = [1, 1, 1] # white background
         self._render_view.ResetCamera(False)
         self._render_view.CenterAxesVisibility = 0
         self._render_view.OrientationAxesVisibility = 0
-        self._render_view.AxesGrid.Visibility = 1
+        self._render_view.AxesGrid.Visibility = int(kwargs.get('add_axes', True))
         self._render_view.AxesGrid.DataBoundsScaleFactor = 1.008
 
-        axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
-        self._render_view.AxesGrid.XAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.XAxisLabels = axis_labels[0:-1]
+        if kwargs.get('add_axes', True):
+            axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
+            self._render_view.AxesGrid.XAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.XAxisLabels = axis_labels[0:-1]
 
-        self._render_view.AxesGrid.YAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.YAxisLabels = axis_labels
+            self._render_view.AxesGrid.YAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.YAxisLabels = axis_labels
 
-        self._render_view.AxesGrid.ZAxisUseCustomLabels = 1
-        self._render_view.AxesGrid.ZAxisLabels = axis_labels
+            self._render_view.AxesGrid.ZAxisUseCustomLabels = 1
+            self._render_view.AxesGrid.ZAxisLabels = axis_labels
 
-        self._render_view.AxesGrid.XTitle = 'x'
-        self._render_view.AxesGrid.YTitle = 'y'
-        self._render_view.AxesGrid.ZTitle = 'z'
-        self._render_view.AxesGrid.XTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.XTitleFontSize = 30
-        self._render_view.AxesGrid.YTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.YTitleFontSize = 30
-        self._render_view.AxesGrid.ZTitleFontFamily = 'Courier'
-        self._render_view.AxesGrid.ZTitleFontSize = 30
-        self._render_view.AxesGrid.XLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.XLabelFontSize = 25
-        self._render_view.AxesGrid.YLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.YLabelFontSize = 25
-        self._render_view.AxesGrid.ZLabelFontFamily = 'Courier'
-        self._render_view.AxesGrid.ZLabelFontSize = 25
+            self._render_view.AxesGrid.XTitle = 'x'
+            self._render_view.AxesGrid.YTitle = 'y'
+            self._render_view.AxesGrid.ZTitle = 'z'
+            self._render_view.AxesGrid.XTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.XTitleFontSize = 30
+            self._render_view.AxesGrid.YTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.YTitleFontSize = 30
+            self._render_view.AxesGrid.ZTitleFontFamily = 'Courier'
+            self._render_view.AxesGrid.ZTitleFontSize = 30
+            self._render_view.AxesGrid.XLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.XLabelFontSize = 25
+            self._render_view.AxesGrid.YLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.YLabelFontSize = 25
+            self._render_view.AxesGrid.ZLabelFontFamily = 'Courier'
+            self._render_view.AxesGrid.ZLabelFontSize = 25
+        else:
+            self._render_view.AxesGrid.XTitle = ''
+            self._render_view.AxesGrid.YTitle = ''
+            self._render_view.AxesGrid.ZTitle = ''
         self._render_view.Update()
 
-    def _create_time_stamp_filter(self):
+    def _create_time_stamp_filter(self, **kwargs):
         time_filter = AnnotateTimeFilter(registrationName='TimeStampFilter', Input=self._pvnc)
-        time_filter.Format = 't = {time:3.5f}'
+        time_format = kwargs.get('time_format', '3.5f')
+        time_filter.Format = 'Time: {time:'+time_format+'}'
 
         SetActiveSource(time_filter)
 
@@ -294,7 +304,7 @@ class iso_surface:
         time_filter_display.FontSize = 40
         time_filter_display.Bold = 1
         time_filter_display.WindowLocation = 'Any Location'
-        time_filter_display.Position = [0.05, 0.9]
+        time_filter_display.Position = [0.05, 0.95]
         self._render_view.Update()
 
     def _create_programmable_filters(self):
@@ -354,7 +364,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour.ContourBy = ['POINTS', field_name]
 
         self._contour.Isosurfaces = np.linspace(vmin, vmax, n_iso, endpoint=True)
-            
+
         self._contour.PointMergeMethod = 'Uniform Binning'
 
         # set active source
@@ -368,9 +378,6 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
 
         # rescale color and/or opacity maps used to include current data range
         self._contour_display.RescaleTransferFunctionToDataRange(True, False)
-
-        # show color bar/color legend
-        self._contour_display.SetScalarBarVisibility(self._render_view, True)
 
         # get color transfer function/color map for field_name
         self._lut = GetColorTransferFunction(field_name)
@@ -403,7 +410,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
                 v = self._opacity_values[i]
                 points = points + [vmax * p, v, 0.5, 0.0]
                 points = points + [vmax, self._opacity_vmax, 0.5, 0.0]
-                
+
             self._pwf.Points = points
 
         else:
@@ -453,6 +460,7 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
         self._contour_display.DataAxesGrid = 'GridAxesRepresentation'
         self._contour_display.PolarAxes = 'PolarAxesRepresentation'
         self._contour_display.LookupTable = self._lut
+        self._contour_display.SetScalarBarVisibility(self._render_view, self._add_color_bar)
         self._render_view.Update()
 
     def _create_color_bar(self, field_name, vmin, vmax):
@@ -499,9 +507,9 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
                                                        endpoint=True)
         self._render_view.Update()
 
-    def _set_camera_position(self):
+    def _set_camera_position(self, **kwargs):
         self._render_view.CameraPosition = [-8, 4, 4]
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
-        self._render_view.CameraFocalPoint = [-0.75, 0, 0]
+        self._render_view.CameraFocalPoint = kwargs.get('cam_focal_point', [-0.75, 0, 0])
         #self._render_view.CameraParallelScale = 2.0
         self._render_view.Update()

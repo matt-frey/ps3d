@@ -82,6 +82,3 @@ for i in range(6):
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
-
-#for i in range(6):
-#    os.remove(os.path.join(save_path, 'temp_fig' + str(fignum) + '_' + str(i) + '.png'))
