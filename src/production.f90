@@ -65,7 +65,7 @@ program production
 
             ! calculate enstrophy production rates at specific height
             ! (averaged over x and y)
-            call calc_producition_rate_at_height(i)
+            call calc_production_rate_at_height(i)
 
             ! write to file
             z = lower(3) + dble(i) * dx(3)
@@ -113,7 +113,7 @@ program production
 
     contains
 
-        subroutine calc_producition_rate_at_height(iz)
+        subroutine calc_production_rate_at_height(iz)
             integer, intent(in) :: iz
             integer             :: ix, iy, nc
             double precision    :: V(3, 3), D(3)
@@ -133,7 +133,7 @@ program production
 
             etas = etas / (nx * ny)
 
-        end subroutine calc_producition_rate_at_height
+        end subroutine calc_production_rate_at_height
 
         subroutine calc_producition_rates
             integer          :: ix, iy, iz, nc
