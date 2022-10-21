@@ -179,7 +179,7 @@ program production
             call fftxys2p(ds, dudx)
 
             ! du/dy
-            call diffy(svel(:, :, :, 2), ds)
+            call diffy(svel(:, :, :, 1), ds)
             call fftxys2p(ds, dudy)
 
             ! dw/dx
