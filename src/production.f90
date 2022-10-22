@@ -63,6 +63,9 @@ program production
 
         print *, 'Calculate enstrophy production rates at time', t
 
+        ! read field
+        call read_netcdf_fields(ncfname, step)
+
         fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates_step_' // trim(s_step) // '.asc'
         open(unit=1235, file=fname, status='replace')
         write(1235, *) '  # time', t
