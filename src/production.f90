@@ -65,6 +65,7 @@ program production
 
         fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates_step_' // trim(s_step) // '.asc'
         open(unit=1235, file=fname, status='replace')
+        write(1235, *) '  # time', t
         write(1235, *) '  # height eta_1 eta_2 eta_3'
 
         do i = 0, nz
