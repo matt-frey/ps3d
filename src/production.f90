@@ -21,6 +21,7 @@ program production
     logical                       :: l_exist = .false.
     integer                       :: step = 0, ncells(3), n_steps, ncid, i
     logical                       :: l_vertical_profile = .false.
+    character(9)                  :: s_step
     double precision              :: t ! time
     double precision              :: z
     ! strain components
@@ -62,7 +63,7 @@ program production
 
         print *, 'Calculate enstrophy production rates at time', t
 
-        fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates.asc'
+        fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates_step_' // trim(s_step) // '.asc'
         open(unit=1235, file=fname, status='replace')
         write(1235, *) '  # height eta_1 eta_2 eta_3'
 
@@ -281,6 +282,7 @@ program production
                     ! 21 Oct 2022
                     ! https://stackoverflow.com/questions/9900417/character-to-integer-conversion-in-fortran
                     read(arg,'(i9)') step
+                    s_step = trim(arg)
                     l_vertical_profile = .true.
                 else if (arg == '--help') then
                     print *, 'Run code with "production --ncfile [NetCDF file]"'
