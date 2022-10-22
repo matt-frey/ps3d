@@ -9,7 +9,7 @@ program production
     use field_netcdf, only : read_netcdf_fields
     use fields
     use netcdf_reader
-    use parameters, only : lower, extent, nx, ny, nz, update_parameters, ngridi, dx
+    use parameters, only : lower, extent, nx, ny, nz, update_parameters, ncelli, dx
     use inversion_mod, only :
     use inversion_utils, only : init_inversion, fftxyp2s, fftxys2p, diffx, diffy
     use fields, only : vor, svor, vel, svel
@@ -18,10 +18,9 @@ program production
 
     character(512)                :: fname = ""
     character(512)                :: ncfname = ""
-    logical                       :: verbose = .false.
     logical                       :: l_exist = .false.
     integer                       :: step = 0, ncells(3), n_steps, ncid, i
-    logical                       :: l_profile = .false.
+    logical                       :: l_vertical_profile = .false.
     double precision              :: t ! time
     double precision              :: z
     ! strain components
@@ -32,6 +31,8 @@ program production
                                    , dwdy(:, :, :)
     ! enstrophy production rates
     double precision              :: etas(3)
+
+    call parse_command_line
 
     call read_netcdf_domain(ncfname, lower, extent, ncells)
     nx = ncells(1)
@@ -50,12 +51,18 @@ program production
 
     call field_default
 
-    if (l_profile) then
+    if (l_vertical_profile) then
         !
         ! Height profile of production rates at a specific time
         ! (averaged over x and y)
         !
-        fname = 'enstrophy_production_rates.asc'
+        call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+        call get_time_at_step(ncid, step, t)
+        call close_netcdf_file(ncid)
+
+        print *, 'Calculate enstrophy production rates at time', t
+
+        fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates.asc'
         open(unit=1235, file=fname, status='replace')
         write(1235, *) '  # height eta_1 eta_2 eta_3'
 
@@ -81,7 +88,8 @@ program production
         call get_num_steps(ncid, n_steps)
         call close_netcdf_file(ncid)
 
-        fname = 'enstrophy_production_rates.asc'
+        ! 3 is subtracted to remove '.nc'
+        fname = ncfname(1:len(trim(ncfname))-3) // '_enstrophy_production_rates.asc'
         open(unit=1235, file=fname, status='replace')
         write(1235, *) '  # time (s) eta_1 eta_2 eta_3'
         do step = 1, n_steps
@@ -143,8 +151,9 @@ program production
 
             do ix = 0, nx-1
                 do iy = 0, ny-1
-                    do iz = 0, nz
 
+                    ! interior
+                    do iz = 1, nz-1
                         ! calculate eigenvalues and vectors of symmetrised strain matrix (1/2 * (S + S^T)
                         call calc_eigs(ix, iy, iz, D, V)
 
@@ -152,11 +161,23 @@ program production
                             etas(nc) = etas(nc) + D(nc) * sum(vor(iz, iy, ix, :) * V(:, nc)) ** 2
                         enddo
                     enddo
+
+                    ! lower boundary
+                    call calc_eigs(ix, iy, 0, D, V)
+                    do nc = 1, 3
+                        etas(nc) = etas(nc) + f12 * D(nc) * sum(vor(0, iy, ix, :) * V(:, nc)) ** 2
+                    enddo
+
+                    ! upper boundary
+                    call calc_eigs(ix, iy, nz, D, V)
+                    do nc = 1, 3
+                        etas(nc) = etas(nc) + f12 * D(nc) * sum(vor(nz, iy, ix, :) * V(:, nc)) ** 2
+                    enddo
                 enddo
             enddo
 
-            ! ngridi = 1 / (nx * ny * (nz+1))
-            etas = etas * ngridi
+            ! ncelli = 1 / (nx * ny * nz)
+            etas = etas * ncelli
 
         end subroutine calc_producition_rates
 
@@ -254,10 +275,18 @@ program production
                     i = i + 1
                     call get_command_argument(i, arg)
                     ncfname = trim(arg)
-                else if (arg == '--verbose') then
-                    verbose = .true.
+                else if (arg == '--step') then
+                    i = i + 1
+                    call get_command_argument(i, arg)
+                    ! 21 Oct 2022
+                    ! https://stackoverflow.com/questions/9900417/character-to-integer-conversion-in-fortran
+                    read(arg,'(i9)') step
+                    l_vertical_profile = .true.
                 else if (arg == '--help') then
                     print *, 'Run code with "production --ncfile [NetCDF file]"'
+                    print *, '--step [step] (optional) calculate vertical profile of the'
+                    print *, '                         enstrophy production rates at a'
+                    print *, '                         specific time step'
                     stop
                 endif
                 i = i+1
