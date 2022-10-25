@@ -10,7 +10,6 @@ program production
     use fields
     use netcdf_reader
     use parameters, only : lower, extent, nx, ny, nz, update_parameters, ncelli, dx
-    use inversion_mod, only :
     use inversion_utils, only : init_inversion, fftxyp2s, fftxys2p, diffx, diffy
     use fields, only : vor, svor, vel, svel
     use jacobi, only : jacobi_diagonalise
@@ -32,6 +31,7 @@ program production
                                    , dwdy(:, :, :)
     ! enstrophy production rates
     double precision              :: etas(3)
+
 
     call parse_command_line
 
@@ -71,10 +71,10 @@ program production
         write(1235, *) '  # time', t
         write(1235, *) '  # height eta_1 eta_2 eta_3'
 
-        do i = 0, nz
-            ! calculate the strain components
-            call calc_strain
+        ! calculate the strain components
+        call calc_strain
 
+        do i = 0, nz
             ! calculate enstrophy production rates at specific height
             ! (averaged over x and y)
             call calc_production_rate_at_height(i)
@@ -132,6 +132,8 @@ program production
             double precision    :: V(3, 3), D(3)
 
             etas(:) = zero
+            D(:) = zero
+            V(:, :) = zero
 
             do ix = 0, nx-1
                 do iy = 0, ny-1
@@ -143,8 +145,8 @@ program production
                     enddo
                 enddo
             enddo
-
-            etas = etas / (nx * ny)
+             
+            etas(:) = etas(:) / (nx * ny)
 
         end subroutine calc_production_rate_at_height
 
