@@ -18,7 +18,7 @@ parser.add_argument('--steps',
                     type=int,
                     nargs=7,
                     default=[0, 1, 2, 3, 4, 5, 6],
-                    help='9 steps to plot')
+                    help='7 steps to plot')
 
 parser.add_argument('--file_numbers',
                     type=int,

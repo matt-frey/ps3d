@@ -259,9 +259,14 @@ class iso_surface:
         self._render_view.OrientationAxesVisibility = 0
         self._render_view.AxesGrid.Visibility = int(kwargs.get('add_axes', True))
         self._render_view.AxesGrid.DataBoundsScaleFactor = 1.008
+        self._font_size = kwargs.get('font_size', 30)
 
         if kwargs.get('add_axes', True):
             axis_labels = [-1.5, -0.75, 0.0, 0.75, 1.5]
+
+            if self._font_size > 30:
+                axis_labels = [-1.5, -0.75, 0.75, 1.5]
+            
             self._render_view.AxesGrid.XAxisUseCustomLabels = 1
             self._render_view.AxesGrid.XAxisLabels = axis_labels[0:-1]
 
@@ -275,17 +280,17 @@ class iso_surface:
             self._render_view.AxesGrid.YTitle = 'y'
             self._render_view.AxesGrid.ZTitle = 'z'
             self._render_view.AxesGrid.XTitleFontFamily = 'Courier'
-            self._render_view.AxesGrid.XTitleFontSize = 30
+            self._render_view.AxesGrid.XTitleFontSize = self._font_size
             self._render_view.AxesGrid.YTitleFontFamily = 'Courier'
-            self._render_view.AxesGrid.YTitleFontSize = 30
+            self._render_view.AxesGrid.YTitleFontSize = self._font_size
             self._render_view.AxesGrid.ZTitleFontFamily = 'Courier'
-            self._render_view.AxesGrid.ZTitleFontSize = 30
+            self._render_view.AxesGrid.ZTitleFontSize = self._font_size
             self._render_view.AxesGrid.XLabelFontFamily = 'Courier'
-            self._render_view.AxesGrid.XLabelFontSize = 25
+            self._render_view.AxesGrid.XLabelFontSize = self._font_size - 5
             self._render_view.AxesGrid.YLabelFontFamily = 'Courier'
-            self._render_view.AxesGrid.YLabelFontSize = 25
+            self._render_view.AxesGrid.YLabelFontSize = self._font_size - 5
             self._render_view.AxesGrid.ZLabelFontFamily = 'Courier'
-            self._render_view.AxesGrid.ZLabelFontSize = 25
+            self._render_view.AxesGrid.ZLabelFontSize = self._font_size - 5
         else:
             self._render_view.AxesGrid.XTitle = ''
             self._render_view.AxesGrid.YTitle = ''
@@ -468,14 +473,17 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
 
         if self._add_clabel:
             self._color_bar.TitleFontFamily = 'Courier'
-            self._color_bar.TitleFontSize = 30
+            self._color_bar.TitleFontSize = self._font_size
         self._color_bar.LabelFontFamily = 'Courier'
-        self._color_bar.LabelFontSize = 30
+        self._color_bar.LabelFontSize = self._font_size
 
         self._color_bar.ScalarBarThickness = 20
         self._color_bar.ScalarBarLength = 0.5
         self._color_bar.WindowLocation = 'Any Location'
         self._color_bar.Position = [0.89, 0.25]
+
+        if self._font_size > 30:
+            self._color_bar.Position = [0.83, 0.25]
 
         if self._add_clabel:
             if field_name in self._field_label.keys():
@@ -509,6 +517,10 @@ output.PointData.append(u * xi + v * eta + w * zeta, 'helicity')"""
 
     def _set_camera_position(self, **kwargs):
         self._render_view.CameraPosition = [-8, 4, 4]
+
+        if self._font_size > 30:
+            self._render_view.CameraPosition = [-8.5, 7, 4]
+        
         self._render_view.CameraViewUp = [0.0, 0.0, 1.0]
         self._render_view.CameraFocalPoint = kwargs.get('cam_focal_point', [-0.75, 0, 0])
         #self._render_view.CameraParallelScale = 2.0

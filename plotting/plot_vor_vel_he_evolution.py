@@ -118,18 +118,19 @@ ncr1.close()
 #
 # Helicity:
 #
-fig, ax = plt.subplots(1, 1, figsize=(8, 3), dpi=200)
+fig, ax = plt.subplots(1, 1, figsize=(7, 2.5), dpi=200)
 
 print("Initial helicity:", he[0])
 print("Final helicity:", he[-1])
 print("Remaining percent:", he[-1] / he[0] * 100.0)
 
 ax.axvspan(xmin=t2[0], xmax=t2[-1], color='lightgrey', zorder=-1)
-ax.plot(t, he, label=r'$\mathcal{H}(t)$', color=colors[0])
-ax.axhline(he[0], color='black', linestyle='dashdot', label=r'$\mathcal{H}(0)$')
-ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.22))
+ax.plot(t, he / he[0], color=colors[0])
+#ax.axhline(he[0], color='black', linestyle='dashdot', label=r'$\mathcal{H}(0)$')
+#ax.legend(loc='upper center', ncol=6, bbox_to_anchor=(0.5, 1.22))
 ax.set_xlim([-1, 101])
 ax.grid(zorder=-2)
+ax.set_ylabel(r'helicity, $\mathcal{H}(t)/\mathcal{H}(0)$')
 ax.set_xlabel(r'time, $t$')
 
 plt.tight_layout()

@@ -56,9 +56,14 @@ def get_max_magnitude(xcomp, ycomp, zcomp, plane, loc):
     return np.sqrt(magn.max())
             
 # assumes fdata ordering (x, y, z)
-def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, cmap_norm=None):
-    origin = ncr.get_box_origin()
-    extent = ncr.get_box_extent()
+def make_imshow(ax, plane, loc, fdata, ncr, cmap='rainbow4', colorbar=True, cmap_norm=None, **kwargs):
+
+    if ncr == None:
+        origin = kwargs.get('origin')
+        extent = kwargs.get('extent')
+    else:
+        origin = ncr.get_box_origin()
+        extent = ncr.get_box_extent()
 
     # plane = 'xy':
     imin = origin[0]
@@ -141,10 +146,10 @@ def make_mean_profiles(ax, ncr, step, fields, labels, normalise=False, **kwargs)
                 color=colors[i],
                 label=labels[i])
         ax.grid(zorder=-1)
-        ax.set_aspect(1)
+        #ax.set_aspect(1)
         ax.set_yticks(ticks=zticks, labels=zticklab)
-        ax.set_xticks(ticks=xticks)
-        ax.set_xlim(xlim)
+        #ax.set_xticks(ticks=xticks)
+        #ax.set_xlim(xlim)
     return ax
 
 def make_rms_profiles(ax, ncr, step, fields, labels):

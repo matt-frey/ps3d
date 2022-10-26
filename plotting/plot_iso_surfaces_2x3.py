@@ -78,7 +78,7 @@ for i in range(6):
     ax = grid[i]
     ax.imshow(im)
     ax.axis('off')
-    add_timestamp(ax, t[step], xy=(0.03, 1.0), fmt="%.2f", fontsize=8)
+    add_timestamp(ax, t[step], xy=(0.03, 0.94), fmt="%.2f", fontsize=8)
 
 save_figure(plt=plt, figpath=save_path, fignum=fignum, overwrite=overwrite)
 plt.close()
