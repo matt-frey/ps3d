@@ -51,7 +51,7 @@ grids = np.array([32, 64, 128, 256])
 
 #fig, axs = plt.subplots(2, 1, figsize=(4, 4), dpi=200, sharex=True)
 
-fig = plt.figure(figsize=(9, 4), dpi=200, tight_layout=True)
+fig = plt.figure(figsize=(9, 4.5), dpi=200, tight_layout=True)
 gs = gridspec.GridSpec(2, 2)
 
 i = 0
@@ -81,11 +81,11 @@ for grid in grids:
     label = labels[i]
     i = i + 1
 
-    ax0.plot(t, ke, label=label)
-    ax1.plot(t, en, label=label)
+    ax0.plot(t, ke / ke[0], label=label)
+    ax1.plot(t, en / en[0], label=label)
 
 ax1.set_xlabel(r'time, $t$')
-ax1.set_ylabel(r'enstrophy, $\Upsilon$')
+ax1.set_ylabel(r'enstrophy, $\Upsilon(t)/\Upsilon(0)$')
 
 ax0.tick_params(axis='x', which='both', length=0)
 ax0.set_xticklabels([])
@@ -96,7 +96,7 @@ ax1.grid(zorder=-1)
 ax0.set_xlim([50, 101])
 ax1.set_xlim([50, 101])
 
-ax0.set_ylabel(r'kinetic energy, $\mathcal{K}$')
+ax0.set_ylabel(r'kinetic energy, $\mathcal{K}(t)/\mathcal{K}(0)$')
 
 ax0.legend(loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.3))
 
@@ -127,6 +127,7 @@ for i, grid in enumerate(grids):
 
 # ignore nz = 32
 log10_maxen = np.log10(maxen[1:])
+log10_vormax = np.log10(vmax[1:])
 log10_nz = np.log10(grids[1:])
 
 
@@ -146,6 +147,18 @@ ax2.plot(grids, maxen, marker='o', markersize=4, label=r'$\Upsilon$')
 ax2.plot(grids, vmax, marker='o', markersize=4, label=r'$|\bm{\omega}|_{\max}$')
 ax2.plot(grids[1:], 10 ** (m * log10_nz + q), linestyle='dashed', color='black',
          label=r'$\log_{10}\Upsilon\propto' + str(round(m, 3)) + '\log_{10}n_{z}$')
+
+
+# linear fit: log10(vmax) = m * log10(nz) + q
+p_fitted = poly.fit(x=log10_nz, y=log10_vormax, deg=1)
+p_fitted = p_fitted.convert() # to unscale, i.e. makes domain == window --> same result as np.polyfit
+np.polynomial.set_default_printstyle('ascii')
+print("Fitted polynomial:", p_fitted)
+q = p_fitted.coef[0]
+m = p_fitted.coef[1]
+ax2.plot(grids[1:], 10 ** (m * log10_nz + q), linestyle='dashed', color='black')
+
+
 ax2.set_xscale('log', base=2)
 ax2.set_yscale('log', base=10)
 

@@ -117,6 +117,10 @@ parser.add_argument('--add_clabel',
                     type=bool,
                     default=False)
 
+parser.add_argument('--font_size',
+                    type=int,
+                    default=30)
+
 args = parser.parse_args()
 fname = args.filename
 step = args.step
@@ -181,6 +185,7 @@ for j, field in enumerate(fields):
     iso.open(fname,
              add_time=args.add_time,
              time_format=args.time_format,
+             font_size=args.font_size,
              width=1750,
              height=1600)
     iso.render(field_name=field, step=step,
