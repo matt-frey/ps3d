@@ -44,3 +44,5 @@ $ conda create --name <env> --file requirements.txt
 ```
 where `<env>` denotes a user-defined environment name like `ps3d-env`. To install conda, please read the relevant
 documentation.
+
+The enstrophy production rates are calculated using the program `production`. Use the flag `--help` for further information.
