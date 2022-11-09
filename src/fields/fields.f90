@@ -6,6 +6,7 @@ module fields
     use parameters, only : nx, ny, nz, vcell, ncell, ncelli, dx, lower, extent, ngrid
     use constants, only : zero, f12, f14, one, two
     use merge_sort
+    use inversion_utils, only : fftxys2p, diffx, diffy, diffz
     implicit none
 
     ! x: zonal
@@ -153,7 +154,7 @@ module fields
                          + vel(nz, :, :, 3) ** 2)
 
             ! multiply with total volume
-            ke = ke * vcell
+            ke = ke * vcell !* ncell
 
         end function get_kinetic_energy
 
@@ -174,6 +175,39 @@ module fields
             en = en * vcell !* dble(ncell)
 
         end function get_enstrophy
+
+#ifdef ENABLE_BUOYANCY
+        function get_gradb_integral() result(enb)
+            double precision :: enb
+            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)
+            double precision :: mag(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: dbdx(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: dbdy(0:nz, 0:ny-1, 0:nx-1)
+
+            !------------------------------------
+            !Obtain magnitude of buoyancy gradient
+            call diffx(sbuoy, ds)
+            call fftxys2p(ds, dbdx)
+
+            call diffy(sbuoy, ds)
+            call fftxys2p(ds, dbdy)
+
+            call diffz(sbuoy, ds)
+            call fftxys2p(ds, mag)
+
+            ! mag = |gradb|
+            mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)
+
+            !------------------------------------
+            ! Calculate domain integral of |gradb|
+            enb = f12 * sum(mag(1:nz-1, :, :) ** 2) &
+                + f14 * sum(mag(0,      :, :) ** 2) &
+                + f14 * sum(mag(nz,     :, :) ** 2)
+
+            enb = enb * vcell
+
+        end function get_gradb_integral
+#endif
 
         function get_mean_vorticity() result(vormean)
             double precision :: vormean(3)

@@ -97,9 +97,9 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_diffusion(bbdif, ke, en)
+        subroutine init_diffusion(bbdif, te, en)
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
-            double precision, intent(in) :: ke ! kinetic energy
+            double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, K2max
             double precision             :: visc, wfac
@@ -130,7 +130,7 @@ module inversion_utils
                 !Define hyperviscosity:
                 K2max = max(rkxmax, rkymax) ** 2
                 wfac = one / K2max
-                visc = viscosity%prediss *  (K2max * ke /en) ** f13
+                visc = viscosity%prediss *  (K2max * te /en) ** f13
                 write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
 
                 !Define dissipation operator:

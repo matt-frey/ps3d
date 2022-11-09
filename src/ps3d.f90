@@ -44,7 +44,7 @@ program ps3d
                               , output              &
                               , read_config_file    &
                               , time
-            double precision :: bbdif, ke, en
+            double precision :: bbdif, ke, pe, te, en
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -87,8 +87,16 @@ program ps3d
             bbdif = zero
 #endif
             ke = get_kinetic_energy()
+            pe = get_potential_energy()
+            te = ke + pe
             en = get_enstrophy()
-            call init_diffusion(bbdif, ke, en)
+
+#ifdef ENABLE_BUOYANCY
+            ! add buoyancy term to enstrophy
+            en = en + get_gradb_integral()
+#endif
+
+            call init_diffusion(bbdif, te, en)
 
             call calculate_peref
 
