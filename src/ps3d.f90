@@ -90,6 +90,8 @@ program ps3d
             en = get_enstrophy()
             call init_diffusion(bbdif, ke, en)
 
+            call calculate_peref
+
             call setup_output_files
 
             open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
@@ -97,8 +99,12 @@ program ps3d
                  '<xi> ', '<eta> ', '<zeta>'
 
             open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
+#ifdef ENABLE_BUOYANCY
+            write(WRITE_ECOMP, '(a2, a2, a15, a17, a9)') '# ', 't ', 'kinetic energy ', &
+                                                         'potential energy ', 'enstrophy'
+#else
             write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
-
+#endif
         end subroutine
 
 

@@ -160,7 +160,7 @@ module advance_mod
         end function calc_vorticity_mean
 
         subroutine adjust_vorticity_mean
-            double precision :: wk(1:nz), savg(2)
+            double precision :: savg(2)
             integer          :: nc
 
             savg = calc_vorticity_mean()
@@ -189,7 +189,7 @@ module advance_mod
             double precision :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
             !--------------------------------------------------------------
-            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
+            !Buoyancy source bb_t = (u,v,w)*grad(bb): (might be computed in flux form)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             call diffx(sbuoy, xs)
@@ -210,6 +210,8 @@ module advance_mod
 
             !Convert to semi-spectral space and apply de-aliasing filter:
             call fftxyp2s(dbdx, sbuoys)
+
+            sbuoys = filt * sbuoys
 #endif
 
             !--------------------------------------------------------------
@@ -230,6 +232,7 @@ module advance_mod
 #ifdef ENABLE_BUOYANCY
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
+            double precision             :: pe
 #endif
             double precision             :: strain(3, 3), eigs(3)
             double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
@@ -300,7 +303,13 @@ module advance_mod
             ! Save energy and enstrophy
             ke = get_kinetic_energy()
             en = get_enstrophy()
+#ifdef ENABLE_BUOYANCY
+            call field_combine_physical(sbuoy, buoy)
+            pe = get_potential_energy()
+            write(WRITE_ECOMP, '(1x,f13.6,3(1x,1p,e14.7))') t , ke, pe, en
+#else
             write(WRITE_ECOMP, '(1x,f13.6,2(1x,1p,e14.7))') t , ke, en
+#endif
 
             !
             ! velocity strain

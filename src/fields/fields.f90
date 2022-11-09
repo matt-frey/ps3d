@@ -3,8 +3,9 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, vcell, ncell, ncelli
-    use constants, only : zero, f12, f14
+    use parameters, only : nx, ny, nz, vcell, ncell, ncelli, dx, lower, extent, ngrid
+    use constants, only : zero, f12, f14, one, two
+    use merge_sort
     implicit none
 
     ! x: zonal
@@ -34,6 +35,8 @@ module fields
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
+
+    double precision :: peref
 
     contains
 
@@ -82,6 +85,60 @@ module fields
             ini_vor_mean = zero
         end subroutine field_default
 
+        subroutine calculate_peref
+            integer          :: ii(ngrid), i, j, k, n, m
+            double precision :: b(ngrid)
+            double precision :: gam, zmean
+
+            n = 1
+            m = nz+1
+            do i = 0, nx-1
+                do j = 0, ny-1
+                    b(n:m) = buoy(:, j, i)
+                    n = m + 1
+                    m = n + nz
+                enddo
+            enddo
+
+            call msort(b, ii)
+
+            gam = one / (extent(1) * extent(2))
+            zmean = gam * vcell
+
+            peref = - b(1) * vcell * zmean
+
+            do k = 2, ngrid
+                zmean = zmean + gam * two * vcell
+                peref = peref - b(k) * vcell * zmean
+            enddo
+
+        end subroutine calculate_peref
+
+        function get_potential_energy() result(pe)
+            double precision :: pe
+            integer          :: i, j, k
+            double precision :: z(0:nz)
+
+            do k = 0, nz
+                z(k) = dble(k) * dx(3)
+            enddo
+
+            pe = zero
+            do i = 0, nx-1
+                do j = 0, ny-1
+                    pe = pe - sum(buoy(:, j, i) * z(:))
+!                     pe = pe - sum(buoy(1:nz-1, j, i) * z(1:nz-1)) &
+!                             - f12 * buoy(0,  j, i)   * z(0)       &
+!                             - f12 * buoy(nz, j, i)   * z(nz)
+                enddo
+            enddo
+
+            pe = pe * vcell
+
+            pe = pe - peref
+
+        end function get_potential_energy
+
         function get_kinetic_energy() result(ke)
             double precision :: ke
 
@@ -96,7 +153,8 @@ module fields
                          + vel(nz, :, :, 3) ** 2)
 
             ! multiply with total volume
-            ke = ke * vcell * dble(ncell)
+            ke = ke * vcell
+
         end function get_kinetic_energy
 
         function get_enstrophy() result(en)
@@ -113,7 +171,7 @@ module fields
                          + vor(nz, :, :, 3) ** 2)
 
             ! multiply with total volume
-            en = en * vcell * dble(ncell)
+            en = en * vcell !* dble(ncell)
 
         end function get_enstrophy
 

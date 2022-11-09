@@ -17,7 +17,6 @@ program production
 
     character(512)                :: fname = ""
     character(512)                :: ncfname = ""
-    logical                       :: l_exist = .false.
     integer                       :: step = 0, ncells(3), n_steps, ncid, i
     logical                       :: l_vertical_profile = .false.
     character(9)                  :: s_step
@@ -145,7 +144,7 @@ program production
                     enddo
                 enddo
             enddo
-             
+
             etas(:) = etas(:) / (nx * ny)
 
         end subroutine calc_production_rate_at_height

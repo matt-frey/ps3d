@@ -16,7 +16,6 @@ program genspec2d
     integer                       :: kx, ky, kmax, k
     double precision              :: dk, dki, snorm, ke
     integer                       :: step
-    double precision              :: rkxmax, rkymax
 
     ! The spectrum:
     double precision, allocatable :: spec(:)
