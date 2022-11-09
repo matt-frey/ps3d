@@ -189,7 +189,7 @@ module advance_mod
             double precision :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
 
             !--------------------------------------------------------------
-            !Buoyancy source bb_t = (u,v,w)*grad(bb): (might be computed in flux form)
+            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             call diffx(sbuoy, xs)
@@ -201,11 +201,11 @@ module advance_mod
             call fftxys2p(ys, dbdy)
             call fftxys2p(zs, dbdz)
 
-            !Compute (u,v,w)*grad(bb) -> dbdx in physical space:
+            !Compute -(u,v,w)*grad(bb) -> dbdx in physical space:
             !$omp parallel workshare
-            dbdx = vel(:, :, :, 1) * dbdx &   ! u * db/dx
-                 + vel(:, :, :, 2) * dbdy &   ! v * db/dy
-                 + vel(:, :, :, 3) * dbdz     ! w * db/dz
+            dbdx = - vel(:, :, :, 1) * dbdx &   ! u * db/dx
+                   - vel(:, :, :, 2) * dbdy &   ! v * db/dy
+                   - vel(:, :, :, 3) * dbdz     ! w * db/dz
             !$omp end parallel workshare
 
             !Convert to semi-spectral space and apply de-aliasing filter:
