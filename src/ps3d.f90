@@ -80,6 +80,8 @@ program ps3d
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             ini_vor_mean = calc_vorticity_mean()
 
+            call calculate_peref
+
             call vor2vel
 #ifdef ENABLE_BUOYANCY
             bbdif = maxval(buoy) - minval(buoy)
@@ -98,7 +100,6 @@ program ps3d
 
             call init_diffusion(bbdif, te, en)
 
-            call calculate_peref
 
             call setup_output_files
 

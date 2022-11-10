@@ -6,7 +6,9 @@ module fields
     use parameters, only : nx, ny, nz, vcell, ncell, ncelli, dx, lower, extent, ngrid
     use constants, only : zero, f12, f14, one, two
     use merge_sort
-    use inversion_utils, only : fftxys2p, diffx, diffy, diffz
+    use inversion_utils, only : fftxys2p, diffx, diffy, diffz   &
+                              , field_combine_semi_spectral     &
+                              , field_decompose_semi_spectral
     implicit none
 
     ! x: zonal
@@ -128,9 +130,6 @@ module fields
             do i = 0, nx-1
                 do j = 0, ny-1
                     pe = pe - sum(buoy(:, j, i) * z(:))
-!                     pe = pe - sum(buoy(1:nz-1, j, i) * z(1:nz-1)) &
-!                             - f12 * buoy(0,  j, i)   * z(0)       &
-!                             - f12 * buoy(nz, j, i)   * z(nz)
                 enddo
             enddo
 
@@ -186,14 +185,16 @@ module fields
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
+            call field_combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call diffz(sbuoy, ds)
+            call diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
+            call field_decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

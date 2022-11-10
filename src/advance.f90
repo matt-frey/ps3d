@@ -192,9 +192,11 @@ module advance_mod
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
+            call field_combine_semi_spectral(sbuoy)
             call diffx(sbuoy, xs)
             call diffy(sbuoy, ys)
-            call diffz(sbuoy, zs)
+            call diffz(sbuoy, zs)                     ! es = E
+            call field_decompose_semi_spectral(sbuoy)
 
             !Obtain gradient of buoyancy in physical space
             call fftxys2p(xs, dbdx)
@@ -208,8 +210,8 @@ module advance_mod
                    - vel(:, :, :, 3) * dbdz     ! w * db/dz
             !$omp end parallel workshare
 
-            !Convert to semi-spectral space and apply de-aliasing filter:
-            call fftxyp2s(dbdx, sbuoys)
+            !Convert to mixed-spectral space and apply de-aliasing filter:
+            call field_decompose_physical(dbdx, sbuoys)
 
             sbuoys = filt * sbuoys
 #endif
@@ -246,15 +248,18 @@ module advance_mod
 
 #ifdef ENABLE_BUOYANCY
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call diffx(sbuoy, xs)
-            call diffy(sbuoy, ys)
-
-            call field_combine_physical(sbuoy, yp)
-            call diffz(yp, zp)
-
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
+            call field_combine_semi_spectral(sbuoy)
+            call diffx(sbuoy, xs)
             call fftxys2p(xs, xp)
+
+            call diffy(sbuoy, ys)
             call fftxys2p(ys, yp)
+
+            call diffz(sbuoy, xs)
+            call fftxys2p(xs, zp)
+            call field_decompose_semi_spectral(sbuoy)
+
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             !$omp parallel workshare
