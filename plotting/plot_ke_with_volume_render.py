@@ -93,10 +93,7 @@ ax = plt.gca()
 t, ke, en = np.loadtxt(os.path.join(filepath, 'beltrami_' + str(grid) + '_ecomp.asc'),
                        skiprows=1, unpack=True)
 
-ncelli = 1.0 / grid ** 3
-
 # calculate mean KE and mean EN
-ke *= ncelli
 ax.plot(t, ke, color='blue', linewidth=1.0)
 ax.set_xlabel(r'time, $t$')
 ax.set_ylabel(r'average kinetic energy, $\langle\mathcal{K}\rangle$')

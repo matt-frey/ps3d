@@ -64,11 +64,10 @@ for pred in prediss:
                            skiprows=1, unpack=True)
 
     voli = 1.0 / np.pi ** 3
-    ncelli = 1.0 / grid ** 3
 
     # calculate mean KE and mean EN
-    ke *= voli * ncelli
-    en *= voli * ncelli
+    ke *= voli
+    en *= voli
 
     #print("initial <KE>", ke[0])
     #print("initial <EN>", en[0])
