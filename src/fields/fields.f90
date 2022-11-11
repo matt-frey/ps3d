@@ -201,9 +201,9 @@ module fields
 
             !------------------------------------
             ! Calculate domain integral of |gradb|
-            enb = f12 * sum(mag(1:nz-1, :, :) ** 2) &
-                + f14 * sum(mag(0,      :, :) ** 2) &
-                + f14 * sum(mag(nz,     :, :) ** 2)
+            enb = sum(mag(1:nz-1, :, :) ** 2)       &
+                + f12 * sum(mag(0,      :, :) ** 2) &
+                + f12 * sum(mag(nz,     :, :) ** 2)
 
             enb = enb * vcell
 
