@@ -93,6 +93,9 @@ ax = plt.gca()
 t, ke, en = np.loadtxt(os.path.join(filepath, 'beltrami_' + str(grid) + '_ecomp.asc'),
                        skiprows=1, unpack=True)
 
+voli = 1.0 / np.pi ** 3
+ke = ke * voli
+
 # calculate mean KE and mean EN
 ax.plot(t, ke, color='blue', linewidth=1.0)
 ax.set_xlabel(r'time, $t$')
