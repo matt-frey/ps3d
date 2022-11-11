@@ -57,7 +57,7 @@ module inversion_utils
             , diffx                 &
             , diffy                 &
             , diffz                 &
-            , my_diffz              &
+            , central_diffz         &
             , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
@@ -542,7 +542,7 @@ module inversion_utils
 
         !Calculates df/dz for a field f using 2nd-order differencing.
         !Here fs = f, ds = df/dz.
-        subroutine diffz(fs, ds)
+        subroutine central_diffz(fs, ds)
             double precision, intent(in)  :: fs(0:nz, 0:ny-1, 0:nx-1)
             double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
             integer                       :: iz
@@ -562,13 +562,13 @@ module inversion_utils
             enddo
             !$omp end parallel do
 
-        end subroutine
+        end subroutine central_diffz
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         !Calculates df/dz for a field f in mixed-spectral space
         !Here fs = f, ds = df/dz. Both fields are in mixed-spectral space.
-        subroutine my_diffz(fs, ds)
+        subroutine diffz(fs, ds)
             double precision, intent(in)  :: fs(0:nz, 0:nx-1, 0:ny-1) ! f in mixed-spectral space
             double precision, intent(out) :: ds(0:nz, 0:nx-1, 0:ny-1) ! derivative linear part
             double precision              :: as(0:nz, 0:nx-1, 0:ny-1) ! derivative sine-part
@@ -610,7 +610,7 @@ module inversion_utils
 
             call field_decompose_semi_spectral(ds)
 
-          end subroutine my_diffz
+          end subroutine diffz
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

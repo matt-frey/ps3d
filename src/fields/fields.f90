@@ -6,8 +6,8 @@ module fields
     use parameters, only : nx, ny, nz, vcell, ncell, ncelli, dx, lower, extent, ngrid
     use constants, only : zero, f12, f14, one, two
     use merge_sort
-    use inversion_utils, only : fftxys2p, diffx, diffy, diffz   &
-                              , field_combine_semi_spectral     &
+    use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
+                              , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
     implicit none
 
@@ -192,7 +192,7 @@ module fields
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call diffz(sbuoy, mag)
+            call central_diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
             call field_decompose_semi_spectral(sbuoy)
 

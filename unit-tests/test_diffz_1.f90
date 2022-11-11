@@ -43,7 +43,7 @@ program test_diffz_1
     enddo
 
     ! calculate z-derivative (dfdz)
-    call diffz(fp, dfdz)
+    call central_diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 

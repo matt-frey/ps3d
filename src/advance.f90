@@ -14,6 +14,9 @@ module advance_mod
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli, fnzi
     use inversion_mod, only : vor2vel, vorticity_tendency, pressure
+#ifdef ENABLE_BUOYANCY
+    use inversion_mod, only : buoyancy_tendency
+#endif
     use inversion_utils
     use utils, only : write_step
     use sta2dfft, only : dst
@@ -175,67 +178,17 @@ module advance_mod
         end subroutine adjust_vorticity_mean
 
 
-        ! Gets the source terms for vorticity and buoyancy in spectral space.
-        ! The spectral fields sbuoy and svor are all spectrally truncated.
+        ! Gets the source terms for vorticity and buoyancy in mixed-spectral space.
         ! Note, vel obtained by vor2vel before calling this
-        ! routine are spectrally truncated as well.
+        ! routine is spectrally truncated.
         subroutine source
 #ifdef ENABLE_BUOYANCY
-            double precision :: xs(0:nz, 0:nx-1, 0:ny-1)        ! db/dx or x-vtend in spectral space
-            double precision :: ys(0:nz, 0:nx-1, 0:ny-1)        ! db/dy or y-vtend in spectral space
-            double precision :: zs(0:nz, 0:nx-1, 0:ny-1)        ! db/dz or z-vtend in spectral space
-            double precision :: dbdx(0:nz, 0:ny-1, 0:nx-1)      ! db/dx in physical space
-            double precision :: dbdy(0:nz, 0:ny-1, 0:nx-1)      ! db/dy in physical space
-            double precision :: dbdz(0:nz, 0:ny-1, 0:nx-1)      ! db/dz in physical space
-
-            !--------------------------------------------------------------
-            !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
-
-            !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-
-            call field_combine_physical(sbuoy, buoy)
-
-            ! Define the flux
-            dbdz = vel(:, :, :, 3) * buoy
-
-            call field_decompose_physical(dbdz, xs)
-            call my_diffz(xs, zs)
-            call field_combine_physical(zs, dbdz)
-!             call diffz(dbdz, dbdx)
-!             dbdz = dbdx
-
-            dbdx = vel(:, :, :, 1) * buoy
-            dbdy = vel(:, :, :, 2) * buoy
-
-            call field_decompose_physical(dbdx, xs)
-            call diffx(xs, ys)
-            call field_combine_physical(ys, dbdx)
-
-            call field_decompose_physical(dbdy, ys)
-            call diffy(ys, xs)
-            call field_combine_physical(xs, dbdy)
-
-!
-!             !Compute -(u,v,w)*grad(bb) -> dbdx in physical space:
-!             !$omp parallel workshare
-!             dbdx = - vel(:, :, :, 1) * dbdx &   ! u * db/dx
-!                    - vel(:, :, :, 2) * dbdy &   ! v * db/dy
-!                    - vel(:, :, :, 3) * dbdz     ! w * db/dz
-!             !$omp end parallel workshare
-!
-            dbdx = -dbdx - dbdy - dbdz
-
-            dbuoy = dbdx
-
-            !Convert to mixed-spectral space and apply de-aliasing filter:
-            call field_decompose_physical(dbdx, sbuoys)
-
-!             sbuoys = filt * sbuoys
+            !------------------------------------
+            !Buoyancy source:
+            call buoyancy_tendency
 #endif
-
-            !--------------------------------------------------------------
+            !------------------------------------
             !Vorticity source:
-
             call vorticity_tendency
 
         end subroutine source
@@ -273,7 +226,7 @@ module advance_mod
             call diffy(sbuoy, ys)
             call fftxys2p(ys, yp)
 
-            call diffz(sbuoy, xs)
+            call central_diffz(sbuoy, xs)
             call fftxys2p(xs, zp)
             call field_decompose_semi_spectral(sbuoy)
 
