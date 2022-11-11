@@ -192,28 +192,45 @@ module advance_mod
             !Buoyancy source bb_t = -(u,v,w)*grad(bb): (might be computed in flux form)
 
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
-            call field_combine_semi_spectral(sbuoy)
-            call diffx(sbuoy, xs)
-            call diffy(sbuoy, ys)
-            call diffz(sbuoy, zs)                     ! es = E
-            call field_decompose_semi_spectral(sbuoy)
 
-            !Obtain gradient of buoyancy in physical space
-            call fftxys2p(xs, dbdx)
-            call fftxys2p(ys, dbdy)
-            call fftxys2p(zs, dbdz)
+            call field_combine_physical(sbuoy, buoy)
 
-            !Compute -(u,v,w)*grad(bb) -> dbdx in physical space:
-            !$omp parallel workshare
-            dbdx = - vel(:, :, :, 1) * dbdx &   ! u * db/dx
-                   - vel(:, :, :, 2) * dbdy &   ! v * db/dy
-                   - vel(:, :, :, 3) * dbdz     ! w * db/dz
-            !$omp end parallel workshare
+            ! Define the flux
+            dbdz = vel(:, :, :, 3) * buoy
+
+            call field_decompose_physical(dbdz, xs)
+            call my_diffz(xs, zs)
+            call field_combine_physical(zs, dbdz)
+!             call diffz(dbdz, dbdx)
+!             dbdz = dbdx
+
+            dbdx = vel(:, :, :, 1) * buoy
+            dbdy = vel(:, :, :, 2) * buoy
+
+            call field_decompose_physical(dbdx, xs)
+            call diffx(xs, ys)
+            call field_combine_physical(ys, dbdx)
+
+            call field_decompose_physical(dbdy, ys)
+            call diffy(ys, xs)
+            call field_combine_physical(xs, dbdy)
+
+!
+!             !Compute -(u,v,w)*grad(bb) -> dbdx in physical space:
+!             !$omp parallel workshare
+!             dbdx = - vel(:, :, :, 1) * dbdx &   ! u * db/dx
+!                    - vel(:, :, :, 2) * dbdy &   ! v * db/dy
+!                    - vel(:, :, :, 3) * dbdz     ! w * db/dz
+!             !$omp end parallel workshare
+!
+            dbdx = -dbdx - dbdy - dbdz
+
+            dbuoy = dbdx
 
             !Convert to mixed-spectral space and apply de-aliasing filter:
             call field_decompose_physical(dbdx, sbuoys)
 
-            sbuoys = filt * sbuoys
+!             sbuoys = filt * sbuoys
 #endif
 
             !--------------------------------------------------------------
