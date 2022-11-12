@@ -96,8 +96,6 @@ module merge_sort
             enddo
         end subroutine merging
 
-
-
         ! a  : value array to sort
         ! ai : index array
         subroutine imsort(a, ai)
