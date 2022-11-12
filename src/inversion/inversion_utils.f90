@@ -603,7 +603,7 @@ module inversion_utils
             enddo
             !$omp end parallel do
 
-            ! Combine vertical derivative (es) given the sine and linear parts:
+            ! Combine vertical derivative given the sine and linear parts:
             !omp parallel workshare
             ds = ds + as
             !omp end parallel workshare
