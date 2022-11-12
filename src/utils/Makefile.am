@@ -9,5 +9,6 @@ libps_utils_la_SOURCES = 	\
 	timer.f90		\
 	config.f90		\
 	physics.f90		\
-	jacobi.f90
+	jacobi.f90		\
+	merge_sort.f90
 

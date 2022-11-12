@@ -55,15 +55,14 @@ for i, grid in enumerate(grids):
     _, vormax, _, _, _, _, _ = np.loadtxt(os.path.join(fpath, 'beltrami_' + str(grid) + '_vorticity.asc'),
                                                skiprows=1, unpack=True)
 
-    ncelli = 1.0 / grid ** 3
     voli = 1.0 / np.pi ** 3
 
     # calculate mean KE and mean EN
-    en *= ncelli * voli
+    en *= voli
 
     maxen[i] = en.max()
     vmax[i] = vormax.max()
-    
+
 # ignore nz = 32
 log10_maxen = np.log10(maxen[1:])
 log10_nz = np.log10(grids[1:])

@@ -40,7 +40,7 @@ module inversion_mod
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
             call field_combine_semi_spectral(cs)
-            call diffz(cs, es)                     ! es = E
+            call central_diffz(cs, es)                     ! es = E
             call field_decompose_semi_spectral(es)
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
@@ -214,6 +214,56 @@ module inversion_mod
 
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+#ifdef ENABLE_BUOYANCY
+        ! Compute the gridded buoyancy tendency (using flux form):
+        subroutine buoyancy_tendency
+            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)        ! flux component in physical space
+            double precision :: fs(0:nz, 0:nx-1, 0:ny-1)        ! flux component in spectral space
+            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy derivative in spectral space
+            double precision :: btend(0:nz, 0:ny-1, 0:nx-1)     ! buoyancy source in physical space
+
+            !--------------------------------------------------------------
+            ! We calculate the buoyancy source b_t = -(u,v,w)*grad(b)
+            ! in flux form b_t = - div(F) where F = (u*b, v*b, w*b);
+            ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
+            ! but u_x + v_y + w_z = 0 as we assume incompressibility.
+
+            call field_combine_physical(sbuoy, buoy)
+
+            ! Define the x-component of the flux
+            fp = vel(:, :, :, 1) * buoy
+
+            ! Differentiate
+            call field_decompose_physical(fp, fs)
+            call diffx(fs, ds)
+            call field_combine_physical(ds, btend)
+
+            ! Define the y-component of the flux
+            fp = vel(:, :, :, 2) * buoy
+
+            call field_decompose_physical(fp, fs)
+            call diffy(fs, ds)
+            call field_combine_physical(ds, fp)
+
+            btend = - btend - fp
+
+            ! Define the z-component of the flux
+            fp = vel(:, :, :, 3) * buoy
+
+            ! Differentiate
+            call field_decompose_physical(fp, fs)
+            call diffz(fs, ds)
+            call field_combine_physical(ds, fp)
+
+            btend = btend - fp
+
+            ! Convert to mixed-spectral space:
+            call field_decompose_physical(btend, sbuoys)
+
+        end subroutine buoyancy_tendency
+#endif
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute the gridded vorticity tendency:
         subroutine vorticity_tendency
@@ -260,7 +310,7 @@ module inversion_mod
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
-            call diffz(fp, gp)
+            call central_diffz(fp, gp)
             call field_decompose_physical(gp, p)
             !$omp parallel workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
@@ -274,7 +324,7 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
-            call diffz(fp, gp)
+            call central_diffz(fp, gp)
             call field_decompose_physical(gp, r)
             !$omp parallel workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz

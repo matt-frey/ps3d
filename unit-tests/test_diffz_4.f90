@@ -42,7 +42,7 @@ program test_diffz_4
         dfdz_ref(iz, :, :) = - six * z
     enddo
 
-    call diffz(fp, dfdz)
+    call central_diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 

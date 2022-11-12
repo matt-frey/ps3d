@@ -34,7 +34,7 @@ program test_filter
     double precision, allocatable :: ztrig(:), rkz(:)
 
     ! Others:
-    double precision:: eps, t, fac
+    double precision:: eps, fac
     integer:: iz, kz, iopt
 
     write(*,*) ' Enter number of cells:'

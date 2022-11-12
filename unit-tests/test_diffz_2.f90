@@ -54,7 +54,7 @@ program test_diffz_2
         enddo
     enddo
 
-    call diffz(fp, dfdz)
+    call central_diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 
