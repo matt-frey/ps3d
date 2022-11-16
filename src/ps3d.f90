@@ -6,6 +6,7 @@ program ps3d
     use timer
     use fields
     use field_netcdf, only : field_io_timer, read_netcdf_fields
+    use field_diagnostics_netcdf, only : field_stats_io_timer
     use inversion_mod, only : vor2vel_timer &
                             , vtend_timer   &
                             , vor2vel       &
@@ -48,6 +49,7 @@ program ps3d
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
+            call register_timer('field diagnostics I/O', field_stats_io_timer)
             call register_timer('vor2vel', vor2vel_timer)
             call register_timer('vorticity tendency', vtend_timer)
             call register_timer('advance', advance_timer)

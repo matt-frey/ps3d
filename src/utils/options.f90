@@ -25,6 +25,8 @@ module options
     type info
         double precision    :: field_freq         = one
         logical             :: write_fields       = .true.
+        double precision    :: field_stats_freq   = one
+        logical             :: write_field_stats  = .true.
         logical             :: overwrite          = .false.
         character(len=512)  :: basename           = ''
     end type info
@@ -129,6 +131,8 @@ module options
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
+            call write_netcdf_attribute(ncid, "field_stats_freq", output%field_stats_freq)
+            call write_netcdf_attribute(ncid, "write_field_stats", output%write_field_stats)
             call write_netcdf_attribute(ncid, "overwrite", output%overwrite)
             call write_netcdf_attribute(ncid, "basename", trim(output%basename))
 
