@@ -2,6 +2,7 @@ module utils
     use constants, only : one
     use options, only : output, verbose, time
     use field_netcdf
+    use field_diagnostics_netcdf
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : lower, extent, update_parameters
@@ -10,8 +11,9 @@ module utils
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
+    integer :: nsfw = 0    ! number of field diagnostics writes
 
-    private :: nfw
+    private :: nfw, nsfw
 
     contains
 
@@ -22,6 +24,11 @@ module utils
             if (output%write_fields) then
                 call create_netcdf_field_file(trim(output%basename), &
                                               output%overwrite)
+            endif
+
+            if (output%write_field_stats) then
+                call create_netcdf_field_stats_file(trim(output%basename),   &
+                                                    output%overwrite)
             endif
 
         end subroutine setup_output_files
@@ -60,6 +67,11 @@ module utils
                 nfw = nfw + 1
             endif
 
+            if (output%write_field_stats .and. &
+                (t + epsilon(zero) >= neg * dble(nsfw) * output%field_stats_freq)) then
+                call write_netcdf_field_stats(t)
+                nsfw = nsfw + 1
+            endif
 
         end subroutine write_step
 
