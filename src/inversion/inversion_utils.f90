@@ -41,7 +41,10 @@ module inversion_utils
     double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
     double precision, allocatable :: phim(:, :, :)      ! phi_{-}
     double precision, allocatable :: phip(:, :, :)      ! phi_{+}
-
+#ifdef ENABLE_BUOYANCY
+    double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
+    double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
+#endif
 
     private :: xtrig, ytrig, xfactors, yfactors, & !zfactors, &
                hrkx, hrky!, rkz
@@ -56,7 +59,9 @@ module inversion_utils
             , init_diffusion        &
             , diffx                 &
             , diffy                 &
+#ifdef ENABLE_BUOYANCY
             , diffz                 &
+#endif
             , central_diffz         &
             , fftxyp2s              &
             , fftxys2p              &
@@ -158,6 +163,10 @@ module inversion_utils
 
             allocate(phim(0:nz, 0:nx-1, 0:ny-1))
             allocate(phip(0:nz, 0:nx-1, 0:ny-1))
+#ifdef ENABLE_BUOYANCY
+            allocate(dphim(0:nz, 0:nx-1, 0:ny-1))
+            allocate(dphip(0:nz, 0:nx-1, 0:ny-1))
+#endif
             allocate(thetam(0:nz, 0:nx-1, 0:ny-1))
             allocate(thetap(0:nz, 0:nx-1, 0:ny-1))
             allocate(dthetam(0:nz, 0:nx-1, 0:ny-1))
@@ -199,6 +208,11 @@ module inversion_utils
             phim(:, 0, 0) = zm / extent(3)
             phip(:, 0, 0) = zp / extent(3)
 
+#ifdef ENABLE_BUOYANCY
+            dphim(:, 0, 0) = - one / extent(3)
+            dphip(:, 0, 0) =   one / extent(3)
+#endif
+
             thetam(:, 0, 0) = zero
             thetap(:, 0, 0) = zero
 
@@ -227,7 +241,10 @@ module inversion_utils
         subroutine set_hyperbolic_functions(kx, ky, zm, zp)
             integer,          intent(in) :: kx, ky
             double precision, intent(in) :: zm(0:nz), zp(0:nz)
-            double precision             :: R(0:nz), Q(0:nz), k2ifac, dphim(0:nz), dphip(0:nz)
+            double precision             :: R(0:nz), Q(0:nz), k2ifac
+#ifndef ENABLE_BUOYANCY
+            double precision             :: dphim(0:nz), dphip(0:nz)
+#endif
             double precision             :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
             double precision             :: fac, div, kl
 
@@ -246,8 +263,13 @@ module inversion_utils
             phim(:, kx, ky) = div * (ep - ef * em)
             phip(:, kx, ky) = div * (em - ef * ep)
 
+#ifdef ENABLE_BUOYANCY
+            dphim(:, kx, ky) = - kl * div * (ep + ef * em)
+            dphip(:, kx, ky) =   kl * div * (em + ef * ep)
+#else
             dphim = - kl * div * (ep + ef * em)
             dphip =   kl * div * (em + ef * ep)
+#endif
 
             Q = div * (one + ef**2)
             R = div * two * ef
@@ -255,9 +277,13 @@ module inversion_utils
             thetam(:, kx, ky) = k2ifac * (R * Lm * phip(:, kx, ky) - Q * Lp * phim(:, kx, ky))
             thetap(:, kx, ky) = k2ifac * (R * Lp * phim(:, kx, ky) - Q * Lm * phip(:, kx, ky))
 
+#ifdef ENABLE_BUOYANCY
+            dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim(:, kx, ky) - R * Lm * dphip(:, kx, ky))
+            dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip(:, kx, ky) - R * Lp * dphim(:, kx, ky))
+#else
             dthetam(:, kx, ky) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
             dthetap(:, kx, ky) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
-
+#endif
         end subroutine set_hyperbolic_functions
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -541,10 +567,11 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         !Calculates df/dz for a field f using 2nd-order differencing.
-        !Here fs = f, ds = df/dz.
+        !Here fs = f, ds = df/dz. Accepts input in
+        !semi-spectral or physical space.
         subroutine central_diffz(fs, ds)
-            double precision, intent(in)  :: fs(0:nz, 0:ny-1, 0:nx-1)
-            double precision, intent(out) :: ds(0:nz, 0:ny-1, 0:nx-1)
+            double precision, intent(in)  :: fs(0:, 0:, 0:)
+            double precision, intent(out) :: ds(0:, 0:, 0:)
             integer                       :: iz
 
             ! Linear extrapolation at the boundaries:
@@ -566,6 +593,7 @@ module inversion_utils
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+#ifdef ENABLE_BUOYANCY
         !Calculates df/dz for a field f in mixed-spectral space
         !Here fs = f, ds = df/dz. Both fields are in mixed-spectral space.
         subroutine diffz(fs, ds)
@@ -574,10 +602,10 @@ module inversion_utils
             double precision              :: as(0:nz, 0:nx-1, 0:ny-1) ! derivative sine-part
             integer                       :: kx, ky, kz, iz
 
-            !Calculate the boundary contributions of the derivative (ds) in semi-spectral space:
+            !Calculate the derivative of the linear part (ds) in semi-spectral space:
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                ds(iz, :, :) = fs(0, :, :) * dthetam(iz, :, :) + fs(nz, :, :) * dthetap(iz, :, :)
+                ds(iz, :, :) = fs(0, :, :) * dphim(iz, :, :) + fs(nz, :, :) * dphip(iz, :, :)
             enddo
             !$omp end parallel do
 
@@ -603,14 +631,15 @@ module inversion_utils
             enddo
             !$omp end parallel do
 
-            ! Combine vertical derivative given the sine and linear parts:
+            ! Combine vertical derivative given the sine (as) and linear (ds) parts:
             !omp parallel workshare
             ds = ds + as
             !omp end parallel workshare
 
             call field_decompose_semi_spectral(ds)
 
-          end subroutine diffz
+        end subroutine diffz
+#endif
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
