@@ -139,7 +139,7 @@ module fields
                 enddo
             enddo
 
-            pe = pe - peref
+            pe = pe * ncelli - peref
 #else
             pe = zero
 #endif
