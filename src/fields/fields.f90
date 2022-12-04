@@ -3,7 +3,7 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, vcell, ncelli, dx, lower, extent, ngrid
+    use parameters, only : nx, ny, nz, vcell, ncelli, dx, lower, extent, ngrid, vdomaini
     use constants, only : zero, f12, f14, one, two
     use merge_sort
     use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
@@ -115,9 +115,13 @@ module fields
                 zmean = zmean + gam * two * vcell
                 peref = peref - b(k) * vcell * zmean
             enddo
+
+            ! divide by domain volume to get domain-averaged peref
+            peref = peref * vdomaini
 #endif
         end subroutine calculate_peref
 
+        ! domain-averaged potential energy
         function get_potential_energy() result(pe)
             double precision :: pe
 #ifdef ENABLE_BUOYANCY
@@ -135,14 +139,13 @@ module fields
                 enddo
             enddo
 
-            pe = pe * vcell
-
             pe = pe - peref
 #else
             pe = zero
 #endif
         end function get_potential_energy
 
+        ! domain-averaged kinetic energy
         function get_kinetic_energy() result(ke)
             double precision :: ke
 
@@ -156,10 +159,11 @@ module fields
                          + vel(nz, :, :, 2) ** 2          &
                          + vel(nz, :, :, 3) ** 2)
 
-            ke = ke * vcell
+            ke = ke * ncelli
 
         end function get_kinetic_energy
 
+        ! domain-averaged enstrophy
         function get_enstrophy() result(en)
             double precision :: en
 
@@ -173,11 +177,12 @@ module fields
                          + vor(nz, :, :, 2) ** 2          &
                          + vor(nz, :, :, 3) ** 2)
 
-            en = en * vcell
+            en = en * ncelli
 
         end function get_enstrophy
 
 #ifdef ENABLE_BUOYANCY
+        ! domain-averaged grad(b) integral
         function get_gradb_integral() result(enb)
             double precision :: enb
             double precision :: ds(0:nz, 0:nx-1, 0:ny-1)
@@ -207,7 +212,7 @@ module fields
                 + f12 * sum(mag(0,      :, :)) &
                 + f12 * sum(mag(nz,     :, :))
 
-            enb = enb * vcell
+            enb = enb * ncelli
 
         end function get_gradb_integral
 #endif

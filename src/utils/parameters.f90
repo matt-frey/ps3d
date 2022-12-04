@@ -37,6 +37,8 @@ module parameters
     ! domain size
     double precision :: extent(3)
 
+    double precision :: vdomaini
+
     ! domain centre
     double precision :: center(3)
 
@@ -86,6 +88,8 @@ module parameters
                 stop
             endif
         endif
+
+        vdomaini = one / product(extent)
 
         vcell = product(dx)
         vcelli = one / vcell
