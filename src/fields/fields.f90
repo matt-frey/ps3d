@@ -4,7 +4,7 @@
 ! =============================================================================
 module fields
     use parameters, only : nx, ny, nz, vcell, ncelli, dx, lower, extent, ngrid, vdomaini
-    use constants, only : zero, f12, f14, one, two
+    use constants, only : zero, f12, f14, one
     use merge_sort
     use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
                               , field_combine_semi_spectral             &
@@ -107,12 +107,12 @@ module fields
             call msort(b, ii)
 
             gam = one / (extent(1) * extent(2))
-            zmean = gam * vcell
+            zmean = f12 * gam * vcell
 
             peref = - b(1) * vcell * zmean
 
             do k = 2, ngrid
-                zmean = zmean + gam * two * vcell
+                zmean = zmean + gam * vcell
                 peref = peref - b(k) * vcell * zmean
             enddo
 
