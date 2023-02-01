@@ -45,7 +45,7 @@ program ps3d
                               , output              &
                               , read_config_file    &
                               , time
-            double precision :: bbdif, ke, pe, te, en
+            double precision :: bbdif, ke, ape, te, en
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -82,8 +82,6 @@ program ps3d
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             ini_vor_mean = calc_vorticity_mean()
 
-            call calculate_peref
-
             call vor2vel
 #ifdef ENABLE_BUOYANCY
             bbdif = maxval(buoy) - minval(buoy)
@@ -91,8 +89,8 @@ program ps3d
             bbdif = zero
 #endif
             ke = get_kinetic_energy()
-            pe = get_potential_energy()
-            te = ke + pe
+            ape = get_available_potential_energy()
+            te = ke + ape
             en = get_enstrophy()
 
 #ifdef ENABLE_BUOYANCY

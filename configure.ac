@@ -155,4 +155,36 @@ else
     AC_MSG_RESULT([no])
 fi
 
+
+ENABLE_IW_TEST_CASE='no'
+AC_ARG_ENABLE([iw-test-case],
+              [AS_HELP_STRING([--enable-iw-test-case], [enable IW test case (default=no)])],
+              [ENABLE_IW_TEST_CASE=$enableval])
+
+AM_CONDITIONAL([ENABLE_IW_TEST_CASE], [test "$ENABLE_IW_TEST_CASE" = "yes"])
+
+AC_MSG_CHECKING([whether we are enabling the IW test case])
+if test "x$ENABLE_IW_TEST_CASE" = "xyes"; then
+    AC_MSG_RESULT([yes])
+    FCFLAGS="$FCFLAGS -DENABLE_IW_TEST_CASE"
+else
+    AC_MSG_RESULT([no])
+fi
+
+
+ENABLE_RT_TEST_CASE='no'
+AC_ARG_ENABLE([rt-test-case],
+              [AS_HELP_STRING([--enable-rt-test-case], [enable RT test case (default=no)])],
+              [ENABLE_RT_TEST_CASE=$enableval])
+
+AM_CONDITIONAL([ENABLE_RT_TEST_CASE], [test "$ENABLE_RT_TEST_CASE" = "yes"])
+
+AC_MSG_CHECKING([whether we are enabling the RT test case])
+if test "x$ENABLE_RT_TEST_CASE" = "xyes"; then
+    AC_MSG_RESULT([yes])
+    FCFLAGS="$FCFLAGS -DENABLE_RT_TEST_CASE"
+else
+    AC_MSG_RESULT([no])
+fi
+
 AC_OUTPUT
