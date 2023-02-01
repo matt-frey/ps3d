@@ -13,7 +13,7 @@ module ape_density
 
 #ifdef ENABLE_IW_TEST_CASE
             a = f18 * (b - four * z) ** 2
-#elseif ENABLE_RT_TEST_CASE
+#elif ENABLE_RT_TEST_CASE
             a = b * dasin(b) + dsqrt(one - b ** 2) - z * b - dcos(z)
 #else
             ! dummy line to avoid compiler warning of 'unused variables'
