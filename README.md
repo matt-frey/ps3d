@@ -46,3 +46,21 @@ where `<env>` denotes a user-defined environment name like `ps3d-env`. To instal
 documentation.
 
 The enstrophy production rates are calculated using the program `production`. Use the flag `--help` for further information.
+
+
+## How to cite
+The source code can be cited using the latest Zenodo DOI given on the top of this readme. A corresponding paper is published and can be cited using
+the BibteX below. You can also find further information at https://doi.org/10.1017/jfm.2022.1007
+
+```
+@article{dritschel_frey_2023,
+  title={The stability of inviscid Beltrami flow between parallel free-slip impermeable boundaries},
+  volume={954},
+  DOI={10.1017/jfm.2022.1007},
+  journal={Journal of Fluid Mechanics},
+  publisher={Cambridge University Press},
+  author={Dritschel, David and Frey, Matthias},
+  year={2023},
+  pages={A31}
+}
+```
