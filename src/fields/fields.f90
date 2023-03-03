@@ -3,12 +3,13 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, vcell, ncelli, dx, lower, extent, ngrid, vdomaini
+    use parameters, only : nx, ny, nz, ncelli, dx, lower, extent
     use constants, only : zero, f12, f14, one
     use merge_sort
     use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
                               , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
+    use ape_density, only : ape_den
     implicit none
 
     ! x: zonal
@@ -38,8 +39,6 @@ module fields
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
-
-    double precision :: peref
 
     contains
 
@@ -88,62 +87,31 @@ module fields
             ini_vor_mean = zero
         end subroutine field_default
 
-        subroutine calculate_peref
-#ifdef ENABLE_BUOYANCY
-            integer          :: ii(ngrid), i, j, k, n, m
-            double precision :: b(ngrid)
-            double precision :: gam, zmean
-
-            n = 1
-            m = nz+1
-            do i = 0, nx-1
-                do j = 0, ny-1
-                    b(n:m) = buoy(:, j, i)
-                    n = m + 1
-                    m = n + nz
-                enddo
-            enddo
-
-            call msort(b, ii)
-
-            gam = one / (extent(1) * extent(2))
-            zmean = f12 * gam * vcell
-
-            peref = - b(1) * vcell * zmean
-
-            do k = 2, ngrid
-                zmean = zmean + gam * vcell
-                peref = peref - b(k) * vcell * zmean
-            enddo
-
-            ! divide by domain volume to get domain-averaged peref
-            peref = peref * vdomaini
-#endif
-        end subroutine calculate_peref
-
-        ! domain-averaged potential energy
-        function get_potential_energy() result(pe)
-            double precision :: pe
+        ! domain-averaged available potential energy
+        function get_available_potential_energy() result(ape)
+            double precision :: ape
 #ifdef ENABLE_BUOYANCY
             integer          :: i, j, k
             double precision :: z(0:nz)
 
             do k = 0, nz
-                z(k) = dble(k) * dx(3)
+                z(k) = lower(3) + dble(k) * dx(3)
             enddo
 
-            pe = zero
+            ape = zero
             do i = 0, nx-1
                 do j = 0, ny-1
-                    pe = pe - sum(buoy(:, j, i) * z(:))
+                    ape = ape + sum(ape_den(buoy(1:nz-1, j, i), z(1:nz-1))) &
+                        + f12 *     ape_den(buoy(0,      j, i), z(0))       &
+                        + f12 *     ape_den(buoy(nz,     j, i), z(nz))
                 enddo
             enddo
 
-            pe = pe * ncelli - peref
+            ape = ape * ncelli
 #else
-            pe = zero
+            ape = zero
 #endif
-        end function get_potential_energy
+        end function get_available_potential_energy
 
         ! domain-averaged kinetic energy
         function get_kinetic_energy() result(ke)

@@ -204,7 +204,7 @@ module advance_mod
 #ifdef ENABLE_BUOYANCY
             double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
             double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
-            double precision             :: pe
+            double precision             :: ape
 #endif
             double precision             :: strain(3, 3), eigs(3)
             double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
@@ -280,8 +280,8 @@ module advance_mod
             en = get_enstrophy()
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            pe = get_potential_energy()
-            write(WRITE_ECOMP, '(1x,f13.6,3(1x,1p,e14.7))') t , ke, pe, en
+            ape = get_available_potential_energy()
+            write(WRITE_ECOMP, '(1x,f13.6,3(1x,1p,e14.7))') t , ke, ape, en
 #else
             write(WRITE_ECOMP, '(1x,f13.6,2(1x,1p,e14.7))') t , ke, en
 #endif

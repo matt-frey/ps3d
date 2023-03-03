@@ -21,7 +21,7 @@ module field_diagnostics_netcdf
     integer            :: ncid
     integer            :: t_axis_id, t_dim_id, n_writes, ke_id, en_id
 #ifdef ENABLE_BUOYANCY
-    integer            :: pe_id, bmax_id, bmin_id
+    integer            :: ape_id, bmax_id, bmin_id
 #endif
 
     double precision   :: restart_time
@@ -98,13 +98,13 @@ module field_diagnostics_netcdf
 #ifdef ENABLE_BUOYANCY
             call define_netcdf_dataset(                                     &
                 ncid=ncid,                                                  &
-                name='pe',                                                  &
-                long_name='domain-averaged potential energy',               &
+                name='ape',                                                 &
+                long_name='domain-averaged available potential energy',     &
                 std_name='',                                                &
                 unit='m^2/s^2',                                             &
                 dtype=NF90_DOUBLE,                                          &
                 dimids=(/t_dim_id/),                                        &
-                varid=pe_id)
+                varid=ape_id)
 
             call define_netcdf_dataset(                                     &
                 ncid=ncid,                                                  &
@@ -142,7 +142,7 @@ module field_diagnostics_netcdf
             call get_var_id(ncid, 'en', en_id)
 
 #ifdef ENABLE_BUOYANCY
-            call get_var_id(ncid, 'pe', pe_id)
+            call get_var_id(ncid, 'ape', ape_id)
 
             call get_var_id(ncid, 'min_buoyancy', bmin_id)
 
@@ -157,7 +157,7 @@ module field_diagnostics_netcdf
             double precision, intent(in) :: t
             double precision             :: ke, en
 #ifdef ENABLE_BUOYANCY
-            double precision             :: bmin, bmax, pe
+            double precision             :: bmin, bmax, ape
 #endif
 
             call start_timer(field_stats_io_timer)
@@ -172,7 +172,7 @@ module field_diagnostics_netcdf
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            pe = get_potential_energy()
+            ape = get_available_potential_energy()
             bmin = minval(buoy)
             bmax = maxval(buoy)
 #endif
@@ -188,7 +188,7 @@ module field_diagnostics_netcdf
             call write_netcdf_scalar(ncid, ke_id, ke, n_writes)
             call write_netcdf_scalar(ncid, en_id, en, n_writes)
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_scalar(ncid, pe_id, pe, n_writes)
+            call write_netcdf_scalar(ncid, ape_id, ape, n_writes)
             call write_netcdf_scalar(ncid, bmin_id, bmin, n_writes)
             call write_netcdf_scalar(ncid, bmax_id, bmax, n_writes)
 #endif
