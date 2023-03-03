@@ -10,11 +10,14 @@ module ape_density
             double precision, intent(in) :: b       ! buoyancy value
             double precision, intent(in) :: z       ! height
             double precision             :: a       ! APE density
+            double precision             :: br
 
 #ifdef ENABLE_IW_TEST_CASE
             a = f18 * (b - four * z) ** 2
 #elif ENABLE_RT_TEST_CASE
-            a = b * dasin(b) + dsqrt(one - b ** 2) - z * b - dcos(z)
+            br = max(b, -one)
+            br = min(br, one)
+            a = br * dasin(br) + dsqrt(one - br ** 2) - z * br - dcos(z)
 #else
             ! dummy line to avoid compiler warning of 'unused variables'
             a = b + z
