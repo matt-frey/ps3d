@@ -1,4 +1,4 @@
-AC_INIT([ps3d], [0.0.11], [mf248@st-andrews.ac.uk], [], [https://github.com/matt-frey/ps3d])
+AC_INIT([ps3d], [0.0.12], [mf248@st-andrews.ac.uk], [], [https://github.com/matt-frey/ps3d])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AC_PROG_FC([gfortran])
 AC_LANG(Fortran)
@@ -9,7 +9,7 @@ LT_INIT
 # (important for library tests since it autogenerates a file conftest.f90)
 AC_FC_SRCEXT(f90)
 
-FCFLAGS="-std=f2008 -fdefault-real-8 -fdefault-double-8 -cpp -fPIC -mcmodel=large"
+FCFLAGS="-std=f2008 -fdefault-real-8 -fdefault-double-8 -cpp -mcmodel=large"
 
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([src/utils/config.h])
