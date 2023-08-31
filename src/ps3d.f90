@@ -81,7 +81,6 @@ program ps3d
 #ifdef ENABLE_PERTURBATON_MODE
             ! N^2 = (db/dz)^2
             bfsq = sum(buoy(nz, :, :) - buoy(0, :, :)) / (dble(nx * ny) * extent(3))
-            bfsq = bfsq ** 2
             print *, "Calculated squared buoyancy frequency:", bfsq
 
             ! remove basic state from buoyancy
