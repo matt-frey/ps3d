@@ -215,6 +215,10 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
+            integer                      :: iz
+            double precision             :: z
+#endif
 
             call start_timer(field_io_timer)
 
@@ -258,6 +262,12 @@ module field_netcdf
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
+#ifdef ENABLE_PERTURABATION_MODE
+            do iz = 0, nz
+                z = lower(3) + dble(iz) * dx(3)
+                buoy(iz, :, :) = buoy(iz, :, :) + bfsq * z
+            enddo
+#endif
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
                  start, cnt)
 #endif
