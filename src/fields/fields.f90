@@ -107,7 +107,7 @@ module fields
             enddo
 
 #ifdef DISABLE_BASIC_STATE
-            buoy = buoy + bfsq
+            buoy = buoy + bfsq * z
 #endif
 
             ape = zero
@@ -120,7 +120,7 @@ module fields
             enddo
 
 #ifdef DISABLE_BASIC_STATE
-            buoy = buoy - bfsq
+            buoy = buoy - bfsq * z
 #endif
 
             ape = ape * ncelli

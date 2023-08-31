@@ -46,6 +46,10 @@ program ps3d
                               , read_config_file    &
                               , time
             double precision :: bbdif, ke, ape, te, en
+#if defined(ENABLE_BUOYANCY) && defined(DISABLE_BASIC_STATE)
+            integer          :: iz
+            double precision :: z
+#endif
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -81,7 +85,10 @@ program ps3d
             print *, "Calculated squared buoyancy frequency:", bfsq
 
             ! remove basic state from buoyancy
-            buoy = buoy - bfsq
+            do iz = 0, nz
+                z = lower(3) + dble(iz) * dx(3)
+                buoy(iz, :, :) = buoy(iz, :, :) - bfsq * z
+            enddo
 #endif
             call field_decompose_physical(buoy, sbuoy)
 #endif
