@@ -106,22 +106,23 @@ module fields
                 z(k) = lower(3) + dble(k) * dx(3)
             enddo
 
-#ifdef ENABLE_PERTURBATON_MODE
-            buoy = buoy + bfsq * z
-#endif
 
             ape = zero
             do i = 0, nx-1
                 do j = 0, ny-1
+#ifdef ENABLE_PERTURBATON_MODE
+                    buoy(:, j, i) = buoy(:, j, i) + bfsq * z
+#endif
                     ape = ape + sum(ape_den(buoy(1:nz-1, j, i), z(1:nz-1))) &
                         + f12 *     ape_den(buoy(0,      j, i), z(0))       &
                         + f12 *     ape_den(buoy(nz,     j, i), z(nz))
+
+#ifdef ENABLE_PERTURBATON_MODE
+                    buoy(:, j, i) = buoy(:, j, i) - bfsq * z
+#endif
                 enddo
             enddo
 
-#ifdef ENABLE_PERTURBATON_MODE
-            buoy = buoy - bfsq * z
-#endif
 
             ape = ape * ncelli
 #else
