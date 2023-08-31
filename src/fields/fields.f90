@@ -40,7 +40,7 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#if defined(ENABLE_BUOYANCY) && !defined(ENABLE_BASIC_STATE)
+#if defined(ENABLE_BUOYANCY) && defined(DISABLE_BASIC_STATE)
     ! buoyancy frequency squared
     double precision :: bfsq
 #endif
@@ -85,7 +85,7 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
-#ifndef ENABLE_BASIC_STATE
+#ifdef DISABLE_BASIC_STATE
             bfsq = zero
 #endif
 #endif
@@ -106,6 +106,10 @@ module fields
                 z(k) = lower(3) + dble(k) * dx(3)
             enddo
 
+#ifdef DISABLE_BASIC_STATE
+            buoy = buoy + bfsq
+#endif
+
             ape = zero
             do i = 0, nx-1
                 do j = 0, ny-1
@@ -114,6 +118,10 @@ module fields
                         + f12 *     ape_den(buoy(nz,     j, i), z(nz))
                 enddo
             enddo
+
+#ifdef DISABLE_BASIC_STATE
+            buoy = buoy - bfsq
+#endif
 
             ape = ape * ncelli
 #else

@@ -106,17 +106,17 @@ else
     AC_MSG_RESULT([no])
 fi
 
-ENABLE_BASIC_STATE='yes'
+DISABLE_BASIC_STATE='no'
 AC_ARG_ENABLE([basic-state],
-              [AS_HELP_STRING([--enable-basic-state], [enable basic state mode (default=yes)])],
-              [ENABLE_BASIC_STATE=$enableval])
+              [AS_HELP_STRING([--disable-basic-state], [enable basic state mode (default=yes)])],
+              [DISABLE_BASIC_STATE=$enableval])
 
-AM_CONDITIONAL([ENABLE_BASIC_STATE], [test "$ENABLE_BASIC_STATE" = "yes"])
+AM_CONDITIONAL([DISABLE_BASIC_STATE], [test "$DISABLE_BASIC_STATE" = "yes"])
 
 AC_MSG_CHECKING([whether we are enabling buoyancy])
-if test "x$ENABLE_BASIC_STATE" = "xyes"; then
+if test "x$DISABLE_BASIC_STATE" = "xyes"; then
     AC_MSG_RESULT([yes])
-    FCFLAGS="$FCFLAGS -DENABLE_BASIC_STATE"
+    FCFLAGS="$FCFLAGS -DDISABLE_BASIC_STATE"
 else
     AC_MSG_RESULT([no])
 fi

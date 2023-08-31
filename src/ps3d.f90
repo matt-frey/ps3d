@@ -74,7 +74,7 @@ program ps3d
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
 
-#ifndef ENABLE_BASIC_STATE
+#ifdef DISABLE_BASIC_STATE
             ! N^2 = (db/dz)^2
             bfsq = ((buoy(nz, 0, 0) - buoy(0, 0, 0)) /  extent(3)) ** 2
             ! remove basic state from buoyancy
