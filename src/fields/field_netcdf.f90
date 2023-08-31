@@ -215,7 +215,7 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
             integer                      :: iz
             double precision             :: z
 #endif

@@ -230,7 +230,7 @@ module inversion_mod
 
             call field_combine_physical(sbuoy, buoy)
 
-#ifdef ENABLE_PERTURBATON_MODE
+#ifdef ENABLE_PERTURBATION_MODE
             ! remove N^2 * dz/dt = N^2 * w from the buoyancy (bfsq = N^2)
             buoy = buoy - bfsq * vel(:, :, :, 3)
 #endif

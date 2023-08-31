@@ -40,7 +40,7 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
     ! buoyancy frequency squared
     double precision :: bfsq
 #endif
@@ -85,7 +85,7 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
-#ifdef ENABLE_PERTURBATON_MODE
+#ifdef ENABLE_PERTURBATION_MODE
             bfsq = zero
 #endif
 #endif
@@ -110,14 +110,14 @@ module fields
             ape = zero
             do i = 0, nx-1
                 do j = 0, ny-1
-#ifdef ENABLE_PERTURBATON_MODE
+#ifdef ENABLE_PERTURBATION_MODE
                     buoy(:, j, i) = buoy(:, j, i) + bfsq * z
 #endif
                     ape = ape + sum(ape_den(buoy(1:nz-1, j, i), z(1:nz-1))) &
                         + f12 *     ape_den(buoy(0,      j, i), z(0))       &
                         + f12 *     ape_den(buoy(nz,     j, i), z(nz))
 
-#ifdef ENABLE_PERTURBATON_MODE
+#ifdef ENABLE_PERTURBATION_MODE
                     buoy(:, j, i) = buoy(:, j, i) - bfsq * z
 #endif
                 enddo

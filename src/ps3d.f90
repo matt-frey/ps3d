@@ -46,7 +46,7 @@ program ps3d
                               , read_config_file    &
                               , time
             double precision :: bbdif, ke, ape, te, en
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
             integer          :: iz
             double precision :: z
 #endif
@@ -78,7 +78,7 @@ program ps3d
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
 
-#ifdef ENABLE_PERTURBATON_MODE
+#ifdef ENABLE_PERTURBATION_MODE
             ! N^2 = (db/dz)^2
             bfsq = sum(buoy(nz, :, :) - buoy(0, :, :)) / (dble(nx * ny) * extent(3))
             print *, "Calculated squared buoyancy frequency:", bfsq
