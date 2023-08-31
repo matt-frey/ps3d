@@ -113,7 +113,7 @@ AC_ARG_ENABLE([basic-state],
 
 AM_CONDITIONAL([DISABLE_BASIC_STATE], [test "$DISABLE_BASIC_STATE" = "yes"])
 
-AC_MSG_CHECKING([whether we are enabling buoyancy])
+AC_MSG_CHECKING([whether we are tracking buoyancy perturbation])
 if test "x$DISABLE_BASIC_STATE" = "xyes"; then
     AC_MSG_RESULT([yes])
     FCFLAGS="$FCFLAGS -DDISABLE_BASIC_STATE"
