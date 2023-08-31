@@ -230,6 +230,11 @@ module inversion_mod
 
             call field_combine_physical(sbuoy, buoy)
 
+#ifndef ENABLE_BASIC_STATE
+            ! remove N^2 * dz/dt = N^2 * w from the buoyancy (bfsq = N^2)
+            buoy = buoy - bfsq * vel(:, :, :, 3)
+#endif
+
             ! Define the x-component of the flux
             fp = vel(:, :, :, 1) * buoy
 

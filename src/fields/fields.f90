@@ -40,6 +40,11 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
+#if defined(ENABLE_BUOYANCY) && !defined(ENABLE_BASIC_STATE)
+    ! buoyancy frequency squared
+    double precision :: bfsq
+#endif
+
     contains
 
         ! Allocate all fields
@@ -80,6 +85,9 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
+#ifndef ENABLE_BASIC_STATE
+            bfsq = zero
+#endif
 #endif
             pres   = zero
             diss   = zero
