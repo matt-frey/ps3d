@@ -262,7 +262,7 @@ module field_netcdf
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-#ifdef ENABLE_PERTURABATION_MODE
+#ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
                 z = lower(3) + dble(iz) * dx(3)
                 buoy(iz, :, :) = buoy(iz, :, :) + bfsq * z
