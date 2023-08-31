@@ -230,11 +230,6 @@ module inversion_mod
 
             call field_combine_physical(sbuoy, buoy)
 
-#ifdef ENABLE_PERTURBATION_MODE
-            ! remove N^2 * dz/dt = N^2 * w from the buoyancy (bfsq = N^2)
-            buoy = buoy - bfsq * vel(:, :, :, 3)
-#endif
-
             ! Define the x-component of the flux
             fp = vel(:, :, :, 1) * buoy
 
@@ -259,6 +254,16 @@ module inversion_mod
             call field_decompose_physical(fp, fs)
             call diffz(fs, ds)
             call field_combine_physical(ds, fp)
+
+#ifdef ENABLE_PERTURBATION_MODE
+            ! b = N^2 * z + b'
+            ! db/dt = db/dz * dz/dt + db'/dt
+            ! db/dt = N^2 * w + db'/dt
+            ! here: buoy = b'
+            ! --> we must subtract N^2 * w to get total buoyancy tendency
+            ! (note: we calculate -grad(b), therefore - N^2 * w)
+            btend = btend - bfsq * vel(:, :, :, 3)
+#endif
 
             btend = btend - fp
 
