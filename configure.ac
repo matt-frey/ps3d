@@ -106,17 +106,17 @@ else
     AC_MSG_RESULT([no])
 fi
 
-DISABLE_BASIC_STATE='no'
-AC_ARG_ENABLE([basic-state],
-              [AS_HELP_STRING([--disable-basic-state], [enable basic state mode (default=yes)])],
-              [DISABLE_BASIC_STATE=$enableval])
+ENABLE_PERTURBATON_MODE='no'
+AC_ARG_ENABLE([perturbation-mode],
+              [AS_HELP_STRING([--disable-basic-state], [enable buoyancy perturbation mode (default=no)])],
+              [ENABLE_PERTURBATON_MODE=$enableval])
 
-AM_CONDITIONAL([DISABLE_BASIC_STATE], [test "$DISABLE_BASIC_STATE" = "yes"])
+AM_CONDITIONAL([ENABLE_PERTURBATON_MODE], [test "$ENABLE_PERTURBATON_MODE" = "yes"])
 
 AC_MSG_CHECKING([whether we are tracking buoyancy perturbation])
-if test "x$DISABLE_BASIC_STATE" = "xyes"; then
+if test "x$ENABLE_PERTURBATON_MODE" = "xyes"; then
     AC_MSG_RESULT([yes])
-    FCFLAGS="$FCFLAGS -DDISABLE_BASIC_STATE"
+    FCFLAGS="$FCFLAGS -DENABLE_PERTURBATON_MODE"
 else
     AC_MSG_RESULT([no])
 fi

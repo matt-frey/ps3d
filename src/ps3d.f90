@@ -46,7 +46,7 @@ program ps3d
                               , read_config_file    &
                               , time
             double precision :: bbdif, ke, ape, te, en
-#if defined(ENABLE_BUOYANCY) && defined(DISABLE_BASIC_STATE)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
             integer          :: iz
             double precision :: z
 #endif
@@ -78,7 +78,7 @@ program ps3d
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
 
-#ifdef DISABLE_BASIC_STATE
+#ifdef ENABLE_PERTURBATON_MODE
             ! N^2 = (db/dz)^2
             bfsq = sum(buoy(nz, :, :) - buoy(0, :, :)) / (dble(nx * ny) * extent(3))
             bfsq = bfsq ** 2

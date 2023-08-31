@@ -40,7 +40,7 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#if defined(ENABLE_BUOYANCY) && defined(DISABLE_BASIC_STATE)
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATON_MODE)
     ! buoyancy frequency squared
     double precision :: bfsq
 #endif
@@ -85,7 +85,7 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
-#ifdef DISABLE_BASIC_STATE
+#ifdef ENABLE_PERTURBATON_MODE
             bfsq = zero
 #endif
 #endif
@@ -106,7 +106,7 @@ module fields
                 z(k) = lower(3) + dble(k) * dx(3)
             enddo
 
-#ifdef DISABLE_BASIC_STATE
+#ifdef ENABLE_PERTURBATON_MODE
             buoy = buoy + bfsq * z
 #endif
 
@@ -119,7 +119,7 @@ module fields
                 enddo
             enddo
 
-#ifdef DISABLE_BASIC_STATE
+#ifdef ENABLE_PERTURBATON_MODE
             buoy = buoy - bfsq * z
 #endif
 
