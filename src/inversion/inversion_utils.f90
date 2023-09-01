@@ -53,7 +53,7 @@ module inversion_utils
                hrkx, hrky!, rkz
 
 
-    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq, ap
+    double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
     integer :: nwx, nwy, nxp2, nyp2
 
     logical :: is_fft_initialised = .false.
@@ -156,7 +156,6 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            double precision, allocatable :: a0(:, :)
             integer          :: kx, ky, iz, kz
             double precision :: z, zm(0:nz), zp(0:nz)
 
@@ -743,8 +742,8 @@ module inversion_utils
         !Uses 2nd-order differencing
         !*** Overwrites fs ***
         subroutine lapinv1(fs)
-            double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1)
-            double precision                :: rs(0:nz, 0:nx-1, 0:ny-1)
+            double precision, intent(inout) :: fs(0:nz, 0:ny-1, 0:nx-1)
+            double precision                :: rs(0:nz, 0:ny-1, 0:nx-1)
             integer                         :: iz
 
             rs = fs
