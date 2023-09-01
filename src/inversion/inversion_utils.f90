@@ -12,9 +12,6 @@ module inversion_utils
     ! Ordering in physical space: z, y, x
     ! Ordering in spectral space: z, x, y
 
-    ! Tridiagonal arrays for the vertical vorticity component:
-    double precision, allocatable :: etdv(:, :, :), htdv(:, :, :)
-
     ! Wavenumbers:
     double precision, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:), rkzi(:)
 
@@ -66,7 +63,6 @@ module inversion_utils
             , diffz                 &
 #endif
             , central_diffz         &
-            , lapinv1               &
             , fftxyp2s              &
             , fftxys2p              &
             , dz2                   &
@@ -236,34 +232,6 @@ module inversion_utils
             enddo
             !$omp end parallel do
             !Here gambot is the complement of gamtop.
-
-            !-----------------------------------------------------------------------
-            ! Fixed coefficients used in the tridiagonal problems:
-
-            allocate(a0(0:ny-1, 0:nx-1))
-            allocate(etdv(0:nz, 0:ny-1, 0:nx-1))
-            allocate(htdv(0:nz, 0:ny-1, 0:nx-1))
-
-            a0 = -two * dzisq - k2l2
-            ap = dzisq
-
-            !-----------------------------------------------------------------------
-            ! Tridiagonal arrays for the vertical vorticity component:
-            htdv(0, :, :) = one / a0
-            etdv(0, :, :) = -two * ap * htdv(0, :, :)
-            do iz = 1, nz-1
-                htdv(iz, :, :) = one / (a0(:, :) + ap * etdv(iz-1, :, :))
-                etdv(iz, :, :) = -ap * htdv(iz, :, :)
-            enddo
-
-            etdv(nz-1, 0, 0) = zero
-            htdv(nz, :, :) = one / (a0 + two * ap * etdv(nz-1, :, :))
-
-            ! Remove horizontally-averaged part (done separately):
-            htdv(:, 0, 0) = zero
-            etdv(:, 0, 0) = zero
-
-            deallocate(a0)
 
         end subroutine init_inversion
 
@@ -733,34 +701,6 @@ module inversion_utils
 
             ! Carry out a full inverse x transform:
             call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
-        end subroutine
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Inverts Laplace's operator on fs in semi-spectral space.
-        !Here dfs/dz = 0 on the z boundaries.
-        !Uses 2nd-order differencing
-        !*** Overwrites fs ***
-        subroutine lapinv1(fs)
-            double precision, intent(inout) :: fs(0:nz, 0:ny-1, 0:nx-1)
-            double precision                :: rs(0:nz, 0:ny-1, 0:nx-1)
-            integer                         :: iz
-
-            rs = fs
-            fs(0, :, :) = rs(0, :, :) * htdv(0, :, :)
-
-            do iz = 1, nz-1
-                fs(iz, :, :) = (rs(iz, :, :) - ap * fs(iz-1, :, :)) * htdv(iz, :, :)
-            enddo
-
-            fs(nz, :, :) = (rs(nz, :, :) - two * ap * fs(nz-1, :, :)) * htdv(nz, :, :)
-
-            do iz = nz-1, 0, -1
-                fs(iz, :, :) = etdv(iz, :, :) * fs(iz+1, :, :) + fs(iz, :, :)
-            enddo
-
-            !Zero horizontal wavenumber in x & y treated separately:
-            fs(:, 0, 0) = zero
         end subroutine
 
 end module inversion_utils
