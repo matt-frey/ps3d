@@ -24,49 +24,64 @@ module inversion_mod
             double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
+            double precision :: div(-1:nz+1, 0:ny-1, 0:nx-1)
+            double precision :: grad(-1:nz+1, 0:ny-1, 0:nx-1, 3)
             integer          :: iz, nc, kx, ky, kz
 
             call start_timer(vor2vel_timer)
 
+!             !----------------------------------------------------------
+!             ! Enforce solenoidality
+!             ! A, B, C are vorticities
+!             ! D = B_x - A_y; E = C_z
+!             ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
+!             call diffx(svor(:, :, :, 2), as) ! as = B_x
+!             call diffy(svor(:, :, :, 1), bs) ! bs = A_y
+!             !$omp parallel workshare
+!             ds = as - bs                     ! ds = D
+!             cs = svor(:, :, :, 3)
+!             !$omp end parallel workshare
+!             call field_combine_semi_spectral(cs)
+!             call central_diffz(cs, es)                     ! es = E
+!             call field_decompose_semi_spectral(es)
+!
+!             ! ubar and vbar are used here to store the mean x and y components of the vorticity
+!             ubar = svor(:, 0, 0, 1)
+!             vbar = svor(:, 0, 0, 2)
+!
+!             call diffx(es, svor(:, :, :, 1)) ! E_x
+!             call diffy(ds, cs)               ! cs = D_y
+!             !$omp parallel do private(iz)  default(shared)
+!             do iz = 0, nz
+!                svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
+!             enddo
+!             !$omp end parallel do
+!
+!             call diffy(es, svor(:, :, :, 2)) ! E_y
+!             call diffx(ds, cs)               ! D_x
+!
+!             !$omp parallel do private(iz)  default(shared)
+!             do iz = 0, nz
+!                svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
+!             enddo
+!             !$omp end parallel do
+!
+!             ! bring back the mean x and y components of the vorticity
+!             svor(:, 0, 0, 1) = ubar
+!             svor(:, 0, 0, 2) = vbar
+
             !----------------------------------------------------------
-            ! Enforce solenoidality
-            ! A, B, C are vorticities
-            ! D = B_x - A_y; E = C_z
-            ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
-            call diffx(svor(:, :, :, 2), as) ! as = B_x
-            call diffy(svor(:, :, :, 1), bs) ! bs = A_y
-            !$omp parallel workshare
-            ds = as - bs                     ! ds = D
-            cs = svor(:, :, :, 3)
-            !$omp end parallel workshare
-            call field_combine_semi_spectral(cs)
-            call central_diffz(cs, es)                     ! es = E
-            call field_decompose_semi_spectral(es)
+            ! Enforce solenoidality:
+            ! we do not need to fill the internal halo grid points as
+            ! diverge calculates the x and y derivatives in spectral space where
+            ! no halo grid points are needed
 
-            ! ubar and vbar are used here to store the mean x and y components of the vorticity
-            ubar = svor(:, 0, 0, 1)
-            vbar = svor(:, 0, 0, 2)
+            ! Get source div(vortg) for solenoidal correction:
+            call divergence(vor, div)
 
-            call diffx(es, svor(:, :, :, 1)) ! E_x
-            call diffy(ds, cs)               ! cs = D_y
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-               svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            call diffy(es, svor(:, :, :, 2)) ! E_y
-            call diffx(ds, cs)               ! D_x
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-               svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            ! bring back the mean x and y components of the vorticity
-            svor(:, 0, 0, 1) = ubar
-            svor(:, 0, 0, 2) = vbar
+            ! Compute vorticity correction grad(phi) where
+            ! Lap(phi) = div (given):
+            call diverge(div, grad)
 
             !----------------------------------------------------------
             !Combine vorticity in physical space:
@@ -420,5 +435,90 @@ module inversion_mod
             call stop_timer(pres_timer)
 
         end subroutine pressure
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Note: f is overwritten; only the range div(0:nz, :, :) contains
+        ! valid data
+        subroutine divergence(f, div)
+            double precision, intent(inout) :: f(-1:nz+1, 0:ny-1, 0:nx-1, n_dim)
+            double precision, intent(out)   :: div(-1:nz+1, 0:ny-1, 0:nx-1)
+            double precision                :: fs(0:nz, 0:ny-1, 0:nx-1)
+            double precision                :: ds(0:nz, 0:ny-1, 0:nx-1)
+
+            ! calculate df1/dx
+            call fftxyp2s(f(:, :, :, I_X), fs)
+            call diffx(fs, ds)
+            call fftxys2p(ds, f(:, :, :, I_X))
+
+            !$omp parallel workshare
+            f(  -1, :, :, I_X) = two * f( 0, :, :, I_X) - f(   1, :, :, I_X)
+            f(nz+1, :, :, I_X) = two * f(nz, :, :, I_X) - f(nz-1, :, :, I_X)
+            !$omp end parallel workshare
+
+            ! calculate df2/dy
+            call fftxyp2s(f(:, :, :, I_Y), fs)
+            call diffy(fs, ds)
+            call fftxys2p(ds, f(:, :, :, I_Y))
+
+            !$omp parallel workshare
+            f(  -1, :, :, I_Y) = two * f( 0, :, :, I_Y) - f(   1, :, :, I_Y)
+            f(nz+1, :, :, I_Y) = two * f(nz, :, :, I_Y) - f(nz-1, :, :, I_Y)
+            !$omp end parallel workshare
+
+            ! calculate df3/dz
+            call central_diffz(f(:, :, :, I_Z), div)
+
+            ! div = df1/dx + df2/dy + df3/dz
+            div = f(:, :, :, I_X) + f(:, :, :, I_Y) + div
+
+        end subroutine divergence
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Computes a divergent flow field (ud, vd, wd) = grad(phi) where
+        ! Lap(phi) = div (given) and grad = (ud, vd, wd).
+        subroutine diverge(div, grad)
+            double precision, intent(inout)  :: div(-1:nz+1, 0:ny-1, 0:nx-1)
+            double precision, intent(out)    :: grad(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+            double precision                 :: ds(0:nz, 0:ny-1, 0:nx-1)
+            double precision                 :: us(0:nz, 0:ny-1, 0:nx-1), &
+                                                vs(0:nz, 0:ny-1, 0:nx-1), &
+                                                ws(0:nz, 0:ny-1, 0:nx-1)
+
+            !------------------------------------------------------------------
+            ! Convert phi to spectral space (in x & y) as ds:
+            call fftxyp2s(div, ds)
+
+            ds(:, 0, 0) = zero
+
+            ! Invert Laplace's operator semi-spectrally:
+            call lapinv1(ds)
+
+            ! Compute x derivative spectrally:
+            call diffx(ds, us)
+
+            ! Reverse FFT to define x velocity component ud:
+            call fftxys2p(us, grad(:, :, :, I_X))
+
+            ! Compute y derivative spectrally:
+            call diffy(ds, vs)
+
+            ! Reverse FFT to define y velocity component vd:
+            call fftxys2p(vs, grad(:, :, :, I_Y))
+
+            ! Compute z derivative by central differences:
+            call central_diffz(ds, ws)
+
+            ! Set vertical boundary values to zero
+            ws(0,  :, :) = zero
+            ws(nz, :, :) = zero
+
+            ! Reverse FFT to define z velocity component wd:
+            call fftxys2p(ws, grad(:, :, :, I_Z))
+
+        end subroutine diverge
+
+
 
 end module inversion_mod
