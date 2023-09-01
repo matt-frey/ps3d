@@ -42,7 +42,8 @@ module fields
 
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
     ! buoyancy frequency squared
-    double precision :: bfsq
+    double precision :: bfsq        ! N**2
+    double precision, allocatable :: bbarz(:) ! N**2 * z
 #endif
 
     contains
@@ -65,10 +66,16 @@ module fields
             allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
             allocate(sbuoy(0:nz, 0:nx-1, 0:ny-1))
             allocate(sbuoys(0:nz, 0:nx-1, 0:ny-1))
+
+#ifdef ENABLE_PERTURBATION_MODE
+            allocate(bbarz(0:nz))
+#endif
 #endif
 
             allocate(pres(0:nz, 0:ny-1, 0:nx-1))
             allocate(diss(0:nx-1, 0:ny-1))
+
+
 
         end subroutine field_alloc
 
@@ -111,14 +118,14 @@ module fields
             do i = 0, nx-1
                 do j = 0, ny-1
 #ifdef ENABLE_PERTURBATION_MODE
-                    buoy(:, j, i) = buoy(:, j, i) + bfsq * z
+                    buoy(:, j, i) = buoy(:, j, i) + bbarz
 #endif
                     ape = ape + sum(ape_den(buoy(1:nz-1, j, i), z(1:nz-1))) &
                         + f12 *     ape_den(buoy(0,      j, i), z(0))       &
                         + f12 *     ape_den(buoy(nz,     j, i), z(nz))
 
 #ifdef ENABLE_PERTURBATION_MODE
-                    buoy(:, j, i) = buoy(:, j, i) - bfsq * z
+                    buoy(:, j, i) = buoy(:, j, i) - bbarz
 #endif
                 enddo
             enddo

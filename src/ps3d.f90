@@ -86,7 +86,8 @@ program ps3d
             ! remove basic state from buoyancy
             do iz = 0, nz
                 z = lower(3) + dble(iz) * dx(3)
-                buoy(iz, :, :) = buoy(iz, :, :) - bfsq * z
+                bbarz(iz) = bfsq * z
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
 #endif
             call field_decompose_physical(buoy, sbuoy)

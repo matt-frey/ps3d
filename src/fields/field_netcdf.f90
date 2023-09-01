@@ -217,7 +217,6 @@ module field_netcdf
             integer                      :: cnt(4), start(4)
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
             integer                      :: iz
-            double precision             :: z
 #endif
 
             call start_timer(field_io_timer)
@@ -264,8 +263,7 @@ module field_netcdf
             call field_combine_physical(sbuoy, buoy)
 #ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                buoy(iz, :, :) = buoy(iz, :, :) + bfsq * z
+                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
 #endif
             call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
