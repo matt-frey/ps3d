@@ -77,6 +77,7 @@ program ps3d
 
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
+            bbdif = maxval(buoy) - minval(buoy)
 
 #ifdef ENABLE_PERTURBATION_MODE
             ! N^2 = (db/dz)^2
@@ -91,6 +92,8 @@ program ps3d
             enddo
 #endif
             call field_decompose_physical(buoy, sbuoy)
+#else
+            bbdif = zero
 #endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
@@ -100,11 +103,6 @@ program ps3d
             ini_vor_mean = calc_vorticity_mean()
 
             call vor2vel
-#ifdef ENABLE_BUOYANCY
-            bbdif = maxval(buoy) - minval(buoy)
-#else
-            bbdif = zero
-#endif
             ke = get_kinetic_energy()
             ape = get_available_potential_energy()
             te = ke + ape
