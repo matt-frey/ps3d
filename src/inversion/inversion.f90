@@ -24,8 +24,8 @@ module inversion_mod
             double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
-            double precision :: div(-1:nz+1, 0:ny-1, 0:nx-1)
-            double precision :: grad(-1:nz+1, 0:ny-1, 0:nx-1, 3)
+            double precision :: divs(0:nz, 0:nx-1, 0:ny-1)
+            double precision :: grad(0:nz, 0:ny-1, 0:nx-1, 3)
             integer          :: iz, nc, kx, ky, kz
 
             call start_timer(vor2vel_timer)
@@ -76,17 +76,24 @@ module inversion_mod
             ! diverge calculates the x and y derivatives in spectral space where
             ! no halo grid points are needed
 
-            ! Get source div(vortg) for solenoidal correction:
-            call divergence(vor, div)
+            ! Get source div(vor) for solenoidal correction: (divs is in semi-spectral space)
+            call divergence(svor, divs)
 
             ! Compute vorticity correction grad(phi) where
             ! Lap(phi) = div (given):
-            call diverge(div, grad)
+            call diverge(divs, grad)
+
+            do nc = 1, 3
+               call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+            enddo
+
+            ! Apply solenoidal correction:
+            vor = vor - grad
 
             !----------------------------------------------------------
             !Combine vorticity in physical space:
             do nc = 1, 3
-                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+                call field_decompose_physical(vor(:, :, :, nc), svor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
@@ -242,6 +249,29 @@ module inversion_mod
             ! in flux form b_t = - div(F) where F = (u*b, v*b, w*b);
             ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
             ! but u_x + v_y + w_z = 0 as we assume incompressibility.
+
+            call field_combine_semi_spectral(sbuoy)
+            call diffx(sbuoy, fs)
+            call fftxys2p(fs, fp)
+            btend = - vel(:, :, :, 1) * fp
+            
+            call diffy(sbuoy, fs)
+            call fftxys2p(fs, fp)
+            btend = btend - vel(:, :, :, 2) * fp
+
+            call field_decompose_semi_spectral(sbuoy)
+            
+            call diffz(sbuoy, ds)
+            call field_combine_physical(ds, fp)
+            btend = btend - vel(:, :, :, 3) * fp - bfsq * vel(:, :, :, 3)
+
+            call field_decompose_physical(btend, sbuoys)
+            
+            return
+
+            print *, "We should not be here"
+            stop
+            
 
             call field_combine_physical(sbuoy, buoy)
 
@@ -440,37 +470,33 @@ module inversion_mod
 
         ! Note: f is overwritten; only the range div(0:nz, :, :) contains
         ! valid data
-        subroutine divergence(f, div)
-            double precision, intent(inout) :: f(-1:nz+1, 0:ny-1, 0:nx-1, n_dim)
-            double precision, intent(out)   :: div(-1:nz+1, 0:ny-1, 0:nx-1)
-            double precision                :: fs(0:nz, 0:ny-1, 0:nx-1)
-            double precision                :: ds(0:nz, 0:ny-1, 0:nx-1)
+        subroutine divergence(fs, divs)
+            double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision, intent(out)   :: divs(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: ds(0:nz, 0:nx-1, 0:ny-1)
+            integer                         :: nc
+
+            do nc = 1, 3
+               call field_combine_semi_spectral(fs(:, :, :, nc))
+            enddo
 
             ! calculate df1/dx
-            call fftxyp2s(f(:, :, :, I_X), fs)
-            call diffx(fs, ds)
-            call fftxys2p(ds, f(:, :, :, I_X))
-
-            !$omp parallel workshare
-            f(  -1, :, :, I_X) = two * f( 0, :, :, I_X) - f(   1, :, :, I_X)
-            f(nz+1, :, :, I_X) = two * f(nz, :, :, I_X) - f(nz-1, :, :, I_X)
-            !$omp end parallel workshare
+            call diffx(fs(:, :, :, 1), divs)
 
             ! calculate df2/dy
-            call fftxyp2s(f(:, :, :, I_Y), fs)
-            call diffy(fs, ds)
-            call fftxys2p(ds, f(:, :, :, I_Y))
+            call diffy(fs(:, :, :, 2), ds)
 
-            !$omp parallel workshare
-            f(  -1, :, :, I_Y) = two * f( 0, :, :, I_Y) - f(   1, :, :, I_Y)
-            f(nz+1, :, :, I_Y) = two * f(nz, :, :, I_Y) - f(nz-1, :, :, I_Y)
-            !$omp end parallel workshare
+            divs = ds + divs
 
             ! calculate df3/dz
-            call central_diffz(f(:, :, :, I_Z), div)
+            call central_diffz(fs(:, :, :, 3), ds)
 
             ! div = df1/dx + df2/dy + df3/dz
-            div = f(:, :, :, I_X) + f(:, :, :, I_Y) + div
+            divs = ds + divs
+
+            do nc = 1, 3
+               call field_decompose_semi_spectral(fs(:, :, :, nc))
+            enddo
 
         end subroutine divergence
 
@@ -478,44 +504,39 @@ module inversion_mod
 
         ! Computes a divergent flow field (ud, vd, wd) = grad(phi) where
         ! Lap(phi) = div (given) and grad = (ud, vd, wd).
-        subroutine diverge(div, grad)
-            double precision, intent(inout)  :: div(-1:nz+1, 0:ny-1, 0:nx-1)
-            double precision, intent(out)    :: grad(-1:nz+1, 0:ny-1, 0:nx-1, 3)
-            double precision                 :: ds(0:nz, 0:ny-1, 0:nx-1)
-            double precision                 :: us(0:nz, 0:ny-1, 0:nx-1), &
-                                                vs(0:nz, 0:ny-1, 0:nx-1), &
-                                                ws(0:nz, 0:ny-1, 0:nx-1)
+        subroutine diverge(divs, grad)
+            double precision, intent(inout)  :: divs(0:nz, 0:nx-1, 0:ny-1)
+            double precision, intent(out)    :: grad(0:nz, 0:ny-1, 0:nx-1, 3)
+            double precision                 :: us(0:nz, 0:nx-1, 0:ny-1), &
+                                                vs(0:nz, 0:nx-1, 0:ny-1), &
+                                                ws(0:nz, 0:nx-1, 0:ny-1)
 
-            !------------------------------------------------------------------
-            ! Convert phi to spectral space (in x & y) as ds:
-            call fftxyp2s(div, ds)
-
-            ds(:, 0, 0) = zero
+            divs(:, 0, 0) = zero
 
             ! Invert Laplace's operator semi-spectrally:
-            call lapinv1(ds)
+            call lapinv1(divs)
 
             ! Compute x derivative spectrally:
-            call diffx(ds, us)
+            call diffx(divs, us)
 
             ! Reverse FFT to define x velocity component ud:
-            call fftxys2p(us, grad(:, :, :, I_X))
+            call fftxys2p(us, grad(:, :, :, 1))
 
             ! Compute y derivative spectrally:
-            call diffy(ds, vs)
+            call diffy(divs, vs)
 
             ! Reverse FFT to define y velocity component vd:
-            call fftxys2p(vs, grad(:, :, :, I_Y))
+            call fftxys2p(vs, grad(:, :, :, 2))
 
             ! Compute z derivative by central differences:
-            call central_diffz(ds, ws)
+            call central_diffz(divs, ws)
 
             ! Set vertical boundary values to zero
             ws(0,  :, :) = zero
             ws(nz, :, :) = zero
 
             ! Reverse FFT to define z velocity component wd:
-            call fftxys2p(ws, grad(:, :, :, I_Z))
+            call fftxys2p(ws, grad(:, :, :, 3))
 
         end subroutine diverge
 
