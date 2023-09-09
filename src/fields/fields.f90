@@ -40,9 +40,10 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
+#ifdef ENABLE_BUOYANCY
     ! buoyancy frequency squared
     double precision :: bfsq        ! N**2
+#ifdef ENABLE_PERTURBATION_MODE
     double precision, allocatable :: bbarz(:) ! N**2 * z
 #endif
 
@@ -92,9 +93,7 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
-#ifdef ENABLE_PERTURBATION_MODE
             bfsq = zero
-#endif
 #endif
             pres   = zero
             diss   = zero
