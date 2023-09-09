@@ -46,7 +46,7 @@ module fields
 #ifdef ENABLE_PERTURBATION_MODE
     double precision, allocatable :: bbarz(:) ! N**2 * z
 #endif
-
+#endif
     contains
 
         ! Allocate all fields
