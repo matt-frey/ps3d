@@ -158,6 +158,9 @@ module field_diagnostics_netcdf
             double precision             :: ke, en
 #ifdef ENABLE_BUOYANCY
             double precision             :: bmin, bmax, ape
+#ifdef ENABLE_PERTURBATION_MODE
+            integer                      :: iz
+#endif
 #endif
 
             call start_timer(field_stats_io_timer)
@@ -173,6 +176,11 @@ module field_diagnostics_netcdf
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
             ape = get_available_potential_energy()
+#ifdef ENABLE_PERTURBATION_MODE
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+            enddo
+#endif
             bmin = minval(buoy)
             bmax = maxval(buoy)
 #endif

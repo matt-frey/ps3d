@@ -255,6 +255,26 @@ module inversion_mod
             call diffz(fs, ds)
             call field_combine_physical(ds, fp)
 
+#ifdef ENABLE_PERTURBATION_MODE
+            ! b = N^2 * z + b'
+            ! db/dt = db/dz * dz/dt + db'/dt
+            ! db/dt = N^2 * w + db'/dt
+            ! here: buoy = b'
+            ! --> we must subtract N^2 * w to get total buoyancy tendency
+            ! (note: we calculate -grad(b), therefore - N^2 * w)
+            ! Note: We calculate the tendency in flux form:
+            !       b_t = - div(F) where F = (u*b, v*b, w*b);
+            ! which is in z:
+            !
+            !   d(w*b)/dz = dw/dz * b + w * db/dz
+            !
+            ! but dw/dz = 0 as the velocity is solenoidal, hence
+            !
+            !   d(w*b)/dz = w * db/dz
+            !
+            btend = btend - bfsq * vel(:, :, :, 3)
+#endif
+
             btend = btend - fp
 
             ! Convert to mixed-spectral space:

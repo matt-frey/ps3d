@@ -13,7 +13,9 @@ module ape_density
             double precision             :: br
 
 #ifdef ENABLE_IW_TEST_CASE
-            a = f18 * (b - four * z) ** 2
+            br = max(b, -twopi)
+            br = min(br, twopi)
+            a = f18 * (br - four * z) ** 2
 #elif ENABLE_RT_TEST_CASE
             br = max(b, -one)
             br = min(br, one)

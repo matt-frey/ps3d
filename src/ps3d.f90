@@ -46,6 +46,10 @@ program ps3d
                               , read_config_file    &
                               , time
             double precision :: bbdif, ke, ape, te, en
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
+            integer          :: iz
+            double precision :: z
+#endif
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -73,7 +77,23 @@ program ps3d
 
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
+            bbdif = maxval(buoy) - minval(buoy)
+
+#ifdef ENABLE_PERTURBATION_MODE
+            ! N^2 = (db/dz)^2
+            bfsq = sum(buoy(nz, :, :) - buoy(0, :, :)) / (dble(nx * ny) * extent(3))
+            print *, "Calculated squared buoyancy frequency:", bfsq
+
+            ! remove basic state from buoyancy
+            do iz = 0, nz
+                z = lower(3) + dble(iz) * dx(3)
+                bbarz(iz) = bfsq * z
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
+#endif
             call field_decompose_physical(buoy, sbuoy)
+#else
+            bbdif = zero
 #endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
@@ -83,11 +103,6 @@ program ps3d
             ini_vor_mean = calc_vorticity_mean()
 
             call vor2vel
-#ifdef ENABLE_BUOYANCY
-            bbdif = maxval(buoy) - minval(buoy)
-#else
-            bbdif = zero
-#endif
             ke = get_kinetic_energy()
             ape = get_available_potential_energy()
             te = ke + ape
