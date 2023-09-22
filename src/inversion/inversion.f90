@@ -24,55 +24,13 @@ module inversion_mod
             double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
-            integer          :: iz, nc, kx, ky, kz
+            integer          :: iz, kx, ky, kz
 
             call start_timer(vor2vel_timer)
 
             !----------------------------------------------------------
-            ! Enforce solenoidality
-            ! A, B, C are vorticities
-            ! D = B_x - A_y; E = C_z
-            ! A = k2l2i * (E_x + D_y) and B = k2l2i * (E_y - D_x) --> A_x + B_y + C_z = zero
-            call diffx(svor(:, :, :, 2), as) ! as = B_x
-            call diffy(svor(:, :, :, 1), bs) ! bs = A_y
-            !$omp parallel workshare
-            ds = as - bs                     ! ds = D
-            cs = svor(:, :, :, 3)
-            !$omp end parallel workshare
-            call field_combine_semi_spectral(cs)
-            call central_diffz(cs, es)                     ! es = E
-            call field_decompose_semi_spectral(es)
-
-            ! ubar and vbar are used here to store the mean x and y components of the vorticity
-            ubar = svor(:, 0, 0, 1)
-            vbar = svor(:, 0, 0, 2)
-
-            call diffx(es, svor(:, :, :, 1)) ! E_x
-            call diffy(ds, cs)               ! cs = D_y
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-               svor(iz, :, :, 1) = k2l2i * (svor(iz, :, :, 1) + cs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            call diffy(es, svor(:, :, :, 2)) ! E_y
-            call diffx(ds, cs)               ! D_x
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-               svor(iz, :, :, 2) = k2l2i * (svor(iz, :, :, 2) - cs(iz, :, :))
-            enddo
-            !$omp end parallel do
-
-            ! bring back the mean x and y components of the vorticity
-            svor(:, 0, 0, 1) = ubar
-            svor(:, 0, 0, 2) = vbar
-
-            !----------------------------------------------------------
-            !Combine vorticity in physical space:
-            do nc = 1, 3
-                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
-            enddo
+            ! Obtain zeta from zeta_min (iz = 0):
+            call calculate_zeta
 
             !----------------------------------------------------------
             !Form source term for inversion of vertical velocity -> ds:
@@ -299,6 +257,8 @@ module inversion_mod
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
             do nc = 1, 3
+                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+
                 !$omp parallel workshare
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
                 !$omp end parallel workshare
@@ -350,11 +310,26 @@ module inversion_mod
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
             !$omp end parallel workshare
 
-            ! dzeta/dt = dq/dx - dp/dy
-            call diffx(q, svorts(:, :, :, 3))
-            call diffy(p, r)                                ! here: r = dp/dy
+
+            ! dzeta_min / dt = -d(u * zeta_min)/dx - d(v * zeta_min)/dy
+            ! zeta_min = vor(0 ,:, :, 3)
             !$omp parallel workshare
-            svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
+            fp(0, :, :) = vel(0, :, :, 1) * vor(0, :, :, 3)
+            gp(0, :, :) = vel(0, :, :, 2) * vor(0, :, :, 3)
+            !$omp end parallel workshare
+
+            call fftxyp2s(fp, p)
+            call diffx(p, q)
+
+            !$omp parallel workshare
+            svorts(0, :, :, 3) = - q(0, :, :)
+            !$omp end parallel workshare
+
+            call fftxyp2s(gp, p)
+            call diffy(p, q)
+
+            !$omp parallel workshare
+            svorts(0, :, :, 3) = svorts(0, :, :, 3) - q(0, :, :)
             !$omp end parallel workshare
 
             call stop_timer(vtend_timer)

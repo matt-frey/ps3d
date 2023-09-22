@@ -8,7 +8,10 @@ module fields
     use merge_sort
     use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
                               , field_combine_semi_spectral             &
-                              , field_decompose_semi_spectral
+                              , field_decompose_semi_spectral           &
+                              , fftxyp2s                                &
+                              , field_combine_physical                  &
+                              , field_decompose_physical
     use ape_density, only : ape_den
     implicit none
 
@@ -222,5 +225,35 @@ module fields
 
             vormean = vormean * ncelli
         end function get_mean_vorticity
+
+        ! Obtain zeta in mixed-spectral space by integrating from zeta_min (iz = 0)
+        subroutine calculate_zeta
+            integer          :: iz
+            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
+            double precision :: df(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: ss(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+
+            ! d\xi/dx in mixed spectral space
+            call diffx(svor(:, :, :, 1), ds)
+
+            ! d\xi/dx in physical space
+            call field_combine_physical(ds, ss)
+
+            ! d\eta/dy in mixed spectral space
+            call diffy(svor(:, :, :, 2), ds)
+
+            ! d\eta/dy in physical space
+            call field_combine_physical(ds, df)
+
+            ! d\xi/dx + d\eta/dy
+            ss = ss + df
+
+            do iz = 1, nz
+                vor(iz, :, :, 3) = vor(iz-1, :, :, 3) - f12 * dx(3) * ss(iz, :, :)
+            enddo
+
+            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+
+        end subroutine calculate_zeta
 
 end module fields
