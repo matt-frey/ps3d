@@ -283,7 +283,7 @@ module inversion_utils
             ! [1 + exp(-2 * kl * Lz) - exp(kl * (zm - Lz)) - exp(-kl * (Lz + zm))] / (kl * [1 - exp(-2 * kl * Lz)])
             ! div = 1 / [1 - exp(-2 * kl * Lz)]
             psim(:, kx, ky) = (one + ef ** 2 - dexp(Lm) * ef - em * ef) * div / kl
-            psip(:, kx, ky) = (dexp(Lp) * ef + ep * ef - ef<xxxxxxxx) * div / kl
+            psip(:, kx, ky) = (dexp(Lp) * ef + ep * ef - ef) * div / kl
 
 #ifdef ENABLE_BUOYANCY
             dphim(:, kx, ky) = - kl * div * (ep + ef * em)
