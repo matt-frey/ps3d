@@ -733,8 +733,6 @@ module inversion_utils
             ! harmonic part
             es = fs(0, :, :) * psim + fs(nz, :, :) * psip
 
-            fs = fs - es
-
             fs(1:nz-1) = rkzi * fs(1:nz-1)
 
             !$omp parallel do collapse(2) private(kx, ky)
