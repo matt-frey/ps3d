@@ -46,7 +46,8 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 2)
+            double precision                :: zetasm(0:nx-1, 0:ny-1)
 #ifdef ENABLE_BUOYANCY
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
 #endif
@@ -65,7 +66,7 @@ module advance_mod
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
 
-            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
+            !Calculate the source terms (sbuoys, svorts and szetas) for buoyancy (sbuoy) and
             !vorticity in spectral space:
             call source
 
@@ -85,9 +86,10 @@ module advance_mod
             ! Advance interior and boundary values of vorticity
             !$omp parallel workshare
             vortsm = svor + dt2 * svorts
+            zetasm = szeta + dt2 * szetas
             !$omp end parallel workshare
 
-            do nc = 1, 3
+            do nc = 1, 2
                 !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 !$omp end parallel workshare
@@ -99,6 +101,8 @@ module advance_mod
                 !$omp end parallel do
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
+
+            szeta = filt(0, :, :) * (zetasm + dt2 * szetas)
 
             call adjust_vorticity_mean
 
@@ -125,7 +129,7 @@ module advance_mod
                 call field_decompose_semi_spectral(sbuoy)
 #endif
 
-                do nc = 1, 3
+                do nc = 1, 2
                     !$omp parallel workshare
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                     !$omp end parallel workshare
@@ -137,6 +141,8 @@ module advance_mod
                     !$omp end parallel do
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
+
+                szeta = filt(0, :, :) * (zetasm + dt2 * szetas)
 
                 call adjust_vorticity_mean
 
@@ -182,6 +188,7 @@ module advance_mod
         ! Note, vel obtained by vor2vel before calling this
         ! routine is spectrally truncated.
         subroutine source
+
 #ifdef ENABLE_BUOYANCY
             !------------------------------------
             !Buoyancy source:

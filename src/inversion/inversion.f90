@@ -29,8 +29,8 @@ module inversion_mod
             call start_timer(vor2vel_timer)
 
             !----------------------------------------------------------
-            ! Obtain zeta from zeta_min (iz = 0):
-            call calculate_zeta
+            ! Obtain complete zeta from zeta_min (iz = 0) in physical and semi-sectral space:
+            call combine_zeta
 
             !----------------------------------------------------------
             !Form source term for inversion of vertical velocity -> ds:
@@ -92,7 +92,6 @@ module inversion_mod
             ! Get complete zeta field in semi-spectral space
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
-            call field_combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
@@ -254,15 +253,21 @@ module inversion_mod
 
             call start_timer(vtend_timer)
 
+            !----------------------------------------------------------
+            ! Obtain complete zeta from zeta_min (iz = 0) in physical and semi-sectral space:
+            call combine_zeta
+
             !-------------------------------------------------------
             ! First store absolute vorticity in physical space:
-            do nc = 1, 3
+            do nc = 1, 2
                 call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
 
                 !$omp parallel workshare
                 vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
                 !$omp end parallel workshare
             enddo
+
+            vor(:, :, :, 3) = vor(:, :, :, 3) + f_cor(3)
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
@@ -322,14 +327,14 @@ module inversion_mod
             call diffx(p, q)
 
             !$omp parallel workshare
-            svorts(0, :, :, 3) = - q(0, :, :)
+            szetas = - q(0, :, :)
             !$omp end parallel workshare
 
             call fftxyp2s(gp, p)
             call diffy(p, q)
 
             !$omp parallel workshare
-            svorts(0, :, :, 3) = svorts(0, :, :, 3) - q(0, :, :)
+            szetas = szetas - q(0, :, :)
             !$omp end parallel workshare
 
             call stop_timer(vtend_timer)

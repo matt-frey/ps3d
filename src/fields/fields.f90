@@ -38,6 +38,9 @@ module fields
 #endif
 
     double precision, allocatable, dimension(:, :) :: &
+        zeta,   &   ! surface zeta in physical space
+        szeta,  &   ! surface zeta in semi-spectral space
+        szetas, &   ! surface zeta source in semi-spectral space
         diss        ! dissipation operator
 
     ! initial \xi and \eta mean
@@ -63,8 +66,11 @@ module fields
 
             allocate(vor(0:nz, 0:ny-1, 0:nx-1, 3))
             allocate(svor(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(svorts(0:nz, 0:nx-1, 0:ny-1, 2))
 
-            allocate(svorts(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(zeta(0:nx-1, 0:ny-1))
+            allocate(szeta(0:nx-1, 0:ny-1))
+            allocate(szetas(0:nx-1, 0:ny-1))
 
 #ifdef ENABLE_BUOYANCY
             allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
@@ -92,6 +98,9 @@ module fields
             vel    = zero
             svel   = zero
             svorts = zero
+            zeta   = zero
+            szeta  = zero
+            szetas = zero
 #ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero
@@ -226,8 +235,9 @@ module fields
             vormean = vormean * ncelli
         end function get_mean_vorticity
 
-        ! Obtain zeta in mixed-spectral space by integrating from zeta_min (iz = 0)
-        subroutine calculate_zeta
+        ! Obtain complete zeta in physical (vor(:, :, :, 3))
+        ! and semi-spectral space (svor(:, :, :, 3)) by integrating from zeta_min (iz = 0)
+        subroutine combine_zeta
             integer          :: iz
             double precision :: ds(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
             double precision :: df(0:nz, 0:ny-1, 0:nx-1)    ! physical space
@@ -248,12 +258,18 @@ module fields
             ! d\xi/dx + d\eta/dy
             ss = ss + df
 
+            ! get surface zeta in physical space
+            svor(0, :, :, 3) = szeta
+            call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
+            zeta = vor(0, :, :, 3)
+
             do iz = 1, nz
                 vor(iz, :, :, 3) = vor(iz-1, :, :, 3) - f12 * dx(3) * ss(iz, :, :)
             enddo
 
-            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+            df = vor(:, :, :, 3)
+            call fftxyp2s(df, svor(:, :, :, 3))
 
-        end subroutine calculate_zeta
+        end subroutine combine_zeta
 
 end module fields

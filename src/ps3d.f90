@@ -97,7 +97,9 @@ program ps3d
 #endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+            zeta = vor(0, :, :, 3)
+            call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
+            szeta = svor(0, :, :, 3)
 
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             ini_vor_mean = calc_vorticity_mean()
