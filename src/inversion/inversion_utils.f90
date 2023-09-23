@@ -728,12 +728,20 @@ module inversion_utils
         subroutine integrate_decomposed_field(fs)
             double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
-            integer                         :: ky, ky, kz, iz
+            integer                         :: kx, ky, kz, iz
 
             ! harmonic part
-            es = fs(0, :, :) * psim + fs(nz, :, :) * psip
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                es(iz, :, :) = fs(0, :, :) * psim(iz, :, :) + fs(nz, :, :) * psip(iz, :, :)
+            enddo
+            !$omp end parallel do
 
-            fs(1:nz-1) = rkzi * fs(1:nz-1)
+            !$omp parallel do
+            do kz = 1, nz-1
+                fs(kz, :, :) = rkzi(kz) * fs(kz, :, :)
+            enddo
+            !$omp end parallel do
 
             !$omp parallel do collapse(2) private(kx, ky)
             do ky = 0, ny-1
@@ -753,6 +761,6 @@ module inversion_utils
 
             fs = fs + es
 
-        subroutine integrate_decomposed_field
+        end subroutine integrate_decomposed_field
 
 end module inversion_utils
