@@ -728,10 +728,12 @@ module inversion_utils
         subroutine integrate_decomposed_field(fs)
             double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
             double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
-            integer                         :: kz, iz
+            integer                         :: ky, ky, kz, iz
 
             ! harmonic part
             es = fs(0, :, :) * psim + fs(nz, :, :) * psip
+
+            fs = fs - es
 
             !$omp parallel do collapse(2) private(kx, ky)
             do ky = 0, ny-1
@@ -739,10 +741,14 @@ module inversion_utils
                     call dct(1, nz, fs(0:nz, kx, ky), ztrig, zfactors)
                 enddo
             enddo
+            !$omp end parallel do
 
+            !$omp parallel do
             do iz = 1, nz
                 fs(iz, :, :) = fs(0, :, :) - fs(iz, :, :)
             enddo
+            !$omp end parallel do
+
             fs(0, :, :) = zero
 
             fs = fs + es
