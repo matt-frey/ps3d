@@ -264,7 +264,7 @@ module fields
             zeta = vor(0, :, :, 3)
 
             do iz = 1, nz
-                vor(iz, :, :, 3) = vor(iz-1, :, :, 3) - f12 * dx(3) * ss(iz, :, :)
+                vor(iz, :, :, 3) = vor(iz-1, :, :, 3) - f12 * dx(3) * (ss(iz, :, :) + ss(iz-1, :, :))
             enddo
 
             df = vor(:, :, :, 3)
