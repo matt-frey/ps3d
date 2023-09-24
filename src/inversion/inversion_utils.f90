@@ -741,6 +741,9 @@ module inversion_utils
             enddo
             !$omp end parallel do
 
+            fs(0,  :, :) = zero
+            fs(nz, :, :) = zero
+
             !$omp parallel do
             do kz = 1, nz-1
                 fs(kz, :, :) = rkzi(kz) * fs(kz, :, :)
@@ -764,6 +767,8 @@ module inversion_utils
             fs(0, :, :) = zero
 
             fs = fs + es
+
+            call field_decompose_semi_spectral(fs)
 
         end subroutine integrate_decomposed_field
 
