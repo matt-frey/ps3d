@@ -11,7 +11,8 @@ module fields
                               , field_decompose_semi_spectral           &
                               , fftxyp2s                                &
                               , field_combine_physical                  &
-                              , field_decompose_physical
+                              , field_decompose_physical                &
+                              , integrate_decomposed_field
     use ape_density, only : ape_den
     implicit none
 
@@ -240,35 +241,35 @@ module fields
         subroutine combine_zeta
             integer          :: iz
             double precision :: ds(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
-            double precision :: df(0:nz, 0:ny-1, 0:nx-1)    ! physical space
-            double precision :: ss(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
+            double precision :: as(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
 
             ! d\xi/dx in mixed spectral space
             call diffx(svor(:, :, :, 1), ds)
 
-            ! d\xi/dx in physical space
-            call field_combine_physical(ds, ss)
-
             ! d\eta/dy in mixed spectral space
-            call diffy(svor(:, :, :, 2), ds)
-
-            ! d\eta/dy in physical space
-            call field_combine_physical(ds, df)
+            call diffy(svor(:, :, :, 2), as)
 
             ! d\xi/dx + d\eta/dy
-            ss = ss + df
+            ds = ds + as
+
+            call integrate_decomposed_field(ds)
+
+            call field_combine_physical(ds, fp)
 
             ! get surface zeta in physical space
             svor(0, :, :, 3) = szeta
             call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
             zeta = vor(0, :, :, 3)
 
+            ! get complete zeta in physical space
             do iz = 1, nz
-                vor(iz, :, :, 3) = vor(iz-1, :, :, 3) - f12 * dx(3) * (ss(iz, :, :) + ss(iz-1, :, :))
+                vor(iz, :, :, 3) = zeta - fp(iz, :, :)
             enddo
 
-            df = vor(:, :, :, 3)
-            call fftxyp2s(df, svor(:, :, :, 3))
+            ! get complete zeta in semi-spectral space
+            fp = vor(:, :, :, 3)
+            call fftxyp2s(fp, svor(:, :, :, 3))
 
         end subroutine combine_zeta
 
