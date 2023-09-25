@@ -41,8 +41,6 @@ module inversion_utils
     double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
     double precision, allocatable :: phim(:, :, :)      ! phi_{-}
     double precision, allocatable :: phip(:, :, :)      ! phi_{+}
-    double precision, allocatable :: psim(:, :, :)      ! Phi_{-}
-    double precision, allocatable :: psip(:, :, :)      ! Phi_{+}
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
     double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
@@ -165,10 +163,6 @@ module inversion_utils
 
             allocate(phim(0:nz, 0:nx-1, 0:ny-1))
             allocate(phip(0:nz, 0:nx-1, 0:ny-1))
-
-            allocate(psim(0:nz, 0:nx-1, 0:ny-1))
-            allocate(psip(0:nz, 0:nx-1, 0:ny-1))
-
 #ifdef ENABLE_BUOYANCY
             allocate(dphim(0:nz, 0:nx-1, 0:ny-1))
             allocate(dphip(0:nz, 0:nx-1, 0:ny-1))
@@ -213,11 +207,6 @@ module inversion_utils
             ! kx = ky = 0
             phim(:, 0, 0) = zm / extent(3)
             phip(:, 0, 0) = zp / extent(3)
-
-            ! ignore for the moment
-            psim(:, 0, 0) = zero !upper(3) * zm / extent(3) - f12 * zp * (upper(3) + lower(3) - zm) / extent(3)
-            psip(:, 0, 0) = zero
-
 
 #ifdef ENABLE_BUOYANCY
             dphim(:, 0, 0) = - one / extent(3)
@@ -271,19 +260,8 @@ module inversion_utils
             ep = dexp(- Lp)
             em = dexp(- Lm)
 
-
             phim(:, kx, ky) = div * (ep - ef * em)
             phip(:, kx, ky) = div * (em - ef * ep)
-
-            ! sinh(x) = 0.5 * (exp(x) - exp(-x))
-            ! cosh(x) = 0.5 * (exp(x) + exp(-x))
-
-            ! (cosh(kl * Lz) - cosh(kl * zm) / (kl * sinh(kl * Lz))
-            ! (exp(kl * Lz) + exp(-kl * Lz) - exp(kl * zm) - exp(-kl * zm)) / (kl * (exp(kl * Lz) - exp(-kl * Lz)))
-            ! [1 + exp(-2 * kl * Lz) - exp(kl * (zm - Lz)) - exp(-kl * (Lz + zm))] / (kl * [1 - exp(-2 * kl * Lz)])
-            ! div = 1 / [1 - exp(-2 * kl * Lz)]
-            psim(:, kx, ky) = (one + ef ** 2 - dexp(Lm) * ef - em * ef) * div / kl
-            psip(:, kx, ky) = (dexp(Lp) * ef + ep * ef - ef<xxxxxxxx) * div / kl
 
 #ifdef ENABLE_BUOYANCY
             dphim(:, kx, ky) = - kl * div * (ep + ef * em)
@@ -724,29 +702,5 @@ module inversion_utils
             ! Carry out a full inverse x transform:
             call revfft(nzval * nyval, nxval, fp, xtrig, xfactors)
         end subroutine
-
-        subroutine integrate_decomposed_field(fs)
-            double precision, intent(inout) :: fs(0:nz, 0:nx-1, 0:ny-1)    ! mixed-spectral space
-            double precision                :: es(0:nz, 0:nx-1, 0:ny-1)
-            integer                         :: kz, iz
-
-            ! harmonic part
-            es = fs(0, :, :) * psim + fs(nz, :, :) * psip
-
-            !$omp parallel do collapse(2) private(kx, ky)
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, fs(0:nz, kx, ky), ztrig, zfactors)
-                enddo
-            enddo
-
-            do iz = 1, nz
-                fs(iz, :, :) = fs(0, :, :) - fs(iz, :, :)
-            enddo
-            fs(0, :, :) = zero
-
-            fs = fs + es
-
-        subroutine integrate_decomposed_field
 
 end module inversion_utils
