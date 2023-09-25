@@ -12,7 +12,8 @@ module fields
                               , fftxyp2s                                &
                               , field_combine_physical                  &
                               , field_decompose_physical                &
-                              , integrate_decomposed_field
+                              , integrate_decomposed_field              &
+                              , surf_fftxys2p
     use ape_density, only : ape_den
     implicit none
 
@@ -259,8 +260,8 @@ module fields
 
             ! get surface zeta in physical space
             svor(0, :, :, 3) = szeta
-            call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
-            zeta = vor(0, :, :, 3)
+            call surf_fftxys2p(svor(0, :, :, 3), zeta)
+            vor(0, :, :, 3) = zeta
 
             ! get complete zeta in physical space
             do iz = 1, nz
