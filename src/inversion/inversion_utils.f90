@@ -67,6 +67,8 @@ module inversion_utils
             , central_diffz         &
             , fftxyp2s              &
             , fftxys2p              &
+            , surf_fftxyp2s         &
+            , surf_fftxys2p         &
             , dz2                   &
             , filt                  &
             , hdzi                  &
@@ -771,5 +773,65 @@ module inversion_utils
             call field_decompose_semi_spectral(fs)
 
         end subroutine integrate_decomposed_field
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Computes a 2D FFT (in x & y) of a 3D array fp in physical space
+        ! and returns the result as fs in spectral space (in x & y).
+        ! Only FFTs over the x and y directions are performed.
+        ! *** fp is destroyed upon exit ***
+        subroutine surf_fftxyp2s(fp, fs)
+            double precision, intent(inout) :: fp(:, :)       !Physical
+            double precision, intent(out)   :: fs(:, :)       !Spectral
+            integer                         :: kx, iy, nxval, nyval
+
+            nyval = size(fp, 1)
+            nxval = size(fp, 2)
+
+            ! Carry out a full x transform first:
+            call forfft(nyval, nxval, fp, xtrig, xfactors)
+
+            ! Transpose array:
+            !$omp parallel do collapse(2) shared(fs, fp) private(kx, iy)
+            do kx = 1, nxval
+                do iy = 1, nyval
+                    fs(kx, iy) = fp(iy, kx)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            ! Carry out a full y transform on transposed array:
+            call forfft(nxval, nyval, fs, ytrig, yfactors)
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Computes an *inverse* 2D FFT (in x & y) of a 3D array fs in spectral
+        ! space and returns the result as fp in physical space (in x & y).
+        ! Only inverse FFTs over the x and y directions are performed.
+        ! *** fs is destroyed upon exit ***
+        subroutine surf_fftxys2p(fs, fp)
+            double precision, intent(inout):: fs(:, :)  !Spectral
+            double precision, intent(out)  :: fp(:, :)  !Physical
+            integer                        :: kx, iy, nxval, nyval
+
+            nxval = size(fs, 1)
+            nyval = size(fs, 2)
+
+            ! Carry out a full inverse y transform first:
+            call revfft(nxval, nyval, fs, ytrig, yfactors)
+
+            ! Transpose array:
+            !$omp parallel do collapse(2) shared(fs, fp) private(kx, iy)
+            do kx = 1, nxval
+                do iy = 1, nyval
+                    fp(iy, kx) = fs(kx, iy)
+                enddo
+            enddo
+            !$omp end parallel do
+
+            ! Carry out a full inverse x transform:
+            call revfft(nyval, nxval, fp, xtrig, xfactors)
+        end subroutine
 
 end module inversion_utils
