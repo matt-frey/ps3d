@@ -735,8 +735,6 @@ module inversion_utils
 
             fs = fs - es
 
-            fs(1:nz-1) = rkzi * fs(1:nz-1)
-
             !$omp parallel do collapse(2) private(kx, ky)
             do ky = 0, ny-1
                 do kx = 0, nx-1
