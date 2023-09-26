@@ -267,8 +267,8 @@ module fields
                 z = lower(3) + dble(iz) * dx(3)
                 do kx = 0, nx-1
                     do ky = 0, ny-1
+                        y = szeta(1, kx, ky) - ds(nz, kx, ky)
                         kl = kh(kx, ky)
-                        y = szeta(1, kx, ky) - ds(iz, kx, ky)
                         if (kx == 0 .and. ky == 0) then
                             kl = 1.0d0
                             y = 0.0d0
