@@ -272,6 +272,7 @@ module inversion_mod
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
 #endif
+
             !-------------------------------------------------------
             ! Tendency in flux form:
             !   dxi/dt  = dr/dy - dq/dz
@@ -323,15 +324,15 @@ module inversion_mod
             gp(0, :, :) = vel(0, :, :, 2) * vor(0, :, :, 3)
             !$omp end parallel workshare
 
-            call fftxyp2s(fp, p)
-            call diffx(p, q)
+            call surf_fftxyp2s(fp(0, :, :), p(0, :, :))
+            call surf_diffx(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas = - q(0, :, :)
             !$omp end parallel workshare
 
-            call fftxyp2s(gp, p)
-            call diffy(p, q)
+            call surf_fftxyp2s(gp(0, :, :), p(0, :, :))
+            call surf_diffy(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas = szetas - q(0, :, :)

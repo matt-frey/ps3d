@@ -61,6 +61,8 @@ module inversion_utils
             , init_diffusion        &
             , diffx                 &
             , diffy                 &
+            , surf_diffx            &
+            , surf_diffy            &
 #ifdef ENABLE_BUOYANCY
             , diffz                 &
 #endif
@@ -832,6 +834,72 @@ module inversion_utils
 
             ! Carry out a full inverse x transform:
             call revfft(nyval, nxval, fp, xtrig, xfactors)
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Given fs in spectral space (at least in x & y), this returns dfs/dx
+        ! (partial derivative).  The result is returned in ds, again
+        ! spectral.  Uses exact form of the derivative in spectral space.
+        subroutine surf_diffx(fs,ds)
+            double precision, intent(in)  :: fs(nx, ny)
+            double precision, intent(out) :: ds(nx, ny)
+            integer                       :: kx, dkx, kxc
+
+            !Carry out differentiation by wavenumber multiplication:
+            !$omp parallel workshare
+            ds(1, :) = zero
+            !$omp end parallel workshare
+
+            !$omp parallel do private(dkx, kxc, kx)
+            do kx = 2, nx - nwx
+                dkx = 2 * (kx - 1)
+                kxc = nxp2 - kx
+                ds(kx,  :) = -hrkx(dkx) * fs(kxc,:)
+                ds(kxc, :) =  hrkx(dkx) * fs(kx ,:)
+            enddo
+            !$omp end parallel do
+
+            if (mod(nx, 2) .eq. 0) then
+                kxc = nwx + 1
+                !$omp parallel workshare
+                ds(kxc, :) = zero
+                !$omp end parallel workshare
+            endif
+
+        end subroutine
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Given fs in spectral space (at least in x & y), this returns dfs/dy
+        ! (partial derivative).  The result is returned in ds, again
+        ! spectral.  Uses exact form of the derivative in spectral space.
+        subroutine surf_diffy(fs,ds)
+            double precision, intent(in)  :: fs(nx, ny)
+            double precision, intent(out) :: ds(nx, ny)
+            double precision              :: fac
+            integer                       :: ky, kyc
+
+            !Carry out differentiation by wavenumber multiplication:
+            !$omp parallel workshare
+            ds(:, 1) = zero
+            !$omp end parallel workshare
+
+            !$omp parallel do private(kyc, fac, ky)
+            do ky = 2, ny - nwy
+                kyc = nyp2 - ky
+                fac = hrky(2 * (ky - 1))
+                ds(:, ky) = -fac * fs(:, kyc)
+                ds(:, kyc) = fac * fs(: , ky)
+            enddo
+            !$omp end parallel do
+
+            if (mod(ny, 2) .eq. 0) then
+                kyc = nwy + 1
+                !$omp parallel workshare
+                ds(:, kyc) = zero
+                !$omp end parallel workshare
+            endif
         end subroutine
 
 end module inversion_utils

@@ -102,7 +102,7 @@ module advance_mod
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
-            szeta = filt(0, :, :) * (zetasm + dt2 * szetas)
+            szeta = filt(0, :, :) * diss * (zetasm + dt2 * szetas)
 
             call adjust_vorticity_mean
 
@@ -142,7 +142,7 @@ module advance_mod
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
-                szeta = filt(0, :, :) * (zetasm + dt2 * szetas)
+                szeta = filt(0, :, :) * diss * (zetasm + dt2 * szetas)
 
                 call adjust_vorticity_mean
 
