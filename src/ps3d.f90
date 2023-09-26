@@ -13,7 +13,8 @@ program ps3d
                             , pres_timer
     use inversion_utils, only : init_inversion          &
                               , init_diffusion          &
-                              , field_decompose_physical
+                              , field_decompose_physical &
+                              , surf_fftxyp2s
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
                           , advance_timer       &
@@ -97,9 +98,12 @@ program ps3d
 #endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            zeta = vor(0, :, :, 3)
-            call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
-            szeta = svor(0, :, :, 3)
+            zeta(0, :, :) = vor(0, :, :, 3)
+            zeta(1, :, :) = vor(nz, :, :, 3)
+            call surf_fftxyp2s(vor(0, :, :, 3), svor(0, :, :, 3))
+            call surf_fftxyp2s(vor(nz, :, :, 3), svor(nz, :, :, 3))
+            szeta(0, :, :) = svor(0, :, :, 3)
+            szeta(1, :, :) = svor(nz, :, :, 3)
 
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             ini_vor_mean = calc_vorticity_mean()

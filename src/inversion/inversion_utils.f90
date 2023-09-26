@@ -19,7 +19,7 @@ module inversion_utils
     double precision, allocatable :: k2l2i(:, :)
 
     ! Note k2l2 = k^2+l^2
-    double precision, allocatable :: k2l2(:, :)
+    double precision, allocatable :: k2l2(:, :), kh(:, :)
 
     !Quantities needed in FFTs:
     double precision, allocatable :: xtrig(:), ytrig(:), ztrig(:)
@@ -75,6 +75,8 @@ module inversion_utils
             , filt                  &
             , hdzi                  &
             , k2l2i                 &
+            , kh                    &
+            , phip                  &
             , hdis                  &
             , green                 &
             , zfactors              &
@@ -346,6 +348,7 @@ module inversion_utils
 
             allocate(k2l2i(0:nx-1, 0:ny-1))
             allocate(k2l2(0:nx-1, 0:ny-1))
+            allocate(kh(0:nx-1, 0:ny-1))
 
             allocate(filt(0:nz, 0:nx-1, 0:ny-1))
             allocate(rkx(0:nx-1))
@@ -400,6 +403,8 @@ module inversion_utils
             k2l2i = one / k2l2
             k2l2(0, 0) = zero
             k2l2i(0, 0) = zero
+
+            kh = dsqrt(k2l2)
 
             !----------------------------------------------------------
             !Define Hou and Li filter (2D and 3D):
@@ -771,8 +776,6 @@ module inversion_utils
             fs(0, :, :) = zero
 
             fs = fs + es
-
-            call field_decompose_semi_spectral(fs)
 
         end subroutine integrate_decomposed_field
 

@@ -47,7 +47,7 @@ module advance_mod
             integer                         :: nc
             ! Spectral fields needed in time stepping:
             double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 2)
-            double precision                :: zetasm(0:nx-1, 0:ny-1)
+            double precision                :: zetasm(0:1, 0:nx-1, 0:ny-1)
 #ifdef ENABLE_BUOYANCY
             double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
 #endif
@@ -102,7 +102,9 @@ module advance_mod
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
-            szeta = filt(0, :, :) * diss * (zetasm + dt2 * szetas)
+            do iz = 0, 1
+                szeta(iz, :, :) = filt(0, :, :) * diss * (zetasm(iz, :, :) + dt2 * szetas(iz, :, :))
+            enddo
 
             call adjust_vorticity_mean
 
@@ -142,7 +144,9 @@ module advance_mod
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
-                szeta = filt(0, :, :) * diss * (zetasm + dt2 * szetas)
+                do iz = 0, 1
+                    szeta(iz, :, :) = filt(0, :, :) * diss * (zetasm(iz, :, :) + dt2 * szetas(iz, :, :))
+                enddo
 
                 call adjust_vorticity_mean
 

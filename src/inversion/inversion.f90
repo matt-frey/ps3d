@@ -328,14 +328,36 @@ module inversion_mod
             call surf_diffx(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
-            szetas = - q(0, :, :)
+            szetas(0, :, :) = - q(0, :, :)
             !$omp end parallel workshare
 
             call surf_fftxyp2s(gp(0, :, :), p(0, :, :))
             call surf_diffy(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
-            szetas = szetas - q(0, :, :)
+            szetas(0, :, :) = szetas(0, :, :) - q(0, :, :)
+            !$omp end parallel workshare
+
+
+            ! dzeta_max / dt = -d(u * zeta_max)/dx - d(v * zeta_max)/dy
+            ! zeta_max = vor(nz ,:, :, 3)
+            !$omp parallel workshare
+            fp(0, :, :) = vel(nz, :, :, 1) * vor(nz, :, :, 3)
+            gp(0, :, :) = vel(nz, :, :, 2) * vor(nz, :, :, 3)
+            !$omp end parallel workshare
+
+            call surf_fftxyp2s(fp(0, :, :), p(0, :, :))
+            call surf_diffx(p(0, :, :), q(0, :, :))
+
+            !$omp parallel workshare
+            szetas(1, :, :) = - q(0, :, :)
+            !$omp end parallel workshare
+
+            call surf_fftxyp2s(gp(0, :, :), p(0, :, :))
+            call surf_diffy(p(0, :, :), q(0, :, :))
+
+            !$omp parallel workshare
+            szetas(1, :, :) = szetas(1, :, :) - q(0, :, :)
             !$omp end parallel workshare
 
             call stop_timer(vtend_timer)
