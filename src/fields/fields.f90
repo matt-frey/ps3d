@@ -284,16 +284,14 @@ module fields
             call diffx(psi, psi_x)
             call diffy(psi, psi_y)
 
-
-            ds = ds + psi_z
-
-            call field_decompose_semi_spectral(ds)
             call field_decompose_semi_spectral(psi_x)
             call field_decompose_semi_spectral(psi_y)
+
 
             svor(:, :, :, 1) = svor(:, :, :, 1) + psi_x
             svor(:, :, :, 2) = svor(:, :, :, 2) + psi_y
 
+            call field_decompose_semi_spectral(ds)
             call field_combine_physical(ds, fp)
 
             ! get surface zeta in physical space
@@ -305,6 +303,11 @@ module fields
             do iz = 1, nz
                 vor(iz, :, :, 3) = zeta(0, :, :) - fp(iz, :, :)
             enddo
+
+            call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
+            svor(:, :, :, 3) = svor(:, :, :, 3) + psi_z
+            call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
+
 
             ! get complete zeta in semi-spectral space
             fp = vor(:, :, :, 3)
