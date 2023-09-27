@@ -261,35 +261,7 @@ module fields
 
             call integrate_decomposed_field(ds)
 
-            ! correction
-            ! ds is semi-spectral here
-            do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                do kx = 0, nx-1
-                    do ky = 0, ny-1
-                        y = szeta(1, kx, ky) - ds(nz, kx, ky)
-                        kl = kh(kx, ky)
-                        if (kx == 0 .and. ky == 0) then
-                            kl = 1.0d0
-                            y = 0.0d0
-                        endif
-!                         psi = (y/K) * exp{K(z - z_max)} * [1 - exp{-2K(z - z_min)}] / [1 - exp{-2KL_z}]
-                        psi(iz, kx, ky) = (y/kl) * dexp(kl*(z - upper(3))) &
-                                        * (1.0d0 - dexp(-2.0d0* kl*(z - lower(3)))) &
-                                        / (1.0d0 - dexp(-2.0d0*kl*extent(3)))
-                        psi_z(iz, kx, ky) = y * phip(iz, kx, ky)
-                    enddo
-                enddo
-            enddo
-            call diffx(psi, psi_x)
-            call diffy(psi, psi_y)
 
-            call field_decompose_semi_spectral(psi_x)
-            call field_decompose_semi_spectral(psi_y)
-
-
-            svor(:, :, :, 1) = svor(:, :, :, 1) + psi_x
-            svor(:, :, :, 2) = svor(:, :, :, 2) + psi_y
 
             call field_decompose_semi_spectral(ds)
             call field_combine_physical(ds, fp)
@@ -305,13 +277,41 @@ module fields
             enddo
 
             call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
+
+
+            ! correction
+            ! ds is semi-spectral here
+            do iz = 0, nz
+                z = lower(3) + dble(iz) * dx(3)
+                do kx = 0, nx-1
+                    do ky = 0, ny-1
+                        y = szeta(1, kx, ky) - svor(nz, kx, ky, 3)
+                        kl = kh(kx, ky)
+                        if (kx == 0 .and. ky == 0) then
+                            kl = 1.0d0
+                            y = 0.0d0
+                        endif
+!                         psi = (y/K) * exp{K(z - z_max)} * [1 + exp{-2K(z - z_min)}] / [1 - exp{-2KL_z}]
+                        psi(iz, kx, ky) = (y/kl) * dexp(kl*(z - upper(3))) &
+                                        * (1.0d0 + dexp(-2.0d0* kl*(z - lower(3)))) &
+                                        / (1.0d0 - dexp(-2.0d0*kl*extent(3)))
+                        psi_z(iz, kx, ky) = y * phip(iz, kx, ky)
+                    enddo
+                enddo
+            enddo
+
+            call diffx(psi, psi_x)
+            call diffy(psi, psi_y)
+
+            call field_decompose_semi_spectral(psi_x)
+            call field_decompose_semi_spectral(psi_y)
+            svor(:, :, :, 1) = svor(:, :, :, 1) + psi_x
+            svor(:, :, :, 2) = svor(:, :, :, 2) + psi_y
+
             svor(:, :, :, 3) = svor(:, :, :, 3) + psi_z
-            call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
 
-
-            ! get complete zeta in semi-spectral space
-            fp = vor(:, :, :, 3)
-            call fftxyp2s(fp, svor(:, :, :, 3))
+            ds = svor(:, :, :, 3)
+            call fftxys2p(ds, vor(:, :, :, 3))
 
         end subroutine combine_zeta
 
