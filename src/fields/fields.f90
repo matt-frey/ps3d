@@ -6,7 +6,8 @@ module fields
     use parameters, only : nx, ny, nz, ncelli, dx, lower, extent
     use constants, only : zero, f12, f14, one
     use merge_sort
-    use inversion_utils, only : fftxys2p, diffx, diffy, central_diffz   &
+    use sta3dfft, only : fftxys2p, diffx, diffy
+    use inversion_utils, only : central_diffz                           &
                               , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
     use ape_density, only : ape_den

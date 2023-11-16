@@ -4,8 +4,8 @@ module utils
                       , verbose     &
                       , time        &
                       , field_file  &
-                      , field_step  &
-    use netcdf_utils, only : set_netcdf_dimensions, set_netcdf_axes
+                      , field_step
+    use netcdf_utils
     use field_netcdf
     use field_diagnostics_netcdf
     use inversion_mod, only : vor2vel
@@ -13,7 +13,7 @@ module utils
     use parameters, only : lower, extent, update_parameters
     use fields
     use field_netcdf, only : read_netcdf_fields
-    use physics, only : read_physical_quantities, print_physical_quantities
+    use physics, only : read_physical_quantities, print_physical_quantities, bfsq
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     implicit none
@@ -109,7 +109,7 @@ module utils
             call set_netcdf_dimensions((/'x', 'y', 'z', 't'/))
             call set_netcdf_axes((/'X', 'Y', 'Z', 'T'/))
 
-            call open_netcdf_file(trim(field_file=, NF90_NOWRITE, ncid)
+            call open_netcdf_file(trim(field_file), NF90_NOWRITE, ncid)
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)

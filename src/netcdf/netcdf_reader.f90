@@ -93,6 +93,33 @@ module netcdf_reader
             call check_netcdf_error("Reading time failed.")
         end subroutine get_num_steps
 
+        subroutine get_time_at_step(ncid, step, t)
+            integer,          intent(in)  :: ncid
+            integer,          intent(in)  :: step
+            double precision, intent(out) :: t
+            integer                       :: n_steps, varid, start(1), cnt(1)
+            double precision              :: values(1)
+
+            call get_num_steps(ncid, n_steps)
+
+            if (step > n_steps) then
+                call mpi_stop("Error: Step beyond record number.")
+            endif
+
+            if (has_dataset(ncid, 't')) then
+                start(1) = step
+                cnt(1) = 1
+                ncerr = nf90_inq_varid(ncid, 't', varid)
+                call check_netcdf_error("Reading time id failed.")
+                ncerr = nf90_get_var(ncid, varid, values, start=start, count=cnt)
+                t = values(1)
+                call check_netcdf_error("Reading time failed.")
+                return
+            else
+                call mpi_stop("Error: No time dataset found.")
+            endif
+        end subroutine get_time_at_step
+
         subroutine get_time(ncid, t)
             integer,          intent(in)  :: ncid
             double precision, intent(out) :: t
