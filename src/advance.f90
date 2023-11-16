@@ -18,16 +18,14 @@ module advance_mod
     use inversion_mod, only : buoyancy_tendency
 #endif
     use inversion_utils
-    use utils, only : write_step
+    use utils, only : write_step, WRITE_VOR, WRITE_ECOMP
     use sta2dfft, only : dst
     use fields
     use jacobi, only : jacobi_eigenvalues
+    use mpi_environment, only : world
     implicit none
 
     integer :: advance_timer
-
-    integer, parameter :: WRITE_VOR = 1234
-    integer, parameter :: WRITE_ECOMP = 1235
 
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
@@ -143,37 +141,45 @@ module advance_mod
             enddo
 
             !Advance time:
-            print *, "At time", t, "and time step", dt
+            if (wold%rank == world%root) then
+                print *, "At time", t, "and time step", dt
+            endif
             t = t + dt
         end subroutine advance
 
+        ! This is only calculated on the MPI rank having kx = ky = 0
         function calc_vorticity_mean() result(savg)
             double precision :: wk(1:nz)
             integer          :: nc
             double precision :: savg(2)
 
-            do nc = 1, 2
-                ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
-                wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
-                wk(nz) = zero
-                call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                ! Compute average (first part is the part due to svor_L):
-                savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
-            enddo
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                do nc = 1, 2
+                    ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
+                    wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
+                    wk(nz) = zero
+                    call dst(1, nz, wk(1:nz), ztrig, zfactors)
+                    ! Compute average (first part is the part due to svor_L):
+                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                enddo
+            endif
         end function calc_vorticity_mean
 
+        ! This is only calculated on the MPI rank having kx = ky = 0
         subroutine adjust_vorticity_mean
             double precision :: savg(2)
             integer          :: nc
 
             savg = calc_vorticity_mean()
 
-            ! Ensure zero global mean horizontal vorticity conservation:
-            do nc = 1, 2
-                ! Remove from boundary values (0 & nz):
-                svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
-                svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
-            enddo
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ! Ensure zero global mean horizontal vorticity conservation:
+                do nc = 1, 2
+                    ! Remove from boundary values (0 & nz):
+                    svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                    svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                enddo
+            endif
 
         end subroutine adjust_vorticity_mean
 

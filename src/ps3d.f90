@@ -5,7 +5,7 @@ program ps3d
     use constants, only : zero
     use timer
     use fields
-    use field_netcdf, only : field_io_timer, read_netcdf_fields
+    use field_netcdf, only : field_io_timer
     use field_diagnostics_netcdf, only : field_stats_io_timer
     use inversion_mod, only : vor2vel_timer &
                             , vtend_timer   &
@@ -16,14 +16,17 @@ program ps3d
                               , field_decompose_physical
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
-                          , advance_timer       &
-                          , WRITE_VOR           &
-                          , WRITE_ECOMP
-    use utils, only : write_last_step, setup_output_files,  &
-                      setup_domain_and_parameters
+                          , advance_timer
+    use utils, only : write_last_step, setup_output_files,   &
+                      setup_domain_and_parameters, WRITE_VOR &
+                    , WRITE_ECOMP
+    use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
+    use mpi_utils, only : mpi_print, mpi_stop
     implicit none
 
     integer          :: ps_timer
+
+    call mpi_env_initialise
 
     ! Read command line (verbose, filename, etc.)
     call parse_command_line
@@ -37,19 +40,13 @@ program ps3d
     ! Deallocate memory
     call post_run
 
+    call mpi_env_finalise
+
     contains
 
         subroutine pre_run
-            use options, only : field_file          &
-                              , field_step          &
-                              , output              &
-                              , read_config_file    &
-                              , time
-            double precision :: bbdif, ke, ape, te, en
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
-            integer          :: iz
-            double precision :: z
-#endif
+            use options, only : output              &
+                              , read_config_file
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -64,71 +61,15 @@ program ps3d
             ! parse the config file
             call read_config_file
 
-            time%initial = zero ! make sure user cannot start at arbitrary time
-
             ! read domain dimensions
-            call setup_domain_and_parameters(trim(field_file), field_step)
+            call setup_domain_and_parameters
 
             call init_inversion
 
-            call field_default
-
-            call read_netcdf_fields(trim(field_file), field_step)
-
-            ! decompose initial fields
-#ifdef ENABLE_BUOYANCY
-            bbdif = maxval(buoy) - minval(buoy)
-
-#ifdef ENABLE_PERTURBATION_MODE
-            ! N^2 = (db/dz)^2
-            bfsq = sum(buoy(nz, :, :) - buoy(0, :, :)) / (dble(nx * ny) * extent(3))
-            print *, "Calculated squared buoyancy frequency:", bfsq
-
-            ! remove basic state from buoyancy
-            do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                bbarz(iz) = bfsq * z
-                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
-            enddo
-#endif
-            call field_decompose_physical(buoy, sbuoy)
-#else
-            bbdif = zero
-#endif
-            call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-            call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
-
-            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
-            ini_vor_mean = calc_vorticity_mean()
-
-            call vor2vel
-            ke = get_kinetic_energy()
-            ape = get_available_potential_energy()
-            te = ke + ape
-            en = get_enstrophy()
-
-#ifdef ENABLE_BUOYANCY
-            ! add buoyancy term to enstrophy
-            en = en + get_gradb_integral()
-#endif
-
-            call init_diffusion(bbdif, te, en)
-
+            call setup_fields
 
             call setup_output_files
 
-            open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a2, a4, a4, a5, a5, a6, a6)') '# ', 't ', 'max ', 'rms ', 'char ', &
-                 '<xi> ', '<eta> ', '<zeta>'
-
-            open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
-#ifdef ENABLE_BUOYANCY
-            write(WRITE_ECOMP, '(a2, a2, a15, a17, a9)') '# ', 't ', 'kinetic energy ', &
-                                                         'potential energy ', 'enstrophy'
-#else
-            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
-#endif
         end subroutine
 
 
@@ -154,8 +95,10 @@ program ps3d
         subroutine post_run
             use options, only : output
 
-            close(WRITE_VOR)
-            close(WRITE_ECOMP)
+            if (world%rank == world%root) then
+                close(WRITE_VOR)
+                close(WRITE_ECOMP)
+            endif
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)
@@ -185,8 +128,7 @@ program ps3d
                 call get_command_argument(i, arg)
                 filename = trim(arg)
             else if (arg == '--help') then
-                print *, 'Run code with "./ps3d --config [config file]"'
-                stop
+                call mpi_steop('Run code with "./ps3d --config [config file]"')
 #ifdef ENABLE_VERBOSE
             else if (arg == '--verbose') then
                 verbose = .true.
@@ -196,14 +138,14 @@ program ps3d
         end do
 
         if (filename == '') then
-            print *, 'No configuration file provided. Run code with "./ps3d --config [config file]"'
-            stop
+            call mpi_stop(&
+                'No configuration file provided. Run code with "./ps3d --config [config file]"')
         endif
 
 #ifdef ENABLE_VERBOSE
         ! This is the main application of PS
         if (verbose) then
-            print *, 'Running PS3D with "', trim(filename), '"'
+            call mpi_print('Running PS3D with "' // trim(filename) // '"')
         endif
 #endif
     end subroutine parse_command_line

@@ -43,6 +43,10 @@ module field_diagnostics_netcdf
             logical,      intent(in)  :: overwrite
             logical                   :: l_exist
 
+            if (world%rank .ne. world%root) then
+                return
+            endif
+
             ncfname =  basename // '_field_stats.nc'
 
             restart_time = -one
@@ -51,16 +55,16 @@ module field_diagnostics_netcdf
             call exist_netcdf_file(ncfname, l_exist)
 
             if (l_exist) then
-                call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+                call open_netcdf_file(ncfname, NF90_NOWRITE, ncid, l_serial=.true.)
                 call get_num_steps(ncid, n_writes)
                 call get_time(ncid, restart_time)
                 call read_netcdf_field_stats_content
-                call close_netcdf_file(ncid)
+                call close_netcdf_file(ncid, l_serial=.true.)
                 n_writes = n_writes + 1
                 return
             endif
 
-            call create_netcdf_file(ncfname, overwrite, ncid)
+            call create_netcdf_file(ncfname, overwrite, ncid, l_serial=.true.)
 
             call write_netcdf_info(ncid=ncid,                       &
                                    ps3d_version=package_version,    &
@@ -128,6 +132,8 @@ module field_diagnostics_netcdf
 #endif
             call close_definition(ncid)
 
+            call close_netcdf_file(ncid, l_serial=.true.)
+
         end subroutine create_netcdf_field_stats_file
 
         ! Pre-condition: Assumes an open file
@@ -165,11 +171,6 @@ module field_diagnostics_netcdf
 
             call start_timer(field_stats_io_timer)
 
-            if (t <= restart_time) then
-                call stop_timer(field_stats_io_timer)
-                return
-            endif
-
             ke = get_kinetic_energy()
             en = get_enstrophy()
 
@@ -183,28 +184,41 @@ module field_diagnostics_netcdf
 #endif
             bmin = minval(buoy)
             bmax = maxval(buoy)
+
+            call mpi_blocking_reduce(bmin, MPI_MIN, world)
+            call mpi_blocking_reduce(bmax, MPI_MAX, world)
 #endif
 
-            call open_netcdf_file(ncfname, NF90_WRITE, ncid)
+            if (world%rank /= world%root) then
+                call stop_timer(field_stats_io_timer)
+                return
+            endif
+
+            if (t <= restart_time) then
+                call stop_timer(field_stats_io_timer)
+                return
+            endif
+
+            call open_netcdf_file(ncfname, NF90_WRITE, ncid, l_serial=.true.)
 
             ! write time
-            call write_netcdf_scalar(ncid, t_axis_id, t, n_writes)
+            call write_netcdf_scalar(ncid, t_axis_id, t, n_writes, l_serial=.true.)
 
             !
             ! write diagnostics
             !
-            call write_netcdf_scalar(ncid, ke_id, ke, n_writes)
-            call write_netcdf_scalar(ncid, en_id, en, n_writes)
+            call write_netcdf_scalar(ncid, ke_id, ke, n_writes, l_serial=.true.)
+            call write_netcdf_scalar(ncid, en_id, en, n_writes, l_serial=.true.)
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_scalar(ncid, ape_id, ape, n_writes)
-            call write_netcdf_scalar(ncid, bmin_id, bmin, n_writes)
-            call write_netcdf_scalar(ncid, bmax_id, bmax, n_writes)
+            call write_netcdf_scalar(ncid, ape_id, ape, n_writes, l_serial=.true.)
+            call write_netcdf_scalar(ncid, bmin_id, bmin, n_writes, l_serial=.true.)
+            call write_netcdf_scalar(ncid, bmax_id, bmax, n_writes, l_serial=.true.)
 #endif
 
             ! increment counter
             n_writes = n_writes + 1
 
-            call close_netcdf_file(ncid)
+            call close_netcdf_file(ncid, l_serial=.true.)
 
             call stop_timer(field_stats_io_timer)
 

@@ -10,6 +10,8 @@ module fields
                               , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
     use ape_density, only : ape_den
+    use mpi_layout, only : box, l_mpi_layout_initialised
+    use mpi_utils, only : mpi_exit_on_error
     implicit none
 
     ! x: zonal
@@ -40,43 +42,46 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#ifdef ENABLE_BUOYANCY
-    ! buoyancy frequency squared
-    double precision :: bfsq        ! N**2
-#ifdef ENABLE_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
     double precision, allocatable :: bbarz(:) ! N**2 * z
-#endif
 #endif
     contains
 
         ! Allocate all fields
         subroutine field_alloc
+            integer :: lo(3), hi(3)
+
+            if (.not. l_mpi_layout_initialised) then
+                call mpi_exit_on_error
+            endif
+
             if (allocated(vel)) then
                 return
             endif
 
-            allocate(vel(0:nz, 0:ny-1, 0:nx-1, 3))
-            allocate(svel(0:nz, 0:nx-1, 0:ny-1, 3))
+            lo = box%lo
+            hi = box%hi
 
-            allocate(vor(0:nz, 0:ny-1, 0:nx-1, 3))
-            allocate(svor(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(vel(0:nz,  lo(2):hi(2), lo(1):hi(1), 3))
+            allocate(svel(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
 
-            allocate(svorts(0:nz, 0:nx-1, 0:ny-1, 3))
+            allocate(vor(0:nz,  lo(2):hi(2), lo(1):hi(1), 3))
+            allocate(svor(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
+
+            allocate(svorts(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
 
 #ifdef ENABLE_BUOYANCY
-            allocate(buoy(0:nz, 0:ny-1, 0:nx-1))
-            allocate(sbuoy(0:nz, 0:nx-1, 0:ny-1))
-            allocate(sbuoys(0:nz, 0:nx-1, 0:ny-1))
+            allocate(buoy(0:nz,   lo(2):hi(2), lo(1):hi(1)))
+            allocate(sbuoy(0:nz,  lo(2):hi(2), lo(1):hi(1)))
+            allocate(sbuoys(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
 #ifdef ENABLE_PERTURBATION_MODE
             allocate(bbarz(0:nz))
 #endif
 #endif
 
-            allocate(pres(0:nz, 0:ny-1, 0:nx-1))
-            allocate(diss(0:nx-1, 0:ny-1))
-
-
+            allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
+            allocate(diss(lo(2):hi(2), lo(1):hi(1)))
 
         end subroutine field_alloc
 
@@ -114,8 +119,8 @@ module fields
 
 
             ape = zero
-            do i = 0, nx-1
-                do j = 0, ny-1
+            do i = box%lo(1), box%hi(1)
+                do j = box%lo(2), box%hi(2)
 #ifdef ENABLE_PERTURBATION_MODE
                     buoy(:, j, i) = buoy(:, j, i) + bbarz
 #endif
@@ -129,8 +134,9 @@ module fields
                 enddo
             enddo
 
-
             ape = ape * ncelli
+
+            call mpi_blocking_reduce(ape, MPI_SUM, world)
 #else
             ape = zero
 #endif
@@ -152,6 +158,8 @@ module fields
 
             ke = ke * ncelli
 
+            call mpi_blocking_reduce(ke, MPI_SUM, world)
+
         end function get_kinetic_energy
 
         ! domain-averaged enstrophy
@@ -170,16 +178,18 @@ module fields
 
             en = en * ncelli
 
+            call mpi_blocking_reduce(en, MPI_SUM, world)
+
         end function get_enstrophy
 
 #ifdef ENABLE_BUOYANCY
         ! domain-averaged grad(b) integral
         function get_gradb_integral() result(enb)
             double precision :: enb
-            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)
-            double precision :: mag(0:nz, 0:ny-1, 0:nx-1)
-            double precision :: dbdx(0:nz, 0:ny-1, 0:nx-1)
-            double precision :: dbdy(0:nz, 0:ny-1, 0:nx-1)
+            double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision :: mag(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision :: dbdx(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision :: dbdy(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
@@ -205,6 +215,8 @@ module fields
 
             enb = enb * ncelli
 
+            call mpi_blocking_reduce(enb, MPI_SUM, world)
+
         end function get_gradb_integral
 #endif
 
@@ -221,6 +233,9 @@ module fields
             enddo
 
             vormean = vormean * ncelli
+
+            call mpi_blocking_reduce(vormean, MPI_SUM, world)
+
         end function get_mean_vorticity
 
 end module fields
