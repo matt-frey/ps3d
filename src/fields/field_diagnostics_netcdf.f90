@@ -67,7 +67,7 @@ module field_diagnostics_netcdf
             call create_netcdf_file(ncfname, overwrite, ncid, l_serial=.true.)
 
             call write_netcdf_info(ncid=ncid,                       &
-                                   ps3d_version=package_version,    &
+                                   version_tag=package_version,     &
                                    file_type='field_stats',         &
                                    cf_version=cf_version)
 

@@ -10,6 +10,7 @@ module fields
                               , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
     use ape_density, only : ape_den
+    use mpi_environment
     use mpi_layout, only : box, l_mpi_layout_initialised
     use mpi_utils, only : mpi_exit_on_error
     implicit none
@@ -98,7 +99,6 @@ module fields
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
-            bfsq = zero
 #endif
             pres   = zero
             diss   = zero

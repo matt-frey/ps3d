@@ -12,5 +12,6 @@ libps_utils_la_SOURCES = 	\
 	physics.f90		\
 	jacobi.f90		\
 	merge_sort.f90		\
-	ape_density.f90
+	ape_density.f90		\
+	dimensions.f90
 

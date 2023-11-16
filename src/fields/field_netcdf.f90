@@ -1,4 +1,5 @@
 module field_netcdf
+    use options, only : output
     use constants, only : one
     use netcdf_utils
     use netcdf_writer
@@ -22,6 +23,7 @@ module field_netcdf
     integer            :: coord_ids(3)  ! = (x, y, z)
     integer            :: t_axis_id
     double precision   :: restart_time
+    integer            :: n_writes
 
     type netcdf_field_info
         character(32)  :: name      = ''
@@ -64,6 +66,7 @@ module field_netcdf
             character(*), intent(in)  :: basename
             logical,      intent(in)  :: overwrite
             logical                   :: l_exist
+            integer                   :: n
 
             call set_netcdf_field_output
 
@@ -88,7 +91,7 @@ module field_netcdf
 
             ! define global attributes
             call write_netcdf_info(ncid=ncid,                    &
-                                   ps3d_version=package_version, &
+                                   version_tag=package_version,  &
                                    file_type='fields',           &
                                    cf_version=cf_version)
 
@@ -100,7 +103,7 @@ module field_netcdf
 
             ! define dimensions
             call define_netcdf_spatial_dimensions_3d(ncid=ncid,                &
-                                                     ncells=(/nx, ny, nz/),    &
+                                                     ngps=(/nx, ny, nz+1/),    &
                                                      dimids=dimids(1:3),       &
                                                      axids=coord_ids)
 
@@ -132,6 +135,7 @@ module field_netcdf
 
         ! Pre-condition: Assumes an open file
         subroutine read_netcdf_field_content
+            integer :: n
 
             call get_dim_id(ncid, 'x', dimids(1))
 
@@ -282,14 +286,14 @@ module field_netcdf
                 ! https://stackoverflow.com/questions/45984672/print-values-without-new-line
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_X_VOR)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_X_VOR)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_X_VOR)%name,    &
                                          vor(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             1)                     &
+                                             1),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -299,14 +303,14 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_Y_VOR)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_Y_VOR)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_Y_VOR)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_Y_VOR)%name,    &
                                          vor(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             2)                     &
+                                             2),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -316,14 +320,14 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_Z_VOR)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_Z_VOR)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_Z_VOR)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_Z_VOR)%name,    &
                                          vor(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             3)                     &
+                                             3),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -333,14 +337,14 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_X_VEL)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_X_VEL)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_X_VEL)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_X_VEL)%name,    &
                                          vel(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             1)                     &
+                                             1),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -350,14 +354,14 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_Y_VEL)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_Y_VEL)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_Y_VEL)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_Y_VEL)%name,    &
                                          vel(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             2)                     &
+                                             2),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -367,14 +371,14 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_Z_VEL)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_Z_VEL)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_Z_VEL)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_Z_VEL)%name,    &
                                          vel(box%lo(3):box%hi(3),   &
                                              box%lo(2):box%hi(2),   &
                                              box%lo(1):box%hi(1),   &
-                                             3)                     &
+                                             3),                    &
                                          start=start, cnt=cnt)
                 if (world%rank == world%root) then
                     write(*, *) "done"
@@ -385,7 +389,7 @@ module field_netcdf
             if (has_dataset(ncid, nc_dset(NC_BUOY)%name)) then
                 if (world%rank == world%root) then
                     write(*, "(a42)", advance="no") &
-                        "Found " // nc_dset(NC_BUOY)%name) // " field input, reading ..."
+                        "Found " // nc_dset(NC_BUOY)%name // " field input, reading ..."
                 endif
                 call read_netcdf_dataset(ncid,                      &
                                          nc_dset(NC_BUOY)%name,     &
