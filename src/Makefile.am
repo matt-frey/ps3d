@@ -1,6 +1,7 @@
-SUBDIRS = netcdf utils fft
+SUBDIRS = mpi netcdf utils fft
 
 AM_FCFLAGS =				\
+	-I $(top_builddir)/src/mpi	\
 	-I $(top_builddir)/src/utils	\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
@@ -21,7 +22,8 @@ ps3d_SOURCES = 					\
 
 ps3d_LDADD = 						\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 genspec_SOURCES = 				\
