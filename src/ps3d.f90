@@ -11,15 +11,13 @@ program ps3d
                             , vtend_timer   &
                             , vor2vel       &
                             , pres_timer
-    use inversion_utils, only : init_inversion          &
-                              , init_diffusion          &
-                              , field_decompose_physical
+    use inversion_utils, only : init_inversion
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
                           , advance_timer
     use utils, only : write_last_step, setup_output_files,   &
                       setup_domain_and_parameters, WRITE_VOR &
-                    , WRITE_ECOMP
+                    , WRITE_ECOMP, setup_fields
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
     implicit none
@@ -128,7 +126,7 @@ program ps3d
                 call get_command_argument(i, arg)
                 filename = trim(arg)
             else if (arg == '--help') then
-                call mpi_steop('Run code with "./ps3d --config [config file]"')
+                call mpi_stop('Run code with "./ps3d --config [config file]"')
 #ifdef ENABLE_VERBOSE
             else if (arg == '--verbose') then
                 verbose = .true.

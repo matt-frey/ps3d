@@ -117,8 +117,8 @@ module mpi_layout
             box%hlo(1:2) = box%lo(1:2) - 1
             box%hhi(1:2) = box%hi(1:2) + 2
             ! we only need 1 halo layer in vertical direction
-            box%hlo(3) = -1
-            box%hhi(3) = nz + 1
+            box%hlo(3) = 0 !-1
+            box%hhi(3) = nz! + 1
 
             layout%l_parallel = (box%hi - box%lo < (/nx-1, ny-1, nz/))
             box%size = box%hi - box%lo + 1

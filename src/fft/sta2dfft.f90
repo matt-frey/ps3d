@@ -99,7 +99,7 @@ module sta2dfft
         ! *** Note rvar is destroyed on return. ***
         subroutine ptospc(nx, ny, rvar, svar, xfactors, yfactors, xtrig, ytrig)
             integer,          intent(in)    :: nx, ny, xfactors(5), yfactors(5)
-            double precision, intent(inout) :: xtrig(2 * nx), ytrig(2 * ny)
+            double precision, intent(in)    :: xtrig(2 * nx), ytrig(2 * ny)
             double precision, intent(inout) :: rvar(ny, nx), svar(nx, ny)
             !Local declarations:
             integer:: kx, iy

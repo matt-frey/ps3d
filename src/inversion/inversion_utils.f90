@@ -12,11 +12,17 @@ module inversion_utils
                        , fftxys2p       &
                        , fftsine        &
                        , fftcosine      &
+                       , xfactors       &
+                       , xtrig          &
+                       , yfactors       &
+                       , ytrig          &
                        , zfactors       &
                        , ztrig
     use stafft, only : dst
+    use sta2dfft, only : ptospc
     use deriv1d, only : init_deriv
     use options, only : viscosity
+    use mpi_utils, only : mpi_print
     implicit none
 
     private
@@ -51,7 +57,6 @@ module inversion_utils
     double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
 #endif
 
-! c     double precision :: dz, dzi, dz2, dz6, dz24, hdzi, dzisq
     double precision :: dzi, hdzi
 
     logical :: is_initialised = .false.
@@ -62,7 +67,6 @@ module inversion_utils
             , diffz                 &
 #endif
             , central_diffz         &
-!             , dz2                   &
             , filt                  &
             , hdzi                  &
             , k2l2i                 &
@@ -73,8 +77,8 @@ module inversion_utils
             , dthetap               &
             , dthetam               &
             , gambot                &
-            , gamtop                !&
-!             , call_ptospc
+            , gamtop                &
+            , call_ptospc
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -83,14 +87,14 @@ module inversion_utils
 
     contains
 
-!         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!         ! this routine is call by the genspec2d program
-!         subroutine call_ptospc(pp, ss)
-!             double precision, intent(inout) :: pp(0:ny-1, 0:nx-1)
-!             double precision, intent(out)   :: ss(0:nx-1, 0:ny-1)
-!             call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
-!         end subroutine call_ptospc
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! this routine is call by the genspec2d program
+        subroutine call_ptospc(pp, ss)
+            double precision, intent(inout) :: pp(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
+            double precision, intent(out)   :: ss(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
+            call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
+        end subroutine call_ptospc
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -162,17 +166,8 @@ module inversion_utils
 
             is_initialised = .true.
 
-            !             dz = dx(3)
             dzi = dxi(3)
-!             dz6  = f16 * dx(3)
-!             dz2  = f12 * dx(3)
-!             dz24 = f124 * dx(3)
-!             dzisq = dxi(3) ** 2
             hdzi = f12 * dxi(3)
-!             nwx = nx / 2
-!             nwy = ny / 2
-!             nyp2 = ny + 2
-!             nxp2 = nx + 2
 
             call initialise_fft(extent)
 

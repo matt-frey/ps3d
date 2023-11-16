@@ -11,6 +11,9 @@ program test_diffz_4
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use inversion_utils
     use timer
+    use mpi_environment
+    use mpi_layout
+    use mpi_collectives
     implicit none
 
     double precision              :: error
@@ -19,6 +22,8 @@ program test_diffz_4
     integer                       :: iz
     double precision              :: z
 
+    call mpi_env_initialise
+
     nx = 32
     ny = nx
     nz = nx
@@ -26,9 +31,11 @@ program test_diffz_4
     lower  = (/zero, zero, zero/)
     extent = (/one, one, one/)
 
-    allocate(fp(0:nz, 0:ny-1, 0:nx-1))
-    allocate(dfdz(0:nz, 0:ny-1, 0:nx-1))
-    allocate(dfdz_ref(0:nz, 0:ny-1, 0:nx-1))
+    call mpi_layout_init(lower, extent, nx, ny, nz)
+
+    allocate(fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(dfdz(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(dfdz_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
     dfdz = zero
 
@@ -46,10 +53,16 @@ program test_diffz_4
 
     error = maxval(dabs(dfdz_ref - dfdz))
 
-    call print_result_dp('Test diffz', error, atol=1.0e-1)
+    call mpi_blocking_reduce(error, MPI_MAX, world)
+
+    if (world%rank == world%root) then
+        call print_result_dp('Test diffz', error, atol=1.0e-1)
+    endif
 
     deallocate(fp)
     deallocate(dfdz)
     deallocate(dfdz_ref)
+
+    call mpi_env_finalise
 
 end program test_diffz_4

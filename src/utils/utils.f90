@@ -8,6 +8,7 @@ module utils
     use netcdf_utils
     use field_netcdf
     use field_diagnostics_netcdf
+    use inversion_utils, only : init_diffusion, field_decompose_physical
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : lower, extent, update_parameters

@@ -311,9 +311,9 @@ module physics
         subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
             integer,          intent(in) :: nx, ny, nz
             double precision, intent(in) :: zext
-            double precision, intent(in) :: buoy(-1:nz+1,                &
-                                                 box%hlo(2):box%hhi(2),  &
-                                                 box%hlo(1):box%hhi(1))
+            double precision, intent(in) :: buoy(0:nz,                 &
+                                                 box%lo(2):box%hi(2),  &
+                                                 box%lo(1):box%hi(1))
 
             if (l_bfreq) then
                 if (world%rank == world%root) then

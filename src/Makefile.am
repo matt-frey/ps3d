@@ -39,7 +39,7 @@ genspec_SOURCES = 				\
 
 genspec_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
@@ -56,7 +56,7 @@ genspec2d_SOURCES = 				\
 
 genspec2d_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
@@ -73,7 +73,6 @@ beltrami_SOURCES = 				\
 
 beltrami_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la            \
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
@@ -90,7 +89,7 @@ production_SOURCES = 				\
 
 production_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la            \
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 

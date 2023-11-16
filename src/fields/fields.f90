@@ -3,10 +3,11 @@
 !     and functions.
 ! =============================================================================
 module fields
-    use parameters, only : nx, ny, nz, ncelli, dx, lower, extent
+    use parameters, only : nx, ny, nz, ncelli, dx, lower, extent, fnzi
     use constants, only : zero, f12, f14, one
     use merge_sort
-    use sta3dfft, only : fftxys2p, diffx, diffy
+    use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
+    use stafft, only : dst
     use inversion_utils, only : central_diffz                           &
                               , field_combine_semi_spectral             &
                               , field_decompose_semi_spectral
@@ -14,6 +15,7 @@ module fields
     use mpi_environment
     use mpi_layout, only : box, l_mpi_layout_initialised
     use mpi_utils, only : mpi_exit_on_error
+    use mpi_collectives
     implicit none
 
     ! x: zonal
@@ -238,5 +240,41 @@ module fields
             call mpi_blocking_reduce(vormean, MPI_SUM, world)
 
         end function get_mean_vorticity
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        function calc_vorticity_mean() result(savg)
+            double precision :: wk(1:nz)
+            integer          :: nc
+            double precision :: savg(2)
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                do nc = 1, 2
+                    ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
+                    wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
+                    wk(nz) = zero
+                    call dst(1, nz, wk(1:nz), ztrig, zfactors)
+                    ! Compute average (first part is the part due to svor_L):
+                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                enddo
+            endif
+        end function calc_vorticity_mean
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        subroutine adjust_vorticity_mean
+            double precision :: savg(2)
+            integer          :: nc
+
+            savg = calc_vorticity_mean()
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ! Ensure zero global mean horizontal vorticity conservation:
+                do nc = 1, 2
+                    ! Remove from boundary values (0 & nz):
+                    svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                    svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                enddo
+            endif
+
+        end subroutine adjust_vorticity_mean
 
 end module fields

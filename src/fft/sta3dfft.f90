@@ -134,9 +134,9 @@ module sta3dfft
         ! Only FFTs over the x and y directions are performed.
         ! *** fp is destroyed upon exit ***
         subroutine fftxyp2s(fp, fs)
-            double precision, intent(in)  :: fp(box%hlo(3):box%hhi(3), & !Physical
-                                                box%hlo(2):box%hhi(2), &
-                                                box%hlo(1):box%hhi(1))
+            double precision, intent(in)  :: fp(box%lo(3):box%hi(3), & !Physical
+                                                box%lo(2):box%hi(2), &
+                                                box%lo(1):box%hi(1))
             double precision, intent(out) :: fs(box%lo(3):box%hi(3),   & !Spectral
                                                 box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
@@ -203,9 +203,9 @@ module sta3dfft
             double precision, intent(in)  :: fs(box%lo(3):box%hi(3),   & !Spectral
                                                 box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
-            double precision, intent(out) :: fp(box%hlo(3):box%hhi(3), & !Physical
-                                                box%hlo(2):box%hhi(2), &
-                                                box%hlo(1):box%hhi(1))
+            double precision, intent(out) :: fp(box%lo(3):box%hi(3), & !Physical
+                                                box%lo(2):box%hi(2), &
+                                                box%lo(1):box%hi(1))
             integer                       :: i, j
 
             ! 1. Transform to (z, y, x) to (y, x, z) pencil
