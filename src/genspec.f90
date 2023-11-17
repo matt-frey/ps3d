@@ -11,7 +11,7 @@ program genspec
     use utils, only : setup_domain_and_parameters
     use fields
     use mpi_environment
-    use timer
+    use mpi_timer
     implicit none
 
     integer, allocatable          :: kmag(:, :, :)

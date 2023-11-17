@@ -3,7 +3,7 @@
 ! =============================================================================
 program ps3d
     use constants, only : zero
-    use timer
+    use mpi_timer
     use fields
     use field_netcdf, only : field_io_timer
     use field_diagnostics_netcdf, only : field_stats_io_timer

@@ -10,7 +10,7 @@ program test_diffz_1
     use constants, only : zero, one, two, pi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use inversion_utils
-    use timer
+    use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives

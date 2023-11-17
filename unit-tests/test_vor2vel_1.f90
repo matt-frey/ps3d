@@ -18,7 +18,7 @@ program test_vor2vel_1
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use timer
+    use mpi_timer
     use mpi_environment
     use mpi_layout
     implicit none

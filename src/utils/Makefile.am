@@ -7,7 +7,6 @@ lib_LTLIBRARIES = libps_utils.la
 libps_utils_la_SOURCES = 	\
 	iomanip.f90		\
 	constants.f90		\
-	timer.f90		\
 	config.f90		\
 	physics.f90		\
 	jacobi.f90		\

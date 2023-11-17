@@ -8,7 +8,7 @@ program test_zeta
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
-    use timer
+    use mpi_timer
     use mpi_environment
     use mpi_layout
     implicit none
