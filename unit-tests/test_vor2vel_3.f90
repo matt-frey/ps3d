@@ -22,6 +22,7 @@ program test_vor2vel_3
     use mpi_timer
     use mpi_environment
     use mpi_layout
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     double precision              :: error

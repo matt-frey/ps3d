@@ -18,9 +18,10 @@ module advance_mod
     use inversion_mod, only : buoyancy_tendency
 #endif
     use inversion_utils
-    use utils, only : write_step, WRITE_VOR, WRITE_ECOMP
+    use utils, only : write_step
     use sta2dfft, only : dst
     use fields
+    use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
     use physics, only : bfsq
@@ -182,7 +183,7 @@ module advance_mod
             double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
             double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
             double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
-            double precision             :: ke, en, vormean(3)
+            double precision             :: vormean(3)
 
             bfmax = zero
 
@@ -241,20 +242,6 @@ module advance_mod
             vorch = vorl2 / vorl1
 
             vormean = get_mean_vorticity()
-
-            ! Save vorticity diagnostics to vorticity.asc:
-            write(WRITE_VOR, '(1x,f13.6,6(1x,1p,e14.7))') t , vortmax, vortrms, vorch, vormean
-
-            ! Save energy and enstrophy
-            ke = get_kinetic_energy()
-            en = get_enstrophy()
-#ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
-            ape = get_available_potential_energy()
-            write(WRITE_ECOMP, '(1x,f13.6,3(1x,1p,e14.7))') t , ke, ape, en
-#else
-            write(WRITE_ECOMP, '(1x,f13.6,2(1x,1p,e14.7))') t , ke, en
-#endif
 
             !
             ! velocity strain

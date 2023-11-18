@@ -10,8 +10,10 @@ program genspec
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
+    use field_diagnostics, only : get_kinetic_energy
     use mpi_environment
     use mpi_timer
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     integer, allocatable          :: kmag(:, :, :)

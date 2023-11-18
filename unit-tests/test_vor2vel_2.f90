@@ -17,7 +17,7 @@
 ! =============================================================================
 program test_vor2vel_2
     use unit_test
-    use constants, only : one, two, three, six, pi, twopi
+    use constants, only : one, two, three, six, pi, twopi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
@@ -25,6 +25,7 @@ program test_vor2vel_2
     use mpi_timer
     use mpi_environment
     use mpi_layout
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     double precision              :: error

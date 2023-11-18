@@ -11,16 +11,14 @@ module utils
     use inversion_utils, only : init_diffusion, field_decompose_physical
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
-    use parameters, only : lower, extent, update_parameters
+    use parameters, only : nx, ny, lower, extent, update_parameters, dx
     use fields
+    use field_diagnostics
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities, bfsq
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     implicit none
-
-    integer, parameter :: WRITE_VOR = 1234
-    integer, parameter :: WRITE_ECOMP = 1235
 
     integer :: nfw  = 0    ! number of field writes
     integer :: nsfw = 0    ! number of field diagnostics writes
@@ -42,18 +40,6 @@ module utils
                 call create_netcdf_field_stats_file(trim(output%basename),   &
                                                     output%overwrite)
             endif
-
-            open(WRITE_VOR, file= trim(output%basename) // '_vorticity.asc', status='replace')
-            write(WRITE_VOR, '(a2, a2, a4, a4, a5, a5, a6, a6)') '# ', 't ', 'max ', 'rms ', 'char ', &
-                 '<xi> ', '<eta> ', '<zeta>'
-
-            open(WRITE_ECOMP, file= trim(output%basename) // '_ecomp.asc', status='replace')
-#ifdef ENABLE_BUOYANCY
-            write(WRITE_ECOMP, '(a2, a2, a15, a17, a9)') '# ', 't ', 'kinetic energy ', &
-                                                         'potential energy ', 'enstrophy'
-#else
-            write(WRITE_ECOMP, '(a2, a2, a15, a9)') '# ', 't ', 'kinetic energy ', 'enstrophy'
-#endif
 
         end subroutine setup_output_files
 

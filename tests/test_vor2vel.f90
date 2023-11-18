@@ -2,7 +2,7 @@
 !                       Test convergence of vor2vel
 ! =============================================================================
 program test_vor2vel
-    use constants, only : f12, f13, one, two, three, six, pi, twopi
+    use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
     use inversion_utils

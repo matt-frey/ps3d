@@ -7,10 +7,12 @@ program test_omp_collapse
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use inversion_utils
     use sta2dfft, only : dst
+    use sta3dfft, only : zfactors, ztrig
     use fields
     use omp_lib
     use mpi_environment
     use mpi_layout
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     double precision               :: error

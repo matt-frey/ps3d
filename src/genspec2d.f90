@@ -12,6 +12,7 @@ program genspec2d
     use fields
     use mpi_environment
     use mpi_timer
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     integer, allocatable          :: kmag(:, :)

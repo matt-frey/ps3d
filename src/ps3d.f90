@@ -16,8 +16,8 @@ program ps3d
                           , calc_vorticity_mean &
                           , advance_timer
     use utils, only : write_last_step, setup_output_files,   &
-                      setup_domain_and_parameters, WRITE_VOR &
-                    , WRITE_ECOMP, setup_fields
+                      setup_domain_and_parameters            &
+                    , setup_fields
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
     implicit none
@@ -92,11 +92,6 @@ program ps3d
 
         subroutine post_run
             use options, only : output
-
-            if (world%rank == world%root) then
-                close(WRITE_VOR)
-                close(WRITE_ECOMP)
-            endif
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)

@@ -14,6 +14,7 @@ ps3d_SOURCES = 					\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
@@ -32,6 +33,7 @@ genspec_SOURCES = 				\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
@@ -49,6 +51,7 @@ genspec2d_SOURCES = 				\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
@@ -66,6 +69,7 @@ beltrami_SOURCES = 				\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
@@ -82,6 +86,7 @@ production_SOURCES = 				\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
