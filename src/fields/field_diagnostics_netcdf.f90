@@ -58,8 +58,14 @@ module field_diagnostics_netcdf
 
     public :: create_netcdf_field_stats_file,   &
               write_netcdf_field_stats,         &
-              field_stats_io_timer
-
+              field_stats_io_timer,             &
+              set_netcdf_field_diagnostic,      &
+              NC_OMAX,                          &
+              NC_ORMS,                          &
+              NC_OCHAR,                         &
+              NC_OXMEAN,                        &
+              NC_OYMEAN,                        &
+              NC_OZMEAN
 
     contains
 
@@ -151,34 +157,11 @@ module field_diagnostics_netcdf
         ! @param[in] dt is the time step
         subroutine write_netcdf_field_stats(t)
             double precision, intent(in) :: t
-            double precision             :: ke, en
             integer                      :: n
-#ifdef ENABLE_BUOYANCY
-            double precision             :: bmin, bmax, ape
-#ifdef ENABLE_PERTURBATION_MODE
-            integer                      :: iz
-#endif
-#endif
 
             call start_timer(field_stats_io_timer)
 
-            ke = get_kinetic_energy()
-            en = get_enstrophy()
-
-#ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
-            ape = get_available_potential_energy()
-#ifdef ENABLE_PERTURBATION_MODE
-            do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
-            enddo
-#endif
-            bmin = minval(buoy)
-            bmax = maxval(buoy)
-
-            call mpi_blocking_reduce(bmin, MPI_MIN, world)
-            call mpi_blocking_reduce(bmax, MPI_MAX, world)
-#endif
+            call update_netcdf_field_diagnostics
 
             if (world%rank /= world%root) then
                 call stop_timer(field_stats_io_timer)
@@ -216,6 +199,46 @@ module field_diagnostics_netcdf
         end subroutine write_netcdf_field_stats
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine update_netcdf_field_diagnostics
+#ifdef ENABLE_BUOYANCY
+            double precision             :: bmin, bmax
+#ifdef ENABLE_PERTURBATION_MODE
+            integer                      :: iz
+#endif
+#endif
+            nc_dset(NC_KE)%val = get_kinetic_energy()
+            nc_dset(NC_EN)%val = get_enstrophy()
+
+#ifdef ENABLE_BUOYANCY
+            call field_combine_physical(sbuoy, buoy)
+            nc_dset(NC_APE)%val = get_available_potential_energy()
+#ifdef ENABLE_PERTURBATION_MODE
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+            enddo
+#endif
+            bmin = minval(buoy)
+            bmax = maxval(buoy)
+
+            call mpi_blocking_reduce(bmin, MPI_MIN, world)
+            call mpi_blocking_reduce(bmax, MPI_MAX, world)
+
+            nc_dset(NC_BMAX)%val = bmax
+            nc_dset(NC_BMIN)%val = bmin
+#endif
+
+        end subroutine update_netcdf_field_diagnostics
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine set_netcdf_field_diagnostic(val, n)
+            double precision, intent(in) :: val
+            integer,          intent(in) :: n
+
+            nc_dset(n)%val = val
+
+        end subroutine set_netcdf_field_diagnostic
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

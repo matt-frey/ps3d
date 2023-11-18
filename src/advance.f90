@@ -25,6 +25,9 @@ module advance_mod
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
     use physics, only : bfsq
+    use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
+                                       , NC_OMAX, NC_ORMS, NC_OCHAR     &
+                                       , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
     implicit none
 
     integer :: advance_timer
@@ -36,7 +39,7 @@ module advance_mod
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax, dfac
-    double precision :: vortmp1, vortmp2, vortmp3, vorl1, vorl2, vorch
+    double precision :: vorch
     integer          :: ix, iy, iz
 
     contains
@@ -169,21 +172,31 @@ module advance_mod
         ! Adapts the time step and computes various diagnostics
         subroutine adapt(t)
             double precision, intent(in) :: t
-            double precision             :: xs(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in x in spectral space
-            double precision             :: ys(0:nz, 0:nx-1, 0:ny-1)        ! derivatives in y in spectral space
-            double precision             :: xp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in x in physical space
+            double precision             :: xs(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1)) ! derivatives in x in spectral space
+            double precision             :: ys(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1)) ! derivatives in y in spectral space
+            double precision             :: xp(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1)) ! derivatives in x in physical space
 #ifdef ENABLE_BUOYANCY
-            double precision             :: yp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in y physical space
-            double precision             :: zp(0:nz, 0:ny-1, 0:nx-1)        ! derivatives in z physical space
-            double precision             :: ape
+            double precision             :: yp(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1)) ! derivatives in y physical space
+            double precision             :: zp(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1)) ! derivatives in z physical space
 #endif
             double precision             :: strain(3, 3), eigs(3)
-            double precision             :: dudx(0:nz, 0:ny-1, 0:nx-1)      ! du/dx in physical space
-            double precision             :: dudy(0:nz, 0:ny-1, 0:nx-1)      ! du/dy in physical space
-            double precision             :: dvdy(0:nz, 0:ny-1, 0:nx-1)      ! dv/dy in physical space
-            double precision             :: dwdx(0:nz, 0:ny-1, 0:nx-1)      ! dw/dx in physical space
-            double precision             :: dwdy(0:nz, 0:ny-1, 0:nx-1)      ! dw/dy in physical space
+            double precision             :: dudx(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! du/dx in physical space
+            double precision             :: dudy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! du/dy in physical space
+            double precision             :: dvdy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dv/dy in physical space
+            double precision             :: dwdx(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dw/dx in physical space
+            double precision             :: dwdy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision             :: vormean(3)
+            double precision             :: buf(3)
 
             bfmax = zero
 
@@ -218,30 +231,23 @@ module advance_mod
             !$omp end parallel workshare
 
             !Maximum vorticity magnitude:
-            vortmax = dsqrt(maxval(xp))
+            vortmax = dsqrt(get_abs_max(xp))
 
             !R.m.s. vorticity:
-            vortrms = dsqrt(ncelli*(f12*sum(xp(0, :, :)+xp(nz, :, :))+sum(xp(1:nz-1, :, :))))
+            vortrms = get_rms(xp)
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
-            vorl1 = small
-            vorl2 = zero
-            do ix = 0, nx-1
-                do iy = 0, ny-1
-                    do iz = 1, nz
-                        vortmp1 = f12 * abs(vor(iz-1, iy, ix, 1) + vor(iz, iy, ix, 1))
-                        vortmp2 = f12 * abs(vor(iz-1, iy, ix, 2) + vor(iz, iy, ix, 2))
-                        vortmp3 = f12 * abs(vor(iz-1, iy, ix, 3) + vor(iz, iy, ix, 3))
-                        if (vortmp1 + vortmp2 + vortmp3 .gt. vortrms) then
-                            vorl1 = vorl1 + vortmp1 + vortmp2 + vortmp3
-                            vorl2 = vorl2 + vortmp1 ** 2 + vortmp2 ** 2 + vortmp3 ** 2
-                        endif
-                    enddo
-                enddo
-            enddo
-            vorch = vorl2 / vorl1
+            vorch = get_char_vorticity(vortrms)
 
             vormean = get_mean_vorticity()
+
+            ! update diagnostics in netCDF data structure (avoids the re-evaluation)
+            call set_netcdf_field_diagnostic(vortmax, NC_OMAX)
+            call set_netcdf_field_diagnostic(vortrms, NC_ORMS)
+            call set_netcdf_field_diagnostic(vorch, NC_OCHAR)
+            call set_netcdf_field_diagnostic(vormean(1), NC_OXMEAN)
+            call set_netcdf_field_diagnostic(vormean(2), NC_OYMEAN)
+            call set_netcdf_field_diagnostic(vormean(3), NC_OZMEAN)
 
             !
             ! velocity strain
@@ -270,8 +276,8 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
-            do ix = 0, nx-1
-                do iy = 0, ny-1
+            do ix = box%lo(1), box%hi(1)
+                do iy = box%lo(2), box%hi(2)
                     do iz = 0, nz
                         ! get local symmetrised strain matrix, i.e. 1/ 2 * (S + S^T)
                         ! where
@@ -322,8 +328,24 @@ module advance_mod
             velmax = maxval(vel(:, :, :, 1) ** 2   &
                           + vel(:, :, :, 2) ** 2   &
                           + vel(:, :, :, 3) ** 2)
-
             !$omp end parallel workshare
+
+            buf(1) = bfmax
+            buf(2) = ggmax
+            buf(3) = velmax
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               buf(1:3),                &
+                               3,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_MAX,                 &
+                               world%comm,              &
+                               world%err)
+
+            bfmax = buf(1)
+            ggmax = buf(2)
+            velmax = buf(3)
+
             velmax = dsqrt(velmax)
 
             !Choose new time step:
