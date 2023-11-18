@@ -16,6 +16,9 @@ module advance_mod
     use inversion_mod, only : vor2vel, vorticity_tendency, pressure
 #ifdef ENABLE_BUOYANCY
     use inversion_mod, only : buoyancy_tendency
+#ifdef ENABLE_PERTURBATION_MODE
+    use physics, only : bfsq
+#endif
 #endif
     use inversion_utils
     use utils, only : write_step
@@ -24,7 +27,6 @@ module advance_mod
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
-    use physics, only : bfsq
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR     &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
@@ -49,9 +51,9 @@ module advance_mod
             integer                         :: iter
             integer                         :: nc
             ! Spectral fields needed in time stepping:
-            double precision                :: vortsm(0:nz, 0:nx-1, 0:ny-1, 3)
+            double precision                :: vortsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3)
 #ifdef ENABLE_BUOYANCY
-            double precision                :: bsm(0:nz, 0:nx-1, 0:ny-1)
+            double precision                :: bsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 #endif
 
             !-------------------------------------------------------------------

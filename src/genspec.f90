@@ -6,7 +6,7 @@ program genspec
     use inversion_utils
     use sta2dfft, only : dct, dst
     use sta3dfft
-    use parameters, only : nx, ny, nz, ncelli
+    use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields

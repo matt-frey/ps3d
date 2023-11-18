@@ -7,6 +7,7 @@ AM_FCFLAGS =				\
 	-I $(top_builddir)/src/netcdf
 
 bin_PROGRAMS = ps3d genspec genspec2d beltrami production
+
 ps3d_SOURCES = 					\
 	utils/options.f90			\
 	utils/parameters.f90			\
@@ -77,6 +78,7 @@ beltrami_SOURCES = 				\
 
 beltrami_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_mpi_fft.la        \
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 

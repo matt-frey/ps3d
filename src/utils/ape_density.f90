@@ -10,7 +10,9 @@ module ape_density
             double precision, intent(in) :: b       ! buoyancy value
             double precision, intent(in) :: z       ! height
             double precision             :: a       ! APE density
+#if defined(ENABLE_IW_TEST_CASE) || defined(ENABLE_RT_TEST_CASE)
             double precision             :: br
+#endif
 
 #ifdef ENABLE_IW_TEST_CASE
             br = max(b, -twopi)

@@ -1,7 +1,10 @@
 module inversion_mod
     use inversion_utils
     use parameters, only : nx, ny, nz
-    use physics, only : f_cor, bfsq
+    use physics, only : f_cor
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+    use physics, only : bfsq
+#endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p

@@ -94,11 +94,16 @@ module field_diagnostics_netcdf
             if (l_exist) then
                 call open_netcdf_file(ncfname, NF90_NOWRITE, ncid, l_serial=.true.)
                 call get_num_steps(ncid, n_writes)
-                call get_time(ncid, restart_time)
-                call read_netcdf_field_stats_content
-                call close_netcdf_file(ncid, l_serial=.true.)
-                n_writes = n_writes + 1
-                return
+                if (n_writes > 0) then
+                   call get_time(ncid, restart_time)
+                   call read_netcdf_field_stats_content
+                   call close_netcdf_file(ncid, l_serial=.true.)
+                   n_writes = n_writes + 1
+                   return
+                else
+                   call close_netcdf_file(ncid, l_serial=.true.)
+                   call delete_netcdf_file(ncfname)
+                endif
             endif
 
             call create_netcdf_file(ncfname, overwrite, ncid, l_serial=.true.)
@@ -118,6 +123,7 @@ module field_diagnostics_netcdf
 
             ! define statitics
             do n = 1, size(nc_dset)
+               print *, n, nc_dset(n)%name
                 call define_netcdf_dataset(ncid=ncid,                       &
                                            name=nc_dset(n)%name,            &
                                            long_name=nc_dset(n)%long_name,  &
@@ -127,7 +133,6 @@ module field_diagnostics_netcdf
                                            dimids=(/t_dim_id/),             &
                                            varid=nc_dset(n)%varid)
             enddo
-
             call close_definition(ncid)
 
             call close_netcdf_file(ncid, l_serial=.true.)
@@ -285,14 +290,14 @@ module field_diagnostics_netcdf
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OXMEAN) = netcdf_stat_info(                      &
+            nc_dset(NC_OYMEAN) = netcdf_stat_info(                      &
                 name='y_vormean',                                       &
                 long_name='mean y-vorticity',                           &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OXMEAN) = netcdf_stat_info(                      &
+            nc_dset(NC_OZMEAN) = netcdf_stat_info(                      &
                 name='z_vormean',                                       &
                 long_name='mean z-vorticity',                           &
                 std_name='',                                            &

@@ -106,8 +106,10 @@ module physics
                print_physical_quantity_double,      &
                print_physical_quantity_integer,     &
                print_physical_quantity_logical,     &
-               print_physical_quantity_character,   &
-               l_bfreq
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+               l_bfreq,                             &
+#endif
+               print_physical_quantity_character
 
     contains
 

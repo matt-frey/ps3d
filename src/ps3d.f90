@@ -11,7 +11,7 @@ program ps3d
                             , vtend_timer   &
                             , vor2vel       &
                             , pres_timer
-    use inversion_utils, only : init_inversion
+    use inversion_utils, only : init_inversion, finalise_inversion
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
                           , advance_timer
@@ -92,6 +92,8 @@ program ps3d
 
         subroutine post_run
             use options, only : output
+
+            call finalise_inversion
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)
