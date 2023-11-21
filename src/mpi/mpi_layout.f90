@@ -115,7 +115,7 @@ module mpi_layout
 
             ! box including asymmetric halo
             box%hlo(1:2) = box%lo(1:2) - 1
-            box%hhi(1:2) = box%hi(1:2) + 2
+            box%hhi(1:2) = box%hi(1:2) + 1
             ! we only need 1 halo layer in vertical direction
             box%hlo(3) = 0 !-1
             box%hhi(3) = nz! + 1
