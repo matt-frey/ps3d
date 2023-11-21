@@ -154,6 +154,31 @@ module field_diagnostics
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        function get_mean(ff) result(mean)
+            double precision, intent(in) :: ff(box%lo(3):box%hi(3), &
+                                               box%lo(2):box%hi(2), &
+                                               box%lo(1):box%hi(1))
+            double precision :: mean
+
+            ! (divide by ncell since lower and upper edge weights are halved)
+            mean = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
+                            + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
+                        + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))) / dble(ncell)
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               mean,                    &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, "in MPI_Allreduce of field_diagnostics::get_mean.")
+
+        end function get_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         function get_rms(ff) result(rms)
             double precision, intent(in) :: ff(box%lo(3):box%hi(3), &
                                                box%lo(2):box%hi(2), &
