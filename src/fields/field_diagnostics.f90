@@ -138,7 +138,16 @@ module field_diagnostics
 
             enb = enb * ncelli
 
-            call mpi_blocking_reduce(enb, MPI_SUM, world)
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               enb,                     &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_gradb_integral.")
 
         end function get_gradb_integral
 #endif
@@ -257,7 +266,16 @@ module field_diagnostics
 
             vormean = vormean * ncelli
 
-            call mpi_blocking_reduce(vormean, MPI_SUM, world)
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               vormean(1:3),            &
+                               3,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_mean_vorticity.")
 
         end function get_mean_vorticity
 
