@@ -91,7 +91,7 @@ module utils
         subroutine setup_domain_and_parameters
             integer          :: ncid
             integer          :: ncells(3)
-            double precision :: ini_time
+            double precision :: ini_time = zero
 
             time%initial = zero ! make sure user cannot start at arbitrary time
 
