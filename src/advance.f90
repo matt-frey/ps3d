@@ -236,7 +236,7 @@ module advance_mod
             vortmax = dsqrt(get_abs_max(xp))
 
             !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
-            vortrms = get_mean(xp)
+            vortrms = dsqrt(get_mean(xp))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorch = get_char_vorticity(vortrms)
