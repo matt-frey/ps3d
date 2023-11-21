@@ -285,8 +285,11 @@ module field_netcdf
                 endif
             endif
 
-            cnt  =  (/ nx, ny, nz+1, 1       /)
-            start = (/ 1,  1,  1,    n_steps /)
+            start(1:3) = box%lo + 1      ! need to add 1 since start must begin with index 1
+            start(4) = n_steps
+            cnt(1:3) = box%size
+            cnt(4) = 1
+
 
             if (has_dataset(ncid, nc_dset(NC_X_VOR)%name)) then
                 ! 19 May 2022
