@@ -34,7 +34,7 @@ module inversion_utils
     double precision, allocatable :: k2l2i(:, :)
 
     ! Note k2l2 = k^2+l^2
-    double precision, allocatable :: k2l2(:, :)
+    double precision, allocatable :: k2l2(:, :), kh(:, :)
 
     double precision, allocatable :: green(:, :, :)
 
@@ -52,6 +52,8 @@ module inversion_utils
     double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
     double precision, allocatable :: phim(:, :, :)      ! phi_{-}
     double precision, allocatable :: phip(:, :, :)      ! phi_{+}
+    double precision, allocatable :: psim(:, :, :)      ! Phi_{-}
+    double precision, allocatable :: psip(:, :, :)      ! Phi_{+}
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
     double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
@@ -71,6 +73,8 @@ module inversion_utils
             , filt                  &
             , hdzi                  &
             , k2l2i                 &
+            , kh                    &
+            , phip                  &
             , hdis                  &
             , green                 &
             , thetap                &
@@ -79,7 +83,8 @@ module inversion_utils
             , dthetam               &
             , gambot                &
             , gamtop                &
-            , call_ptospc
+            , call_ptospc           &
+            , integrate_decomposed_field
 
     public :: field_combine_semi_spectral   &
             , field_combine_physical        &
@@ -245,6 +250,8 @@ module inversion_utils
             !Hyperbolic functions used for solutions of Laplace's equation:
             allocate(phim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(phip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(psim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(psip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 #ifdef ENABLE_BUOYANCY
             allocate(dphim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(dphip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
@@ -273,6 +280,11 @@ module inversion_utils
                 ! kx = ky = 0
                 phim(:, 0, 0) = zm / extent(3)
                 phip(:, 0, 0) = zp / extent(3)
+
+                ! ignore for the moment
+                psim(:, 0, 0) = zero !upper(3) * zm / extent(3) - f12 * zp * (upper(3) + lower(3) - zm) / extent(3)
+                psip(:, 0, 0) = zero
+
 
 #ifdef ENABLE_BUOYANCY
                 dphim(:, 0, 0) = - one / extent(3)
@@ -323,6 +335,8 @@ module inversion_utils
             deallocate(gambot)
             deallocate(phim)
             deallocate(phip)
+            deallocate(psim)
+            deallocate(psip)
 #ifdef ENABLE_BUOYNACY
             deallocate(dphim)
             deallocate(dphip)
@@ -378,6 +392,19 @@ module inversion_utils
 
             phim(:, ky, kx) = div * (ep - ef * em)
             phip(:, ky, kx) = div * (em - ef * ep)
+
+            ! sinh(x) = 0.5 * (exp(x) - exp(-x))
+            ! cosh(x) = 0.5 * (exp(x) + exp(-x))
+
+            ! (cosh(kl * Lz) - cosh(kl * zm) / (kl * sinh(kl * Lz))
+            ! (exp(kl * Lz) + exp(-kl * Lz) - exp(kl * zm) - exp(-kl * zm)) / (kl * (exp(kl * Lz) - exp(-kl * Lz)))
+            ! [1 + exp(-2 * kl * Lz) - exp(kl * (zm - Lz)) - exp(-kl * (Lz + zm))] / (kl * [1 - exp(-2 * kl * Lz)])
+            ! div = 1 / [1 - exp(-2 * kl * Lz)]
+            psim(:, ky, kx) = (one + ef ** 2 - dexp(Lm) * ef - em * ef) * div / kl
+
+            ! (cosh(kl * (z - zmin)) - 1) / (kl * sinh(kl * L))
+            ! (exp(kl * [z-zmin]) + exp(kl * [z-zmin]) - 1)
+            psip(:, ky, kx) = (dexp(Lp) * ef + ep * ef - two * ef) * div / kl
 
 #ifdef ENABLE_BUOYANCY
             dphim(:, ky, kx) = - kl * div * (ep + ef * em)
