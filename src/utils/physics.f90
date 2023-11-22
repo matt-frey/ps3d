@@ -39,6 +39,8 @@ module physics
     use netcdf_utils
     use netcdf_writer
     use iso_fortran_env, only : IOSTAT_END
+    use mpi_utils, only : mpi_print, mpi_stop
+    use mpi_layout, only : box
     implicit none
 
     ![m/s**2] standard gravity (i.e. at 45° latitude and mean sea level):
@@ -85,6 +87,14 @@ module physics
     ! planetary vorticity (all three components)
     double precision, protected :: f_cor(3)
 
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+    ! buoyancy frequency, N
+    double precision, protected :: bf   = zero
+    ! N**2
+    double precision, protected :: bfsq = zero
+    logical                     :: l_bfreq = .false.
+#endif
+
     interface print_physical_quantity
         module procedure :: print_physical_quantity_double
         module procedure :: print_physical_quantity_integer
@@ -96,6 +106,9 @@ module physics
                print_physical_quantity_double,      &
                print_physical_quantity_integer,     &
                print_physical_quantity_logical,     &
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+               l_bfreq,                             &
+#endif
                print_physical_quantity_character
 
     contains
@@ -122,8 +135,7 @@ module physics
             inquire(file=fname, exist=exists)
 
             if (exists .eqv. .false.) then
-                print *, 'Error: input file "' // fname // '" does not exist.'
-                stop
+                call mpi_stop('Error: input file "' // fname // '" does not exist.')
             endif
 
             ! open and read Namelist file.
@@ -134,8 +146,7 @@ module physics
             if (ios == IOSTAT_END) then
                 ! physical constants/parameters not present
             else if (ios /= 0) then
-                print *, 'Error: invalid Namelist format.'
-                stop
+                call mpi_stop('Error: invalid Namelist format.')
             endif
 
             close(fn)
@@ -177,9 +188,17 @@ module physics
                 call read_netcdf_attribute_default(grp_ncid, 'planetary_vorticity', l_planet_vorticity)
                 call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
                 call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+                l_bfreq = has_attribute(grp_ncid, 'buoyancy_frequency')
+                if (l_bfreq) then
+                    call read_netcdf_attribute_default(grp_ncid, 'buoyancy_frequency', bf)
+                    bfsq = bf ** 2
+                endif
+#endif
 #ifdef ENABLE_VERBOSE
             else
-                print *, "WARNING: No physical constants found! PS3D uses default values."
+                call mpi_print(&
+                    "WARNING: No physical constants found! PS3D uses default values.")
 #endif
             endif
 
@@ -205,10 +224,18 @@ module physics
             call write_netcdf_attribute(grp_ncid, 'planet_vorticity', l_planet_vorticity)
             call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
             call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            if (l_bfreq) then
+                call write_netcdf_attribute(grp_ncid, 'buoyancy_frequency', bf)
+            endif
+#endif
 
         end subroutine write_physical_quantities
 
         subroutine print_physical_quantities
+            if (world%rank /= world%root) then
+                return
+            endif
             write(*, "(a)") 'List of physical quantities (in MKS units):'
             write(*, "(a)") repeat("-", 78)
             call print_physical_quantity('standard gravity', gravity, 'm/s^2')
@@ -223,6 +250,11 @@ module physics
             call print_physical_quantity('latitude degrees', lat_degrees, 'deg')
             call print_physical_quantity('scale height', height_c, 'm')
             call print_physical_quantity('inverse scale height', lambda_c, '1/m')
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            if (l_bfreq) then
+                call print_physical_quantity('buoyancy_frequency', bf, '1/s')
+            endif
+#endif
             write(*, *) ''
         end subroutine print_physical_quantities
 
@@ -276,5 +308,39 @@ module physics
             endif
             write (*, "(a, a14)") fix_length_name, val
         end subroutine print_physical_quantity_character
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
+            integer,          intent(in) :: nx, ny, nz
+            double precision, intent(in) :: zext
+            double precision, intent(in) :: buoy(0:nz,                 &
+                                                 box%lo(2):box%hi(2),  &
+                                                 box%lo(1):box%hi(1))
+
+            if (l_bfreq) then
+                if (world%rank == world%root) then
+                    print *, "Provided squared buoyancy frequency:", bfsq
+                endif
+                return
+            endif
+
+            bfsq = sum(buoy(nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
+                     - buoy(0,  box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               bfsq,                    &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            bfsq = bfsq / (dble(nx * ny) * zext)
+
+            if (world%rank == world%root) then
+                print *, "Calculated squared buoyancy frequency:", bfsq
+            endif
+        end subroutine calculate_basic_reference_state
+#endif
 
 end module physics

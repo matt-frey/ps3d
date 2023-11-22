@@ -7,22 +7,50 @@ module field_diagnostics_netcdf
     use netcdf_utils
     use netcdf_writer
     use netcdf_reader
-    use constants, only : one
+    use constants, only : zero, one
     use parameters, only : lower, extent, nx, ny, nz
     use config, only : package_version, cf_version
-    use timer, only : start_timer, stop_timer
+    use mpi_timer, only : start_timer, stop_timer
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
+    use mpi_collectives, only : mpi_blocking_reduce
+    use field_diagnostics
     implicit none
 
     private
 
     character(len=512) :: ncfname
     integer            :: ncid
-    integer            :: t_axis_id, t_dim_id, n_writes, ke_id, en_id
+    integer            :: t_axis_id, t_dim_id, n_writes
+
+    type netcdf_stat_info
+        character(32)    :: name      = ''
+        character(128)   :: long_name = ''
+        character(128)   :: std_name  = ''
+        character(16)    :: unit      = ''
+        integer          :: dtype     = -1
+        integer          :: varid     = -1
+        double precision :: val       = zero   ! data to be written
+    end type netcdf_stat_info
+
+    integer, parameter :: NC_KE     = 1     &
+                        , NC_EN     = 2     &
+                        , NC_OMAX   = 3     &
+                        , NC_ORMS   = 4     &
+                        , NC_OCHAR  = 5     &
+                        , NC_OXMEAN = 6     &
+                        , NC_OYMEAN = 7     &
+                        , NC_OZMEAN = 8
 #ifdef ENABLE_BUOYANCY
-    integer            :: ape_id, bmax_id, bmin_id
+    integer, parameter :: NC_APE    = 9     &
+                        , NC_BMAX   = 10    &
+                        , NC_BMIN   = 11
+
+    type(netcdf_stat_info) :: nc_dset(NC_BMIN)
+#else
+    type(netcdf_stat_info) :: nc_dset(NC_OZMEAN)
 #endif
+
 
     double precision   :: restart_time
 
@@ -30,8 +58,14 @@ module field_diagnostics_netcdf
 
     public :: create_netcdf_field_stats_file,   &
               write_netcdf_field_stats,         &
-              field_stats_io_timer
-
+              field_stats_io_timer,             &
+              set_netcdf_field_diagnostic,      &
+              NC_OMAX,                          &
+              NC_ORMS,                          &
+              NC_OCHAR,                         &
+              NC_OXMEAN,                        &
+              NC_OYMEAN,                        &
+              NC_OZMEAN
 
     contains
 
@@ -42,6 +76,13 @@ module field_diagnostics_netcdf
             character(*), intent(in)  :: basename
             logical,      intent(in)  :: overwrite
             logical                   :: l_exist
+            integer                   :: n
+
+            if (world%rank .ne. world%root) then
+                return
+            endif
+
+            call set_netcdf_stat_info
 
             ncfname =  basename // '_field_stats.nc'
 
@@ -51,19 +92,24 @@ module field_diagnostics_netcdf
             call exist_netcdf_file(ncfname, l_exist)
 
             if (l_exist) then
-                call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+                call open_netcdf_file(ncfname, NF90_NOWRITE, ncid, l_serial=.true.)
                 call get_num_steps(ncid, n_writes)
-                call get_time(ncid, restart_time)
-                call read_netcdf_field_stats_content
-                call close_netcdf_file(ncid)
-                n_writes = n_writes + 1
-                return
+                if (n_writes > 0) then
+                   call get_time(ncid, restart_time)
+                   call read_netcdf_field_stats_content
+                   call close_netcdf_file(ncid, l_serial=.true.)
+                   n_writes = n_writes + 1
+                   return
+                else
+                   call close_netcdf_file(ncid, l_serial=.true.)
+                   call delete_netcdf_file(ncfname)
+                endif
             endif
 
-            call create_netcdf_file(ncfname, overwrite, ncid)
+            call create_netcdf_file(ncfname, overwrite, ncid, l_serial=.true.)
 
             call write_netcdf_info(ncid=ncid,                       &
-                                   ps3d_version=package_version,    &
+                                   version_tag=package_version,     &
                                    file_type='field_stats',         &
                                    cf_version=cf_version)
 
@@ -75,107 +121,103 @@ module field_diagnostics_netcdf
 
             call define_netcdf_temporal_dimension(ncid, t_dim_id, t_axis_id)
 
-            call define_netcdf_dataset(                                     &
-                ncid=ncid,                                                  &
-                name='ke',                                                  &
-                long_name='domain-averaged kinetic energy',                 &
-                std_name='',                                                &
-                unit='m^2/s^2',                                             &
-                dtype=NF90_DOUBLE,                                          &
-                dimids=(/t_dim_id/),                                        &
-                varid=ke_id)
-
-            call define_netcdf_dataset(                                     &
-                ncid=ncid,                                                  &
-                name='en',                                                  &
-                long_name='domain-averaged enstrophy',                      &
-                std_name='',                                                &
-                unit='1/s^2',                                               &
-                dtype=NF90_DOUBLE,                                          &
-                dimids=(/t_dim_id/),                                        &
-                varid=en_id)
-
-#ifdef ENABLE_BUOYANCY
-            call define_netcdf_dataset(                                     &
-                ncid=ncid,                                                  &
-                name='ape',                                                 &
-                long_name='domain-averaged available potential energy',     &
-                std_name='',                                                &
-                unit='m^2/s^2',                                             &
-                dtype=NF90_DOUBLE,                                          &
-                dimids=(/t_dim_id/),                                        &
-                varid=ape_id)
-
-            call define_netcdf_dataset(                                     &
-                ncid=ncid,                                                  &
-                name='min_buoyancy',                                        &
-                long_name='minimum gridded buoyancy',                       &
-                std_name='',                                                &
-                unit='m/s^2',                                               &
-                dtype=NF90_DOUBLE,                                          &
-                dimids=(/t_dim_id/),                                        &
-                varid=bmin_id)
-
-            call define_netcdf_dataset(                                     &
-                ncid=ncid,                                                  &
-                name='max_buoyancy',                                        &
-                long_name='maximum gridded buoyancy',                       &
-                std_name='',                                                &
-                unit='m/s^2',                                               &
-                dtype=NF90_DOUBLE,                                          &
-                dimids=(/t_dim_id/),                                        &
-                varid=bmax_id)
-#endif
+            ! define statitics
+            do n = 1, size(nc_dset)
+               print *, n, nc_dset(n)%name
+                call define_netcdf_dataset(ncid=ncid,                       &
+                                           name=nc_dset(n)%name,            &
+                                           long_name=nc_dset(n)%long_name,  &
+                                           std_name=nc_dset(n)%std_name,    &
+                                           unit=nc_dset(n)%unit,            &
+                                           dtype=nc_dset(n)%dtype,          &
+                                           dimids=(/t_dim_id/),             &
+                                           varid=nc_dset(n)%varid)
+            enddo
             call close_definition(ncid)
+
+            call close_netcdf_file(ncid, l_serial=.true.)
 
         end subroutine create_netcdf_field_stats_file
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         ! Pre-condition: Assumes an open file
         subroutine read_netcdf_field_stats_content
+            integer :: n
 
             call get_dim_id(ncid, 't', t_dim_id)
 
             call get_var_id(ncid, 't', t_axis_id)
 
-            call get_var_id(ncid, 'ke', ke_id)
+            do n = 1, size(nc_dset)
+                call get_var_id(ncid, nc_dset(n)%name, nc_dset(n)%varid)
+            enddo
 
-            call get_var_id(ncid, 'en', en_id)
-
-#ifdef ENABLE_BUOYANCY
-            call get_var_id(ncid, 'ape', ape_id)
-
-            call get_var_id(ncid, 'min_buoyancy', bmin_id)
-
-            call get_var_id(ncid, 'max_buoyancy', bmax_id)
-#endif
         end subroutine read_netcdf_field_stats_content
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Write a step in the field diagnostic file.
         ! @param[in] t is the time
         ! @param[in] dt is the time step
         subroutine write_netcdf_field_stats(t)
             double precision, intent(in) :: t
-            double precision             :: ke, en
-#ifdef ENABLE_BUOYANCY
-            double precision             :: bmin, bmax, ape
-#ifdef ENABLE_PERTURBATION_MODE
-            integer                      :: iz
-#endif
-#endif
+            integer                      :: n
 
             call start_timer(field_stats_io_timer)
+
+            call update_netcdf_field_diagnostics
+
+            if (world%rank /= world%root) then
+                call stop_timer(field_stats_io_timer)
+                return
+            endif
 
             if (t <= restart_time) then
                 call stop_timer(field_stats_io_timer)
                 return
             endif
 
-            ke = get_kinetic_energy()
-            en = get_enstrophy()
+            call open_netcdf_file(ncfname, NF90_WRITE, ncid, l_serial=.true.)
+
+            ! write time
+            call write_netcdf_scalar(ncid, t_axis_id, t, n_writes, l_serial=.true.)
+
+            !
+            ! write diagnostics
+            !
+            do n = 1, size(nc_dset)
+                call write_netcdf_scalar(ncid,              &
+                                         nc_dset(n)%varid,  &
+                                         nc_dset(n)%val,    &
+                                         n_writes,          &
+                                         l_serial=.true.)
+            enddo
+
+            ! increment counter
+            n_writes = n_writes + 1
+
+            call close_netcdf_file(ncid, l_serial=.true.)
+
+            call stop_timer(field_stats_io_timer)
+
+        end subroutine write_netcdf_field_stats
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine update_netcdf_field_diagnostics
+#ifdef ENABLE_BUOYANCY
+            double precision             :: bmin, bmax
+#ifdef ENABLE_PERTURBATION_MODE
+            integer                      :: iz
+#endif
+#endif
+            nc_dset(NC_KE)%val = get_kinetic_energy()
+            nc_dset(NC_EN)%val = get_enstrophy()
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            ape = get_available_potential_energy()
+            nc_dset(NC_APE)%val = get_available_potential_energy()
 #ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
@@ -183,31 +225,108 @@ module field_diagnostics_netcdf
 #endif
             bmin = minval(buoy)
             bmax = maxval(buoy)
+
+            call mpi_blocking_reduce(bmin, MPI_MIN, world)
+            call mpi_blocking_reduce(bmax, MPI_MAX, world)
+
+            nc_dset(NC_BMAX)%val = bmax
+            nc_dset(NC_BMIN)%val = bmin
 #endif
 
-            call open_netcdf_file(ncfname, NF90_WRITE, ncid)
+        end subroutine update_netcdf_field_diagnostics
 
-            ! write time
-            call write_netcdf_scalar(ncid, t_axis_id, t, n_writes)
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-            !
-            ! write diagnostics
-            !
-            call write_netcdf_scalar(ncid, ke_id, ke, n_writes)
-            call write_netcdf_scalar(ncid, en_id, en, n_writes)
+        subroutine set_netcdf_field_diagnostic(val, n)
+            double precision, intent(in) :: val
+            integer,          intent(in) :: n
+
+            nc_dset(n)%val = val
+
+        end subroutine set_netcdf_field_diagnostic
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine set_netcdf_stat_info
+            nc_dset(NC_KE) = netcdf_stat_info(                          &
+                name='ke',                                              &
+                long_name='domain-averaged kinetic energy',             &
+                std_name='',                                            &
+                unit='m^2/s^2',                                         &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_EN) = netcdf_stat_info(                          &
+                name='en',                                              &
+                long_name='domain-averaged enstrophy',                  &
+                std_name='',                                            &
+                unit='1/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OMAX) = netcdf_stat_info(                        &
+                name='vortmax',                                         &
+                long_name='maximum vorticity magnitude',                &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_ORMS) = netcdf_stat_info(                        &
+                name='vortrms',                                         &
+                long_name='root-mean square vorticity',                 &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OCHAR) = netcdf_stat_info(                       &
+                name='vorch',                                           &
+                long_name='characteristic vorticity',                   &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OXMEAN) = netcdf_stat_info(                      &
+                name='x_vormean',                                       &
+                long_name='mean x-vorticity',                           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OYMEAN) = netcdf_stat_info(                      &
+                name='y_vormean',                                       &
+                long_name='mean y-vorticity',                           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OZMEAN) = netcdf_stat_info(                      &
+                name='z_vormean',                                       &
+                long_name='mean z-vorticity',                           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_scalar(ncid, ape_id, ape, n_writes)
-            call write_netcdf_scalar(ncid, bmin_id, bmin, n_writes)
-            call write_netcdf_scalar(ncid, bmax_id, bmax, n_writes)
+            nc_dset(NC_APE) = netcdf_stat_info(                         &
+                name='ape',                                             &
+                long_name='domain-averaged available potential energy', &
+                std_name='',                                            &
+                unit='m^2/s^2',                                         &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_BMIN) = netcdf_stat_info(                        &
+                name='min_buoyancy',                                    &
+                long_name='minimum buoyancy',                           &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_BMAX) = netcdf_stat_info(                        &
+                name='max_buoyancy',                                    &
+                long_name='maximum buoyancy',                           &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
 #endif
 
-            ! increment counter
-            n_writes = n_writes + 1
-
-            call close_netcdf_file(ncid)
-
-            call stop_timer(field_stats_io_timer)
-
-        end subroutine write_netcdf_field_stats
+        end subroutine set_netcdf_stat_info
 
 end module field_diagnostics_netcdf

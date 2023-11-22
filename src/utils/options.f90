@@ -4,6 +4,7 @@
 module options
     use constants, only : zero, one, two, pi, four, twopi
     use netcdf_writer
+    use mpi_utils, only : mpi_stop
     implicit none
     !
     ! global options
@@ -23,12 +24,13 @@ module options
     ! output options
     !
     type info
-        double precision    :: field_freq         = one
-        logical             :: write_fields       = .true.
-        double precision    :: field_stats_freq   = one
-        logical             :: write_field_stats  = .true.
-        logical             :: overwrite          = .false.
-        character(len=512)  :: basename           = ''
+        double precision                  :: field_freq         = one
+        logical                           :: write_fields       = .true.
+        character(len=32), dimension(128) :: field_list         = ''
+        double precision                  :: field_stats_freq   = one
+        logical                           :: write_field_stats  = .true.
+        logical                           :: overwrite          = .false.
+        character(len=512)                :: basename           = ''
     end type info
 
     type(info) :: output
@@ -84,8 +86,8 @@ module options
             inquire(file=filename, exist=exists)
 
             if (exists .eqv. .false.) then
-                print *, 'Error: input file "', trim(filename), '" does not exist.'
-                stop
+                call mpi_stop(&
+                    'Error: input file "' // trim(filename) // '" does not exist.')
             endif
 
             ! open and read Namelist file.
@@ -94,8 +96,7 @@ module options
             read(nml=PS3D, iostat=ios, unit=fn)
 
             if (ios /= 0) then
-                print *, 'Error: invalid Namelist format.'
-                stop
+                call mpi_stop('Error: invalid Namelist format.')
             end if
 
             close(fn)
@@ -104,8 +105,8 @@ module options
             inquire(file=output%basename, exist=exists)
 
             if (exists) then
-                print *, 'Error: output file "', trim(output%basename), '" already exists.'
-                stop
+                call mpi_stop(&
+                    'Error: output file "' // trim(output%basename) // '" already exists.')
             endif
 
         end subroutine read_config_file

@@ -10,9 +10,12 @@ program production
     use fields
     use netcdf_reader
     use parameters, only : lower, extent, nx, ny, nz, update_parameters, ncelli, dx
-    use inversion_utils, only : init_inversion, fftxyp2s, fftxys2p, diffx, diffy
+    use inversion_utils, only : init_inversion
+    use sta3dfft, only : fftxyp2s, fftxys2p, diffx, diffy
     use fields, only : vor, svor, vel, svel
     use jacobi, only : jacobi_diagonalise
+    use mpi_environment
+    use mpi_layout
     implicit none
 
     character(512)                :: fname = ""
@@ -31,6 +34,12 @@ program production
     ! enstrophy production rates
     double precision              :: etas(3)
 
+    call mpi_env_initialise
+
+    if (world%size > 1) then
+        call mpi_stop("This program does not run in parallel due to call_ptospc!")
+    endif
+
 
     call parse_command_line
 
@@ -38,6 +47,8 @@ program production
     nx = ncells(1)
     ny = ncells(2)
     nz = ncells(3)
+
+    call mpi_layout_init(lower, extent, nx, ny, nz)
 
     call update_parameters
 
@@ -122,6 +133,8 @@ program production
     deallocate(dwdx)
     deallocate(dvdy)
     deallocate(dwdy)
+
+    call mpi_env_finalise
 
     contains
 

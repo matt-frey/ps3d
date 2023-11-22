@@ -2,9 +2,13 @@ module inversion_mod
     use inversion_utils
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+    use physics, only : bfsq
+#endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
-    use timer, only : start_timer, stop_timer
+    use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use mpi_timer, only : start_timer, stop_timer
     use fields
     implicit none
 
@@ -18,11 +22,11 @@ module inversion_mod
         ! returns the associated velocity field (vel) as well as vorticity
         ! in physical space (vor)
         subroutine vor2vel
-            double precision :: as(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision :: bs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision :: es(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
-            double precision :: cs(0:nz, 0:nx-1, 0:ny-1)         ! semi-spectral
+            double precision :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+            double precision :: bs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+            double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+            double precision :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+            double precision :: cs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
             integer          :: iz, nc, kx, ky, kz
 
@@ -44,8 +48,10 @@ module inversion_mod
             call field_decompose_semi_spectral(es)
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
-            ubar = svor(:, 0, 0, 1)
-            vbar = svor(:, 0, 0, 2)
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ubar = svor(:, 0, 0, 1)
+                vbar = svor(:, 0, 0, 2)
+            endif
 
             call diffx(es, svor(:, :, :, 1)) ! E_x
             call diffy(ds, cs)               ! cs = D_y
@@ -65,8 +71,10 @@ module inversion_mod
             !$omp end parallel do
 
             ! bring back the mean x and y components of the vorticity
-            svor(:, 0, 0, 1) = ubar
-            svor(:, 0, 0, 2) = vbar
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                svor(:, 0, 0, 1) = ubar
+                svor(:, 0, 0, 2) = vbar
+            endif
 
             !----------------------------------------------------------
             !Combine vorticity in physical space:
@@ -116,10 +124,10 @@ module inversion_mod
 
             !FFT these quantities back to semi-spectral space:
             !$omp parallel do collapse(2) private(kx, ky)
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, as(0:nz, kx, ky), ztrig, zfactors)
-                    call dst(1, nz, ds(1:nz, kx, ky), ztrig, zfactors)
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    call dct(1, nz, as(0:nz, ky, kx), ztrig, zfactors)
+                    call dst(1, nz, ds(1:nz, ky, kx), ztrig, zfactors)
                 enddo
             enddo
             !$omp end parallel do
@@ -140,20 +148,22 @@ module inversion_mod
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
 
             !First integrate the sine series in svor(1:nz-1, 0, 0, 1 & 2):
-            ubar(0) = zero
-            vbar(0) = zero
-            ubar(1:nz-1) = -rkzi * svor(1:nz-1, 0, 0, 2)
-            vbar(1:nz-1) =  rkzi * svor(1:nz-1, 0, 0, 1)
-            ubar(nz) = zero
-            vbar(nz) = zero
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ubar(0) = zero
+                vbar(0) = zero
+                ubar(1:nz-1) = -rkzi * svor(1:nz-1, 0, 0, 2)
+                vbar(1:nz-1) =  rkzi * svor(1:nz-1, 0, 0, 1)
+                ubar(nz) = zero
+                vbar(nz) = zero
 
-            !Transform to semi-spectral space as a cosine series:
-            call dct(1, nz, ubar, ztrig, zfactors)
-            call dct(1, nz, vbar, ztrig, zfactors)
+                !Transform to semi-spectral space as a cosine series:
+                call dct(1, nz, ubar, ztrig, zfactors)
+                call dct(1, nz, vbar, ztrig, zfactors)
 
-            !Add contribution from the linear function connecting the boundary values:
-            ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
-            vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
+                !Add contribution from the linear function connecting the boundary values:
+                ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
+                vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
+            endif
 
             !-------------------------------------------------------
             !Find x velocity component "u":
@@ -167,7 +177,9 @@ module inversion_mod
             !$omp end parallel do
 
             !Add horizontally-averaged flow:
-            as(:, 0, 0) = ubar
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                as(:, 0, 0) = ubar
+            endif
 
             !Store spectral form of "u":
             !$omp parallel workshare
@@ -189,7 +201,9 @@ module inversion_mod
             !$omp end parallel do
 
             !Add horizontally-averaged flow:
-            as(:, 0, 0) = vbar
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                as(:, 0, 0) = vbar
+            endif
 
             !Store spectral form of "v":
             !$omp parallel workshare
@@ -217,10 +231,10 @@ module inversion_mod
 #ifdef ENABLE_BUOYANCY
         ! Compute the gridded buoyancy tendency (using flux form):
         subroutine buoyancy_tendency
-            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)        ! flux component in physical space
-            double precision :: fs(0:nz, 0:nx-1, 0:ny-1)        ! flux component in spectral space
-            double precision :: ds(0:nz, 0:nx-1, 0:ny-1)        ! buoyancy derivative in spectral space
-            double precision :: btend(0:nz, 0:ny-1, 0:nx-1)     ! buoyancy source in physical space
+            double precision :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ! flux component in phys space
+            double precision :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ! flux component in spec space
+            double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ! buoyancy deriv in spec space
+            double precision :: btend(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ! buoy source in phys space
 
             !--------------------------------------------------------------
             ! We calculate the buoyancy source b_t = -(u,v,w)*grad(b)
@@ -287,11 +301,11 @@ module inversion_mod
 
         ! Compute the gridded vorticity tendency:
         subroutine vorticity_tendency
-            double precision :: fp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
-            double precision :: gp(0:nz, 0:ny-1, 0:nx-1)    ! physical space
-            double precision :: p(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            double precision :: q(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
-            double precision :: r(0:nz, 0:nx-1, 0:ny-1)     ! mixed spectral space
+            double precision :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
+            double precision :: gp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
+            double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
+            double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
+            double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             integer          :: nc
 
             call start_timer(vtend_timer)
@@ -368,13 +382,20 @@ module inversion_mod
         ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
         ! is the Jacobian.
         subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
-            double precision, intent(in) :: dudx(0:nz, 0:ny-1, 0:nx-1) ! du/dx in physical space
-            double precision, intent(in) :: dudy(0:nz, 0:ny-1, 0:nx-1) ! du/dy in physical space
-            double precision, intent(in) :: dvdy(0:nz, 0:ny-1, 0:nx-1) ! dv/dy in physical space
-            double precision, intent(in) :: dwdx(0:nz, 0:ny-1, 0:nx-1) ! dw/dx in physical space
-            double precision, intent(in) :: dwdy(0:nz, 0:ny-1, 0:nx-1) ! dw/dy in physical space
-            double precision             :: dwdz(0:nz, 0:ny-1, 0:nx-1) ! dw/dz in physical space
-            double precision             :: rs(0:nz, 0:nx-1, 0:ny-1)   ! rhs in spectral space
+            double precision, intent(in) :: dudx(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! du/dx in physical space
+            double precision, intent(in) :: dudy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! du/dy in physical space
+            double precision, intent(in) :: dvdy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dv/dy in physical space
+            double precision, intent(in) :: dwdx(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dw/dx in physical space
+            double precision, intent(in) :: dwdy(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dw/dy in physical space
+            double precision             :: dwdz(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1)) ! dw/dz in physical space
+            double precision             :: rs(0:nz, box%lo(2):box%hi(2),   &
+                                                     box%lo(1):box%hi(1))   ! rhs in spectral space
             integer                      :: kx, ky
 
             call start_timer(pres_timer)
@@ -402,9 +423,9 @@ module inversion_mod
             call fftxyp2s(pres, rs)
 
             !$omp parallel do collapse(2) private(kx, ky)
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, rs(0:nz, kx, ky), ztrig, zfactors)
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    call dct(1, nz, rs(0:nz, ky, kx), ztrig, zfactors)
                 enddo
             enddo
             !$omp end parallel do
@@ -418,9 +439,9 @@ module inversion_mod
             !-------------------------------------------------------
             ! Transform to physical space:
             !$omp parallel do collapse(2) private(kx, ky)
-            do ky = 0, ny-1
-                do kx = 0, nx-1
-                    call dct(1, nz, rs(0:nz, kx, ky), ztrig, zfactors)
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    call dct(1, nz, rs(0:nz, ky, kx), ztrig, zfactors)
                 enddo
             enddo
             !$omp end parallel do

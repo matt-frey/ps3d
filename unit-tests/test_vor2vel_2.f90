@@ -17,12 +17,15 @@
 ! =============================================================================
 program test_vor2vel_2
     use unit_test
-    use constants, only : one, two, three, six, pi, twopi
+    use constants, only : one, two, three, six, pi, twopi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use timer
+    use mpi_timer
+    use mpi_environment
+    use mpi_layout
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     double precision              :: error
@@ -30,6 +33,8 @@ program test_vor2vel_2
     integer                       :: ix, iy, iz
     double precision              :: x, y, z, k2l2, k, l, f, dfdz, d2fdz2
     double precision              :: coskx, sinkx, cosly, sinly
+
+    call mpi_env_initialise
 
     call register_timer('vorticity', vor2vel_timer)
 
@@ -40,7 +45,9 @@ program test_vor2vel_2
     lower  = (/-f12, -f12, zero/)
     extent = (/one, one, one/)
 
-    allocate(vel_ref(0:nz, 0:ny-1, 0:nx-1, 3))
+    call mpi_layout_init(lower, extent, nx, ny, nz)
+
+    allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
     call update_parameters
 
@@ -54,9 +61,9 @@ program test_vor2vel_2
 
     k2l2 = k ** 2 - l ** 2
 
-    do ix = 0, nx-1
+    do ix = box%lo(1), box%hi(1)
         x = lower(1) + ix * dx(1)
-        do iy = 0, ny-1
+        do iy = box%lo(2), box%hi(2)
             y = lower(2) + iy * dx(2)
             do iz = 0, nz
                 z = lower(3) + iz * dx(3)
@@ -91,8 +98,14 @@ program test_vor2vel_2
 
     error = maxval(dabs(vel_ref - vel))
 
-    call print_result_dp('Test vor2vel', error, atol=1.2e-2)
+    call mpi_blocking_reduce(error, MPI_MAX, world)
+
+    if (world%rank == world%root) then
+        call print_result_dp('Test vor2vel', error, atol=1.2e-2)
+    endif
 
     deallocate(vel_ref)
+
+    call mpi_env_finalise
 
 end program test_vor2vel_2

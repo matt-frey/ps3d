@@ -19,7 +19,7 @@ module sta2dfft
     !          lx and ly are the domain lengths - these are needed for the correct
     !          scaling when computing derivatives. The arrays xfactors, yfactors,
     !          xtrig and ytrig are needed to perform the various FFTs by the stafft
-    !          module (see there for further details. kx and ky are arrays to hold
+    !          module (see there for further details). kx and ky are arrays to hold
     !          the wavenumbers associated with each mode in the domain, and are
     !          used in computing derivatives.
     !
@@ -99,7 +99,7 @@ module sta2dfft
         ! *** Note rvar is destroyed on return. ***
         subroutine ptospc(nx, ny, rvar, svar, xfactors, yfactors, xtrig, ytrig)
             integer,          intent(in)    :: nx, ny, xfactors(5), yfactors(5)
-            double precision, intent(inout) :: xtrig(2 * nx), ytrig(2 * ny)
+            double precision, intent(in)    :: xtrig(2 * nx), ytrig(2 * ny)
             double precision, intent(inout) :: rvar(ny, nx), svar(nx, ny)
             !Local declarations:
             integer:: kx, iy

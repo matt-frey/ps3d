@@ -1,16 +1,19 @@
 module field_netcdf
+    use options, only : output, verbose
     use constants, only : one
     use netcdf_utils
     use netcdf_writer
     use netcdf_reader
     use fields
     use config, only : package_version, cf_version
-    use timer, only : start_timer, stop_timer
+    use mpi_timer, only : start_timer, stop_timer
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
     use inversion_utils, only : field_combine_physical
     implicit none
+
+    private
 
     integer :: field_io_timer
 
@@ -20,25 +23,38 @@ module field_netcdf
     integer            :: coord_ids(3)  ! = (x, y, z)
     integer            :: t_axis_id
     double precision   :: restart_time
+    integer            :: n_writes
 
-    integer            :: x_vel_id, y_vel_id, z_vel_id,    &
-                          x_vor_id, y_vor_id, z_vor_id,    &
-                          pres_id,                         &
-#ifdef ENABLE_BUOYANCY
-                          buoy_id,                         &
-#endif
-                          n_writes
+    type netcdf_field_info
+        character(32)  :: name      = ''
+        character(128) :: long_name = ''
+        character(128) :: std_name  = ''
+        character(16)  :: unit      = ''
+        integer        :: dtype     = -1
+        integer        :: varid     = -1
+        logical        :: l_enabled = .false.
+    end type netcdf_field_info
 
-    private :: ncid, ncfname,                   &
-               dimids,                          &
-               coord_ids, t_axis_id,            &
-               x_vel_id, y_vel_id, z_vel_id,    &
-               x_vor_id, y_vor_id, z_vor_id,    &
-               pres_id,                         &
+    integer, parameter :: NC_X_VEL   = 1        &
+                        , NC_Y_VEL   = 2        &
+                        , NC_Z_VEL   = 3        &
+                        , NC_X_VOR   = 4        &
+                        , NC_Y_VOR   = 5        &
+                        , NC_Z_VOR   = 6        &
+                        , NC_PRES    = 7
+
 #ifdef ENABLE_BUOYANCY
-               buoy_id,                         &
+    integer, parameter :: NC_BUOY    = 8
+
+    type(netcdf_field_info) :: nc_dset(NC_BUOY)
+#else
+    type(netcdf_field_info) :: nc_dset(NC_PRES)
 #endif
-               n_writes, restart_time
+
+    public :: create_netcdf_field_file  &
+            , write_netcdf_fields       &
+            , read_netcdf_fields        &
+            , field_io_timer
 
 
     contains
@@ -50,6 +66,9 @@ module field_netcdf
             character(*), intent(in)  :: basename
             logical,      intent(in)  :: overwrite
             logical                   :: l_exist
+            integer                   :: n
+
+            call set_netcdf_field_output
 
             ncfname =  basename // '_fields.nc'
 
@@ -61,18 +80,25 @@ module field_netcdf
             if (l_exist) then
                 call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
                 call get_num_steps(ncid, n_writes)
-                call get_time(ncid, restart_time)
-                call read_netcdf_field_content
-                call close_netcdf_file(ncid)
-                n_writes = n_writes + 1
-                return
+                if (n_writes > 0) then
+                   call get_time(ncid, restart_time)
+                   call read_netcdf_field_content
+                   call close_netcdf_file(ncid)
+                   n_writes = n_writes + 1
+                   return
+                else
+                   call close_netcdf_file(ncid)
+                   if (world%rank == world%root) then
+                        call delete_netcdf_file(ncfname)
+                   endif
+                endif
             endif
 
             call create_netcdf_file(ncfname, overwrite, ncid)
 
             ! define global attributes
             call write_netcdf_info(ncid=ncid,                    &
-                                   ps3d_version=package_version, &
+                                   version_tag=package_version,  &
                                    file_type='fields',           &
                                    cf_version=cf_version)
 
@@ -84,7 +110,7 @@ module field_netcdf
 
             ! define dimensions
             call define_netcdf_spatial_dimensions_3d(ncid=ncid,                &
-                                                     ncells=(/nx, ny, nz/),    &
+                                                     ngps=(/nx, ny, nz+1/),    &
                                                      dimids=dimids(1:3),       &
                                                      axids=coord_ids)
 
@@ -92,85 +118,31 @@ module field_netcdf
             call define_netcdf_temporal_dimension(ncid, dimids(4), t_axis_id)
 
             ! define fields
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='x_velocity',                   &
-                                       long_name='x velocity component',    &
-                                       std_name='',                         &
-                                       unit='m/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=x_vel_id)
+            do n = 1, size(nc_dset)
+                if (nc_dset(n)%l_enabled) then
+                    call define_netcdf_dataset(ncid=ncid,                       &
+                                               name=nc_dset(n)%name,            &
+                                               long_name=nc_dset(n)%long_name,  &
+                                               std_name=nc_dset(n)%std_name,    &
+                                               unit=nc_dset(n)%unit,            &
+                                               dtype=nc_dset(n)%dtype,          &
+                                               dimids=dimids,                   &
+                                               varid=nc_dset(n)%varid)
 
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='y_velocity',                   &
-                                       long_name='y velocity component',    &
-                                       std_name='',                         &
-                                       unit='m/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=y_vel_id)
+                endif
+            enddo
 
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='z_velocity',                   &
-                                       long_name='z velocity component',    &
-                                       std_name='',                         &
-                                       unit='m/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=z_vel_id)
-
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='x_vorticity',                  &
-                                       long_name='x vorticity component',   &
-                                       std_name='',                         &
-                                       unit='1/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=x_vor_id)
-
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='y_vorticity',                  &
-                                       long_name='y vorticity component',   &
-                                       std_name='',                         &
-                                       unit='1/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=y_vor_id)
-
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='z_vorticity',                  &
-                                       long_name='z vorticity component',   &
-                                       std_name='',                         &
-                                       unit='1/s',                          &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=z_vor_id)
-
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='pressure',                     &
-                                       long_name='pressure',                &
-                                       std_name='',                         &
-                                       unit='m^2/s^2',                      &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=pres_id)
-
-#ifdef ENABLE_BUOYANCY
-            call define_netcdf_dataset(ncid=ncid,                           &
-                                       name='buoyancy',                     &
-                                       long_name='buoyancy',                &
-                                       std_name='',                         &
-                                       unit='m/s^2',                        &
-                                       dtype=NF90_DOUBLE,                   &
-                                       dimids=dimids,                       &
-                                       varid=buoy_id)
-#endif
             call close_definition(ncid)
+
+            call close_netcdf_file(ncid)
 
         end subroutine create_netcdf_field_file
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         ! Pre-condition: Assumes an open file
         subroutine read_netcdf_field_content
+            integer :: n
 
             call get_dim_id(ncid, 'x', dimids(1))
 
@@ -189,25 +161,15 @@ module field_netcdf
 
             call get_var_id(ncid, 't', t_axis_id)
 
-            call get_var_id(ncid, 'x_velocity', x_vel_id)
-
-            call get_var_id(ncid, 'y_velocity', y_vel_id)
-
-            call get_var_id(ncid, 'z_velocity', z_vel_id)
-
-            call get_var_id(ncid, 'x_vorticity', x_vor_id)
-
-            call get_var_id(ncid, 'y_vorticity', y_vor_id)
-
-            call get_var_id(ncid, 'z_vorticity', z_vor_id)
-
-            call get_var_id(ncid, 'pressure', pres_id)
-
-#ifdef ENABLE_BUOYANCY
-            call get_var_id(ncid, 'buoyancy', buoy_id)
-#endif
+            do n = 1, size(nc_dset)
+                if (nc_dset(n)%l_enabled) then
+                    call get_var_id(ncid, nc_dset(n)%name, nc_dset(n)%varid)
+                endif
+            enddo
 
         end subroutine read_netcdf_field_content
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Write a step in the field file.
         ! @param[in] t is the time
@@ -215,7 +177,7 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
+#if ENABLE_BUOYANCY_PERTURBATION_MODE
             integer                      :: iz
 #endif
 
@@ -228,36 +190,36 @@ module field_netcdf
 
             call open_netcdf_file(ncfname, NF90_WRITE, ncid)
 
+            ! time step to write [step(4) is the time]
+            ! need to add 1 since start must begin with index 1
+            start(1:3) = box%lo + 1
+            start(4) = n_writes
+
+            cnt(1:3) = box%hi - box%lo + 1
+            cnt(4)   = 1
+
             if (n_writes == 1) then
-                call write_netcdf_axis_3d(ncid, dimids(1:3), lower, dx, (/nx, ny, nz/))
+                call write_netcdf_axis_3d(ncid, dimids(1:3), box%lower, dx, &
+                                          box%size, start(1:3), cnt(1:3))
             endif
 
             ! write time
             call write_netcdf_scalar(ncid, t_axis_id, t, n_writes)
 
-            ! time step to write [step(4) is the time]
-            cnt   = (/ nx, ny, nz+1, 1        /)
-            start = (/ 1,  1,  1,    n_writes /)
 
             !
-            ! write fields (do not write halo cells)
+            ! write fields
             !
-            call write_netcdf_dataset(ncid, x_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 1), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, y_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 2), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, z_vel_id, vel(0:nz, 0:ny-1, 0:nx-1, 3), &
-                                      start, cnt)
+            call write_field_double(NC_X_VEL, vel(:, :, :, 1), start, cnt)
+            call write_field_double(NC_Y_VEL, vel(:, :, :, 2), start, cnt)
+            call write_field_double(NC_Z_VEL, vel(:, :, :, 3), start, cnt)
 
-            call write_netcdf_dataset(ncid, x_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 1), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, y_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 2), &
-                                      start, cnt)
-            call write_netcdf_dataset(ncid, z_vor_id, vor(0:nz, 0:ny-1, 0:nx-1, 3), &
-                                      start, cnt)
+            call write_field_double(NC_X_VOR, vor(:, :, :, 1), start, cnt)
+            call write_field_double(NC_Y_VOR, vor(:, :, :, 2), start, cnt)
+            call write_field_double(NC_Z_VOR, vor(:, :, :, 3), start, cnt)
 
-            call write_netcdf_dataset(ncid, pres_id, pres(0:nz, 0:ny-1, 0:nx-1),    &
-                                      start, cnt)
+
+            call write_field_double(NC_PRES, pres, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
@@ -266,8 +228,7 @@ module field_netcdf
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
 #endif
-            call write_netcdf_dataset(ncid, buoy_id, buoy(0:nz, 0:ny-1, 0:nx-1),    &
-                 start, cnt)
+            call write_field_double(NC_BUOY, buoy, start, cnt)
 #endif
 
             ! increment counter
@@ -279,6 +240,25 @@ module field_netcdf
 
         end subroutine write_netcdf_fields
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine write_field_double(id, fdata, start, cnt)
+            integer,          intent(in) :: id
+            double precision, intent(in) :: fdata(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            integer,          intent(in) :: cnt(4), start(4)
+
+            if (nc_dset(id)%l_enabled) then
+                call write_netcdf_dataset(ncid, nc_dset(id)%varid,      &
+                                          fdata(box%lo(3):box%hi(3),    &
+                                                box%lo(2):box%hi(2),    &
+                                                box%lo(1):box%hi(1)),   &
+                                          start, cnt)
+            endif
+        end subroutine write_field_double
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine read_netcdf_fields(ncfname, step)
             character(*),      intent(in) :: ncfname
@@ -287,6 +267,8 @@ module field_netcdf
 
             call start_timer(field_io_timer)
 
+            call set_netcdf_field_info
+
             call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
 
             call get_num_steps(ncid, n_steps)
@@ -294,74 +276,140 @@ module field_netcdf
             if (present(step)) then
                 if (step == -1) then
                     ! do nothing
-                    print *, "Warning: Read the last time step."
+                    call mpi_print("Warning: Read the last time step.")
                 else if (step > n_steps) then
-                    print *, "Warning: NetCDF file has not enough records. The last step is chosen."
+                    call mpi_print(&
+                        "Warning: NetCDF file has not enough records. The last step is chosen.")
                 else
                     n_steps = step
                 endif
             endif
 
-            cnt  =  (/ nx, ny, nz+1, 1       /)
-            start = (/ 1,  1,  1,    n_steps /)
+            start(1:3) = box%lo + 1      ! need to add 1 since start must begin with index 1
+            start(4) = n_steps
+            cnt(1:3) = box%size
+            cnt(4) = 1
 
-            if (has_dataset(ncid, 'x_vorticity')) then
+
+            if (has_dataset(ncid, nc_dset(NC_X_VOR)%name)) then
                 ! 19 May 2022
                 ! https://stackoverflow.com/questions/45984672/print-values-without-new-line
-                write(*, "(a42)", advance="no") "Found x-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'x_vorticity',            &
-                                         vor(0:nz, 0:ny-1, 0:nx-1, 1),   &
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_X_VOR)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_X_VOR)%name,    &
+                                         vor(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             1),                    &
                                          start=start, cnt=cnt)
-                write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
-            if (has_dataset(ncid, 'y_vorticity')) then
-                write(*, "(a42)", advance="no") "Found y-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'y_vorticity',            &
-                                         vor(0:nz, 0:ny-1, 0:nx-1, 2),   &
+            if (has_dataset(ncid, nc_dset(NC_Y_VOR)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_Y_VOR)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_Y_VOR)%name,    &
+                                         vor(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             2),                    &
                                          start=start, cnt=cnt)
-                 write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
-            if (has_dataset(ncid, 'z_vorticity')) then
-                write(*, "(a42)", advance="no") "Found z-vorticity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'z_vorticity',            &
-                                         vor(0:nz, 0:ny-1, 0:nx-1, 3),   &
+            if (has_dataset(ncid, nc_dset(NC_Z_VOR)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_Z_VOR)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_Z_VOR)%name,    &
+                                         vor(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             3),                    &
                                          start=start, cnt=cnt)
-                 write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
-            if (has_dataset(ncid, 'x_velocity')) then
-                write(*, "(a42)", advance="no") "Found x-velocity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'x_velocity',             &
-                                         vel(0:nz, 0:ny-1, 0:nx-1, 1),   &
+            if (has_dataset(ncid, nc_dset(NC_X_VEL)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_X_VEL)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_X_VEL)%name,    &
+                                         vel(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             1),                    &
                                          start=start, cnt=cnt)
-                write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
-            if (has_dataset(ncid, 'y_velocity')) then
-                write(*, "(a42)", advance="no") "Found y-velocity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'y_velocity',             &
-                                         vel(0:nz, 0:ny-1, 0:nx-1, 2),   &
+            if (has_dataset(ncid, nc_dset(NC_Y_VEL)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_Y_VEL)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_Y_VEL)%name,    &
+                                         vel(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             2),                    &
                                          start=start, cnt=cnt)
-                 write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
-            if (has_dataset(ncid, 'z_velocity')) then
-                write(*, "(a42)", advance="no") "Found z-velocity field input, reading ..."
-                call read_netcdf_dataset(ncid, 'z_velocity',             &
-                                         vel(0:nz, 0:ny-1, 0:nx-1, 3),   &
+            if (has_dataset(ncid, nc_dset(NC_Z_VEL)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_Z_VEL)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_Z_VEL)%name,    &
+                                         vel(box%lo(3):box%hi(3),   &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1),   &
+                                             3),                    &
                                          start=start, cnt=cnt)
-                 write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 
 #ifdef ENABLE_BUOYANCY
-            if (has_dataset(ncid, 'buoyancy')) then
-                write(*, "(a39)", advance="no") "Found buoyancy field input, reading ..."
-                call read_netcdf_dataset(ncid, 'buoyancy',            &
-                                         buoy(0:nz, 0:ny-1, 0:nx-1),  &
+            if (has_dataset(ncid, nc_dset(NC_BUOY)%name)) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found " // nc_dset(NC_BUOY)%name // " field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         nc_dset(NC_BUOY)%name,     &
+                                         buoy(box%lo(3):box%hi(3),  &
+                                             box%lo(2):box%hi(2),   &
+                                             box%lo(1):box%hi(1)),  &
                                          start=start, cnt=cnt)
-                 write(*, *) "done"
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
             endif
 #endif
 
@@ -370,5 +418,128 @@ module field_netcdf
             call stop_timer(field_io_timer)
 
         end subroutine read_netcdf_fields
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine set_netcdf_field_output
+            integer :: n
+
+            call set_netcdf_field_info
+
+            ! check custom tags
+            if (any('all' == output%field_list(:))) then
+                nc_dset(:)%l_enabled = .true.
+            else if (any('default' == output%field_list(:))) then
+                nc_dset(NC_X_VOR)%l_enabled = .true.
+                nc_dset(NC_Y_VOR)%l_enabled = .true.
+                nc_dset(NC_Z_VOR)%l_enabled = .true.
+                nc_dset(NC_X_VEL)%l_enabled = .true.
+                nc_dset(NC_Y_VEL)%l_enabled = .true.
+                nc_dset(NC_Z_VEL)%l_enabled = .true.
+                nc_dset(NC_PRES)%l_enabled  = .true.
+#ifdef ENABLE_BUOYANCY
+                nc_dset(NC_BUOY)%l_enabled  = .true.
+#endif
+            else
+                ! check individual fields
+                do n = 1, size(nc_dset)
+                    nc_dset(n)%l_enabled = any(nc_dset(n)%name == output%field_list(:))
+                enddo
+            endif
+
+            if (count(nc_dset(:)%l_enabled) == 0) then
+                if (world%rank == world%root) then
+                    print *, "WARNING: No fields are actively selected. PS3D is going to write"
+                    print *, "         the default fields. Stop the simulation now if this is"
+                    print *, "         not your intention. Fields can be provided to the list"
+                    print *, "         'output%field_list' in the configuration file."
+                    print *, "         The following fields are available:"
+                    do n = 1, size(nc_dset)
+                        print *, "         " // nc_dset(n)%name // " : " // trim(nc_dset(n)%long_name)
+                    enddo
+                    print *, "         " // "all"     // repeat(" ", 29) // " : write all fields"
+                    print *, "         " // "default" // repeat(" ", 25) // " : write default fields"
+                    print *, ""
+                endif
+                nc_dset(NC_X_VOR)%l_enabled = .true.
+                nc_dset(NC_Y_VOR)%l_enabled = .true.
+                nc_dset(NC_Z_VOR)%l_enabled = .true.
+                nc_dset(NC_X_VEL)%l_enabled = .true.
+                nc_dset(NC_Y_VEL)%l_enabled = .true.
+                nc_dset(NC_Z_VEL)%l_enabled = .true.
+                nc_dset(NC_PRES)%l_enabled  = .true.
+#ifdef ENABLE_BUOYANCY
+                nc_dset(NC_BUOY)%l_enabled  = .true.
+#endif
+            endif
+
+#ifdef ENABLE_VERBOSE
+            if (verbose .and. (world%rank == world%root)) then
+                print *, "PS3D is going to write the following fields:"
+                do n = 1, size(nc_dset)
+                    if (nc_dset(n)%l_enabled) then
+                        print *, repeat(" ", 4) // trim(nc_dset(n)%name)
+                    endif
+                enddo
+                print *, ""
+            endif
+#endif
+
+        end subroutine set_netcdf_field_output
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine set_netcdf_field_info
+            nc_dset(NC_X_VEL) = netcdf_field_info(name='x_velocity',                    &
+                                                  long_name='x velocity component',     &
+                                                  std_name='',                          &
+                                                  unit='m/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_Y_VEL) = netcdf_field_info(name='y_velocity',                    &
+                                                  long_name='y velocity component',     &
+                                                  std_name='',                          &
+                                                  unit='m/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_Z_VEL) = netcdf_field_info(name='z_velocity',                    &
+                                                  long_name='z velocity component',     &
+                                                  std_name='',                          &
+                                                  unit='m/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_X_VOR) = netcdf_field_info(name='x_vorticity',                   &
+                                                  long_name='x vorticity component',    &
+                                                  std_name='',                          &
+                                                  unit='1/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_Y_VOR) = netcdf_field_info(name='y_vorticity',                   &
+                                                  long_name='y vorticity component',    &
+                                                  std_name='',                          &
+                                                  unit='1/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_Z_VOR) = netcdf_field_info(name='z_vorticity',                   &
+                                                  long_name='z vorticity component',    &
+                                                  std_name='',                          &
+                                                  unit='1/s',                           &
+                                                  dtype=NF90_DOUBLE)
+
+            nc_dset(NC_PRES) = netcdf_field_info(name='pressure',                       &
+                                                 long_name='pressure',                  &
+                                                 std_name='',                           &
+                                                 unit='m^2/s^2',                        &
+                                                 dtype=NF90_DOUBLE)
+
+#ifdef ENABLE_BUOYANCY
+            nc_dset(NC_BUOY) = netcdf_field_info(name='buoyancy',                       &
+                                                 long_name='buoyancy',                  &
+                                                 std_name='',                           &
+                                                 unit='m/s^2',                          &
+                                                 dtype=NF90_DOUBLE)
+#endif
+
+        end subroutine set_netcdf_field_info
 
 end module field_netcdf

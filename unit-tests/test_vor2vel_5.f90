@@ -19,13 +19,18 @@ program test_vor2vel_5
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use timer
+    use mpi_timer
+    use mpi_environment
+    use mpi_layout
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
     double precision              :: error
     double precision, allocatable :: vel_ref(:, :, :, :)
     integer                       :: iz
     double precision              :: z
+
+    call mpi_env_initialise
 
     call register_timer('vorticity', vor2vel_timer)
 
@@ -36,7 +41,10 @@ program test_vor2vel_5
     lower  = (/-f12, -f12, zero/)
     extent = (/one, one, one/)
 
-    allocate(vel_ref(0:nz, 0:ny-1, 0:nx-1, 3))
+    call mpi_layout_init(lower, extent, nx, ny, nz)
+
+
+    allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
     call update_parameters
 
@@ -66,8 +74,14 @@ program test_vor2vel_5
 
     error = maxval(dabs(vel_ref - vel))
 
-    call print_result_dp('Test vor2vel', error, atol=4.0e-6)
+    call mpi_blocking_reduce(error, MPI_MAX, world)
+
+    if (world%rank == world%root) then
+        call print_result_dp('Test vor2vel', error, atol=4.0e-6)
+    endif
 
     deallocate(vel_ref)
+
+    call mpi_env_finalise
 
 end program test_vor2vel_5

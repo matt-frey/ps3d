@@ -1,76 +1,82 @@
 program genspec
+    use options, only : field_step, filename
     use constants
     use netcdf_reader
     use netcdf_writer
     use inversion_utils
     use sta2dfft, only : dct, dst
-    use parameters, only : nx, ny, nz, ncelli
+    use sta3dfft
+    use parameters, only : nx, ny, nz
     use field_netcdf, only : field_io_timer, read_netcdf_fields
     use utils, only : setup_domain_and_parameters
     use fields
-    use timer
+    use field_diagnostics, only : get_kinetic_energy
+    use mpi_environment
+    use mpi_timer
+    use mpi_collectives, only : mpi_blocking_reduce
     implicit none
 
-    character(len=512)            :: filename
     integer, allocatable          :: kmag(:, :, :)
     double precision, allocatable :: spec(:)
     integer, allocatable          :: num(:)
     integer                       :: nc, kx, ky, kz, m, kmax
     double precision              :: dk, dki, prefactor, snorm
     double precision              :: ke ! kinetic energy
-    integer                       :: step
+
+    call mpi_env_initialise
 
     call register_timer('field I/O', field_io_timer)
 
     call parse_command_line
 
     ! read domain dimensions
-    call setup_domain_and_parameters(trim(filename), step)
+    call setup_domain_and_parameters
 
-    allocate(kmag(0:nz, 0:nx-1, 0:ny-1))
+    allocate(kmag(0:nz, box%lo(2):box%hi(2), box%lo(1):box%lo(1)))
 
     call field_default
 
-    call read_netcdf_fields(trim(filename), step)
+    call read_netcdf_fields(trim(filename), field_step)
 
-    print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
+    if (world%rank == world%root) then
+        print '(a23, i5, a6, i5, a6, i5)', 'Grid dimensions: nx = ', nx, ' ny = ', ny, ' nz = ', nz
+    endif
 
     call init_inversion
 
     ! calculate domain-average kinetic energy
-    ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
-                 + vel(1:nz-1, :, :, 2) ** 2      &
-                 + vel(1:nz-1, :, :, 3) ** 2)     &
-       + f14 * sum(vel(0,  :, :, 1) ** 2          &
-                 + vel(0,  :, :, 2) ** 2          &
-                 + vel(0,  :, :, 3) ** 2)         &
-       + f14 * sum(vel(nz, :, :, 1) ** 2          &
-                 + vel(nz, :, :, 2) ** 2          &
-                 + vel(nz, :, :, 3) ** 2)
-    ke = ke * ncelli
+    ke = get_kinetic_energy()
 
     ! (1) compute the 3D spectrum of each velocity component:
     do nc = 1, 3
         call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
     enddo
-    do ky = 0, ny-1
-        do kx = 0, nx-1
-            call dct(1, nz, svel(0:nz, kx, ky, 1), ztrig, zfactors) ! u
-            call dct(1, nz, svel(0:nz, kx, ky, 2), ztrig, zfactors) ! v
-            call dst(1, nz, svel(1:nz, kx, ky, 3), ztrig, zfactors) ! w
+    do kx = box%lo(1), box%hi(1)
+        do ky = box%lo(2), box%hi(2)
+            call dct(1, nz, svel(0:nz, ky, kx, 1), ztrig, zfactors) ! u
+            call dct(1, nz, svel(0:nz, ky, kx, 2), ztrig, zfactors) ! v
+            call dst(1, nz, svel(1:nz, ky, kx, 3), ztrig, zfactors) ! w
         enddo
     enddo
 
     ! (2) sum the squared spectral amplitudes into radial shells in total wavenumber K = sqrt{kx^2 + ky^2 + kz^2}
-    do ky = 0, ny-1
-        do kx = 0, nx-1
+    do kx = box%lo(1), box%hi(1)
+        do ky = box%lo(2), box%hi(2)
             do kz = 0, nz
-                kmag(kz, kx, ky) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
+                kmag(kz, ky, kx) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
      enddo
 
     kmax = maxval(kmag)
+
+    call MPI_Allreduce(MPI_IN_PLACE,            &
+                       kmax,                    &
+                       1,                       &
+                       MPI_DOUBLE_PRECISION,    &
+                       MPI_MAX,                 &
+                       world%comm,              &
+                       world%err)
 
     allocate(spec(0:kmax))
     allocate(num(0:kmax))
@@ -83,40 +89,47 @@ program genspec
     spec = zero
     num = 0
 
-    do ky = 0, ny-1
-        do kx = 0, nx-1
+    do kx = box%lo(1), box%hi(1)
+        do ky = box%lo(2), box%hi(2)
             do kz = 0, nz
-                m = int(dble(kmag(kz, kx, ky)) * dki)
+                m = int(dble(kmag(kz, ky, kx)) * dki)
                 spec(m) = spec(m) &
-                        + svel(kz, kx, ky, 1) ** 2 + svel(kz, kx, ky, 2) ** 2 + svel(kz, kx, ky, 3) ** 2
+                        + svel(kz, ky, kx, 1) ** 2 + svel(kz, ky, kx, 2) ** 2 + svel(kz, ky, kx, 3) ** 2
                 num(m) = num(m) + 1
             enddo
         enddo
-     enddo
+    enddo
+
+    call mpi_blocking_reduce(spec, MPI_SUM, world)
+    call mpi_blocking_reduce(num, MPI_SUM, world)
 
     prefactor = 4.0d0 / 3.0d0 * pi * dK ** 3
 
-    do m = 0, kmax
-        if (num(m) > 0) then
-            spec(m) = spec(m) * prefactor * dble((m+1) ** 3 - m ** 3) / dble(num(m))
-        else
-            print *, "Bin", m, " is empty!"
-        endif
-    enddo
+    if (world%rank == world%root) then
+        do m = 0, kmax
+            if (num(m) > 0) then
+                spec(m) = spec(m) * prefactor * dble((m+1) ** 3 - m ** 3) / dble(num(m))
+            else
+                print *, "Bin", m, " is empty!"
+            endif
+        enddo
 
-    ! calculate spectrum normalisation factor (snorm)
-    ! that ensures Parceval's identity, so that the spectrum S(K)
-    ! has the property that its integral over K gives the total kinetic energy
-    snorm = ke / sum(spec * dk)
+        ! calculate spectrum normalisation factor (snorm)
+        ! that ensures Parceval's identity, so that the spectrum S(K)
+        ! has the property that its integral over K gives the total kinetic energy
+        snorm = ke / sum(spec * dk)
 
-    ! normalise the spectrum
-    spec = spec * snorm
+        ! normalise the spectrum
+        spec = spec * snorm
 
-    call write_spectrum
+        call write_spectrum
+    endif
 
     deallocate(kmag)
     deallocate(num)
     deallocate(spec)
+
+    call mpi_env_finalise
 
     contains
 
@@ -177,37 +190,34 @@ program genspec
                     i = i + 1
                     call get_command_argument(i, arg)
 
-                    read(arg, *, iostat=stat)  step
+                    read(arg, *, iostat=stat)  field_step
                     if (stat .ne. 0) then
-                        print *, 'Error conversion failed.'
-                        stop
+                        call mpi_stop('Error conversion failed.')
                     endif
                 else if (arg == '--help') then
-                    print *, 'This program computes the power spectrum and writes it to file.'
-                    print *, 'A PS3D field output must be provided with the step number to analyse.'
-                    print *, 'Run code with "genspec --filename [field file] --step [step number]"'
-                    stop
+                    if (world%rank == world%root) then
+                        print *, 'This program computes the power spectrum and writes it to file.'
+                        print *, 'A PS3D field output must be provided with the step number to analyse.'
+                        print *, 'Run code with "genspec --filename [field file] --step [step number]"'
+                    endif
                 endif
                 i = i+1
             enddo
 
             if (filename == '') then
-                print *, 'No file or step provided. Run code with "genspec --help"'
-                stop
+                call mpi_stop('No file or step provided. Run code with "genspec --help"')
             endif
 
             ! check if correct file is passed
             stat = index(trim(filename), '_fields.nc', back=.true.)
             if (stat == 0) then
-                print *, "Error: No PS3D field output file provided."
-                stop
+                call mpi_stop("Error: No PS3D field output file provided.")
             endif
 
             ! check if file exsits
             inquire(file=trim(filename), exist=exists)
             if (.not. exists) then
-                print *, "Error: File '" // trim(filename) // "' does not exist."
-                stop
+                call mpi_stop("Error: File '" // trim(filename) // "' does not exist.")
             endif
         end subroutine parse_command_line
 

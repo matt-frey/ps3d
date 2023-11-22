@@ -2,12 +2,15 @@
 !                       Test convergence of vor2vel
 ! =============================================================================
 program test_vor2vel
-    use constants, only : f12, f13, one, two, three, six, pi, twopi
+    use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use timer
+    use mpi_timer
+    use mpi_environment
+    use mpi_layout
+    use mpi_utils, only : mpi_stop
     implicit none
 
     double precision              :: emax, erms
@@ -17,12 +20,20 @@ program test_vor2vel
     double precision              :: x, y, z, k, l, m, alpha, k2l2, coskx, cosly, sinkx, sinly
     double precision              :: f, dfdz, d2fdz2, coskxly, sinkxly, cosmz, sinmz, fk2l2
 
+    call mpi_env_initialise
+
+    if (world%size > 1) then
+        call mpi_stop("This program only works with 1 MPI rank!")
+    endif
+
     call register_timer('vorticity', vor2vel_timer)
 
     call get_input_arguments
 
-    allocate(vel_ref(0:nz, 0:ny-1, 0:nx-1, 3))
-    allocate(mag(0:nz, 0:ny-1, 0:nx-1))
+    call mpi_layout_init(lower, extent, nx, ny, nz)
+
+    allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+    allocate(mag(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
     call field_default
 
     call init_inversion
@@ -35,9 +46,9 @@ program test_vor2vel
         alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)
 
-        do ix = 0, nx-1
+        do ix = box%lo(1), box%hi(1)
             x = lower(1) + ix * dx(1)
-            do iy = 0, ny-1
+            do iy = box%lo(2), box%hi(2)
                 y = lower(2) + iy * dx(2)
                 do iz = 0, nz
                     z = lower(3) + iz * dx(3)
@@ -73,9 +84,9 @@ program test_vor2vel
 
         k2l2 = k ** 2 - l ** 2
 
-        do ix = 0, nx-1
+        do ix = box%lo(1), box%hi(1)
             x = lower(1) + ix * dx(1)
-            do iy = 0, ny-1
+            do iy = box%lo(2), box%hi(2)
                 y = lower(2) + iy * dx(2)
                 do iz = 0, nz
                     z = lower(3) + iz * dx(3)
@@ -172,6 +183,8 @@ program test_vor2vel
 
     deallocate(vel_ref)
     deallocate(mag)
+
+    call mpi_env_finalise
 
     contains
 

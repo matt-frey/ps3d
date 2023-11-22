@@ -1,11 +1,14 @@
-SUBDIRS = netcdf utils fft
+SUBDIRS = mpi netcdf utils fft
 
 AM_FCFLAGS =				\
+	-I $(top_builddir)/src/mpi	\
 	-I $(top_builddir)/src/utils	\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
 
-bin_PROGRAMS = ps3d genspec genspec2d beltrami production
+bin_PROGRAMS = ps3d beltrami
+#genspec genspec2d  production
+
 ps3d_SOURCES = 					\
 	utils/options.f90			\
 	utils/parameters.f90			\
@@ -13,6 +16,7 @@ ps3d_SOURCES = 					\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
@@ -21,39 +25,44 @@ ps3d_SOURCES = 					\
 
 ps3d_LDADD = 						\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
-genspec_SOURCES = 				\
+#genspec_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
 	genspec.f90
 
-genspec_LDADD = 					\
+#genspec_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
-genspec2d_SOURCES = 				\
+#genspec2d_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
 	genspec2d.f90
 
-genspec2d_LDADD = 					\
+#genspec2d_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la		\
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 beltrami_SOURCES = 				\
@@ -62,6 +71,7 @@ beltrami_SOURCES = 				\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
@@ -69,23 +79,26 @@ beltrami_SOURCES = 				\
 
 beltrami_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la            \
+	$(top_builddir)/src/fft/libps_mpi_fft.la        \
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
-production_SOURCES = 				\
+#production_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
 	production.f90
 
-production_LDADD = 					\
+#production_LDADD = 					\
 	$(top_builddir)/src/utils/libps_utils.la 	\
-	$(top_builddir)/src/fft/libps_fft.la            \
+	$(top_builddir)/src/fft/libps_mpi_fft.la	\
+	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 clean-local:

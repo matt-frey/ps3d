@@ -1,13 +1,26 @@
 module utils
     use constants, only : one
-    use options, only : output, verbose, time
+    use options, only : output      &
+                      , verbose     &
+                      , time        &
+                      , field_file  &
+                      , field_step
+    use netcdf_utils
     use field_netcdf
     use field_diagnostics_netcdf
+    use inversion_utils, only : init_diffusion, field_decompose_physical
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
-    use parameters, only : lower, extent, update_parameters
+    use parameters, only : nx, ny, lower, extent, update_parameters, dx
     use fields
+    use field_diagnostics
+    use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
+#ifdef ENABLE_BUOANCY_PERTURBATION_MODE
+    use physics, only : bfsq
+#endif
+    use mpi_layout, only : mpi_layout_init
+    use mpi_utils, only : mpi_exit_on_error
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
@@ -15,11 +28,11 @@ module utils
 
     private :: nfw, nsfw
 
+
     contains
 
         ! Create NetCDF files and set the step number
         subroutine setup_output_files
-            use options, only : output
 
             if (output%write_fields) then
                 call create_netcdf_field_file(trim(output%basename), &
@@ -75,21 +88,25 @@ module utils
 
         end subroutine write_step
 
-        subroutine setup_domain_and_parameters(fname, step)
-            character(*), intent(in) :: fname
-            integer,      intent(in) :: step
-            integer                  :: ncid
-            integer                  :: ncells(3)
-            double precision         :: ini_time
+        subroutine setup_domain_and_parameters
+            integer          :: ncid
+            integer          :: ncells(3)
+            double precision :: ini_time = zero
 
-            call open_netcdf_file(fname, NF90_NOWRITE, ncid)
+            time%initial = zero ! make sure user cannot start at arbitrary time
+
+            ! set axis and dimension names for the NetCDF output
+            call set_netcdf_dimensions((/'x', 'y', 'z', 't'/))
+            call set_netcdf_axes((/'X', 'Y', 'Z', 'T'/))
+
+            call open_netcdf_file(trim(field_file), NF90_NOWRITE, ncid)
 
             call get_netcdf_box(ncid, lower, extent, ncells)
             call read_physical_quantities(ncid)
-            if (step < 1) then
+            if (field_step < 1) then
                 call get_time(ncid, ini_time)
             else
-                call get_time_at_step(ncid, step, ini_time)
+                call get_time_at_step(ncid, field_step, ini_time)
             endif
             time%initial = ini_time
 
@@ -104,6 +121,8 @@ module utils
             ny = ncells(2)
             nz = ncells(3)
 
+            call mpi_layout_init(lower, extent, nx, ny, nz)
+
             ! update global parameters
             call update_parameters
 
@@ -113,5 +132,54 @@ module utils
             endif
 #endif
         end subroutine setup_domain_and_parameters
+
+        subroutine setup_fields
+            double precision :: bbdif, ke, ape, te, en
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
+            integer          :: iz
+            double precision :: z
+#endif
+
+            call field_default
+
+            call read_netcdf_fields(trim(field_file), field_step)
+
+            ! decompose initial fields
+#ifdef ENABLE_BUOYANCY
+            bbdif = maxval(buoy) - minval(buoy)
+
+#ifdef ENABLE_PERTURBATION_MODE
+            ! remove basic state from buoyancy
+            do iz = 0, nz
+                z = lower(3) + dble(iz) * dx(3)
+                bbarz(iz) = bfsq * z
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
+#endif
+            call field_decompose_physical(buoy, sbuoy)
+#else
+            bbdif = zero
+#endif
+            call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+            call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+
+            ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
+            ini_vor_mean = calc_vorticity_mean()
+
+            call vor2vel
+            ke = get_kinetic_energy()
+            ape = get_available_potential_energy()
+            te = ke + ape
+            en = get_enstrophy()
+
+#ifdef ENABLE_BUOYANCY
+            ! add buoyancy term to enstrophy
+            en = en + get_gradb_integral()
+#endif
+
+            call init_diffusion(bbdif, te, en)
+
+        end subroutine setup_fields
 
 end module utils
