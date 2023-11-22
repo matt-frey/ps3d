@@ -22,6 +22,9 @@ module fields
         svorts      ! vorticity source in mixed spectral space
 
     double precision, allocatable, dimension(:, :, :) :: &
+        zeta,   &   ! surface zeta in physical space
+        szeta,  &   ! surface zeta in semi-spectral space
+        szetas, &   ! surface zeta source in semi-spectral space
         pres        ! pressure field (physical space)
 
 #ifdef ENABLE_BUOYANCY
@@ -62,8 +65,12 @@ module fields
 
             allocate(vor(0:nz,  lo(2):hi(2), lo(1):hi(1), 3))
             allocate(svor(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
+            allocate(svorts(0:nz, lo(2):hi(2), lo(1):hi(1), 2))
 
-            allocate(svorts(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
+            allocate(zeta(0:1, lo(2):hi(2), lo(1):hi(1)))
+            allocate(szeta(0:1, lo(2):hi(2), lo(1):hi(1)))
+            allocate(szetas(0:1, lo(2):hi(2), lo(1):hi(1)))
+
 
 #ifdef ENABLE_BUOYANCY
             allocate(buoy(0:nz,   lo(2):hi(2), lo(1):hi(1)))
@@ -89,6 +96,9 @@ module fields
             vel    = zero
             svel   = zero
             svorts = zero
+            zeta   = zero
+            szeta  = zero
+            szetas = zero
 #ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero
