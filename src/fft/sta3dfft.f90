@@ -2,8 +2,12 @@ module sta3dfft
     use mpi_layout
     use mpi_reverse, only : reverse_x               &
                           , reverse_y               &
-                          , intialise_mpi_reverse   &
+                          , initialise_mpi_reverse  &
                           , finalise_mpi_reverse
+    use mpi_reverse2d, only : reverse2d_x               &
+                            , reverse2d_y               &
+                            , initialise_mpi_reverse2d  &
+                            , finalise_mpi_reverse2d
     use stafft, only : dct, dst
     use constants, only : zero, one
     use stafft
@@ -70,7 +74,8 @@ module sta3dfft
 
             call initialise_pencil_fft(nx, ny, nz)
 
-            call intialise_mpi_reverse
+            call initialise_mpi_reverse
+            call initialise_mpi_reverse2d
 
             nwx = nx / 2
             nwy = ny / 2
@@ -129,6 +134,7 @@ module sta3dfft
             call finalise_pencil_fft
 
             call finalise_mpi_reverse
+            call finalise_mpi_reverse2d
         end subroutine finalise_fft
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -518,35 +524,32 @@ module sta3dfft
         ! spectral.  Uses exact form of the derivative in spectral space.
         ! Note: gs must have halo in x due to the reordering algorithm.
         subroutine diff2dx(fs, ds)
-            double precision, intent(in)  :: fs(1,                     &
-                                                box%lo(2):box%hi(2),   &
+            double precision, intent(in)  :: fs(box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
-            double precision, intent(out) :: ds(1,                     &
-                                                box%lo(2):box%hi(2),   &
+            double precision, intent(out) :: ds(box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
-            double precision              :: gs(1,                     &
-                                                box%lo(2):box%hi(2),   &
+            double precision              :: gs(box%lo(2):box%hi(2),   &
                                                 box%hlo(1):box%hhi(1))
             integer                       :: kx, dkx
             double precision              :: si
 
 
-            call reverse_x(fs, gs)
+            call reverse2d_x(fs, gs)
 
             !Carry out differentiation by wavenumber multiplication:
             if (0 == box%lo(1)) then
-                ds(:, :, 0) = zero
+                ds(:, 0) = zero
             endif
 
             do kx = max(1, box%lo(1)), box%hi(1)
                 dkx = min(2 * kx, 2 * (nx - kx))
                 si = merge(1.0d0, -1.0d0, kx >= nwx + 1)
-                ds(:, :, kx)  = si * hrkx(dkx) * gs(:, :, kx-1)
+                ds(:, kx)  = si * hrkx(dkx) * gs(:, kx-1)
             enddo
 
             if (mod(nx, 2) .eq. 0) then
                 if (nwx >= box%lo(1) .and. nwx <= box%hi(1)) then
-                    ds(:, :, nwx) = zero
+                    ds(:, nwx) = zero
                 endif
             endif
 
@@ -559,34 +562,31 @@ module sta3dfft
         ! spectral.  Uses exact form of the derivative in spectral space.
         ! Note: gs must have halo in y due to the reordering algorithm.
         subroutine diff2dy(fs, ds)
-            double precision, intent(in)  :: fs(1,                     &
-                                                box%lo(2):box%hi(2),   &
+            double precision, intent(in)  :: fs(box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
-            double precision, intent(out) :: ds(1,                     &
-                                                box%lo(2):box%hi(2),   &
+            double precision, intent(out) :: ds(box%lo(2):box%hi(2),   &
                                                 box%lo(1):box%hi(1))
-            double precision              :: gs(1,                     &
-                                                box%hlo(2):box%hhi(2), &
+            double precision              :: gs(box%hlo(2):box%hhi(2), &
                                                 box%lo(1):box%hi(1))
             integer                       :: ky, dky
             double precision              :: si
 
-            call reverse_y(fs, gs)
+            call reverse2d_y(fs, gs)
 
             !Carry out differentiation by wavenumber multiplication:
             if (0 == box%lo(2)) then
-                ds(:, 0, :) = zero
+                ds(0, :) = zero
             endif
 
             do ky = max(1, box%lo(2)), box%hi(2)
                 dky = min(2 * ky, 2 * (ny - ky))
                 si = merge(1.0d0, -1.0d0, ky >= nwy + 1)
-                ds(:, ky, :)  = si * hrky(dky) * gs(:, ky-1, :)
+                ds(ky, :)  = si * hrky(dky) * gs(ky-1, :)
             enddo
 
             if (mod(ny, 2) .eq. 0) then
                 if (nwy >= box%lo(2) .and. nwy <= box%hi(2)) then
-                    ds(:, nwy, :) = zero
+                    ds(nwy, :) = zero
                 endif
             endif
 
