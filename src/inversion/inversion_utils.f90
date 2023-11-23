@@ -284,9 +284,9 @@ module inversion_utils
                 phim(:, 0, 0) = zm / extent(3)
                 phip(:, 0, 0) = zp / extent(3)
 
-                ! ignore for the moment
-                psim(:, 0, 0) = zero !upper(3) * zm / extent(3) - f12 * zp * (upper(3) + lower(3) - zm) / extent(3)
-                psip(:, 0, 0) = zero
+                ! psim !upper(3) * zm / extent(3) - f12 * zp * (upper(3) + lower(3) - zm) / extent(3)
+                psim(:, 0, 0) = (zm ** 2 - one) / (two * extent(3))
+                psip(:, 0, 0) = zp ** 2 / (two * extent(3))
 
 #ifdef ENABLE_BUOYANCY
                 dphim(:, 0, 0) = - one / extent(3)
