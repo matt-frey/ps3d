@@ -75,6 +75,8 @@ module inversion_utils
             , k2l2i                 &
             , kh                    &
             , phip                  &
+            , psim                  &
+            , psip                  &
             , hdis                  &
             , green                 &
             , thetap                &

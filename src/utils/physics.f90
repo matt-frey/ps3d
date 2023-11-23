@@ -88,11 +88,9 @@ module physics
     double precision, protected :: f_cor(3)
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-    ! buoyancy frequency, N
-    double precision, protected :: bf   = zero
-    ! N**2
+    ! squared buoyancy frequency, N**2
     double precision, protected :: bfsq = zero
-    logical                     :: l_bfreq = .false.
+    logical                     :: l_bfsq = .false.
 #endif
 
     interface print_physical_quantity
@@ -107,7 +105,7 @@ module physics
                print_physical_quantity_integer,     &
                print_physical_quantity_logical,     &
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-               l_bfreq,                             &
+               l_bfsq,                             &
 #endif
                print_physical_quantity_character
 
@@ -189,10 +187,9 @@ module physics
                 call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
                 call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-                l_bfreq = has_attribute(grp_ncid, 'buoyancy_frequency')
-                if (l_bfreq) then
-                    call read_netcdf_attribute_default(grp_ncid, 'buoyancy_frequency', bf)
-                    bfsq = bf ** 2
+                l_bfsq = has_attribute(grp_ncid, 'squared_buoyancy_frequency')
+                if (l_bfsq) then
+                    call read_netcdf_attribute_default(grp_ncid, 'squared_buoyancy_frequency', bfsq)
                 endif
 #endif
 #ifdef ENABLE_VERBOSE
@@ -225,8 +222,8 @@ module physics
             call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
             call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-            if (l_bfreq) then
-                call write_netcdf_attribute(grp_ncid, 'buoyancy_frequency', bf)
+            if (l_bfsq) then
+                call write_netcdf_attribute(grp_ncid, 'squared_buoyancy_frequency', bfsq)
             endif
 #endif
 
@@ -251,8 +248,8 @@ module physics
             call print_physical_quantity('scale height', height_c, 'm')
             call print_physical_quantity('inverse scale height', lambda_c, '1/m')
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-            if (l_bfreq) then
-                call print_physical_quantity('buoyancy_frequency', bf, '1/s')
+            if (l_bfsq) then
+                call print_physical_quantity('squared_buoyancy_frequency', bfsq, '1/s^1')
             endif
 #endif
             write(*, *) ''
@@ -317,7 +314,7 @@ module physics
                                                  box%lo(2):box%hi(2),  &
                                                  box%lo(1):box%hi(1))
 
-            if (l_bfreq) then
+            if (l_bfsq) then
                 if (world%rank == world%root) then
                     print *, "Provided squared buoyancy frequency:", bfsq
                 endif

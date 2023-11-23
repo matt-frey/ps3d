@@ -7,9 +7,12 @@ module inversion_mod
 #endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
-    use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use sta3dfft, only : rkz, rkzi, ztrig, zfactors         &
+                       , diffx, diffy, fftxyp2s, fftxys2p   &
+                       , fft2d, ifft2d, diff2dx, diff2dy
     use mpi_timer, only : start_timer, stop_timer
     use fields
+    use field_zeta, only : combine_zeta
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -335,15 +338,15 @@ module inversion_mod
             gp(0, :, :) = vel(0, :, :, 2) * vor(0, :, :, 3)
             !$omp end parallel workshare
 
-            call surf_fftxyp2s(fp(0, :, :), p(0, :, :))
-            call surf_diffx(p(0, :, :), q(0, :, :))
+            call fft2d(fp(0, :, :), p(0, :, :))
+            call diff2dx(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas(0, :, :) = - q(0, :, :)
             !$omp end parallel workshare
 
-            call surf_fftxyp2s(gp(0, :, :), p(0, :, :))
-            call surf_diffy(p(0, :, :), q(0, :, :))
+            call fft2d(gp(0, :, :), p(0, :, :))
+            call diff2dy(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas(0, :, :) = szetas(0, :, :) - q(0, :, :)
@@ -357,15 +360,15 @@ module inversion_mod
             gp(0, :, :) = vel(nz, :, :, 2) * vor(nz, :, :, 3)
             !$omp end parallel workshare
 
-            call surf_fftxyp2s(fp(0, :, :), p(0, :, :))
-            call surf_diffx(p(0, :, :), q(0, :, :))
+            call fft2d(fp(0, :, :), p(0, :, :))
+            call diff2dx(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas(1, :, :) = - q(0, :, :)
             !$omp end parallel workshare
 
-            call surf_fftxyp2s(gp(0, :, :), p(0, :, :))
-            call surf_diffy(p(0, :, :), q(0, :, :))
+            call fft2d(gp(0, :, :), p(0, :, :))
+            call diff2dy(p(0, :, :), q(0, :, :))
 
             !$omp parallel workshare
             szetas(1, :, :) = szetas(1, :, :) - q(0, :, :)

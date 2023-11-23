@@ -15,6 +15,7 @@ ps3d_SOURCES = 					\
 	utils/merge_sort.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
+	fields/field_zeta.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
@@ -70,6 +71,7 @@ beltrami_SOURCES = 				\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
+	fields/field_zeta.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\

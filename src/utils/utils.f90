@@ -21,6 +21,7 @@ module utils
 #endif
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
+    use sta3dfft, only : fft2d
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
@@ -164,8 +165,8 @@ module utils
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
             zeta(0, :, :) = vor(0, :, :, 3)
             zeta(1, :, :) = vor(nz, :, :, 3)
-            call surf_fftxyp2s(vor(0, :, :, 3), svor(0, :, :, 3))
-            call surf_fftxyp2s(vor(nz, :, :, 3), svor(nz, :, :, 3))
+            call fft2d(vor(0, :, :, 3), svor(0, :, :, 3))
+            call fft2d(vor(nz, :, :, 3), svor(nz, :, :, 3))
             szeta(0, :, :) = svor(0, :, :, 3)
             szeta(1, :, :) = svor(nz, :, :, 3)
 

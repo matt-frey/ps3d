@@ -36,7 +36,8 @@ unittests_PROGRAMS =   		\
         test_diffz_4		\
         test_diffx		\
         test_diffy		\
-        test_omp_collapse
+        test_omp_collapse	\
+        test_fft2d
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -76,3 +77,6 @@ test_diffy_LDADD = libcombi.la
 
 test_omp_collapse_SOURCES = unit_test.f90 test_omp_collapse.f90
 test_omp_collapse_LDADD = libcombi.la
+
+test_fft2d_SOURCES = unit_test.f90 test_fft2d.f90
+test_fft2d_LDADD = libcombi.la
