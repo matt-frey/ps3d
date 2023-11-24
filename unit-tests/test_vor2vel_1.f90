@@ -18,6 +18,7 @@ program test_vor2vel_1
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
+    use sta3dfft, only : fft2d
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -87,7 +88,12 @@ program test_vor2vel_1
 
     call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
     call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+    zeta(0, :, :) = vor(0, :, :, 3)
+    zeta(1, :, :) = vor(nz, :, :, 3)
+    call fft2d(vor(0, :, :, 3), svor(0, :, :, 3))
+    call fft2d(vor(nz, :, :, 3), svor(nz, :, :, 3))
+    szeta(0, :, :) = svor(0, :, :, 3)
+    szeta(1, :, :) = svor(nz, :, :, 3)
 
     call vor2vel
 
