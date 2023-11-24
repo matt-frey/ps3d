@@ -17,7 +17,6 @@ module field_diagnostics
     use fields, only : bbarz
 #endif
 #endif
-    use mpi_collectives
     use mpi_utils, only : mpi_check_for_error
     implicit none
 
@@ -53,7 +52,16 @@ module field_diagnostics
 
             ape = ape * ncelli
 
-            call mpi_blocking_reduce(ape, MPI_SUM, world)
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               ape,                     &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_available_potential_energy.")
 #else
             ape = zero
 #endif
@@ -77,7 +85,16 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            call mpi_blocking_reduce(ke, MPI_SUM, world)
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               ke,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_kinetic_energy.")
 
         end function get_kinetic_energy
 
@@ -99,7 +116,16 @@ module field_diagnostics
 
             en = en * ncelli
 
-            call mpi_blocking_reduce(en, MPI_SUM, world)
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               en,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_enstrophy.")
 
         end function get_enstrophy
 
