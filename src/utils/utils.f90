@@ -17,7 +17,7 @@ module utils
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
 #ifdef ENABLE_BUOANCY_PERTURBATION_MODE
-    use physics, only : bfsq
+    use physics, only : bfsq, calculate_basic_reference_state
 #endif
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
@@ -150,6 +150,9 @@ module utils
             bbdif = maxval(buoy) - minval(buoy)
 
 #ifdef ENABLE_PERTURBATION_MODE
+            ! calculates bfsq
+            call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
+
             ! remove basic state from buoyancy
             do iz = 0, nz
                 z = lower(3) + dble(iz) * dx(3)
