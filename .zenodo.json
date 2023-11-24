@@ -1,23 +1,18 @@
 {
   "metadata": {
+    "upload_type": "software",
+    "access_right": "open",
+    "license": "BSD-3-Clause",
     "creators": [
       {
-        "person_or_org": {
-          "family_name": "Frey",
           "name": "Frey, Matthias",
           "orcid": "0000-0002-7842-0051",
-          "affiliation": "University of St Andrews",
-          "type": "personal"
-        }
+          "affiliation": "University of St Andrews"
       },
       {
-        "person_or_org": {
-          "family_name": "Dritschel",
           "name": "Dritschel, David",
           "orcid": "0000-0001-6489-3395",
-          "affiliation": "University of St Andrews",
-          "type": "personal"
-        }
+          "affiliation": "University of St Andrews"
       }
     ]
   }
