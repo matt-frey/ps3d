@@ -80,7 +80,7 @@ module field_zeta
                         psi(iz, ky, kx) = (y/kl) * dexp(kl * (z - upper(3))) &
                                         * (1.0d0 + dexp(-2.0d0* kl * (z - lower(3)))) &
                                         / (1.0d0 - dexp(-2.0d0 *kl * extent(3)))
-                        psi_z(iz, ky, kx) = y * phip(iz, kx, ky)
+                        psi_z(iz, ky, kx) = y * phip(iz, ky, kx)
                     enddo
                 enddo
             enddo
@@ -95,8 +95,7 @@ module field_zeta
 
             svor(:, :, :, 3) = svor(:, :, :, 3) + psi_z
 
-            ds = svor(:, :, :, 3)
-            call fftxys2p(ds, vor(:, :, :, 3))
+            call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
 
         end subroutine combine_zeta
 
