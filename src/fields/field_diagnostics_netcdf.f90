@@ -123,7 +123,6 @@ module field_diagnostics_netcdf
 
             ! define statitics
             do n = 1, size(nc_dset)
-               print *, n, nc_dset(n)%name
                 call define_netcdf_dataset(ncid=ncid,                       &
                                            name=nc_dset(n)%name,            &
                                            long_name=nc_dset(n)%long_name,  &

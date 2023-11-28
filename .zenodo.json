@@ -1,19 +1,27 @@
 {
-  "metadata": {
-    "upload_type": "software",
+    "description": "Pseudo-spectral code for turbulent flows in 3D",
     "access_right": "open",
+    "upload_type": "software",
+    "keywords": ["pseudo-spectral",
+                 "Beltrami flow",
+                 "turbulent flows"],
     "license": "BSD-3-Clause",
     "creators": [
       {
+          "affiliation": "University of St Andrews",
           "name": "Frey, Matthias",
-          "orcid": "0000-0002-7842-0051",
-          "affiliation": "University of St Andrews"
+          "orcid": "0000-0002-7842-0051"
       },
       {
+          "affiliation": "University of St Andrews",
           "name": "Dritschel, David",
-          "orcid": "0000-0001-6489-3395",
-          "affiliation": "University of St Andrews"
+          "orcid": "0000-0001-6489-3395"
       }
+    ],
+    "grants": [
+        {
+            "id": "10.13039/100014013::EP/T025301/1"
+        }
     ]
-  }
 }
+
