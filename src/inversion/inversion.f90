@@ -377,8 +377,8 @@ module inversion_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Compute pressure ignoring buoyancy (if --enable-buoyancy)
-        ! Solves Lap(p) = R with dp/dz = 0 on each boundary where
+        ! Compute pressure with buoyancy anomaly b' (if --enable-buoyancy and --enable-perturbation-mode)
+        ! Solves Lap(p) = R + f * zeta + b'_z with dp/dz = 0 on each boundary where
         ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
         ! is the Jacobian.
         subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
@@ -396,6 +396,10 @@ module inversion_mod
                                                        box%lo(1):box%hi(1)) ! dw/dz in physical space
             double precision             :: rs(0:nz, box%lo(2):box%hi(2),   &
                                                      box%lo(1):box%hi(1))   ! rhs in spectral space
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            double precision             :: dbdz(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+#endif
             integer                      :: kx, ky
 
             call start_timer(pres_timer)
@@ -410,13 +414,22 @@ module inversion_mod
             ! dv/dz = dw/dy - \xi
             ! dw/dz = - (du/dx + dv/dy)
 
+            call field_combine_physical(svor(:, :, :, 3), vor(:, :, :, 3))
+
             !$omp parallel workshare
             dwdz = - (dudx + dvdy)
 
-            pres = two * (dudx * dvdy - dudy * (vor(:, :, :, 3) + dudy) + &
-                          dvdy * dwdz - dwdy * (dwdy - vor(:, :, :, 1)) + &
-                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))
+            pres = two * (dudx * dvdy - dudy * (vor(:, :, :, 3) + dudy)  + &
+                          dvdy * dwdz - dwdy * (dwdy - vor(:, :, :, 1))  + &
+                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))   &
+                 + f_cor(3) * vor(:, :, :, 3)
             !$omp end parallel workshare
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            call field_combine_physical(sbuoy, buoy)
+            call central_diffz(buoy, dbdz)
+            pres = pres + dbdz
+#endif
 
             !-------------------------------------------------------
             ! Transform to full spectral space:

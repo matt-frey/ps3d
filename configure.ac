@@ -229,7 +229,7 @@ fi
 
 ENABLE_PERTURBATION_MODE='no'
 AC_ARG_ENABLE([perturbation-mode],
-	      [AS_HELP_STRING([--perturbation-mode], [enable buoyancy perturbation mode (default=no)])],
+	      [AS_HELP_STRING([--enable-perturbation-mode], [enable buoyancy perturbation mode (default=no)])],
               [ENABLE_PERTURBATION_MODE=$enableval])
 AM_CONDITIONAL([ENABLE_PERTURBATION_MODE], [test "$ENABLE_PERTURBATION_MODE" = "yes"])
 AC_MSG_CHECKING([whether we are tracking buoyancy perturbation])
