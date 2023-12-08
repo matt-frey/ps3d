@@ -414,8 +414,6 @@ module inversion_mod
             ! dv/dz = dw/dy - \xi
             ! dw/dz = - (du/dx + dv/dy)
 
-            call field_combine_physical(svor(:, :, :, 3), vor(:, :, :, 3))
-
             !$omp parallel workshare
             dwdz = - (dudx + dvdy)
 
