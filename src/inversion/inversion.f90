@@ -402,8 +402,6 @@ module inversion_mod
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             double precision             :: dbdz(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
-            double precision             :: bs(0:nz, box%lo(2):box%hi(2),   & ! buoyancy anomaly in semi-spectral
-                                                     box%lo(1):box%hi(1))     ! space
 #endif
             integer                      :: kx, ky
 
@@ -432,7 +430,7 @@ module inversion_mod
             call central_diffz(buoy, dbdz)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 
-            call field_combine_semi_spectral(sbuoy, bs)
+            call field_combine_semi_spectral(sbuoy)
 #endif
 
             !-------------------------------------------------------
@@ -468,10 +466,12 @@ module inversion_mod
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
                     rs(:, ky, kx) = rs(:, ky, kx) &
-                                  + bs(nz, ky, kx) * k2l2(ky, kx) * dphip(:, ky, kx) &
-                                  - bs(0,  ky, kx) * k2l2(ky, kx) * dphim(:, ky, kx)
+                                  + sbuoy(nz, ky, kx) * k2l2(ky, kx) * dphip(:, ky, kx) &
+                                  - sbuoy(0,  ky, kx) * k2l2(ky, kx) * dphim(:, ky, kx)
                 enddo
             enddo
+
+            call field_decompose_semi_spectral(sbuoy) 
 #endif
 
             call fftxys2p(rs, pres)
