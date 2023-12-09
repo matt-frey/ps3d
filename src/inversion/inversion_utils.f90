@@ -79,6 +79,10 @@ module inversion_utils
             , dthetam               &
             , gambot                &
             , gamtop                &
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            , dphim                 &
+            , dphip                 &
+#endif
             , call_ptospc
 
     public :: field_combine_semi_spectral   &
