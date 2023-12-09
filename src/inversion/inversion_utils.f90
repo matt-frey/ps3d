@@ -82,7 +82,6 @@ module inversion_utils
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             , dphim                 &
             , dphip                 &
-            , k2l2                  &
 #endif
             , call_ptospc
 

@@ -462,12 +462,12 @@ module inversion_mod
             !$omp end parallel do
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-            ! now in semi-spectral space, note k2l2(0, 0) = 0
+            ! now in semi-spectral space, note k2l2i(0, 0) = 0
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
                     rs(:, ky, kx) = rs(:, ky, kx) &
-                                  + sbuoy(nz, ky, kx) * k2l2(ky, kx) * dphip(:, ky, kx) &
-                                  - sbuoy(0,  ky, kx) * k2l2(ky, kx) * dphim(:, ky, kx)
+                                  + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
+                                  - sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
                 enddo
             enddo
 
