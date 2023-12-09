@@ -6,11 +6,12 @@ module field_diagnostics
     use stafft, only : dst
     use inversion_utils, only : central_diffz                           &
                               , field_combine_semi_spectral             &
-                              , field_decompose_semi_spectral
+                              , field_decompose_semi_spectral           &
+                              , field_combine_physical
     use ape_density, only : ape_den
     use mpi_environment
     use mpi_layout, only : box
-    use fields, only : vor, vel, svor, ini_vor_mean
+    use fields, only : vor, vel, svor, svel, ini_vor_mean
 #ifdef ENABLE_BUOYANCY
     use fields, only : buoy, sbuoy
 #ifdef ENABLE_PERTURBATION_MODE
@@ -98,21 +99,75 @@ module field_diagnostics
 
         end function get_kinetic_energy
 
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! domain-averaged horizontal kinetic energy, i.e. (u^2 + v^2) / 2
+        function get_horizontal_kinetic_energy() result(ke)
+            double precision :: ke
+
+            ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2    &
+                         + vel(1:nz-1, :, :, 2) ** 2)   &
+               + f14 * sum(vel(0,      :, :, 1) ** 2    &
+                         + vel(0,      :, :, 2) ** 2)   &
+               + f14 * sum(vel(nz,     :, :, 1) ** 2    &
+                         + vel(nz,     :, :, 2) ** 2)
+
+            ke = ke * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               ke,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_horizontal_kinetic_energy.")
+
+        end function get_horizontal_kinetic_energy
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! domain-averaged vertical kinetic energy, i.e. w^2 / 2
+        function get_vertical_kinetic_energy() result(ke)
+            double precision :: ke
+
+            ke = f12 * sum(vel(1:nz-1, :, :, 3) ** 2)   &
+               + f14 * sum(vel(0,      :, :, 3) ** 2)   &
+               + f14 * sum(vel(nz,     :, :, 3) ** 2)
+
+            ke = ke * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               ke,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_vertical_kinetic_energy.")
+
+        end function get_vertical_kinetic_energy
+
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy
         function get_enstrophy() result(en)
             double precision :: en
 
-            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2      &
-                         + vor(1:nz-1, :, :, 2) ** 2      &
-                         + vor(1:nz-1, :, :, 3) ** 2)     &
-               + f14 * sum(vor(0,  :, :, 1) ** 2          &
-                         + vor(0,  :, :, 2) ** 2          &
-                         + vor(0,  :, :, 3) ** 2)         &
-               + f14 * sum(vor(nz, :, :, 1) ** 2          &
-                         + vor(nz, :, :, 2) ** 2          &
-                         + vor(nz, :, :, 3) ** 2)
+            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
+                         + vor(1:nz-1, :, :, 2) ** 2    &
+                         + vor(1:nz-1, :, :, 3) ** 2)   &
+               + f14 * sum(vor(0,      :, :, 1) ** 2    &
+                         + vor(0,      :, :, 2) ** 2    &
+                         + vor(0,      :, :, 3) ** 2)   &
+               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
+                         + vor(nz,     :, :, 2) ** 2    &
+                         + vor(nz,     :, :, 3) ** 2)
 
             en = en * ncelli
 
@@ -128,6 +183,135 @@ module field_diagnostics
                 "in MPI_Allreduce of field_diagnostics::get_enstrophy.")
 
         end function get_enstrophy
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! domain-averaged enstrophy, i.e. (xi^2 + eta^2) / 2
+        function get_horizontal_enstrophy() result(en)
+            double precision :: en
+
+            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
+                         + vor(1:nz-1, :, :, 2) ** 2)   &
+               + f14 * sum(vor(0,      :, :, 1) ** 2    &
+                         + vor(0,      :, :, 2) ** 2)   &
+               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
+                         + vor(nz,     :, :, 2) ** 2)
+
+            en = en * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               en,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_horizontal_enstrophy.")
+
+        end function get_horizontal_enstrophy
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! domain-averaged enstrophy, i.e. zeta^2 / 2
+        function get_vertical_enstrophy() result(en)
+            double precision :: en
+
+            en = f12 * sum(vor(1:nz-1, :, :, 3) ** 2)  &
+               + f14 * sum(vor(0,      :, :, 3) ** 2)  &
+               + f14 * sum(vor(nz,     :, :, 3) ** 2)
+
+            en = en * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               en,                      &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_vertical_enstrophy.")
+
+        end function get_vertical_enstrophy
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        ! domain-averaged squared buoyancy anomaly, i.e. (b')^2
+        function get_squared_buoyancy_anomaly() result(basq)
+            double precision :: basq
+
+            call field_combine_physical(sbuoy, buoy)
+
+            basq =       sum(buoy(1:nz-1, :, :) ** 2)  &
+                 + f12 * sum(buoy(0,      :, :) ** 2)  &
+                 + f12 * sum(buoy(nz,     :, :) ** 2)
+
+            basq = basq * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               basq,                    &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_squared_buoyancy_anomaly.")
+
+        end function get_squared_buoyancy_anomaly
+#endif
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! domain-averaged squared horizontal divergence, i.e. (u_x^2 + u_y^2)
+        function get_squared_horizontal_divergence() result(divxy2)
+            double precision :: divxy2
+            double precision :: ds(box%lo(3):box%hi(3), &
+                                   box%lo(2):box%hi(2), &
+                                   box%lo(1):box%hi(1))
+            double precision :: ux(box%lo(3):box%hi(3), &
+                                   box%lo(2):box%hi(2), &
+                                   box%lo(1):box%hi(1))
+            double precision :: vy(box%lo(3):box%hi(3), &
+                                   box%lo(2):box%hi(2), &
+                                   box%lo(1):box%hi(1))
+
+            ! svel is the velocity in mixed-spectral space
+
+            ! du/dx
+            call diffx(svel(:, :, :, 1), ds)
+            call field_combine_physical(ds, ux)
+
+            ! dv/dy
+            call diffy(svel(:, :, :, 2), ds)
+            call field_combine_physical(ds, vy)
+
+            divxy2 =       sum(ux(1:nz-1, :, :) ** 2    &
+                             + vy(1:nz-1, :, :) ** 2)   &
+                   + f12 * sum(ux(0,      :, :) ** 2    &
+                             + vy(0,      :, :) ** 2)   &
+                   + f12 * sum(ux(nz,     :, :) ** 2    &
+                             + vy(nz,     :, :) ** 2)
+
+            divxy2 = divxy2 * ncelli
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               divxy2,                  &
+                               1,                       &
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
+                               world%comm,              &
+                               world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_diagnostics::get_squared_horizontal_divergence.")
+
+        end function get_squared_horizontal_divergence
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

@@ -40,15 +40,25 @@ module field_diagnostics_netcdf
                         , NC_OCHAR  = 5     &
                         , NC_OXMEAN = 6     &
                         , NC_OYMEAN = 7     &
-                        , NC_OZMEAN = 8
+                        , NC_OZMEAN = 8     &
+                        , NC_KEXY   = 9     &
+                        , NC_KEZ    = 10    &
+                        , NC_DIVXY2 = 11    &
+                        , NC_ENXY   = 12    &
+                        , NC_ENZ    = 13
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 9     &
-                        , NC_BMAX   = 10    &
-                        , NC_BMIN   = 11
+    integer, parameter :: NC_APE    = 14    &
+                        , NC_BMAX   = 15    &
+                        , NC_BMIN   = 16
 
-    type(netcdf_stat_info) :: nc_dset(NC_BMIN)
+#ifdef ENABLE_PERTURBATION_MODE
+    integer, parameter :: NC_BASQ   = 17
+    type(netcdf_stat_info) :: nc_dset(NC_BASQ)
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_OZMEAN)
+    type(netcdf_stat_info) :: nc_dset(NC_BMIN)
+#endif
+#else
+    type(netcdf_stat_info) :: nc_dset(NC_ENZ)
 #endif
 
 
@@ -232,6 +242,16 @@ module field_diagnostics_netcdf
             nc_dset(NC_BMIN)%val = bmin
 #endif
 
+        nc_dset(NC_KEXY)%val   = get_horizontal_kinetic_energy()
+        nc_dset(NC_KEZ)%val    = get_vertical_kinetic_energy()
+        nc_dset(NC_ENXY)%val   = get_horizontal_enstrophy()
+        nc_dset(NC_ENZ)%val    = get_vertical_enstrophy()
+        nc_dset(NC_DIVXY2)%val = get_squared_horizontal_divergence()
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        nc_dset(NC_BASQ) = get_squared_buoyancy_anomaly()
+#endif
+
         end subroutine update_netcdf_field_diagnostics
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -303,6 +323,41 @@ module field_diagnostics_netcdf
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
+            nc_dset(NC_KEXY) = netcdf_stat_info(                        &
+                name='kexy',                                            &
+                long_name='domain-averaged horizontal kinetic energy',  &
+                std_name='',                                            &
+                unit='m^2/s^2',                                         &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_KEZ) = netcdf_stat_info(                         &
+                name='kez',                                             &
+                long_name='domain-averaged vertical kinetic energy',    &
+                std_name='',                                            &
+                unit='m^2/s^2',                                         &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_ENXY) = netcdf_stat_info(                        &
+                name='enxy',                                            &
+                long_name='domain-averaged horizontal enstrophy',       &
+                std_name='',                                            &
+                unit='1/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_ENZ) = netcdf_stat_info(                         &
+                name='enz',                                             &
+                long_name='domain-averaged vertical enstrophy',         &
+                std_name='',                                            &
+                unit='1/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_DIVXY2) = netcdf_stat_info(                          &
+                name='divxy2',                                              &
+                long_name='domain-averaged squared horizontal divergence',  &
+                std_name='',                                                &
+                unit='1/s^2',                                               &
+                dtype=NF90_DOUBLE)
+
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_APE) = netcdf_stat_info(                         &
                 name='ape',                                             &
@@ -324,6 +379,15 @@ module field_diagnostics_netcdf
                 std_name='',                                            &
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
+
+#ifdef ENABLE_PERTURBATION_MODE
+            nc_dset(NC_BASQ) = netcdf_stat_info(                        &
+                name='squared_buoyancy_anomaly',                        &
+                long_name='domain-averaged squared buoyany anomaly',    &
+                std_name='',                                            &
+                unit='m^2/s^4',                                         &
+                dtype=NF90_DOUBLE)
+#endif
 #endif
 
         end subroutine set_netcdf_stat_info
