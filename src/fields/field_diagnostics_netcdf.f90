@@ -53,7 +53,7 @@ module field_diagnostics_netcdf
 
 #ifdef ENABLE_PERTURBATION_MODE
     integer, parameter :: NC_BASQ   = 17    &
-                        , NC_MSS    = 18    & ! mss = minimum static stability
+                        , NC_MSS    = 18      ! mss = minimum static stability
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
@@ -251,7 +251,7 @@ module field_diagnostics_netcdf
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         nc_dset(NC_BASQ)%val = get_squared_buoyancy_anomaly()
-        nc_dset(NC_MSS) = get_minimum_static_stability()
+        nc_dset(NC_MSS)%val = get_minimum_static_stability()
 #endif
 
         end subroutine update_netcdf_field_diagnostics
