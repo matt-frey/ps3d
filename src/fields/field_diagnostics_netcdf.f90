@@ -249,7 +249,7 @@ module field_diagnostics_netcdf
         nc_dset(NC_DIVXY2)%val = get_squared_horizontal_divergence()
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_BASQ) = get_squared_buoyancy_anomaly()
+        nc_dset(NC_BASQ)%val = get_squared_buoyancy_anomaly()
 #endif
 
         end subroutine update_netcdf_field_diagnostics
