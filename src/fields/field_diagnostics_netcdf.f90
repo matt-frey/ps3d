@@ -383,7 +383,7 @@ module field_diagnostics_netcdf
 #ifdef ENABLE_PERTURBATION_MODE
             nc_dset(NC_BASQ) = netcdf_stat_info(                        &
                 name='squared_buoyancy_anomaly',                        &
-                long_name='domain-averaged squared buoyany anomaly',    &
+                long_name='domain-averaged squared buoyancy anomaly',   &
                 std_name='',                                            &
                 unit='m^2/s^4',                                         &
                 dtype=NF90_DOUBLE)
