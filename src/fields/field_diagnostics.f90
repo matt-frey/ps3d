@@ -16,6 +16,7 @@ module field_diagnostics
     use fields, only : buoy, sbuoy
 #ifdef ENABLE_PERTURBATION_MODE
     use fields, only : bbarz
+    use physics, only : bfsq
 #endif
 #endif
     use mpi_utils, only : mpi_check_for_error
@@ -115,16 +116,7 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               ke,                      &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            call mpi_check_for_error(world, &
-                "in MPI_Allreduce of field_diagnostics::get_horizontal_kinetic_energy.")
+            call mpi_blocking_reduce(ke, MPI_SUM, world)
 
         end function get_horizontal_kinetic_energy
 
@@ -140,16 +132,7 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               ke,                      &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            call mpi_check_for_error(world, &
-                "in MPI_Allreduce of field_diagnostics::get_vertical_kinetic_energy.")
+            call mpi_blocking_reduce(ke, MPI_SUM, world)
 
         end function get_vertical_kinetic_energy
 
@@ -199,16 +182,7 @@ module field_diagnostics
 
             en = en * ncelli
 
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               en,                      &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            call mpi_check_for_error(world, &
-                "in MPI_Allreduce of field_diagnostics::get_horizontal_enstrophy.")
+            call mpi_blocking_reduce(en, MPI_SUM, world)
 
         end function get_horizontal_enstrophy
 
@@ -224,16 +198,7 @@ module field_diagnostics
 
             en = en * ncelli
 
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               en,                      &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            call mpi_check_for_error(world, &
-                "in MPI_Allreduce of field_diagnostics::get_vertical_enstrophy.")
+            call mpi_blocking_reduce(en, MPI_SUM, world)
 
         end function get_vertical_enstrophy
 
@@ -252,18 +217,28 @@ module field_diagnostics
 
             basq = basq * ncelli
 
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               basq,                    &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            call mpi_check_for_error(world, &
-                "in MPI_Allreduce of field_diagnostics::get_squared_buoyancy_anomaly.")
+            call mpi_blocking_reduce(basq, MPI_SUM, world)
 
         end function get_squared_buoyancy_anomaly
+
+
+        ! minimum static stability value, 1 + min(b'_z)/N^2 (if < 0 the flow is overturning)
+        ! #pre Assumes we already have the buoyancy anomaly in physical space
+        function get_minimum_static_stability() result(mss)
+            double precision :: mss
+            double precision :: dbdz(box%lo(3):box%hi(3), &
+                                     box%lo(2):box%hi(2), &
+                                     box%lo(1):box%hi(1))
+
+            call central_diffz(buoy, dbdz)
+
+            mss = minval(dbdz)
+
+            call mpi_blocking_reduce(mss, MPI_MIN, world)
+
+            mss = one + mss / bfsq
+
+        end function get_minimum_static_stability
 #endif
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
