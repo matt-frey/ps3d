@@ -11,6 +11,7 @@ module field_diagnostics
     use ape_density, only : ape_den
     use mpi_environment
     use mpi_layout, only : box
+    use mpi_collectives, only : mpi_blocking_reduce
     use fields, only : vor, vel, svor, svel, ini_vor_mean
 #ifdef ENABLE_BUOYANCY
     use fields, only : buoy, sbuoy
