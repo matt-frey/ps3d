@@ -31,7 +31,7 @@ program test_vor2vel_2
     double precision              :: error
     double precision, allocatable :: vel_ref(:, :, :, :)
     integer                       :: ix, iy, iz
-    double precision              :: x, y, z, k2l2, k, l, f, dfdz, d2fdz2
+    double precision              :: x, y, z, klsq, k, l, f, dfdz, d2fdz2
     double precision              :: coskx, sinkx, cosly, sinly
 
     call mpi_env_initialise
@@ -59,7 +59,7 @@ program test_vor2vel_2
     call init_inversion
 
 
-    k2l2 = k ** 2 - l ** 2
+    klsq = k ** 2 - l ** 2
 
     do ix = box%lo(1), box%hi(1)
         x = lower(1) + ix * dx(1)
@@ -79,11 +79,11 @@ program test_vor2vel_2
                 ! velocity
                 vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly
                 vel_ref(iz, iy, ix, 2) = -l * dfdz * sinkx * cosly
-                vel_ref(iz, iy, ix, 3) =  k2l2 * f * sinkx * sinly
+                vel_ref(iz, iy, ix, 3) =  klsq * f * sinkx * sinly
 
                 ! vorticity
-                vor(iz, iy, ix, 1) = l * (k2l2 * f + d2fdz2) * sinkx * cosly
-                vor(iz, iy, ix, 2) = k * (d2fdz2 - k2l2 * f) * coskx * sinly
+                vor(iz, iy, ix, 1) = l * (klsq * f + d2fdz2) * sinkx * cosly
+                vor(iz, iy, ix, 2) = k * (d2fdz2 - klsq * f) * coskx * sinly
                 vor(iz, iy, ix, 3) = - two * k * l * dfdz * coskx * cosly
 
             enddo

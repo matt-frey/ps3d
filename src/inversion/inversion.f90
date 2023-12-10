@@ -378,9 +378,12 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Compute pressure with buoyancy anomaly b' (if --enable-buoyancy and --enable-perturbation-mode)
-        ! Solves Lap(p) = R + f * zeta + b'_z with dp/dz = 0 on each boundary where
+        ! If buoyancy mode is disabled we solve:
+        ! Solves Lap(p) = R + f * zeta + b'_z with dp/dz = b' on each boundary where
         ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
         ! is the Jacobian.
+        ! If buoyancy mode is enabled we solve:
+        ! Solves Lap(p) = R with dp/dz = 0 on each boundary
         subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
             double precision, intent(in) :: dudx(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1)) ! du/dx in physical space
@@ -419,14 +422,15 @@ module inversion_mod
 
             pres = two * (dudx * dvdy - dudy * (vor(:, :, :, 3) + dudy)  + &
                           dvdy * dwdz - dwdy * (dwdy - vor(:, :, :, 1))  + &
-                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))   &
-                 + f_cor(3) * vor(:, :, :, 3)
+                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))
             !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             call field_combine_physical(sbuoy, buoy)
             call central_diffz(buoy, dbdz)
-            pres = pres + dbdz
+            pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
+
+            call field_combine_semi_spectral(sbuoy)
 #endif
 
             !-------------------------------------------------------
@@ -456,6 +460,19 @@ module inversion_mod
                 enddo
             enddo
             !$omp end parallel do
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            ! now in semi-spectral space, note k2l2i(0, 0) = 0
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    rs(:, ky, kx) = rs(:, ky, kx) &
+                                  + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
+                                  + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
+                enddo
+            enddo
+
+            call field_decompose_semi_spectral(sbuoy)
+#endif
 
             call fftxys2p(rs, pres)
 
