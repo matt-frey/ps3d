@@ -429,8 +429,6 @@ module inversion_mod
             call field_combine_physical(sbuoy, buoy)
             call central_diffz(buoy, dbdz)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
-
-            call field_combine_semi_spectral(sbuoy)
 #endif
 
             !-------------------------------------------------------
@@ -470,8 +468,6 @@ module inversion_mod
                                   + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
                 enddo
             enddo
-
-            call field_decompose_semi_spectral(sbuoy)
 #endif
 
             call fftxys2p(rs, pres)
