@@ -383,7 +383,7 @@ module inversion_mod
         ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
         ! is the Jacobian.
         ! If buoyancy mode is enabled we solve:
-        ! Solves Lap(p) = R with dp/dz = 0 on each boundary where
+        ! Solves Lap(p) = R with dp/dz = 0 on each boundary
         subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
             double precision, intent(in) :: dudx(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1)) ! du/dx in physical space
@@ -471,7 +471,7 @@ module inversion_mod
                 enddo
             enddo
 
-            call field_decompose_semi_spectral(sbuoy) 
+            call field_decompose_semi_spectral(sbuoy)
 #endif
 
             call fftxys2p(rs, pres)
