@@ -467,7 +467,7 @@ module inversion_mod
                 do ky = box%lo(2), box%hi(2)
                     rs(:, ky, kx) = rs(:, ky, kx) &
                                   + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
-                                  - sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
+                                  + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
                 enddo
             enddo
 
