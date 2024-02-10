@@ -19,7 +19,8 @@ module fields
         vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         vel,    &   ! velocity vector field (u, v, w)
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
-        svorts      ! vorticity source in mixed spectral space
+        svorts, &   ! vorticity source in mixed spectral space
+        cfs         ! constant forcing in mixed spectral space
 
     double precision, allocatable, dimension(:, :, :) :: &
         pres        ! pressure field (physical space)
@@ -65,6 +66,8 @@ module fields
 
             allocate(svorts(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
 
+            allocate(cfs(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
+
 #ifdef ENABLE_BUOYANCY
             allocate(buoy(0:nz,   lo(2):hi(2), lo(1):hi(1)))
             allocate(sbuoy(0:nz,  lo(2):hi(2), lo(1):hi(1)))
@@ -89,6 +92,7 @@ module fields
             vel    = zero
             svel   = zero
             svorts = zero
+            cfs    = zero
 #ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero

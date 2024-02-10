@@ -10,7 +10,7 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : field_combine_physical
+    use inversion_utils, only : field_combine_physical, field_decompose_physical
     implicit none
 
     private
@@ -273,6 +273,9 @@ module field_netcdf
             character(*),      intent(in) :: ncfname
             integer, optional, intent(in) :: step
             integer                       :: n_steps, start(4), cnt(4)
+            double precision              :: ff(box%lo(3):box%hi(3),   &
+                                                box%lo(2):box%hi(2),   &
+                                                box%lo(1):box%hi(1))
 
             call start_timer(field_io_timer)
 
@@ -421,6 +424,58 @@ module field_netcdf
                 endif
             endif
 #endif
+
+            !------------------------------------------------------------------
+            if (has_dataset(ncid, 'x-forcing')) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found constant x-forcing field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         'x-forcing',               &
+                                         ff(box%lo(3):box%hi(3),    &
+                                            box%lo(2):box%hi(2),    &
+                                            box%lo(1):box%hi(1)),   &
+                                         start=start, cnt=cnt)
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
+                call field_decompose_physical(ff, cfs(:, :, :, 1))
+            endif
+
+            if (has_dataset(ncid, 'y-forcing')) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found constant y-forcing field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         'y-forcing',               &
+                                         ff(box%lo(3):box%hi(3),    &
+                                            box%lo(2):box%hi(2),    &
+                                            box%lo(1):box%hi(1)),   &
+                                         start=start, cnt=cnt)
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
+                call field_decompose_physical(ff, cfs(:, :, :, 2))
+            endif
+
+            if (has_dataset(ncid, 'z-forcing')) then
+                if (world%rank == world%root) then
+                    write(*, "(a63)", advance="no") &
+                        "Found constant z-forcing field input, reading ..."
+                endif
+                call read_netcdf_dataset(ncid,                      &
+                                         'z-forcing',               &
+                                         ff(box%lo(3):box%hi(3),    &
+                                            box%lo(2):box%hi(2),    &
+                                            box%lo(1):box%hi(1)),   &
+                                         start=start, cnt=cnt)
+                if (world%rank == world%root) then
+                    write(*, *) "done"
+                endif
+                call field_decompose_physical(ff, cfs(:, :, :, 3))
+            endif
 
             call close_netcdf_file(ncid)
 

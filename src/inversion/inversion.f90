@@ -371,6 +371,10 @@ module inversion_mod
             svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
             !$omp end parallel workshare
 
+            !------------------------------------------------------------------
+            ! Add constant forcing in mixed spectral space
+            svorts = svorts + cfs
+
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency
