@@ -15,6 +15,7 @@ module smagorinsky_mod
 
     private
 
+    ! Lilly's Smagorinsky coefficient for homogeneous isotropic turbulent (HIT):
     double precision, parameter :: c_s = 0.173d0
 
     ! velocity strain indices
@@ -63,9 +64,9 @@ module smagorinsky_mod
         ! Compute the gridded velocity gradient tensor
         subroutine vel2velgrad(velgrad)
             double precision, intent(out) :: velgrad(box%lo(3):box%hi(3),  & ! 0:nz
-                                                      box%lo(2):box%hi(2),  &
-                                                      box%lo(1):box%hi(1),  &
-                                                      5)
+                                                     box%lo(2):box%hi(2),  &
+                                                     box%lo(1):box%hi(1),  &
+                                                     5)
             double precision              :: ds(box%lo(3):box%hi(3), & ! 0:nz
                                                 box%lo(2):box%hi(2), &
                                                 box%lo(1):box%hi(1)) ! semi-spectral derivatives
@@ -86,8 +87,6 @@ module smagorinsky_mod
 
             call diffy(svel(:, :, :, I_Z), ds)           ! w_y = dw/dy in semi-spectral space
             call fftxys2p(ds, velgrad(:, :, :, I_DWDY)) ! w_y in physical space
-
-!             call field_halo_fill_vector(velgrad, l_alloc=.true.)
 
         end subroutine vel2velgrad
 
@@ -162,9 +161,6 @@ module smagorinsky_mod
                    enddo
                 enddo
             enddo
-
-!           ! We need this halo fill to obtain good conservation
-!           call field_halo_fill_scalar(strain_mag, l_alloc=.true.)
 
         end subroutine strain_magnitude
 
