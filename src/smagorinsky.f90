@@ -15,7 +15,7 @@ module smagorinsky_mod
 
     private
 
-    ! Lilly's Smagorinsky coefficient for homogeneous isotropic turbulent (HIT):
+    ! Lilly's Smagorinsky coefficient for homogeneous isotropic turbulence (HIT):
     double precision, parameter :: c_s = 0.173d0
 
     ! velocity strain indices
