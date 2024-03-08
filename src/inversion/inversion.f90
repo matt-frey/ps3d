@@ -10,6 +10,7 @@ module inversion_mod
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
     use mpi_timer, only : start_timer, stop_timer
     use fields
+    use smagorinsky_mod, only : apply_smagorinsky
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -370,6 +371,10 @@ module inversion_mod
             !$omp parallel workshare
             svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
             !$omp end parallel workshare
+
+            !------------------------------------------------------------------
+            ! Add Smagorinsky diffusion to vorticity source (svorts):
+            call apply_smagorinsky
 
             call stop_timer(vtend_timer)
 
