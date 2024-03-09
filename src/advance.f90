@@ -96,13 +96,13 @@ module advance_mod
                 !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 !$omp end parallel workshare
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
+                !call field_combine_semi_spectral(svor(:, :, :, nc))
+                !!omp parallel do private(iz)  default(shared)
+                !do iz = 0, nz
+                !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                !enddo
+                !!omp end parallel do
+                !call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             call adjust_vorticity_mean
@@ -134,13 +134,13 @@ module advance_mod
                     !$omp parallel workshare
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                     !$omp end parallel workshare
-                    call field_combine_semi_spectral(svor(:, :, :, nc))
-                    !$omp parallel do private(iz)  default(shared)
-                    do iz = 0, nz
-                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                    enddo
-                    !$omp end parallel do
-                    call field_decompose_semi_spectral(svor(:, :, :, nc))
+                    !call field_combine_semi_spectral(svor(:, :, :, nc))
+                    !!omp parallel do private(iz)  default(shared)
+                    !do iz = 0, nz
+                    !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    !enddo
+                    !!omp end parallel do
+                    !call field_decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
                 call adjust_vorticity_mean
