@@ -56,13 +56,17 @@ module advance_mod
             !Adapt the time step
             call adapt(t)
 
+            !Write fields
+            call write_step(t)
+
+            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
+            !vorticity in spectral space:
+            call source
+
             !Advance time:
             if (world%rank == world%root) then
                 print *, "At time", t, "and time step", dt
             endif
-
-            !Write fields
-            call write_step(t)
 
             select case (stepper)
                 case ('RK4')

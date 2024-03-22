@@ -37,10 +37,6 @@ module cn2
             !------------------------------------------------------------------
             !Start with a guess for F^{n+1} for all fields:
 
-            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
-            !vorticity in spectral space:
-            call source
-
             !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
