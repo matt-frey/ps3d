@@ -30,11 +30,6 @@ module cn2
             double precision, intent(in)    :: dt
             integer                         :: iter
             integer                         :: nc
-            ! Spectral fields needed in time stepping:
-            double precision                :: vortsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3)
-#ifdef ENABLE_BUOYANCY
-            double precision                :: bsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-#endif
 
             !Update value of dt/2:
             dt2 = f12 * dt

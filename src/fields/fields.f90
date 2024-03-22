@@ -19,7 +19,8 @@ module fields
         vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         vel,    &   ! velocity vector field (u, v, w)
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
-        svorts      ! vorticity source in mixed spectral space
+        svorts, &   ! vorticity source in mixed spectral space
+        vortsm      ! used for time stepping
 
     double precision, allocatable, dimension(:, :, :) :: &
         pres        ! pressure field (physical space)
@@ -28,7 +29,8 @@ module fields
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
         sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
-        sbuoys      ! buoyancy source in mixed spectral space
+        sbuoys, &   ! buoyancy source in mixed spectral space
+        bsm         ! used for time stepping
 #endif
 
     double precision, allocatable, dimension(:, :) :: &
@@ -78,6 +80,12 @@ module fields
             allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
             allocate(diss(lo(2):hi(2), lo(1):hi(1)))
 
+            ! Spectral fields needed in time stepping:
+            allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
+#ifdef ENABLE_BUOYANCY
+            allocate(bsm(0:nz, lo(2):hi(2), lo(1):hi(1)))
+#endif
+
         end subroutine field_alloc
 
         ! Reset fields to zero
@@ -89,13 +97,16 @@ module fields
             vel    = zero
             svel   = zero
             svorts = zero
+            vortsm = zero
 #ifdef ENABLE_BUOYANCY
             buoy   = zero
             sbuoy  = zero
             sbuoys = zero
+            bsm    = zero
 #endif
             pres   = zero
             diss   = zero
+
 
             ini_vor_mean = zero
         end subroutine field_default

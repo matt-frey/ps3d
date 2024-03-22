@@ -4,8 +4,10 @@
 ! =============================================================================
 module ls_rk
     use constants, only : zero
-!     use fields, only : velgradg, velog, vortg, vtend, tbuoyg
-    use inversion_mod, only : vor2vel, vorticity_tendency
+    use fields
+    use inversion_utils
+    use inversion_mod, only : vor2vel, source
+    use field_diagnostics
     use mpi_utils, only : mpi_stop
     implicit none
 
@@ -84,7 +86,6 @@ module ls_rk
             t = t + dt
         end subroutine ls_rk_step
 
-
         ! Do a ls-RK-4 substep.
         ! @param[in] dt is the time step
         ! @param[in] step is the number of the substep (1 to 5 or 1 to 3)
@@ -92,39 +93,52 @@ module ls_rk
             double precision, intent(in) :: dt
             integer,          intent(in) :: step
             double precision             :: ca, cb
-            integer                      :: n
+            integer                      :: nc
 
             ca = captr(step)
             cb = cbptr(step)
 
-            if (step > 1) then
+            if (step == 1) then
+                !$omp parallel workshare
+#ifdef ENABLE_BUOYANCY
+                bsm    = sbuoys
+#endif
+                vortsm = svorts
+                !$omp end parallel workshare
+            else
                 call vor2vel
 
-                call vorticity_tendency
+                call source
+
+                !$omp parallel workshare
+#ifdef ENABLE_BUOYANCY
+                bsm = bsm + sbuoys
+#endif
+                vortsm = vortsm + svorts
+                !$omp end parallel workshare
             endif
 
+#ifdef ENABLE_BUOYANCY
+            sbuoy = filt * (sbuoy + cb * dt * bsm)
+#endif
+            do nc = 1, 3
+                !$omp parallel workshare
+                svor(:, :, :, nc) = filt * (svor(:, :, :, nc) + cb * dt * vortsm(:, :, :, nc))
+                !$omp end parallel workshare
+            enddo
 
-
-!             !$omp parallel do default(shared) private(n)
-!             do n = 1, n_parcels
-!                 parcels%position(:, n) = parcels%position(:, n) &
-!                                        + cb * dt * parcels%delta_pos(:, n)
-!
-!                 parcels%vorticity(:, n) = parcels%vorticity(:, n) &
-!                                         + cb * dt * parcels%delta_vor(:, n)
-!             enddo
-!             !$omp end parallel do
+            call adjust_vorticity_mean
 
             if (step == n_stages) then
                return
             endif
 
-!             !$omp parallel do default(shared) private(n)
-!             do n = 1, n_parcels
-!                 parcels%delta_pos(:, n) = ca * parcels%delta_pos(:, n)
-!                 parcels%delta_vor(:, n) = ca * parcels%delta_vor(:, n)
-!             enddo
-!             !$omp end parallel do
+            !$omp parallel workshare
+#ifdef ENABLE_BUOYANCY
+            bsm = ca * bsm
+#endif
+            vortsm = ca * vortsm
+            !$omp end parallel workshare
 
         end subroutine ls_rk_substep
 
