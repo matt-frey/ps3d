@@ -33,8 +33,10 @@ module fields
         bsm         ! used for time stepping
 #endif
 
+#ifndef ENABLE_SMAGORINSKY
     double precision, allocatable, dimension(:, :) :: &
         diss        ! dissipation operator
+#endif
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
@@ -78,7 +80,10 @@ module fields
 #endif
 
             allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
+
+#ifndef ENABLE_SMAGORINSKY
             allocate(diss(lo(2):hi(2), lo(1):hi(1)))
+#endif
 
             ! Spectral fields needed in time stepping:
             allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
@@ -105,8 +110,10 @@ module fields
             bsm    = zero
 #endif
             pres   = zero
-            diss   = zero
 
+#ifndef ENABLE_SMAGORINSKY
+            diss   = zero
+#endif
 
             ini_vor_mean = zero
         end subroutine field_default

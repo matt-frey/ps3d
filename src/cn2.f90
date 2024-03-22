@@ -30,6 +30,9 @@ module cn2
             double precision, intent(in)    :: dt
             integer                         :: iter
             integer                         :: nc
+#ifndef ENABLE_SMAGORINSKY
+            integer                         :: iz
+#endif
 
             !Update value of dt/2:
             dt2 = f12 * dt
@@ -41,13 +44,15 @@ module cn2
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
-            !call field_combine_semi_spectral(sbuoy)
-            !! omp parallel do private(iz)  default(shared)
-            !do iz = 0, nz
-            !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-            !enddo
-            !! omp end parallel do
-            !call field_decompose_semi_spectral(sbuoy)
+#ifndef ENABLE_SMAGORINSKY
+            call field_combine_semi_spectral(sbuoy)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sbuoy)
+#endif
 #endif
 
             ! Advance interior and boundary values of vorticity
@@ -59,13 +64,15 @@ module cn2
                 !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 !$omp end parallel workshare
-                !call field_combine_semi_spectral(svor(:, :, :, nc))
-                !!omp parallel do private(iz)  default(shared)
-                !do iz = 0, nz
-                !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                !enddo
-                !!omp end parallel do
-                !call field_decompose_semi_spectral(svor(:, :, :, nc))
+#ifndef ENABLE_SMAGORINSKY
+                call field_combine_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel do private(iz)  default(shared)
+                do iz = 0, nz
+                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                enddo
+                !$omp end parallel do
+                call field_decompose_semi_spectral(svor(:, :, :, nc))
+#endif
             enddo
 
             call adjust_vorticity_mean
@@ -84,26 +91,30 @@ module cn2
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
-                !call field_combine_semi_spectral(sbuoy)
-                !! omp parallel do private(iz)  default(shared)
-                !do iz = 0, nz
-                !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-                !enddo
-                !! omp end parallel do
-                !call field_decompose_semi_spectral(sbuoy)
+#ifndef ENABLE_SMAGORINSKY
+                call field_combine_semi_spectral(sbuoy)
+                !$omp parallel do private(iz)  default(shared)
+                do iz = 0, nz
+                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                enddo
+                !$omp end parallel do
+                call field_decompose_semi_spectral(sbuoy)
+#endif
 #endif
 
                 do nc = 1, 3
                     !$omp parallel workshare
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                     !$omp end parallel workshare
-                    !call field_combine_semi_spectral(svor(:, :, :, nc))
-                    !!omp parallel do private(iz)  default(shared)
-                    !do iz = 0, nz
-                    !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                    !enddo
-                    !!omp end parallel do
-                    !call field_decompose_semi_spectral(svor(:, :, :, nc))
+#ifndef ENABLE_SMAGORINSKY
+                    call field_combine_semi_spectral(svor(:, :, :, nc))
+                    !$omp parallel do private(iz)  default(shared)
+                    do iz = 0, nz
+                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    enddo
+                    !$omp end parallel do
+                    call field_decompose_semi_spectral(svor(:, :, :, nc))
+#endif
                 enddo
 
                 call adjust_vorticity_mean

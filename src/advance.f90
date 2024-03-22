@@ -268,6 +268,7 @@ module advance_mod
                      cflpf / (velmax + small),      &
                      time%limit - t)
 
+#ifndef ENABLE_SMAGORINSKY
             !---------------------------------------------------------------------
             if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
@@ -284,6 +285,7 @@ module advance_mod
                 !$omp end parallel workshare
                 !(see inversion_utils.f90)
              endif
+#endif
 
         end subroutine adapt
 

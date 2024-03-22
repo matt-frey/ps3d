@@ -10,8 +10,10 @@ module inversion_mod
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
     use mpi_timer, only : start_timer, stop_timer
     use fields
+#ifdef ENABLE_SMAGORINSKY
     use smagorinsky_mod, only : apply_smagorinsky
-#ifdef ENABLE_BUOYANCY
+#endif
+#if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
     implicit none
@@ -298,7 +300,9 @@ module inversion_mod
             ! Convert to mixed-spectral space:
             call field_decompose_physical(btend, sbuoys)
 
+#ifdef ENABLE_SMAGORINSKY
             call apply_smagorinsky_buoyancy
+#endif
 
         end subroutine buoyancy_tendency
 #endif
@@ -377,9 +381,11 @@ module inversion_mod
             svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
             !$omp end parallel workshare
 
+#ifdef ENABLE_SMAGORINSKY
             !------------------------------------------------------------------
             ! Add Smagorinsky diffusion to vorticity source (svorts):
             call apply_smagorinsky
+#endif
 
             call stop_timer(vtend_timer)
 

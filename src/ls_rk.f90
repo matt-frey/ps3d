@@ -93,6 +93,9 @@ module ls_rk
             integer,          intent(in) :: step
             double precision             :: ca, cb
             integer                      :: nc
+#ifndef ENABLE_SMAGORINSKY
+            integer                      :: iz
+#endif
 
             ca = captr(step)
             cb = cbptr(step)
@@ -119,11 +122,29 @@ module ls_rk
 
 #ifdef ENABLE_BUOYANCY
             sbuoy = filt * (sbuoy + cb * dt * bsm)
+#ifndef ENABLE_SMAGORINSKY
+            call field_combine_semi_spectral(sbuoy)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sbuoy)
+#endif
 #endif
             do nc = 1, 3
                 !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (svor(:, :, :, nc) + cb * dt * vortsm(:, :, :, nc))
                 !$omp end parallel workshare
+#ifndef ENABLE_SMAGORINSKY
+                call field_combine_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel do private(iz)  default(shared)
+                do iz = 0, nz
+                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                enddo
+                !$omp end parallel do
+                call field_decompose_semi_spectral(svor(:, :, :, nc))
+#endif
             enddo
 
             call adjust_vorticity_mean
