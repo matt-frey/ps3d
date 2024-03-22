@@ -78,10 +78,9 @@ module ls_rk
             double precision, intent(in)    :: dt
             integer                         :: n
 
-            do n = 1, n_stages-1
+            do n = 1, n_stages
                 call ls_rk_substep(dt, n)
             enddo
-            call ls_rk_substep(dt, n_stages)
 
             t = t + dt
         end subroutine ls_rk_step
