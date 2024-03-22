@@ -78,13 +78,13 @@ module advance_mod
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
-            call field_combine_semi_spectral(sbuoy)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sbuoy)
+            !call field_combine_semi_spectral(sbuoy)
+            !! omp parallel do private(iz)  default(shared)
+            !do iz = 0, nz
+            !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+            !enddo
+            !! omp end parallel do
+            !call field_decompose_semi_spectral(sbuoy)
 #endif
 
             ! Advance interior and boundary values of vorticity
@@ -121,13 +121,13 @@ module advance_mod
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
-                call field_combine_semi_spectral(sbuoy)
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(sbuoy)
+                !call field_combine_semi_spectral(sbuoy)
+                !! omp parallel do private(iz)  default(shared)
+                !do iz = 0, nz
+                !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                !enddo
+                !! omp end parallel do
+                !call field_decompose_semi_spectral(sbuoy)
 #endif
 
                 do nc = 1, 3

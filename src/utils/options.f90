@@ -35,11 +35,6 @@ module options
 
     type(info) :: output
 
-    !
-    ! domain options
-    !
-    logical :: allow_larger_anisotropy = .false.
-
     !(Hyper)viscosity parameters:
     type visc_type
         integer :: nnu
@@ -117,9 +112,6 @@ module options
 #ifdef ENABLE_VERBOSE
             call write_netcdf_attribute(ncid, "verbose", verbose)
 #endif
-            call write_netcdf_attribute(ncid, "allow_larger_anisotropy", &
-                                               allow_larger_anisotropy)
-
 
             if (viscosity%nnu == 1) then
                 call write_netcdf_attribute(ncid, "viscosity", "molecular")

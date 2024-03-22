@@ -3,7 +3,6 @@
 ! simulation.
 ! =============================================================================
 module parameters
-    use options, only : allow_larger_anisotropy
     use constants
     implicit none
 
@@ -66,28 +65,11 @@ module parameters
     ! Update all parameters according to the
     ! user-defined global options.
     subroutine update_parameters
-        double precision :: msr
 
         upper = lower + extent
 
         dx = extent / dble((/nx, ny, nz/))
         dxi = one / dx;
-
-        msr = maxval((/dxi(1) * dx(2), dxi(2) * dx(1),   &
-                       dxi(1) * dx(3), dxi(3) * dx(1),   &
-                       dxi(2) * dx(3), dxi(3) * dx(2)/))
-
-        if (msr > two) then
-            print *, '**********************************************************************'
-            print *, '*                                                                    *'
-            print *, '*   Warning: A mesh spacing ratio of more than 2 is not advisable!   *'
-            print *, '*                                                                    *'
-            print *, '**********************************************************************'
-
-            if (.not. allow_larger_anisotropy) then
-                stop
-            endif
-        endif
 
         vdomaini = one / product(extent)
 

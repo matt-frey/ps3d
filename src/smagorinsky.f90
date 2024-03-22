@@ -3,7 +3,7 @@ module smagorinsky_mod
     use parameters, only : vcell
     use dimensions, only : I_X, I_Y, I_Z
     use mpi_layout, only : box
-    use fields, only : svorts, svel, svor, vor
+    use fields, only : svorts, svel, svor, vor, sbuoy, sbuoys
     use sta3dfft, only : diffx      &
                        , diffy      &
                        , fftxys2p   &
@@ -25,7 +25,7 @@ module smagorinsky_mod
                         , I_DWDX = 4 & ! index for dw/dx strain component
                         , I_DWDY = 5   ! index for dw/dy strain component
 
-    public :: apply_smagorinsky
+    public :: apply_smagorinsky, apply_smagorinsky_buoyancy
 
     contains
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -47,7 +47,7 @@ module smagorinsky_mod
             !------------------------------------------------------------------
             ! Obtain Smagorinsky viscosity:
             ! Calculate straing magnitude and store in *smag*
-            call strain_magnitude(vor, velgrad, smag)
+            call strain_magnitude(velgrad, smag)
 
             ! Multiply with length scale (Smagorinsky coefficient: c_s = 0.173 according to Lilly)
             ! Deardorff: (dx * dy * dz) ** f13
@@ -96,11 +96,7 @@ module smagorinsky_mod
         ! @param[in] velocity gradient tensor at grid point
         ! @param[in] vorticity at grid point
         ! @returns 3x3 strain matrix
-        subroutine strain_magnitude(vor, velgrad, smag)
-            double precision, intent(in) :: vor(box%lo(3):box%hi(3),  & ! 0:nz
-                                                box%lo(2):box%hi(2),  &
-                                                box%lo(1):box%hi(1),  &
-                                                3)
+        subroutine strain_magnitude(velgrad, smag)
             double precision, intent(in) :: velgrad(box%lo(3):box%hi(3),  & ! 0:nz
                                                     box%lo(2):box%hi(2),  &
                                                     box%lo(1):box%hi(1),  &
@@ -248,5 +244,78 @@ module smagorinsky_mod
             enddo
 
         end subroutine apply_smagorinsky
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Calculate grad(smag * grad(buoy)) where "smag" is the (Smagorinsky) eddy viscosity
+        subroutine apply_smagorinsky_buoyancy
+            double precision :: ds(box%lo(3):box%hi(3),  & ! 0:nz
+                                   box%lo(2):box%hi(2),  &
+                                   box%lo(1):box%hi(1))
+            double precision :: dp(box%lo(3):box%hi(3),  & ! 0:nz
+                                   box%lo(2):box%hi(2),  &
+                                   box%lo(1):box%hi(1))
+            double precision :: smag(box%lo(3):box%hi(3), &
+                                     box%lo(2):box%hi(2), &
+                                     box%lo(1):box%hi(1))
+            double precision :: omg(box%lo(3):box%hi(3),  & ! 0:nz
+                                    box%lo(2):box%hi(2),  &
+                                    box%lo(1):box%hi(1))
+
+            call smagorinsky(smag)
+
+            ! grad(smag * grad(buoy)):
+            ! d(smag * dbuoy/dx) / dx   + d(smag * dbuoy/dy) / dy   + d(smag * dbuoy/dz) / dz
+            !--------------------------------------------------------------
+            ! x-derivatives:
+            call diffx(sbuoy, ds)
+            
+            call field_combine_physical(ds, dp)
+            
+            ! apply eddy viscosity:
+            dp = smag * dp
+            
+            call field_decompose_physical(dp, ds)
+            
+            ! d^2*/dx^2
+            call diffx(ds, omg)
+            
+            sbuoys(:, :, :) = sbuoys(:, :, :) + omg
+            
+            !--------------------------------------------------------------
+            ! y-derivatives:
+            
+            call diffy(sbuoy, ds)
+            
+            call field_combine_physical(ds, dp)
+            
+            ! apply eddy viscosity:
+            dp = smag * dp
+            
+            call field_decompose_physical(dp, ds)
+
+            ! d^2*/dy^2
+            call diffy(ds, omg)
+            
+            sbuoys = sbuoys + omg
+
+            !--------------------------------------------------------------
+            ! z-derivatives:
+            
+            call field_combine_physical(sbuoy, omg)
+            
+            call central_diffz(omg, dp)
+            
+            ! apply eddy viscosity:
+            omg = smag * dp
+            
+            ! d^2*/dy^2
+            call central_diffz(omg, dp)
+            
+            call field_decompose_physical(dp, omg)
+            
+            sbuoys = sbuoys + omg
+            
+       end subroutine apply_smagorinsky_buoyancy  
 
 end module smagorinsky_mod

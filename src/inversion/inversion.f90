@@ -10,7 +10,7 @@ module inversion_mod
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
     use mpi_timer, only : start_timer, stop_timer
     use fields
-    use smagorinsky_mod, only : apply_smagorinsky
+    use smagorinsky_mod, only : apply_smagorinsky, apply_smagorinsky_buoyancy
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -294,6 +294,8 @@ module inversion_mod
 
             ! Convert to mixed-spectral space:
             call field_decompose_physical(btend, sbuoys)
+
+            call apply_smagorinsky_buoyancy
 
         end subroutine buoyancy_tendency
 #endif
