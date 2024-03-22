@@ -13,7 +13,7 @@ module advance_mod
     use options, only : time, viscosity, stepper
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
-    use inversion_mod, only : vor2vel, pressure
+    use inversion_mod, only : vor2vel, source, pressure
 #ifdef ENABLE_BUOYANCY
 #ifdef ENABLE_PERTURBATION_MODE
     use physics, only : bfsq
