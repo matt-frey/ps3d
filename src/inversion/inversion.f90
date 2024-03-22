@@ -10,7 +10,10 @@ module inversion_mod
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
     use mpi_timer, only : start_timer, stop_timer
     use fields
-    use smagorinsky_mod, only : apply_smagorinsky, apply_smagorinsky_buoyancy
+    use smagorinsky_mod, only : apply_smagorinsky
+#ifdef ENABLE_BUOYANCY
+    use smagorinsky_mod, only : apply_smagorinsky_buoyancy
+#endif
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -482,5 +485,22 @@ module inversion_mod
             call stop_timer(pres_timer)
 
         end subroutine pressure
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Gets the source terms for vorticity and buoyancy in mixed-spectral space.
+        ! Note, vel obtained by vor2vel before calling this
+        ! routine is spectrally truncated.
+        subroutine source
+#ifdef ENABLE_BUOYANCY
+            !------------------------------------
+            !Buoyancy source:
+            call buoyancy_tendency
+#endif
+            !------------------------------------
+            !Vorticity source:
+            call vorticity_tendency
+
+        end subroutine source
 
 end module inversion_mod

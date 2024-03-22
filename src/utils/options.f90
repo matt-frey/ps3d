@@ -20,6 +20,8 @@ module options
     ! configuration file
     character(len=512) :: filename = ''
 
+    ! time integrator
+    character(len=3) :: stepper = 'RK4' ! RK3 or 'CN2'
     !
     ! output options
     !
@@ -75,7 +77,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, field_step, viscosity, output, time
+            namelist /PS3D/ field_file, field_step, stepper, viscosity, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -119,6 +121,7 @@ module options
                 call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
             endif
 
+            call write_netcdf_attribute(ncid, "stepper", stepper)
             call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
             call write_netcdf_attribute(ncid, "prediss", viscosity%prediss)
 

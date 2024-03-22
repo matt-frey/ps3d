@@ -10,12 +10,11 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module advance_mod
-    use options, only : time, viscosity
+    use options, only : time, viscosity, stepper
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
-    use inversion_mod, only : vor2vel, vorticity_tendency, pressure
+    use inversion_mod, only : vor2vel, pressure
 #ifdef ENABLE_BUOYANCY
-    use inversion_mod, only : buoyancy_tendency
 #ifdef ENABLE_PERTURBATION_MODE
     use physics, only : bfsq
 #endif
@@ -30,14 +29,14 @@ module advance_mod
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR     &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
+    use cn2, only : cn2_step
+    use ls_rk, only : ls_rk_step
+    use mpi_utils, only : mpi_stop
     implicit none
 
     integer :: advance_timer
 
-    ! Number of iterations of above scheme:
-    integer, parameter:: niter = 2
-
-    double precision :: dt, dt2
+    double precision :: dt
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax, dfac
@@ -48,13 +47,6 @@ module advance_mod
 
         subroutine advance(t)
             double precision, intent(inout) :: t
-            integer                         :: iter
-            integer                         :: nc
-            ! Spectral fields needed in time stepping:
-            double precision                :: vortsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3)
-#ifdef ENABLE_BUOYANCY
-            double precision                :: bsm(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-#endif
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -64,110 +56,26 @@ module advance_mod
             !Adapt the time step
             call adapt(t)
 
-            !Write fields
-            call write_step(t)
-
-            !------------------------------------------------------------------
-            !Start with a guess for F^{n+1} for all fields:
-
-            !Calculate the source terms (sbuoys, svorts) for buoyancy (sbuoy) and
-            !vorticity in spectral space:
-            call source
-
-            !Initialise iteration (dt = dt/2 below):
-#ifdef ENABLE_BUOYANCY
-            bsm = sbuoy + dt2 * sbuoys
-            sbuoy = filt * (bsm + dt2 * sbuoys)
-            !call field_combine_semi_spectral(sbuoy)
-            !! omp parallel do private(iz)  default(shared)
-            !do iz = 0, nz
-            !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-            !enddo
-            !! omp end parallel do
-            !call field_decompose_semi_spectral(sbuoy)
-#endif
-
-            ! Advance interior and boundary values of vorticity
-            !$omp parallel workshare
-            vortsm = svor + dt2 * svorts
-            !$omp end parallel workshare
-
-            do nc = 1, 3
-                !$omp parallel workshare
-                svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                !$omp end parallel workshare
-                !call field_combine_semi_spectral(svor(:, :, :, nc))
-                !!omp parallel do private(iz)  default(shared)
-                !do iz = 0, nz
-                !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                !enddo
-                !!omp end parallel do
-                !call field_decompose_semi_spectral(svor(:, :, :, nc))
-            enddo
-
-            call adjust_vorticity_mean
-
-            !diss is related to the hyperdiffusive operator (see end of adapt)
-
-            !------------------------------------------------------------------
-            !Iterate to improve estimates of F^{n+1}:
-            do iter = 1, niter
-                !Perform inversion at t^{n+1} from estimated quantities:
-                call vor2vel
-
-                !Calculate the source terms (sbuoys,svorts):
-                call source
-
-                !Update fields:
-#ifdef ENABLE_BUOYANCY
-                sbuoy = filt * (bsm + dt2 * sbuoys)
-                !call field_combine_semi_spectral(sbuoy)
-                !! omp parallel do private(iz)  default(shared)
-                !do iz = 0, nz
-                !    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-                !enddo
-                !! omp end parallel do
-                !call field_decompose_semi_spectral(sbuoy)
-#endif
-
-                do nc = 1, 3
-                    !$omp parallel workshare
-                    svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                    !$omp end parallel workshare
-                    !call field_combine_semi_spectral(svor(:, :, :, nc))
-                    !!omp parallel do private(iz)  default(shared)
-                    !do iz = 0, nz
-                    !    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                    !enddo
-                    !!omp end parallel do
-                    !call field_decompose_semi_spectral(svor(:, :, :, nc))
-                enddo
-
-                call adjust_vorticity_mean
-
-            enddo
-
             !Advance time:
             if (world%rank == world%root) then
                 print *, "At time", t, "and time step", dt
             endif
-            t = t + dt
+
+            !Write fields
+            call write_step(t)
+
+            select case (stepper)
+                case ('RK4')
+                    call ls_rk_step(t, dt)
+                case ('RK3')
+                    call ls_rk_step(t, dt)
+                case ('CN2')
+                    call cn2_step(t, dt)
+                case default
+                    call mpi_stop('Only RK or CN time integrators.')
+            end select
+
         end subroutine advance
-
-        ! Gets the source terms for vorticity and buoyancy in mixed-spectral space.
-        ! Note, vel obtained by vor2vel before calling this
-        ! routine is spectrally truncated.
-        subroutine source
-#ifdef ENABLE_BUOYANCY
-            !------------------------------------
-            !Buoyancy source:
-            call buoyancy_tendency
-#endif
-            !------------------------------------
-            !Vorticity source:
-            call vorticity_tendency
-
-        end subroutine source
 
         !=======================================================================
 
@@ -355,9 +263,6 @@ module advance_mod
                      time%alpha / (bfmax + small),  &
                      cflpf / (velmax + small),      &
                      time%limit - t)
-
-            !Update value of dt/2:
-            dt2 = f12 * dt
 
             !---------------------------------------------------------------------
             if (viscosity%nnu .eq. 1) then

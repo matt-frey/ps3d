@@ -20,6 +20,7 @@ program ps3d
                     , setup_fields
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
+    use ls_rk, only : ls_rk_setup
     implicit none
 
     integer          :: ps_timer
@@ -44,7 +45,9 @@ program ps3d
 
         subroutine pre_run
             use options, only : output              &
-                              , read_config_file
+                              , read_config_file    &
+                              , stepper
+            integer :: rk_order
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -67,6 +70,17 @@ program ps3d
             call setup_fields
 
             call setup_output_files
+
+            select case (stepper)
+                case ('RK4')
+                    rk_order = 4
+                case ('RK3')
+                    rk_order = 3
+                case default
+                    rk_order = 4
+            end select
+
+            call ls_rk_setup(rk_order)
 
         end subroutine
 
