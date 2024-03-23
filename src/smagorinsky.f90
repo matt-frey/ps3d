@@ -52,7 +52,7 @@ module smagorinsky_mod
 
             !------------------------------------------------------------------
             ! Obtain Smagorinsky viscosity:
-            ! Calculate straing magnitude and store in *smag*
+            ! Calculate strain magnitude and store in *smag*
             call strain_magnitude(velgrad, smag)
 
             ! Multiply with length scale (Smagorinsky coefficient: c_s = 0.173 according to Lilly)
@@ -240,7 +240,7 @@ module smagorinsky_mod
                 ! apply eddy viscosity:
                 omg = smag * dp
 
-                ! d^2*/dy^2
+                ! d^2*/dz^2
                 call central_diffz(omg, dp)
 
                 call field_decompose_physical(dp, omg)
@@ -316,7 +316,7 @@ module smagorinsky_mod
             ! apply eddy viscosity:
             omg = smag * dp
 
-            ! d^2*/dy^2
+            ! d^2*/dz^2
             call central_diffz(omg, dp)
 
             call field_decompose_physical(dp, omg)
