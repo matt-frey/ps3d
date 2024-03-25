@@ -52,16 +52,15 @@ module field_diagnostics_netcdf
                         , NC_OXMAX  = 17    &
                         , NC_OYMAX  = 18    &
                         , NC_OZMAX  = 19    &
-                        , NC_HEMIN  = 20    &
-                        , NC_HEMAX  = 21
+                        , NC_HEMAX  = 20
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 22    &
-                        , NC_BMAX   = 23    &
-                        , NC_BMIN   = 24
+    integer, parameter :: NC_APE    = 21    &
+                        , NC_BMAX   = 22    &
+                        , NC_BMIN   = 23
 
 #ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ   = 25    &
-                        , NC_MSS    = 26      ! mss = minimum static stability
+    integer, parameter :: NC_BASQ   = 24    &
+                        , NC_MSS    = 25      ! mss = minimum static stability
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
@@ -270,7 +269,6 @@ module field_diagnostics_netcdf
         nc_dset(NC_OZMAX)%val = vormax(3)
 
         nc_dset(NC_HEMAX)%val = get_max_horizontal_enstrophy()
-        nc_dset(NC_HEMIN)%val = get_min_horizontal_enstrophy()
 
         nc_dset(NC_KEXY)%val   = get_horizontal_kinetic_energy()
         nc_dset(NC_KEZ)%val    = get_vertical_kinetic_energy()

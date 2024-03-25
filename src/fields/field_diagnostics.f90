@@ -204,7 +204,7 @@ module field_diagnostics
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! maximum horizontal enstrophy, i.e. sqrt(xi^2 + eta^2)
+        ! maximum horizontal enstrophy, i.e. max(sqrt(xi^2 + eta^2))
         function get_max_horizontal_enstrophy() result(hemax)
             double precision :: hemax
 
@@ -213,18 +213,6 @@ module field_diagnostics
             call mpi_blocking_reduce(hemax, MPI_MAX, world)
 
         end function get_max_horizontal_enstrophy
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! maximum horizontal enstrophy, i.e. sqrt(xi^2 + eta^2)
-        function get_min_horizontal_enstrophy() result(hemin)
-            double precision :: hemin
-
-            hemin = minval(dsqrt(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
-
-            call mpi_blocking_reduce(hemin, MPI_MIN, world)
-
-        end function get_min_horizontal_enstrophy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
