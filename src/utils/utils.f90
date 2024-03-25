@@ -180,7 +180,9 @@ module utils
             en = en + get_gradb_integral()
 #endif
 
+#ifndef ENABLE_SMAGORINSKY
             call init_diffusion(bbdif, te, en)
+#endif
 
         end subroutine setup_fields
 

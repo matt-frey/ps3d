@@ -18,8 +18,11 @@ ps3d_SOURCES = 					\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
+	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
+	cn2.f90					\
+	ls_rk.f90				\
 	advance.f90				\
 	ps3d.f90
 
