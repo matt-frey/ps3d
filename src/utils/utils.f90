@@ -170,14 +170,14 @@ module utils
             ini_vor_mean = calc_vorticity_mean()
 
             call vor2vel
-            ke = get_kinetic_energy()
-            ape = get_available_potential_energy()
+            ke = get_kinetic_energy(l_allreduce=.true.)
+            ape = get_available_potential_energy(l_allreduce=.true.)
             te = ke + ape
-            en = get_enstrophy()
+            en = get_enstrophy(l_allreduce=.true.)
 
 #ifdef ENABLE_BUOYANCY
             ! add buoyancy term to enstrophy
-            en = en + get_gradb_integral()
+            en = en + get_gradb_integral(l_allreduce=.true.)
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
