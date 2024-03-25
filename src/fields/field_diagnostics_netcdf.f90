@@ -45,21 +45,28 @@ module field_diagnostics_netcdf
                         , NC_KEZ    = 10    &
                         , NC_DIVXY2 = 11    &
                         , NC_ENXY   = 12    &
-                        , NC_ENZ    = 13
+                        , NC_ENZ    = 13    &
+                        , NC_OXMIN  = 14    &
+                        , NC_OYMIN  = 15    &
+                        , NC_OZMIN  = 16    &
+                        , NC_OXMAX  = 17    &
+                        , NC_OYMAX  = 18    &
+                        , NC_OZMAX  = 19    &
+                        , NC_HEMAX  = 20
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 14    &
-                        , NC_BMAX   = 15    &
-                        , NC_BMIN   = 16
+    integer, parameter :: NC_APE    = 21    &
+                        , NC_BMAX   = 22    &
+                        , NC_BMIN   = 23
 
 #ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ   = 17    &
-                        , NC_MSS    = 18      ! mss = minimum static stability
+    integer, parameter :: NC_BASQ   = 24    &
+                        , NC_MSS    = 25      ! mss = minimum static stability
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
 #endif
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_ENZ)
+    type(netcdf_stat_info) :: nc_dset(NC_HEMAX)
 #endif
 
 
@@ -215,19 +222,22 @@ module field_diagnostics_netcdf
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        !@Pre Assumes all fields are up-to-date
         subroutine update_netcdf_field_diagnostics
+            double precision :: vormin(3), vormax(3)
+            integer          :: nc
 #ifdef ENABLE_BUOYANCY
-            double precision             :: bmin, bmax
+            double precision :: bmin, bmax
 #ifdef ENABLE_PERTURBATION_MODE
-            integer                      :: iz
+            integer          :: iz
 #endif
 #endif
-            nc_dset(NC_KE)%val = get_kinetic_energy()
-            nc_dset(NC_EN)%val = get_enstrophy()
+            nc_dset(NC_KE)%val = get_kinetic_energy(l_allreduce=.false.)
+            nc_dset(NC_EN)%val = get_enstrophy(l_allreduce=.false.)
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            nc_dset(NC_APE)%val = get_available_potential_energy()
+            nc_dset(NC_APE)%val = get_available_potential_energy(l_allreduce=.false.)
 #ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
@@ -242,12 +252,29 @@ module field_diagnostics_netcdf
             nc_dset(NC_BMAX)%val = bmax
             nc_dset(NC_BMIN)%val = bmin
 #endif
+        do nc = 1, 3
+            vormin(3) = minval(vor(:, :, :, nc))
+            vormax(3) = maxval(vor(:, :, :, nc))
+        enddo
+
+        call mpi_blocking_reduce(vormin, MPI_MIN, world)
+        call mpi_blocking_reduce(vormax, MPI_MAX, world)
+
+        nc_dset(NC_OXMIN)%val = vormin(1)
+        nc_dset(NC_OYMIN)%val = vormin(2)
+        nc_dset(NC_OZMIN)%val = vormin(3)
+
+        nc_dset(NC_OXMAX)%val = vormax(1)
+        nc_dset(NC_OYMAX)%val = vormax(2)
+        nc_dset(NC_OZMAX)%val = vormax(3)
+
+        nc_dset(NC_HEMAX)%val = get_max_horizontal_enstrophy()
 
         nc_dset(NC_KEXY)%val   = get_horizontal_kinetic_energy()
         nc_dset(NC_KEZ)%val    = get_vertical_kinetic_energy()
         nc_dset(NC_ENXY)%val   = get_horizontal_enstrophy()
         nc_dset(NC_ENZ)%val    = get_vertical_enstrophy()
-        nc_dset(NC_DIVXY2)%val = get_squared_horizontal_divergence()
+        nc_dset(NC_DIVXY2)%val = get_squared_horizontal_divergence(l_allreduce=.false.)
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         nc_dset(NC_BASQ)%val = get_squared_buoyancy_anomaly()
@@ -321,6 +348,55 @@ module field_diagnostics_netcdf
             nc_dset(NC_OZMEAN) = netcdf_stat_info(                      &
                 name='z_vormean',                                       &
                 long_name='mean z-vorticity',                           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OXMIN) = netcdf_stat_info(                       &
+                name='x_vormin',                                        &
+                long_name='min x-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OYMIN) = netcdf_stat_info(                       &
+                name='y_vormin',                                        &
+                long_name='min y-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OZMIN) = netcdf_stat_info(                       &
+                name='z_vormin',                                        &
+                long_name='min z-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OXMAX) = netcdf_stat_info(                       &
+                name='x_vormax',                                        &
+                long_name='max x-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OYMAX) = netcdf_stat_info(                       &
+                name='y_vormax',                                        &
+                long_name='max y-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_OZMAX) = netcdf_stat_info(                       &
+                name='z_vormax',                                        &
+                long_name='max z-vorticity',                            &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_HEMAX) = netcdf_stat_info(                       &
+                name='enxy_max',                                        &
+                long_name='max horizontal enstrophy',                   &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
