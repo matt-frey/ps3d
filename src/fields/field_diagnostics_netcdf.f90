@@ -394,13 +394,6 @@ module field_diagnostics_netcdf
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_HEMIN) = netcdf_stat_info(                       &
-                name='enxy_min',                                        &
-                long_name='min horizontal enstrophy',                   &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
             nc_dset(NC_HEMAX) = netcdf_stat_info(                       &
                 name='enxy_max',                                        &
                 long_name='max horizontal enstrophy',                   &
