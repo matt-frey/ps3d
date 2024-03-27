@@ -98,6 +98,8 @@ program ps3d
                     call mpi_stop("No stepper called '" // stepper // "' available.")
             end select
 
+            call bstep%setup
+
         end subroutine
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
