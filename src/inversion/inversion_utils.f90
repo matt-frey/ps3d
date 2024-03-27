@@ -549,7 +549,7 @@ module inversion_utils
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision              :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                       :: kx, ky, kz, iz
+            integer                       :: kz, iz
 
             !Calculate the derivative of the linear part (ds) in semi-spectral space:
             !$omp parallel do private(iz)  default(shared)
