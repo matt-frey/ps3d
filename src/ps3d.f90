@@ -23,7 +23,9 @@ program ps3d
     use advance_mod, only : advance, base_stepper
     use ls_rk_mod, only : ls_rk
     use cn2_mod, only : cn2
+#ifndef ENABLE_SMAGORINSKY
     use impl_rk4_mod, only : impl_rk4
+#endif
     implicit none
 
     integer                          :: ps_timer
@@ -87,9 +89,11 @@ program ps3d
                 case ('CN2')
                     call mpi_print('Using Crank-Nicholson 2nd order stepper.')
                     bstep = cn2()
+#ifndef ENABLE_SMAGORINSKY
                 case ('IMPL-RK4')
                     call mpi_print('Using implicit diffusion Runge-Kutta 4th order stepper.')
                     bstep = impl_rk4()
+#endif
                 case default
                     call mpi_stop("No stepper called '" // stepper // "' available.")
             end select

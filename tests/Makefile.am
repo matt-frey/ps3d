@@ -10,6 +10,7 @@ AM_FCFLAGS =                            \
 AM_LDFLAGS =                                   	\
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fields/*.o          \
+        $(top_builddir)/src/smagorinsky.o	\
         $(top_builddir)/src/inversion/*.o
 
 noinst_LTLIBRARIES = libcombi.la
