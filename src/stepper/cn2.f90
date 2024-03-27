@@ -9,7 +9,8 @@
 
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
-module cn2
+module cn2_mod
+    use advance_mod, only : base_stepper
     use constants, only : f12
     use parameters, only : nz
     use fields
@@ -18,6 +19,12 @@ module cn2
     use field_diagnostics
     implicit none
 
+    type, extends(base_stepper) :: cn2
+        contains
+            procedure :: setup  => cn2_setup
+            procedure :: step => cn2_step
+    end type
+
     ! Number of iterations of above scheme:
     integer, parameter:: niter = 2
 
@@ -25,7 +32,17 @@ module cn2
 
     contains
 
-        subroutine cn2_step(t, dt)
+        subroutine cn2_setup(self)
+            class(cn2), intent(inout) :: self
+
+            ! do nothing here
+
+        end subroutine cn2_setup
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine cn2_step(self, t, dt)
+            class(cn2),       intent(inout) :: self
             double precision, intent(inout) :: t
             double precision, intent(in)    :: dt
             integer                         :: iter
@@ -125,4 +142,4 @@ module cn2
 
         end subroutine cn2_step
 
-end module cn2
+end module cn2_mod
