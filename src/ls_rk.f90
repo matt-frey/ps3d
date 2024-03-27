@@ -78,19 +78,9 @@ module ls_rk
             double precision, intent(in)    :: dt
             integer                         :: n
 
-#ifndef ENABLE_SMAGORINSKY
-            if (l_implicit) then
-                do n = 1, n_stages
-                    call ls_impl_rk_substep(dt, n)
-                enddo
-            else
-#endif
-                do n = 1, n_stages
-                    call ls_rk_substep(dt, n)
-                enddo
-#ifndef ENABLE_SMAGORINSKY
-            endif
-#endif
+            do n = 1, n_stages
+                call ls_rk_substep(dt, n)
+            enddo
 
             t = t + dt
         end subroutine ls_rk_step
@@ -173,112 +163,5 @@ module ls_rk
             !$omp end parallel workshare
 
         end subroutine ls_rk_substep
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-#ifndef ENABLE_SMAGORINSKY
-        ! Do a low stoarge implicit RK substep.
-        ! @param[in] dt is the time step
-        ! @param[in] step is the number of the substep (1 to 5 or 1 to 3)
-        subroutine ls_impl_rk_substep(dt, step)
-            double precision, intent(in) :: dt
-            integer,          intent(in) :: step
-            double precision             :: ca, cb
-            integer                      :: nc
-            integer                      :: iz
-            double precision             :: ediss(box%lo(2):box%hi(2), &       ! exp(D * (t-t0))
-                                                  box%lo(1):box%hi(1))
-
-            ca = captr(step)
-            cb = cbptr(step)
-
-            if (step == 1) then
-
-                ediss = one
-
-                !$omp parallel workshare
-#ifdef ENABLE_BUOYANCY
-                bsm    = sbuoys
-#endif
-                vortsm = svorts
-                !$omp end parallel workshare
-            else
-                call vor2vel
-
-                call source
-
-                ediss = dexp(diss * cb * dt)
-
-#ifdef ENABLE_BUOYANCY
-                call field_combine_semi_spectral(sbuoys)
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    sbuoys(iz, :, :) = sbuoys(iz, :, :) * ediss
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(sbuoys)
-
-                !$omp parallel workshare
-                bsm = bsm + sbuoys
-                !$omp end parallel workshare
-#endif
-
-                do nc = 1, 3
-                    call field_combine_semi_spectral(svorts(:, :, :, nc))
-                    !$omp parallel do private(iz)  default(shared)
-                    do iz = 0, nz
-                        svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * ediss
-                    enddo
-                    !$omp end parallel do
-                    call field_decompose_semi_spectral(svorts(:, :, :, nc))
-                enddo
-
-                !$omp parallel workshare
-                vortsm = vortsm + svorts
-                !$omp end parallel workshare
-            endif
-
-#ifdef ENABLE_BUOYANCY
-            sbuoy = filt * (sbuoy + cb * dt * bsm)
-
-            ! transform back from b * exp(D(t-t0) to b
-            call field_combine_semi_spectral(sbuoy)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = sbuoy(iz, :, :) / ediss
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sbuoy)
-#endif
-            do nc = 1, 3
-                !$omp parallel workshare
-                svor(:, :, :, nc) = filt * (svor(:, :, :, nc) + cb * dt * vortsm(:, :, :, nc))
-                !$omp end parallel workshare
-
-                ! transform back from vor * exp(D(t-t0) to vor
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) / ediss
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
-            enddo
-
-            call adjust_vorticity_mean
-
-            if (step == n_stages) then
-               return
-            endif
-
-            !$omp parallel workshare
-#ifdef ENABLE_BUOYANCY
-            bsm = ca * bsm
-#endif
-            vortsm = ca * vortsm
-            !$omp end parallel workshare
-
-        end subroutine ls_impl_rk_substep
-#endif
 
 end module ls_rk
