@@ -20,10 +20,15 @@ program ps3d
                     , setup_fields
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
-    use ls_rk, only : ls_rk_setup
+    use advance_mod, only : advance, base_stepper
+    use ls_rk_mod, only : ls_rk
+    use cn2_mod, only : cn2
+    use impl_rk4_mod, only : impl_rk4
     implicit none
 
-    integer          :: ps_timer
+    integer                          :: ps_timer
+    class(base_stepper), allocatable :: bstep
+
 
     call mpi_env_initialise
 
@@ -47,7 +52,6 @@ program ps3d
             use options, only : output              &
                               , read_config_file    &
                               , stepper
-            integer :: rk_order
 
             call register_timer('ps', ps_timer)
             call register_timer('field I/O', field_io_timer)
@@ -71,19 +75,28 @@ program ps3d
 
             call setup_output_files
 
+            ! 27 March 2024
+            ! https://stackoverflow.com/a/72958237
             select case (stepper)
-                case ('RK4')
-                    rk_order = 4
-                case ('RK3')
-                    rk_order = 3
+                case ('LS-RK4')
+                    call mpi_print('Using low-storage Runge-Kutta 4th order stepper.')
+                    bstep = ls_rk(rk_order=4)
+                case ('LS-RK3')
+                    call mpi_print('Using low-storage Runge-Kutta 3rd order stepper.')
+                    bstep = ls_rk(rk_order=3)
+                case ('CN2')
+                    call mpi_print('Using Crank-Nicholson 2nd order stepper.')
+                    bstep = cn2()
+                case ('IMPL-RK4')
+                    call mpi_print('Using implicit diffusion Runge-Kutta 4th order stepper.')
+                    bstep = impl_rk4()
                 case default
-                    rk_order = 4
+                    call mpi_stop("No stepper called '" // stepper // "' available.")
             end select
-
-            call ls_rk_setup(rk_order)
 
         end subroutine
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine run
             use options, only : time
@@ -93,7 +106,7 @@ program ps3d
 
             call start_timer(advance_timer)
             do while (t < time%limit)
-                call advance(t)
+                call advance(bstep, t)
             enddo
             call stop_timer(advance_timer)
 
@@ -103,6 +116,8 @@ program ps3d
             endif
 
         end subroutine run
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine post_run
             use options, only : output
@@ -114,48 +129,49 @@ program ps3d
             call print_timer
         end subroutine
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    ! Get the file name provided via the command line
-    subroutine parse_command_line
-        use options, only : filename
+        ! Get the file name provided via the command line
+        subroutine parse_command_line
+            use options, only : filename
 #ifdef ENABLE_VERBOSE
-        use options, only : verbose
+            use options, only : verbose
 #endif
-        integer                          :: i
-        character(len=512)               :: arg
+            integer                          :: i
+            character(len=512)               :: arg
 
-        filename = ''
-        i = 0
-        do
-            call get_command_argument(i, arg)
-            if (len_trim(arg) == 0) then
-                exit
-            endif
-
-            if (arg == '--config') then
-                i = i + 1
+            filename = ''
+            i = 0
+            do
                 call get_command_argument(i, arg)
-                filename = trim(arg)
-            else if (arg == '--help') then
-                call mpi_stop('Run code with "./ps3d --config [config file]"')
+                if (len_trim(arg) == 0) then
+                    exit
+                endif
+
+                if (arg == '--config') then
+                    i = i + 1
+                    call get_command_argument(i, arg)
+                    filename = trim(arg)
+                else if (arg == '--help') then
+                    call mpi_stop('Run code with "./ps3d --config [config file]"')
 #ifdef ENABLE_VERBOSE
-            else if (arg == '--verbose') then
-                verbose = .true.
+                else if (arg == '--verbose') then
+                    verbose = .true.
 #endif
+                endif
+                i = i+1
+            enddo
+
+                if (filename == '') then
+                call mpi_stop(&
+                    'No configuration file provided. Run code with "./ps3d --config [config file]"')
             endif
-            i = i+1
-        end do
-
-        if (filename == '') then
-            call mpi_stop(&
-                'No configuration file provided. Run code with "./ps3d --config [config file]"')
-        endif
 
 #ifdef ENABLE_VERBOSE
-        ! This is the main application of PS
-        if (verbose) then
-            call mpi_print('Running PS3D with "' // trim(filename) // '"')
-        endif
+            ! This is the main application of PS
+            if (verbose) then
+                call mpi_print('Running PS3D with "' // trim(filename) // '"')
+            endif
 #endif
-    end subroutine parse_command_line
+        end subroutine parse_command_line
 end program ps3d

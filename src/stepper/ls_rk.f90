@@ -2,8 +2,9 @@
 !           Low-storage 3rd and 4th order Runge-Kutta method
 !            (see https://doi.org/10.5194/gmd-10-3145-2017)
 ! =============================================================================
-module ls_rk
-    use constants, only : zero
+module ls_rk_mod
+    use advance_mod, only : base_stepper
+    use constants, only : zero, one
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, source
@@ -12,6 +13,13 @@ module ls_rk
     implicit none
 
     private
+
+    type, extends(base_stepper) :: ls_rk
+        integer :: rk_order = 4
+        contains
+            procedure :: setup  => ls_rk_setup
+            procedure :: step => ls_rk_step
+    end type
 
     integer, parameter :: dp=kind(zero)           ! double precision
 
@@ -45,22 +53,23 @@ module ls_rk
 
     integer :: n_stages
 
-    public :: ls_rk_setup, ls_rk_step
+    public :: ls_rk
 
     contains
 
-        subroutine ls_rk_setup(order)
-            integer, intent(in) :: order
+        subroutine ls_rk_setup(self)
+            use options, only : stepper
+            class(ls_rk), intent(inout) :: self
 
-            select case (order)
-                case (3)
-                    captr => cas3
-                    cbptr => cbs3
-                    n_stages = 3
+            select case (self%rk_order)
                 case (4)
                     captr => cas4
                     cbptr => cbs4
                     n_stages = 5
+                case (3)
+                    captr => cas3
+                    cbptr => cbs3
+                    n_stages = 3
                 case default
                     call mpi_stop('Only third and fourth order RK supported.')
             end select
@@ -73,7 +82,8 @@ module ls_rk
         ! @param[in] t is the time
         ! Precondition: this routine assumes that the fields are
         ! up-to-date for the first sub-step
-        subroutine ls_rk_step(t, dt)
+        subroutine ls_rk_step(self, t, dt)
+            class(ls_rk),     intent(inout) :: self
             double precision, intent(inout) :: t
             double precision, intent(in)    :: dt
             integer                         :: n
@@ -85,7 +95,9 @@ module ls_rk
             t = t + dt
         end subroutine ls_rk_step
 
-        ! Do a ls-RK-4 substep.
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Do a ls-RK substep.
         ! @param[in] dt is the time step
         ! @param[in] step is the number of the substep (1 to 5 or 1 to 3)
         subroutine ls_rk_substep(dt, step)
@@ -162,4 +174,4 @@ module ls_rk
 
         end subroutine ls_rk_substep
 
-end module ls_rk
+end module ls_rk_mod

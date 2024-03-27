@@ -29,6 +29,9 @@ module field_diagnostics
         function get_available_potential_energy(l_allreduce) result(ape)
             logical, intent(in) :: l_allreduce
             double precision    :: ape
+#if !defined(ENABLE_BUOYANCY) && !defined(NDEBUG)
+            logical :: l_dummy
+#endif
 #ifdef ENABLE_BUOYANCY
             integer             :: i, j, k
             double precision    :: z(0:nz)
@@ -72,6 +75,9 @@ module field_diagnostics
             endif
 #else
             ape = zero
+#ifndef NDEBUG
+            l_dummy = l_allreduce ! just to avoid unused variable compiler error in debug mode
+#endif
 #endif
         end function get_available_potential_energy
 

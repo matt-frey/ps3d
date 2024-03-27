@@ -1,14 +1,3 @@
-! Advances fields from time t to t+dt using an iterative implicit
-! trapezoidal method of the form
-!
-!     (F^{n+1}-F^n)/dt = (L^{n+1}+L^n)/2 + (S^{n+1}+S^n)/2
-!
-! for a field F, where n refers to the time level, L[F] refers to
-! the linear dissipation terms (hyperdiffusion), and S[F] refers to
-! the remaining source terms.
-
-! We start with the guess S^{n+1} = S^n and iterate  niter  times
-! (see parameter statement below).
 module advance_mod
     use options, only : time, viscosity, stepper
     use constants
@@ -29,10 +18,28 @@ module advance_mod
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR     &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
-    use cn2, only : cn2_step
-    use ls_rk, only : ls_rk_step
-    use mpi_utils, only : mpi_stop
     implicit none
+
+    type, abstract :: base_stepper
+        contains
+            procedure(base_setup),    deferred :: setup
+            procedure(base_step),  deferred :: step
+    end type
+
+    abstract interface
+        subroutine base_setup(self)
+            import base_stepper
+            class(base_stepper), intent(inout) :: self
+        end subroutine base_setup
+
+        subroutine base_step(self, t, dt)
+            import base_stepper
+            class(base_stepper), intent(inout) :: self
+            double precision,    intent(inout) :: t
+            double precision,    intent(in)    :: dt
+        end subroutine base_step
+
+    end interface
 
     integer :: advance_timer
 
@@ -45,8 +52,9 @@ module advance_mod
 
     contains
 
-        subroutine advance(t)
-            double precision, intent(inout) :: t
+        subroutine advance(bstep, t)
+            class(base_stepper), intent(inout) :: bstep
+            double precision,    intent(inout) :: t
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -68,16 +76,7 @@ module advance_mod
                 print *, "At time", t, "and time step", dt
             endif
 
-            select case (stepper)
-                case ('RK4')
-                    call ls_rk_step(t, dt)
-                case ('RK3')
-                    call ls_rk_step(t, dt)
-                case ('CN2')
-                    call cn2_step(t, dt)
-                case default
-                    call mpi_stop('Only RK or CN time integrators.')
-            end select
+            call bstep%step(t, dt)
 
         end subroutine advance
 
