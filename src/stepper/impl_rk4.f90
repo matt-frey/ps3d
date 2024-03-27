@@ -14,11 +14,19 @@ module impl_rk4_mod
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
         double precision, allocatable :: epq(:, :), emq(:, :)
-        double precision, allocatable :: fsvor(:, :, :, :)
+        double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
+#ifdef ENABLE_BUOYANCY
+        double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
+#endif
 
         contains
             procedure :: setup  => impl_rk4_setup
             procedure :: step => impl_rk4_step
+
+            procedure, private :: impl_rk4_substep_one
+            procedure, private :: impl_rk4_substep_two
+            procedure, private :: impl_rk4_substep_three
+            procedure, private :: impl_rk4_substep_four
     end type
 
 
@@ -29,7 +37,14 @@ module impl_rk4_mod
 
             allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%fsvor(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+            allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+            allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+
+#ifdef ENABLE_BUOYANCY
+            allocate(self%sbuoyf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%sbuoyi(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+#endif
+
         end subroutine impl_rk4_setup
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -39,7 +54,6 @@ module impl_rk4_mod
             double precision, intent(inout) :: t
             double precision, intent(in)    :: dt
             integer                         :: nc
-            integer                         :: iz
 
             dt2 = f12 * dt
             dt3 = f13 * dt
@@ -49,20 +63,19 @@ module impl_rk4_mod
             self%emq = dexp(- dt2 * diss)
             self%epq = 1.0d0 / self%emq
 
-            vortsm = svor
-            svor = (vortsm + dt2 * svorts)
+#ifdef ENABLE_BUOYANCY
+            call self%impl_rk4_substep_one(q=sbuoy,          &
+                                           sqs=sbuoys,       &
+                                           qdi=self%sbuoyi,  &
+                                           qdf=self%sbuoyf)
+#endif
+
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * self%emq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
+                call self%impl_rk4_substep_one(q=svor(:, :, :, nc),          &
+                                               sqs=svorts(:, :, :, nc),      &
+                                               qdi=self%svori(:, :, :, nc),  &
+                                               qdf=self%svorf(:, :, :, nc))
             enddo
-
-
-            self%fsvor = vortsm + dt6 * svorts
 
             !------------------------------------------------------------------
             !RK4 corrector step at time t0 + dt/2:
@@ -72,29 +85,19 @@ module impl_rk4_mod
 
             call source
 
-            ! apply integrating factors to source
-            do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * self%epq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
-            enddo
+#ifdef ENABLE_BUOYANCY
+            call self%impl_rk4_substep_two(q=sbuoy,          &
+                                           sqs=sbuoys,       &
+                                           qdi=self%sbuoyi,  &
+                                           qdf=self%sbuoyf)
+#endif
 
-            svor = (vortsm + dt2 * svorts)
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * self%emq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
+                call self%impl_rk4_substep_two(q=svor(:, :, :, nc),          &
+                                               sqs=svorts(:, :, :, nc),      &
+                                               qdi=self%svori(:, :, :, nc),  &
+                                               qdf=self%svorf(:, :, :, nc))
             enddo
-
-            self%fsvor = self%fsvor + dt3 * svorts
 
             !------------------------------------------------------------------
             !RK4 predictor step at time t0 + dt:
@@ -104,30 +107,23 @@ module impl_rk4_mod
 
             call source
 
-            ! apply integrating factors to source
-            do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * self%epq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
-            enddo
+            self%emq = self%emq ** 2
 
-            self%emq = self%emq**2
-            svor = vortsm + dt * svorts
-            do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * self%emq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
-            enddo
+#ifdef ENABLE_BUOYANCY
+            call self%impl_rk4_substep_three(q=sbuoy,          &
+                                             sqs=sbuoys,       &
+                                             qdi=self%sbuoyi,  &
+                                             qdf=self%sbuoyf,  &
+                                             dt=dt)
+#endif
 
-            self%fsvor = self%fsvor + dt3 * svorts
+            do nc = 1, 3
+                call self%impl_rk4_substep_three(q=svor(:, :, :, nc),          &
+                                                 sqs=svorts(:, :, :, nc),      &
+                                                 qdi=self%svori(:, :, :, nc),  &
+                                                 qdf=self%svorf(:, :, :, nc),  &
+                                                 dt=dt)
+            enddo
 
             !------------------------------------------------------------------
             !RK4 corrector step at time t0 + dt:
@@ -136,29 +132,160 @@ module impl_rk4_mod
             call vor2vel
             call source
 
-            self%epq = self%epq**2
-            ! apply integrating factors to source
-            do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * self%epq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
-            enddo
+            self%epq = self%epq ** 2
 
-            svor = self%fsvor + dt6 * svorts
+#ifdef ENABLE_BUOYANCY
+            call self%impl_rk4_substep_four(q=sbuoy,          &
+                                            sqs=sbuoys,       &
+                                            qdf=self%sbuoyf)
+#endif
+
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * self%emq
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
+                call self%impl_rk4_substep_four(q=svor(:, :, :, nc),          &
+                                                sqs=svorts(:, :, :, nc),      &
+                                                qdf=self%svorf(:, :, :, nc))
             enddo
 
         end subroutine impl_rk4_step
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Initialisation step (t = t0) (predictor):
+        subroutine impl_rk4_substep_one(self, q, sqs, qdi, qdf)
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+            double precision, intent(in)    :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(inout) :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            integer                         :: iz
+
+
+            qdi = q
+            q = (qdi + dt2 * sqs)
+            call field_combine_semi_spectral(q)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                q(iz, :, :) = q(iz, :, :) * self%emq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(q)
+
+            qdf = qdi + dt6 * sqs
+
+        end subroutine impl_rk4_substep_one
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! First corrector step (t = t0 + dt/2):
+        subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf)
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                       box%lo(1):box%hi(1))
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            integer                         :: iz
+
+            ! apply integrating factors to source
+            call field_combine_semi_spectral(sqs)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sqs)
+
+            q = (qdi + dt2 * sqs)
+
+            call field_combine_semi_spectral(q)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                q(iz, :, :) = q(iz, :, :) * self%emq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(q)
+
+            qdf = qdf + dt3 * sqs
+
+        end subroutine impl_rk4_substep_two
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Second predictor step (t = t0 + dt):
+        subroutine impl_rk4_substep_three(self, q, sqs, qdi, qdf, dt)
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                       box%lo(1):box%hi(1))
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(in)    :: dt
+            integer                         :: iz
+
+            ! apply integrating factors to source
+            call field_combine_semi_spectral(sqs)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sqs)
+
+            q = qdi + dt * sqs
+
+            call field_combine_semi_spectral(q)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                q(iz, :, :) = q(iz, :, :) * self%emq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(q)
+
+            qdf = qdf + dt3 * sqs
+        end subroutine impl_rk4_substep_three
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Second corrector step (t = t0 + dt):
+        subroutine impl_rk4_substep_four(self, q, sqs, qdf)
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                       box%lo(1):box%hi(1))
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+            integer                         :: iz
+
+            ! apply integrating factors to source
+            call field_combine_semi_spectral(sqs)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(sqs)
+
+            q = qdf + dt6 * sqs
+
+            call field_combine_semi_spectral(q)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                q(iz, :, :) = q(iz, :, :) * self%emq
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(q)
+
+        end subroutine impl_rk4_substep_four
 
 end module impl_rk4_mod
