@@ -123,9 +123,6 @@ module ls_rk_mod
             integer,          intent(in) :: step
             double precision             :: ca, cb
             integer                      :: nc
-#ifndef ENABLE_SMAGORINSKY
-            integer                      :: iz
-#endif
 
             ca = captr(step)
             cb = cbptr(step)
@@ -203,6 +200,7 @@ module ls_rk_mod
                                                        box%lo(1):box%hi(1))
             double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            integer                         :: iz
 
             call field_combine_semi_spectral(q)
             call field_combine_semi_spectral(sqs)
