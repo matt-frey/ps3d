@@ -39,7 +39,7 @@ module cn2_mod
     contains
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine cn2_set_diffusion(self, df, vorch)
+        subroutine cn2_set_diffusion(self, dt, vorch)
             class(cn2),       intent(inout) :: self
             double precision, intent(in)    :: dt
             double precision, intent(in)    :: vorch
