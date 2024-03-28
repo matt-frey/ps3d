@@ -49,18 +49,15 @@ module cn2_mod
             if (viscosity%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
-                !$omp parallel workshare
-                diss = one / (one + dfac * hdis)
-                !$omp end parallel workshare
-                !(see inversion_utils.f90)
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
-                !$omp parallel workshare
-                diss = one / (one + dfac * hdis)
-                !$omp end parallel workshare
-                !(see inversion_utils.f90)
              endif
+
+            !$omp parallel workshare
+            diss = one / (one + dfac * hdis)
+            !$omp end parallel workshare
+            !(see inversion_utils.f90)
 
         end subroutine cn2_set_diffusion
 #endif
