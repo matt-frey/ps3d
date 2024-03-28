@@ -22,11 +22,23 @@ module advance_mod
 
     type, abstract :: base_stepper
         contains
-            procedure(base_setup),    deferred :: setup
-            procedure(base_step),  deferred :: step
+#ifndef ENABLE_SMAGORINSKY
+            procedure(base_diffusion),  deferred :: set_diffusion
+#endif
+            procedure(base_setup),      deferred :: setup
+            procedure(base_step),       deferred :: step
     end type
 
     abstract interface
+#ifndef ENABLE_SMAGORINSKY
+        subroutine base_diffusion(self, dt, vorch)
+            import base_stepper
+            class(base_stepper), intent(inout) :: self
+            double precision,    intent(in)    :: dt
+            double precision,    intent(in)    :: vorch
+        end subroutine base_diffusion
+#endif
+
         subroutine base_setup(self)
             import base_stepper
             class(base_stepper), intent(inout) :: self
@@ -43,10 +55,8 @@ module advance_mod
 
     integer :: advance_timer
 
-    double precision :: dt
-
     !Diagnostic quantities:
-    double precision :: bfmax, vortmax, vortrms, ggmax, velmax, dfac
+    double precision :: bfmax, vortmax, vortrms, ggmax, velmax
     double precision :: vorch
     integer          :: ix, iy, iz
 
@@ -55,6 +65,7 @@ module advance_mod
         subroutine advance(bstep, t)
             class(base_stepper), intent(inout) :: bstep
             double precision,    intent(inout) :: t
+            double precision                   :: dt
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -62,7 +73,7 @@ module advance_mod
             call vor2vel
 
             !Adapt the time step
-            call adapt(t)
+            call adapt(bstep, t, dt)
 
             !Write fields
             call write_step(t)
@@ -83,33 +94,35 @@ module advance_mod
         !=======================================================================
 
         ! Adapts the time step and computes various diagnostics
-        subroutine adapt(t)
-            double precision, intent(in) :: t
-            double precision             :: xs(0:nz, box%lo(2):box%hi(2), &
-                                                     box%lo(1):box%hi(1)) ! derivatives in x in spectral space
-            double precision             :: ys(0:nz, box%lo(2):box%hi(2), &
-                                                     box%lo(1):box%hi(1)) ! derivatives in y in spectral space
-            double precision             :: xp(0:nz, box%lo(2):box%hi(2), &
-                                                     box%lo(1):box%hi(1)) ! derivatives in x in physical space
+        subroutine adapt(bstep, t, dt)
+            class(base_stepper), intent(inout) :: bstep
+            double precision,    intent(in)    :: t
+            double precision,    intent(inout) :: dt
+            double precision                :: xs(0:nz, box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1)) ! derivatives in x in spectral space
+            double precision                :: ys(0:nz, box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1)) ! derivatives in y in spectral space
+            double precision                :: xp(0:nz, box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1)) ! derivatives in x in physical space
 #ifdef ENABLE_BUOYANCY
-            double precision             :: yp(0:nz, box%lo(2):box%hi(2), &
-                                                     box%lo(1):box%hi(1)) ! derivatives in y physical space
-            double precision             :: zp(0:nz, box%lo(2):box%hi(2), &
-                                                     box%lo(1):box%hi(1)) ! derivatives in z physical space
+            double precision                :: yp(0:nz, box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1)) ! derivatives in y physical space
+            double precision                :: zp(0:nz, box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1)) ! derivatives in z physical space
 #endif
-            double precision             :: strain(3, 3), eigs(3)
-            double precision             :: dudx(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! du/dx in physical space
-            double precision             :: dudy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! du/dy in physical space
-            double precision             :: dvdy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dv/dy in physical space
-            double precision             :: dwdx(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dw/dx in physical space
-            double precision             :: dwdy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dw/dy in physical space
-            double precision             :: vormean(3)
-            double precision             :: buf(3)
+            double precision                :: strain(3, 3), eigs(3)
+            double precision                :: dudx(0:nz, box%lo(2):box%hi(2), &
+                                                          box%lo(1):box%hi(1)) ! du/dx in physical space
+            double precision                :: dudy(0:nz, box%lo(2):box%hi(2), &
+                                                          box%lo(1):box%hi(1)) ! du/dy in physical space
+            double precision                :: dvdy(0:nz, box%lo(2):box%hi(2), &
+                                                          box%lo(1):box%hi(1)) ! dv/dy in physical space
+            double precision                :: dwdx(0:nz, box%lo(2):box%hi(2), &
+                                                          box%lo(1):box%hi(1)) ! dw/dx in physical space
+            double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
+                                                          box%lo(1):box%hi(1)) ! dw/dy in physical space
+            double precision                :: vormean(3)
+            double precision                :: buf(3)
 
             bfmax = zero
 
@@ -268,22 +281,7 @@ module advance_mod
                      time%limit - t)
 
 #ifndef ENABLE_SMAGORINSKY
-            !---------------------------------------------------------------------
-            if (viscosity%nnu .eq. 1) then
-                !Update diffusion operator used in time stepping:
-                dfac = dt
-                !$omp parallel workshare
-                diss = one / (one + dfac * hdis)
-                !$omp end parallel workshare
-                !(see inversion_utils.f90)
-            else
-                !Update hyperdiffusion operator used in time stepping:
-                dfac = vorch * dt
-                !$omp parallel workshare
-                diss = one / (one + dfac * hdis)
-                !$omp end parallel workshare
-                !(see inversion_utils.f90)
-             endif
+            call bstep%set_diffusion(dt, vorch)
 #endif
 
         end subroutine adapt

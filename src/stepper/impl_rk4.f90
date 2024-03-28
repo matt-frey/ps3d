@@ -20,6 +20,7 @@ module impl_rk4_mod
 #endif
 
         contains
+            procedure :: set_diffusion => impl_rk4_set_diffusion
             procedure :: setup  => impl_rk4_setup
             procedure :: step => impl_rk4_step
 
@@ -31,6 +32,22 @@ module impl_rk4_mod
 
 
     contains
+
+        subroutine impl_rk4_set_diffusion(self, df, vorch)
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: vorch
+            double precision                :: dfac
+
+            dfac = f12 * vorch * dt
+
+            !$omp parallel workshare
+            diss = dfac * hdis
+            !$omp end parallel workshare
+
+        end subroutine impl_rk4_set_diffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine impl_rk4_setup(self)
             class(impl_rk4), intent(inout) :: self
@@ -60,9 +77,11 @@ module impl_rk4_mod
             dt6 = f16 * dt
 
             ! set integrating factors
-            self%emq = dexp(- dt2 * diss)
+            self%emq = dexp(- diss)
             self%epq = 1.0d0 / self%emq
 
+            !------------------------------------------------------------------
+            ! RK4 predictor step at time t0 + dt/2:
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_one(q=sbuoy,          &
                                            sqs=sbuoys,       &
@@ -78,12 +97,13 @@ module impl_rk4_mod
             enddo
 
             !------------------------------------------------------------------
+            ! Invert and get new sources:
+            call vor2vel
+            call source
+
+            !------------------------------------------------------------------
             !RK4 corrector step at time t0 + dt/2:
             t = t + dt2
-
-            call vor2vel
-
-            call source
 
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_two(q=sbuoy,          &
@@ -100,12 +120,13 @@ module impl_rk4_mod
             enddo
 
             !------------------------------------------------------------------
-            !RK4 predictor step at time t0 + dt:
-
-            !Invert PV and compute velocity:
+            ! Invert and get new sources:
             call vor2vel
-
             call source
+
+            !------------------------------------------------------------------
+            !RK4 predictor step at time t0 + dt:
+            t = t + dt2
 
             self%emq = self%emq ** 2
 
@@ -125,12 +146,14 @@ module impl_rk4_mod
                                                  dt=dt)
             enddo
 
-            !------------------------------------------------------------------
-            !RK4 corrector step at time t0 + dt:
-            t = t + dt2
 
+            !------------------------------------------------------------------
+            ! Invert and get new sources:
             call vor2vel
             call source
+
+            !------------------------------------------------------------------
+            !RK4 corrector step at time t0 + dt:
 
             self%epq = self%epq ** 2
 
@@ -146,6 +169,8 @@ module impl_rk4_mod
                                                 qdf=self%svorf(:, :, :, nc))
             enddo
 
+            call adjust_vorticity_mean
+
         end subroutine impl_rk4_step
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -155,7 +180,7 @@ module impl_rk4_mod
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
-            double precision, intent(in)    :: sqs(0:nz, box%lo(2):box%hi(2), &
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             double precision, intent(inout) :: qdi(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
@@ -163,6 +188,8 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
+            ! Filter source:
+            sqs = filt * sqs
 
             qdi = q
             q = (qdi + dt2 * sqs)
@@ -192,6 +219,9 @@ module impl_rk4_mod
             double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
+
+            ! Filter source:
+            sqs = filt * sqs
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
@@ -232,6 +262,9 @@ module impl_rk4_mod
             double precision, intent(in)    :: dt
             integer                         :: iz
 
+            ! Filter source:
+            sqs = filt * sqs
+
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
@@ -266,6 +299,9 @@ module impl_rk4_mod
             double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
+
+            ! Filter source:
+            sqs = filt * sqs
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
