@@ -82,7 +82,6 @@ module impl_rk4_mod
             t = t + dt2
 
             call vor2vel
-
             call source
 
 #ifdef ENABLE_BUOYANCY
@@ -102,9 +101,7 @@ module impl_rk4_mod
             !------------------------------------------------------------------
             !RK4 predictor step at time t0 + dt:
 
-            !Invert PV and compute velocity:
             call vor2vel
-
             call source
 
             self%emq = self%emq ** 2
@@ -146,6 +143,8 @@ module impl_rk4_mod
                                                 qdf=self%svorf(:, :, :, nc))
             enddo
 
+            call adjust_vorticity_mean
+
         end subroutine impl_rk4_step
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -165,7 +164,7 @@ module impl_rk4_mod
 
 
             qdi = q
-            q = (qdi + dt2 * sqs)
+            q = (qdi + dt2 * filt * sqs)
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
