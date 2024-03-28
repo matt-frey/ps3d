@@ -134,9 +134,18 @@ module ls_rk_mod
             cb = cbptr(step)
 
             if (step == 1) then
+#ifndef ENABLE_SMAGORINSKY
+#ifdef ENABLE_BUOYANCY
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys)
+#endif
+                do nc = 1, 3
+                    call apply_hyperdiffusion(q=svor(:, :, :, nc),    &
+                                              sqs=svorts(:, :, :, nc))
+                enddo
+#endif
                 !$omp parallel workshare
 #ifdef ENABLE_BUOYANCY
-                bsm    = sbuoys
+                bsm = sbuoys
 #endif
                 vortsm = svorts
                 !$omp end parallel workshare
@@ -145,39 +154,33 @@ module ls_rk_mod
 
                 call source
 
-                !$omp parallel workshare
+#ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys)
+#endif
+                do nc = 1, 3
+                    call apply_hyperdiffusion(q=svor(:, :, :, nc),    &
+                                              sqs=svorts(:, :, :, nc))
+                enddo
+#endif
+
+#ifdef ENABLE_BUOYANCY
+                !$omp parallel workshare
                 bsm = bsm + sbuoys
 #endif
                 vortsm = vortsm + svorts
                 !$omp end parallel workshare
             endif
 
+
 #ifdef ENABLE_BUOYANCY
             sbuoy = filt * (sbuoy + cb * dt * bsm)
-#ifndef ENABLE_SMAGORINSKY
-            call field_combine_semi_spectral(sbuoy)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sbuoy)
 #endif
-#endif
+
             do nc = 1, 3
                 !$omp parallel workshare
                 svor(:, :, :, nc) = filt * (svor(:, :, :, nc) + cb * dt * vortsm(:, :, :, nc))
                 !$omp end parallel workshare
-#ifndef ENABLE_SMAGORINSKY
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
-#endif
             enddo
 
             call adjust_vorticity_mean
@@ -194,5 +197,27 @@ module ls_rk_mod
             !$omp end parallel workshare
 
         end subroutine ls_rk_substep
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+#ifndef ENABLE_SMAGORINSKY
+        subroutine apply_hyperdiffusion(q, sqs)
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                       box%lo(1):box%hi(1))
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                         box%lo(1):box%hi(1))
+
+            call field_combine_semi_spectral(q)
+            call field_combine_semi_spectral(sqs)
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
+                sqs(iz, :, :) = sqs(iz, :, :) - diss * q(iz, :, :)
+            enddo
+            !$omp end parallel do
+            call field_decompose_semi_spectral(q)
+            call field_decompose_semi_spectral(sqs)
+
+        end subroutine apply_hyperdiffusion
+#endif
 
 end module ls_rk_mod
