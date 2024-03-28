@@ -62,10 +62,10 @@ module ls_rk_mod
 
 #ifndef ENABLE_SMAGORINSKY
         subroutine ls_rk_set_diffusion(self, df, vorch)
-            class(cn2), intent(inout) :: self
-            double precision,    intent(in)    :: dt
-            double precision,    intent(in)    :: vorch
-            double precision                   :: dfac
+            class(ls_rk),     intent(inout) :: self
+            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: vorch
+            double precision                :: dfac
 
             dfac = vorch * dt
 

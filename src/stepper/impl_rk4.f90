@@ -34,10 +34,10 @@ module impl_rk4_mod
     contains
 
         subroutine impl_rk4_set_diffusion(self, df, vorch)
-            class(cn2), intent(inout) :: self
-            double precision,    intent(in)    :: dt
-            double precision,    intent(in)    :: vorch
-            double precision                   :: dfac
+            class(impl_rk4),  intent(inout) :: self
+            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: vorch
+            double precision                :: dfac
 
             dfac = f12 * vorch * dt
 

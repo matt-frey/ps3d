@@ -281,7 +281,7 @@ module advance_mod
                      time%limit - t)
 
 #ifndef ENABLE_SMAGORINSKY
-            bstep%set_diffusion(dt, vorch)
+            call bstep%set_diffusion(dt, vorch)
 #endif
 
         end subroutine adapt

@@ -40,10 +40,10 @@ module cn2_mod
 
 #ifndef ENABLE_SMAGORINSKY
         subroutine cn2_set_diffusion(self, df, vorch)
-            class(cn2), intent(inout) :: self
-            double precision,    intent(in)    :: dt
-            double precision,    intent(in)    :: vorch
-            double precision                   :: dfac
+            class(cn2),       intent(inout) :: self
+            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: vorch
+            double precision                :: dfac
 
             !---------------------------------------------------------------------
             if (viscosity%nnu .eq. 1) then
