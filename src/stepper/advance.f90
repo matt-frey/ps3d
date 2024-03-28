@@ -55,8 +55,6 @@ module advance_mod
 
     integer :: advance_timer
 
-    double precision :: dt
-
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
     double precision :: vorch
@@ -67,6 +65,7 @@ module advance_mod
         subroutine advance(bstep, t)
             class(base_stepper), intent(inout) :: bstep
             double precision,    intent(inout) :: t
+            double precision                   :: dt
 
             !-------------------------------------------------------------------
             !Invert vorticity for velocity at current time level, say t=t^n:
@@ -74,7 +73,7 @@ module advance_mod
             call vor2vel
 
             !Adapt the time step
-            call adapt(bstep, t)
+            call adapt(bstep, t, dt)
 
             !Write fields
             call write_step(t)
@@ -95,9 +94,10 @@ module advance_mod
         !=======================================================================
 
         ! Adapts the time step and computes various diagnostics
-        subroutine adapt(bstep, t)
+        subroutine adapt(bstep, t, dt)
             class(base_stepper), intent(inout) :: bstep
-            double precision,    intent(in) :: t
+            double precision,    intent(in)    :: t
+            double precision,    intent(inout) :: dt
             double precision                :: xs(0:nz, box%lo(2):box%hi(2), &
                                                         box%lo(1):box%hi(1)) ! derivatives in x in spectral space
             double precision                :: ys(0:nz, box%lo(2):box%hi(2), &
