@@ -20,6 +20,7 @@ module impl_rk4_mod
 #endif
 
         contains
+            procedure :: set_diffusion => impl_rk4_set_diffusion
             procedure :: setup  => impl_rk4_setup
             procedure :: step => impl_rk4_step
 
@@ -31,6 +32,22 @@ module impl_rk4_mod
 
 
     contains
+
+        subroutine impl_rk4_set_diffusion(self, df, vorch)
+            class(cn2), intent(inout) :: self
+            double precision,    intent(in)    :: dt
+            double precision,    intent(in)    :: vorch
+            double precision                   :: dfac
+
+            dfac = f12 * vorch * dt
+
+            !$omp parallel workshare
+            diss = dfac * hdis
+            !$omp end parallel workshare
+
+        end subroutine impl_rk4_set_diffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine impl_rk4_setup(self)
             class(impl_rk4), intent(inout) :: self
@@ -60,7 +77,7 @@ module impl_rk4_mod
             dt6 = f16 * dt
 
             ! set integrating factors
-            self%emq = dexp(- dt2 * hdis)
+            self%emq = dexp(- diss)
             self%epq = 1.0d0 / self%emq
 
             !------------------------------------------------------------------

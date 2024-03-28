@@ -10,8 +10,9 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
+    use options, only : viscosity
     use advance_mod, only : base_stepper
-    use constants, only : f12
+    use constants, only : f12, one
     use parameters, only : nz
     use fields
     use inversion_utils
@@ -21,6 +22,9 @@ module cn2_mod
 
     type, extends(base_stepper) :: cn2
         contains
+#ifndef ENABLE_SMAGORINSKY
+            procedure :: set_diffusion => cn2_set_diffusion
+#endif
             procedure :: setup  => cn2_setup
             procedure :: step => cn2_step
     end type
@@ -31,6 +35,35 @@ module cn2_mod
     double precision :: dt2
 
     contains
+
+#ifndef ENABLE_SMAGORINSKY
+        subroutine cn2_set_diffusion(self, df, vorch)
+            class(cn2), intent(inout) :: self
+            double precision,    intent(in)    :: dt
+            double precision,    intent(in)    :: vorch
+            double precision                   :: dfac
+
+            !---------------------------------------------------------------------
+            if (viscosity%nnu .eq. 1) then
+                !Update diffusion operator used in time stepping:
+                dfac = dt
+                !$omp parallel workshare
+                diss = one / (one + dfac * hdis)
+                !$omp end parallel workshare
+                !(see inversion_utils.f90)
+            else
+                !Update hyperdiffusion operator used in time stepping:
+                dfac = vorch * dt
+                !$omp parallel workshare
+                diss = one / (one + dfac * hdis)
+                !$omp end parallel workshare
+                !(see inversion_utils.f90)
+             endif
+
+        end subroutine cn2_set_diffusion
+#endif
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine cn2_setup(self)
             class(cn2), intent(inout) :: self

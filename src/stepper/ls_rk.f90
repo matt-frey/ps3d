@@ -17,6 +17,9 @@ module ls_rk_mod
     type, extends(base_stepper) :: ls_rk
         integer :: rk_order = 4
         contains
+#ifndef ENABLE_SMAGORINSKY
+            procedure :: set_diffusion => ls_rk_set_diffusion
+#endif
             procedure :: setup  => ls_rk_setup
             procedure :: step => ls_rk_step
     end type
@@ -56,6 +59,24 @@ module ls_rk_mod
     public :: ls_rk
 
     contains
+
+#ifndef ENABLE_SMAGORINSKY
+        subroutine ls_rk_set_diffusion(self, df, vorch)
+            class(cn2), intent(inout) :: self
+            double precision,    intent(in)    :: dt
+            double precision,    intent(in)    :: vorch
+            double precision                   :: dfac
+
+            dfac = vorch * dt
+
+            !$omp parallel workshare
+            diss = dfac * hdis
+            !$omp end parallel workshare
+
+        end subroutine ls_rk_set_diffusion
+#endif
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine ls_rk_setup(self)
             use options, only : stepper
