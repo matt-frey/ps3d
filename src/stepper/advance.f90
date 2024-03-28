@@ -31,7 +31,7 @@ module advance_mod
 
     abstract interface
 #ifndef ENABLE_SMAGORINSKY
-        subroutine base_diffusion(self, df, vorch)
+        subroutine base_diffusion(self, dt, vorch)
             import base_stepper
             class(base_stepper), intent(inout) :: self
             double precision,    intent(in)    :: dt
