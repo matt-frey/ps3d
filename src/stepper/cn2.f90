@@ -10,7 +10,9 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
+#ifndef ENABLE_SMAGORINSKY
     use options, only : viscosity
+#endif
     use advance_mod, only : base_stepper
     use constants, only : f12, one
     use parameters, only : nz
