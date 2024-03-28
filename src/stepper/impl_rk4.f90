@@ -81,16 +81,6 @@ module impl_rk4_mod
             self%epq = 1.0d0 / self%emq
 
             !------------------------------------------------------------------
-            ! Filter source terms:
-#ifdef ENABLE_BUOYANCY
-            sbuoys = filt * sbuoys
-#endif
-
-            do nc = 1, 3
-                svorts(:, :, :, nc) = filt * svorts(:, :, :, nc)
-            enddo
-
-            !------------------------------------------------------------------
             ! RK4 predictor step at time t0 + dt/2:
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_one(q=sbuoy,          &
@@ -110,16 +100,6 @@ module impl_rk4_mod
             ! Invert and get new sources:
             call vor2vel
             call source
-
-            !------------------------------------------------------------------
-            ! Filter source terms:
-#ifdef ENABLE_BUOYANCY
-            sbuoys = filt * sbuoys
-#endif
-
-            do nc = 1, 3
-                svorts(:, :, :, nc) = filt * svorts(:, :, :, nc)
-            enddo
 
             !------------------------------------------------------------------
             !RK4 corrector step at time t0 + dt/2:
@@ -143,16 +123,6 @@ module impl_rk4_mod
             ! Invert and get new sources:
             call vor2vel
             call source
-
-            !------------------------------------------------------------------
-            ! Filter source terms:
-#ifdef ENABLE_BUOYANCY
-            sbuoys = filt * sbuoys
-#endif
-
-            do nc = 1, 3
-                svorts(:, :, :, nc) = filt * svorts(:, :, :, nc)
-            enddo
 
             !------------------------------------------------------------------
             !RK4 predictor step at time t0 + dt:
@@ -183,16 +153,6 @@ module impl_rk4_mod
             call source
 
             !------------------------------------------------------------------
-            ! Filter source terms:
-#ifdef ENABLE_BUOYANCY
-            sbuoys = filt * sbuoys
-#endif
-
-            do nc = 1, 3
-                svorts(:, :, :, nc) = filt * svorts(:, :, :, nc)
-            enddo
-
-            !------------------------------------------------------------------
             !RK4 corrector step at time t0 + dt:
 
             self%epq = self%epq ** 2
@@ -220,7 +180,7 @@ module impl_rk4_mod
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
-            double precision, intent(in)    :: sqs(0:nz, box%lo(2):box%hi(2), &
+            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             double precision, intent(inout) :: qdi(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
@@ -228,6 +188,8 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
+            ! Filter source:
+            sqs = filt * sqs
 
             qdi = q
             q = (qdi + dt2 * sqs)
@@ -257,6 +219,9 @@ module impl_rk4_mod
             double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
+
+            ! Filter source:
+            sqs = filt * sqs
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
@@ -297,6 +262,9 @@ module impl_rk4_mod
             double precision, intent(in)    :: dt
             integer                         :: iz
 
+            ! Filter source:
+            sqs = filt * sqs
+
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
@@ -331,6 +299,9 @@ module impl_rk4_mod
             double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
+
+            ! Filter source:
+            sqs = filt * sqs
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
