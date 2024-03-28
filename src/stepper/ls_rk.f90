@@ -61,16 +61,13 @@ module ls_rk_mod
     contains
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine ls_rk_set_diffusion(self, df, vorch)
+        subroutine ls_rk_set_diffusion(self, dt, vorch)
             class(ls_rk),     intent(inout) :: self
-            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: dt       ! unused here
             double precision, intent(in)    :: vorch
-            double precision                :: dfac
-
-            dfac = vorch * dt
 
             !$omp parallel workshare
-            diss = dfac * hdis
+            diss = vorch * hdis
             !$omp end parallel workshare
 
         end subroutine ls_rk_set_diffusion

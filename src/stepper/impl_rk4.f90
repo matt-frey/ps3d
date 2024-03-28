@@ -33,7 +33,7 @@ module impl_rk4_mod
 
     contains
 
-        subroutine impl_rk4_set_diffusion(self, df, vorch)
+        subroutine impl_rk4_set_diffusion(self, dt, vorch)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(in)    :: dt
             double precision, intent(in)    :: vorch
