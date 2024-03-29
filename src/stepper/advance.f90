@@ -128,6 +128,7 @@ module advance_mod
             double precision                :: buf(3)
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
+            character(512)                  :: fname
 #endif
 
             bfmax = zero
