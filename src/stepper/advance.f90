@@ -1,5 +1,8 @@
 module advance_mod
     use options, only : time, viscosity, stepper
+#ifdef ENABLE_VERBOSE
+    use options, only : output
+#endif
     use constants
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, source, pressure
@@ -123,6 +126,10 @@ module advance_mod
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
             double precision                :: buf(3)
+#ifdef ENABLE_VERBOSE
+            logical                         :: l_exist = .false.
+            character(512)                  :: fname
+#endif
 
             bfmax = zero
 
@@ -279,6 +286,23 @@ module advance_mod
                      time%alpha / (bfmax + small),  &
                      cflpf / (velmax + small),      &
                      time%limit - t)
+
+#ifdef ENABLE_VERBOSE
+            if (world%rank == world%root) then
+                fname = trim(output%basename) // '_alpha_time_step.asc'
+                inquire(file=trim(fname), exist=l_exist)
+                if ((t /= zero) .and. l_exist) then
+                    open(unit=1235, file=trim(fname), status='old', position='append')
+                else
+                    open(unit=1235, file=trim(fname), status='replace')
+                    write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     \alpha_b/N_{max}'
+                endif
+
+                write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small)
+
+                close(1235)
+            endif
+#endif
 
 #ifndef ENABLE_SMAGORINSKY
             call bstep%set_diffusion(dt, vorch)

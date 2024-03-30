@@ -224,20 +224,21 @@ module field_diagnostics_netcdf
 
         !@Pre Assumes all fields are up-to-date
         subroutine update_netcdf_field_diagnostics
-            double precision :: vormin(3), vormax(3)
             integer          :: nc
 #ifdef ENABLE_BUOYANCY
             double precision :: bmin, bmax
 #ifdef ENABLE_PERTURBATION_MODE
             integer          :: iz
+            double precision :: buf(9)
 #endif
+#else
+            double precision :: buf(8)
 #endif
-            nc_dset(NC_KE)%val = get_kinetic_energy(l_allreduce=.false.)
-            nc_dset(NC_EN)%val = get_enstrophy(l_allreduce=.false.)
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            nc_dset(NC_APE)%val = get_available_potential_energy(l_allreduce=.false.)
+            buf(8) = get_available_potential_energy(l_global=.false., l_allreduce=.false.)
+
 #ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
@@ -245,40 +246,93 @@ module field_diagnostics_netcdf
 #endif
             bmin = minval(buoy)
             bmax = maxval(buoy)
-
-            call mpi_blocking_reduce(bmin, MPI_MIN, world)
-            call mpi_blocking_reduce(bmax, MPI_MAX, world)
-
-            nc_dset(NC_BMAX)%val = bmax
-            nc_dset(NC_BMIN)%val = bmin
 #endif
-        do nc = 1, 3
-            vormin(3) = minval(vor(:, :, :, nc))
-            vormax(3) = maxval(vor(:, :, :, nc))
-        enddo
 
-        call mpi_blocking_reduce(vormin, MPI_MIN, world)
-        call mpi_blocking_reduce(vormax, MPI_MAX, world)
+        !
+        ! Summed values
+        !
 
-        nc_dset(NC_OXMIN)%val = vormin(1)
-        nc_dset(NC_OYMIN)%val = vormin(2)
-        nc_dset(NC_OZMIN)%val = vormin(3)
-
-        nc_dset(NC_OXMAX)%val = vormax(1)
-        nc_dset(NC_OYMAX)%val = vormax(2)
-        nc_dset(NC_OZMAX)%val = vormax(3)
-
-        nc_dset(NC_HEMAX)%val = get_max_horizontal_enstrophy()
-
-        nc_dset(NC_KEXY)%val   = get_horizontal_kinetic_energy()
-        nc_dset(NC_KEZ)%val    = get_vertical_kinetic_energy()
-        nc_dset(NC_ENXY)%val   = get_horizontal_enstrophy()
-        nc_dset(NC_ENZ)%val    = get_vertical_enstrophy()
-        nc_dset(NC_DIVXY2)%val = get_squared_horizontal_divergence(l_allreduce=.false.)
+        buf(1) = get_kinetic_energy(l_global=.false., l_allreduce=.false.)
+        buf(2) = get_enstrophy(l_global=.false., l_allreduce=.false.)
+        buf(3) = get_horizontal_kinetic_energy(l_global=.false.)
+        buf(4) = get_vertical_kinetic_energy(l_global=.false.)
+        buf(5) = get_horizontal_enstrophy(l_global=.false.)
+        buf(6) = get_vertical_enstrophy(l_global=.false.)
+        buf(7) = get_squared_horizontal_divergence(l_global=.false.)
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_BASQ)%val = get_squared_buoyancy_anomaly()
-        nc_dset(NC_MSS)%val = get_minimum_static_stability()
+        buf(9) = get_squared_buoyancy_anomaly(l_global=.false.)
+#endif
+
+        call mpi_blocking_reduce(buf, MPI_SUM, world)
+
+        nc_dset(NC_KE)%val     = buf(1)
+        nc_dset(NC_EN)%val     = buf(2)
+        nc_dset(NC_KEXY)%val   = buf(3)
+        nc_dset(NC_KEZ)%val    = buf(4)
+        nc_dset(NC_ENXY)%val   = buf(5)
+        nc_dset(NC_ENZ)%val    = buf(6)
+        nc_dset(NC_DIVXY2)%val = buf(7)
+#ifdef ENABLE_BUOYANCY
+        nc_dset(NC_APE)%val    = buf(8)
+#endif
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        nc_dset(NC_BASQ)%val = buf(9)
+#endif
+
+
+        !
+        ! Minimum values
+        !
+
+        do nc = 1, 3
+            buf(nc) = minval(vor(:, :, :, nc))
+        enddo
+
+#ifdef ENABLE_BUOYANCY
+        buf(4) = bmin
+#endif
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        buf(5) = get_minimum_static_stability(l_global=.false.)
+#endif
+
+        call mpi_blocking_reduce(buf(1:5), MPI_MIN, world)
+
+
+        nc_dset(NC_OXMIN)%val = buf(1)
+        nc_dset(NC_OYMIN)%val = buf(2)
+        nc_dset(NC_OZMIN)%val = buf(3)
+#ifdef ENABLE_BUOYANCY
+        nc_dset(NC_BMIN)%val  = buf(4)
+#endif
+
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+        nc_dset(NC_MSS)%val   = buf(5)
+#endif
+
+        !
+        ! Maximum values
+        !
+
+        do nc = 1, 3
+            buf(nc) = maxval(vor(:, :, :, nc))
+        enddo
+
+        buf(4) = get_max_horizontal_enstrophy(l_global=.false.)
+#ifdef ENABLE_BUOYANCY
+        buf(5) = bmax
+#endif
+
+        call mpi_blocking_reduce(buf(1:5), MPI_MAX, world)
+
+        nc_dset(NC_OXMAX)%val = buf(1)
+        nc_dset(NC_OYMAX)%val = buf(2)
+        nc_dset(NC_OZMAX)%val = buf(3)
+        nc_dset(NC_HEMAX)%val = buf(4)
+#ifdef ENABLE_BUOYANCY
+        nc_dset(NC_BMAX)%val  = buf(5)
 #endif
 
         end subroutine update_netcdf_field_diagnostics
