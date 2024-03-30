@@ -188,11 +188,8 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            ! Filter source:
-            sqs = filt * sqs
-
             qdi = q
-            q = (qdi + dt2 * sqs)
+            q = filt * (qdi + dt2 * sqs)
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
@@ -201,7 +198,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = qdi + dt6 * sqs
+            qdf = filt * (qdi + dt6 * sqs)
 
         end subroutine impl_rk4_substep_one
 
@@ -220,9 +217,6 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            ! Filter source:
-            sqs = filt * sqs
-
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
@@ -232,7 +226,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = (qdi + dt2 * sqs)
+            q = filt * (qdi + dt2 * sqs)
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
@@ -242,7 +236,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = qdf + dt3 * sqs
+            qdf = filt * (qdf + dt3 * sqs)
 
         end subroutine impl_rk4_substep_two
 
@@ -262,9 +256,6 @@ module impl_rk4_mod
             double precision, intent(in)    :: dt
             integer                         :: iz
 
-            ! Filter source:
-            sqs = filt * sqs
-
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
@@ -274,7 +265,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = qdi + dt * sqs
+            q = filt * (qdi + dt * sqs)
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
@@ -284,7 +275,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = qdf + dt3 * sqs
+            qdf = filt * (qdf + dt3 * sqs)
         end subroutine impl_rk4_substep_three
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -300,9 +291,6 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            ! Filter source:
-            sqs = filt * sqs
-
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
@@ -312,7 +300,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = qdf + dt6 * sqs
+            q = filt * (qdf + dt6 * sqs)
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
