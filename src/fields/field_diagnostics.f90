@@ -13,6 +13,7 @@ module field_diagnostics
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
     use fields, only : vor, vel, svor, svel, ini_vor_mean
+    use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use fields, only : buoy, sbuoy
 #ifdef ENABLE_PERTURBATION_MODE
@@ -26,7 +27,8 @@ module field_diagnostics
     contains
 
         ! domain-averaged available potential energy
-        function get_available_potential_energy(l_allreduce) result(ape)
+        function get_available_potential_energy(l_global, l_allreduce) result(ape)
+            logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: ape
 #if !defined(ENABLE_BUOYANCY) && !defined(NDEBUG)
@@ -59,24 +61,27 @@ module field_diagnostics
 
             ape = ape * ncelli
 
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   ape,                     &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
+            if (l_global) then
+                if (l_allreduce) then
+                    call MPI_Allreduce(MPI_IN_PLACE,            &
+                                       ape,                     &
+                                       1,                       &
+                                       MPI_DOUBLE_PRECISION,    &
+                                       MPI_SUM,                 &
+                                       world%comm,              &
+                                       world%err)
 
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_available_potential_energy.")
-            else
-                call mpi_blocking_reduce(ape, MPI_SUM, world)
+                    call mpi_check_for_error(world, &
+                        "in MPI_Allreduce of field_diagnostics::get_available_potential_energy.")
+                else
+                    call mpi_blocking_reduce(ape, MPI_SUM, world)
+                endif
             endif
 #else
             ape = zero
 #ifndef NDEBUG
             l_dummy = l_allreduce ! just to avoid unused variable compiler error in debug mode
+            l_dummy = l_global
 #endif
 #endif
         end function get_available_potential_energy
@@ -84,7 +89,8 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged kinetic energy
-        function get_kinetic_energy(l_allreduce) result(ke)
+        function get_kinetic_energy(l_global, l_allreduce) result(ke)
+            logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: ke
 
@@ -100,19 +106,21 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   ke,                      &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
+            if (l_global) then
+                if (l_allreduce) then
+                    call MPI_Allreduce(MPI_IN_PLACE,            &
+                                       ke,                      &
+                                       1,                       &
+                                       MPI_DOUBLE_PRECISION,    &
+                                       MPI_SUM,                 &
+                                       world%comm,              &
+                                       world%err)
 
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_kinetic_energy.")
-            else
-                call mpi_blocking_reduce(ke, MPI_SUM, world)
+                    call mpi_check_for_error(world, &
+                        "in MPI_Allreduce of field_diagnostics::get_kinetic_energy.")
+                else
+                    call mpi_blocking_reduce(ke, MPI_SUM, world)
+                endif
             endif
 
         end function get_kinetic_energy
@@ -121,8 +129,9 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged horizontal kinetic energy, i.e. (u^2 + v^2) / 2
-        function get_horizontal_kinetic_energy() result(ke)
-            double precision :: ke
+        function get_horizontal_kinetic_energy(l_global) result(ke)
+            logical, intent(in) :: l_global
+            double precision    :: ke
 
             ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2    &
                          + vel(1:nz-1, :, :, 2) ** 2)   &
@@ -133,15 +142,18 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            call mpi_blocking_reduce(ke, MPI_SUM, world)
+            if (l_global) then
+                call mpi_blocking_reduce(ke, MPI_SUM, world)
+            endif
 
         end function get_horizontal_kinetic_energy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged vertical kinetic energy, i.e. w^2 / 2
-        function get_vertical_kinetic_energy() result(ke)
-            double precision :: ke
+        function get_vertical_kinetic_energy(l_global) result(ke)
+            logical, intent(in) :: l_global
+            double precision    :: ke
 
             ke = f12 * sum(vel(1:nz-1, :, :, 3) ** 2)   &
                + f14 * sum(vel(0,      :, :, 3) ** 2)   &
@@ -149,14 +161,17 @@ module field_diagnostics
 
             ke = ke * ncelli
 
-            call mpi_blocking_reduce(ke, MPI_SUM, world)
+            if (l_global) then
+                call mpi_blocking_reduce(ke, MPI_SUM, world)
+            endif
 
         end function get_vertical_kinetic_energy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy
-        function get_enstrophy(l_allreduce) result(en)
+        function get_enstrophy(l_global, l_allreduce) result(en)
+            logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: en
 
@@ -172,19 +187,21 @@ module field_diagnostics
 
             en = en * ncelli
 
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   en,                      &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
+            if (l_global) then
+                if (l_allreduce) then
+                    call MPI_Allreduce(MPI_IN_PLACE,            &
+                                       en,                      &
+                                       1,                       &
+                                       MPI_DOUBLE_PRECISION,    &
+                                       MPI_SUM,                 &
+                                       world%comm,              &
+                                       world%err)
 
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_enstrophy.")
-            else
-                call mpi_blocking_reduce(en, MPI_SUM, world)
+                    call mpi_check_for_error(world, &
+                        "in MPI_Allreduce of field_diagnostics::get_enstrophy.")
+                else
+                    call mpi_blocking_reduce(en, MPI_SUM, world)
+                endif
             endif
 
         end function get_enstrophy
@@ -192,8 +209,9 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy, i.e. (xi^2 + eta^2) / 2
-        function get_horizontal_enstrophy() result(en)
-            double precision :: en
+        function get_horizontal_enstrophy(l_global) result(en)
+            logical, intent(in) :: l_global
+            double precision    :: en
 
             en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
                          + vor(1:nz-1, :, :, 2) ** 2)   &
@@ -204,27 +222,33 @@ module field_diagnostics
 
             en = en * ncelli
 
-            call mpi_blocking_reduce(en, MPI_SUM, world)
+            if (l_global) then
+                call mpi_blocking_reduce(en, MPI_SUM, world)
+            endif
 
         end function get_horizontal_enstrophy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! maximum horizontal enstrophy, i.e. max(sqrt(xi^2 + eta^2))
-        function get_max_horizontal_enstrophy() result(hemax)
-            double precision :: hemax
+        function get_max_horizontal_enstrophy(l_global) result(hemax)
+            logical, intent(in) :: l_global
+            double precision    :: hemax
 
             hemax = maxval(dsqrt(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
 
-            call mpi_blocking_reduce(hemax, MPI_MAX, world)
+            if (l_global) then
+                call mpi_blocking_reduce(hemax, MPI_MAX, world)
+            endif
 
         end function get_max_horizontal_enstrophy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy, i.e. zeta^2 / 2
-        function get_vertical_enstrophy() result(en)
-            double precision :: en
+        function get_vertical_enstrophy(l_global) result(en)
+            logical, intent(in) :: l_global
+            double precision    :: en
 
             en = f12 * sum(vor(1:nz-1, :, :, 3) ** 2)  &
                + f14 * sum(vor(0,      :, :, 3) ** 2)  &
@@ -232,16 +256,63 @@ module field_diagnostics
 
             en = en * ncelli
 
-            call mpi_blocking_reduce(en, MPI_SUM, world)
+            if (l_global) then
+                call mpi_blocking_reduce(en, MPI_SUM, world)
+            endif
 
         end function get_vertical_enstrophy
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+#ifdef ENABLE_BUOYANCY
+        ! Ri = b_z/(xi^2+eta^2)
+        function get_min_richardson_number(l_global) result(ri)
+            logical, intent(in) :: l_global
+            double precision    :: ri
+            double precision    :: dbdz(box%lo(3):box%hi(3), &
+                                        box%lo(2):box%hi(2), &
+                                        box%lo(1):box%hi(1))
+
+            call central_diffz(buoy, dbdz)
+
+#ifdef ENABLE_PERTURBATION_MODE
+            ! In perturbation mode we only have b'_z, i.e. we must
+            ! add N^2 because b_z = N^2 + b'_z
+            dbdz = bfsq + dbdz
+#endif
+
+            dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
+
+            ri = minval(dbdz)
+
+            if (l_global) then
+                call mpi_blocking_reduce(ri, MPI_MIN, world)
+            endif
+
+        end function get_min_richardson_number
+#endif
+
+        ! Ro = zeta / f (f is the vertical Coriolis frequency)
+        function get_min_rossby_number(l_global) result(ro)
+            logical, intent(in) :: l_global
+            double precision    :: ro
+
+            ro = minval(vor(:, :, :, 3))
+            ro = ro / f_cor(3)
+
+            if (l_global) then
+                call mpi_blocking_reduce(ro, MPI_MIN, world)
+            endif
+
+        end function get_min_rossby_number
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         ! domain-averaged squared buoyancy anomaly, i.e. (b')^2
-        function get_squared_buoyancy_anomaly() result(basq)
-            double precision :: basq
+        function get_squared_buoyancy_anomaly(l_global) result(basq)
+            logical, intent(in) :: l_global
+            double precision    :: basq
 
             call field_combine_physical(sbuoy, buoy)
 
@@ -251,26 +322,31 @@ module field_diagnostics
 
             basq = basq * ncelli
 
-            call mpi_blocking_reduce(basq, MPI_SUM, world)
+            if (l_global) then
+                call mpi_blocking_reduce(basq, MPI_SUM, world)
+            endif
 
         end function get_squared_buoyancy_anomaly
 
 
         ! minimum static stability value, 1 + min(b'_z)/N^2 (if < 0 the flow is overturning)
         ! #pre Assumes we already have the buoyancy anomaly in physical space
-        function get_minimum_static_stability() result(mss)
-            double precision :: mss
-            double precision :: dbdz(box%lo(3):box%hi(3), &
-                                     box%lo(2):box%hi(2), &
-                                     box%lo(1):box%hi(1))
+        function get_minimum_static_stability(l_global) result(mss)
+            logical, intent(in) :: l_global
+            double precision    :: mss
+            double precision    :: dbdz(box%lo(3):box%hi(3), &
+                                        box%lo(2):box%hi(2), &
+                                        box%lo(1):box%hi(1))
 
             call central_diffz(buoy, dbdz)
 
             mss = minval(dbdz)
 
-            call mpi_blocking_reduce(mss, MPI_MIN, world)
-
             mss = one + mss / bfsq
+
+            if (l_global) then
+                call mpi_blocking_reduce(mss, MPI_MIN, world)
+            endif
 
         end function get_minimum_static_stability
 #endif
@@ -278,8 +354,8 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged squared horizontal divergence, i.e. (u_x^2 + u_y^2)
-        function get_squared_horizontal_divergence(l_allreduce) result(divxy2)
-            logical, intent(in) :: l_allreduce
+        function get_squared_horizontal_divergence(l_global) result(divxy2)
+            logical, intent(in) :: l_global
             double precision    :: divxy2
             double precision    :: ds(box%lo(3):box%hi(3), &
                                       box%lo(2):box%hi(2), &
@@ -310,18 +386,7 @@ module field_diagnostics
 
             divxy2 = divxy2 * ncelli
 
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   divxy2,                  &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_squared_horizontal_divergence.")
-            else
+            if (l_global) then
                 call mpi_blocking_reduce(divxy2, MPI_SUM, world)
             endif
 
