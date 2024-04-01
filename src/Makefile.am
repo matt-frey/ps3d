@@ -21,6 +21,7 @@ ps3d_SOURCES = 					\
 	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
+	utils/rolling_mean.f90			\
 	stepper/advance.f90			\
 	stepper/cn2.f90				\
 	stepper/ls_rk.f90

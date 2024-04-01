@@ -281,7 +281,7 @@ module field_diagnostics
             dbdz = bfsq + dbdz
 #endif
 
-            dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
+            dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
 
             ri = minval(dbdz)
 

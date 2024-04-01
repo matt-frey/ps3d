@@ -18,9 +18,13 @@ module advance_mod
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
+    use mpi_utils, only : mpi_stop
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR     &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
+#ifndef ENABLE_SMAGORINSKY
+    use rolling_mean_mod, only : rolling_mean_t
+#endif
     implicit none
 
     type, abstract :: base_stepper
@@ -55,6 +59,10 @@ module advance_mod
         end subroutine base_step
 
     end interface
+
+#ifndef ENABLE_SMAGORINSKY
+    type(rolling_mean_t) :: rollmean
+#endif
 
     integer :: advance_timer
 
@@ -129,6 +137,9 @@ module advance_mod
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
+#endif
+#ifndef ENABLE_SMAGORINSKY
+            double precision                :: rm
 #endif
 
             bfmax = zero
@@ -305,7 +316,16 @@ module advance_mod
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-            call bstep%set_diffusion(dt, vorch)
+            if (viscosity%pretype == 'vorch') then
+                call bstep%set_diffusion(dt, vorch)
+            else if (viscosity%pretype == 'roll-mean-gmax') then
+                call rollmean%alloc(viscosity%roll_mean_win_size)
+                rm = rollmean%get_next(ggmax)
+                call bstep%set_diffusion(dt, rm)
+            else
+                call mpi_stop(&
+                    "We only support characteristic vorticity 'vorch' or rolling mean 'roll-mean-gmax'")
+            endif
 #endif
 
         end subroutine adapt
