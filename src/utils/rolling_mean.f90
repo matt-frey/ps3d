@@ -43,13 +43,13 @@ module rolling_mean_mod
 
                 ! get oldest value
                 vold = self%history(self%iold)
-                self%iold = mod(self%iold + 1, self%length+1)
+                self%iold = mod(self%iold, self%length) + 1
 
                 self%sma = self%sma + (vnew - vold) / dble(self%length)
 
                 ! add new value
                 self%history(self%inew) = vnew
-                self%inew = mod(self%inew + 1, self%length+1)
+                self%inew = mod(self%inew, self%length) + 1
 
             else
                 ! add newest value
@@ -61,7 +61,7 @@ module rolling_mean_mod
 
                 self%l_filled = (self%length == self%inew)
 
-                self%inew = mod(self%inew + 1, self%length+1)
+                self%inew = mod(self%inew, self%length) + 1
             endif
 
             rm = self%sma
