@@ -52,21 +52,23 @@ module field_diagnostics_netcdf
                         , NC_OXMAX  = 17    &
                         , NC_OYMAX  = 18    &
                         , NC_OZMAX  = 19    &
-                        , NC_HEMAX  = 20
+                        , NC_HEMAX  = 20    &
+                        , NC_GMAX   = 21    &
+                        , NC_RGMAX  = 22
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 21    &
-                        , NC_BMAX   = 22    &
-                        , NC_BMIN   = 23
+    integer, parameter :: NC_APE    = 23    &
+                        , NC_BMAX   = 24    &
+                        , NC_BMIN   = 25
 
 #ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ   = 24    &
-                        , NC_MSS    = 25      ! mss = minimum static stability
+    integer, parameter :: NC_BASQ   = 26    &
+                        , NC_MSS    = 27      ! mss = minimum static stability
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
 #endif
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_HEMAX)
+    type(netcdf_stat_info) :: nc_dset(NC_RGMAX)
 #endif
 
 
@@ -83,7 +85,9 @@ module field_diagnostics_netcdf
               NC_OCHAR,                         &
               NC_OXMEAN,                        &
               NC_OYMEAN,                        &
-              NC_OZMEAN
+              NC_OZMEAN,                        &
+              NC_GMAX,                          &
+              NC_RGMAX
 
     contains
 
@@ -454,6 +458,22 @@ module field_diagnostics_netcdf
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
+
+            nc_dset(NC_GMAX) = netcdf_stat_info(                        &
+                name='gmax',                                            &
+                long_name='maximum gamma',                              &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+#ifndef ENABLE_SMAGORINSKY
+            nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
+                name='rolling_mean_gmax',                               &
+                long_name='rolling mean maximum gamma',                 &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+#endif
 
             nc_dset(NC_KEXY) = netcdf_stat_info(                        &
                 name='kexy',                                            &
