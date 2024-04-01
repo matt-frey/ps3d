@@ -319,7 +319,7 @@ module advance_mod
             if (viscosity%pretype == 'vorch') then
                 call bstep%set_diffusion(dt, vorch)
             else if (viscosity%pretype == 'roll-mean-gmax') then
-                call rollmean%alloc(viscosity%win_size)
+                call rollmean%alloc(viscosity%roll_mean_win_size)
                 rm = rollmean%get_next(ggmax)
                 call bstep%set_diffusion(dt, rm)
             else

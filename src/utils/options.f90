@@ -58,7 +58,7 @@ module options
         character(len=16) :: pretype = 'vorch'
 
         ! Window size for the rolling mean approach
-        integer :: win_size = 1000
+        integer :: roll_mean_win_size = 1000
 
     end type visc_type
 
@@ -135,7 +135,7 @@ module options
             call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
             call write_netcdf_attribute(ncid, "prediss", viscosity%prediss)
             call write_netcdf_attribute(ncid, "pretype", viscosity%pretype)
-            call write_netcdf_attribute(ncid, "win_size", viscosity%win_size)
+            call write_netcdf_attribute(ncid, "roll_mean_win_size", viscosity%roll_mean_win_size)
 #endif
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
