@@ -9,6 +9,7 @@ module rolling_mean_mod
         integer,                       private :: iold = 1
         double precision,              private :: sma = 0.0d0 ! simple moving average
         logical,                       private :: l_filled = .false.
+        integer,                       private :: length = 0
 
         contains
             procedure :: alloc
@@ -25,6 +26,9 @@ module rolling_mean_mod
             if (.not. allocated(self%history)) then
                 allocate(self%history(n))
             endif
+
+            self%length = n
+
         end subroutine alloc
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -34,21 +38,18 @@ module rolling_mean_mod
             double precision,      intent(in)    :: vnew
             double precision                     :: vold
             double precision                     :: rm
-            integer                              :: n
-
-            n = size(self%history)
 
             if (self%l_filled) then
 
                 ! get oldest value
                 vold = self%history(self%iold)
-                self%iold = mod(self%iold + 1, n+1)
+                self%iold = mod(self%iold + 1, self%length+1)
 
-                self%sma = self%sma + (vnew - vold) / dble(n)
+                self%sma = self%sma + (vnew - vold) / dble(self%length)
 
                 ! add new value
                 self%history(self%inew) = vnew
-                self%inew = mod(self%inew + 1, n+1)
+                self%inew = mod(self%inew + 1, self%length+1)
 
             else
                 ! add newest value
@@ -58,9 +59,9 @@ module rolling_mean_mod
                 ! return the mean value up to this point
                 self%sma = sum(self%history(1:self%inew)) / dble(self%inew)
 
-                self%l_filled = (n == self%inew)
+                self%l_filled = (self%length == self%inew)
 
-                self%inew = mod(self%inew + 1, n+1)
+                self%inew = mod(self%inew + 1, self%length+1)
             endif
 
             rm = self%sma

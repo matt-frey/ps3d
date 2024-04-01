@@ -19,9 +19,10 @@ module advance_mod
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
     use mpi_utils, only : mpi_stop
-    use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic    &
-                                       , NC_OMAX, NC_ORMS, NC_OCHAR     &
-                                       , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN
+    use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic        &
+                                       , NC_OMAX, NC_ORMS, NC_OCHAR         &
+                                       , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
+                                       , NC_GMAX, NC_RGMAX
 #ifndef ENABLE_SMAGORINSKY
     use rolling_mean_mod, only : rolling_mean_t
 #endif
@@ -290,6 +291,8 @@ module advance_mod
             ggmax = buf(2)
             velmax = buf(3)
 
+            call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
+
             velmax = dsqrt(velmax)
 
             !Choose new time step:
@@ -321,6 +324,7 @@ module advance_mod
             else if (viscosity%pretype == 'roll-mean-gmax') then
                 call rollmean%alloc(viscosity%roll_mean_win_size)
                 rm = rollmean%get_next(ggmax)
+                call set_netcdf_field_diagnostic(rm, NC_RGMAX)
                 call bstep%set_diffusion(dt, rm)
             else
                 call mpi_stop(&
