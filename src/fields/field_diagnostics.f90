@@ -396,7 +396,8 @@ module field_diagnostics
 
 #ifdef ENABLE_BUOYANCY
         ! domain-averaged grad(b) integral
-        function get_gradb_integral(l_allreduce) result(enb)
+        function get_gradb_integral(l_global, l_allreduce) result(enb)
+            logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: enb
             double precision    :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
@@ -428,21 +429,22 @@ module field_diagnostics
 
             enb = enb * ncelli
 
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   enb,                     &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
+            if (l_global) then
+                if (l_allreduce) then
+                    call MPI_Allreduce(MPI_IN_PLACE,            &
+                                       enb,                     &
+                                       1,                       &
+                                       MPI_DOUBLE_PRECISION,    &
+                                       MPI_SUM,                 &
+                                       world%comm,              &
+                                       world%err)
 
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_gradb_integral.")
-            else
-                call mpi_blocking_reduce(enb, MPI_SUM, world)
+                    call mpi_check_for_error(world, &
+                        "in MPI_Allreduce of field_diagnostics::get_gradb_integral.")
+                else
+                    call mpi_blocking_reduce(enb, MPI_SUM, world)
+                endif
             endif
-
         end function get_gradb_integral
 #endif
 
