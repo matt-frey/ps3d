@@ -94,10 +94,8 @@ module ls_rk_mod
 
         end subroutine ls_rk_setup
 
-        ! Advances the parcels by a single ls-RK-4 step. It calls a
-        ! function to obtain the current time step based on the velocity
-        ! strain and the buoyancy gradient.
-        ! @param[in] t is the time
+        ! @param[inout] t is the time
+        ! @param[inout] dt is the time step
         ! Precondition: this routine assumes that the fields are
         ! up-to-date for the first sub-step
         subroutine ls_rk_step(self, t, dt)

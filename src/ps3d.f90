@@ -80,17 +80,17 @@ program ps3d
             ! 27 March 2024
             ! https://stackoverflow.com/a/72958237
             select case (stepper)
-                case ('LS-RK4')
+                case ('ls-rk4')
                     call mpi_print('Using low-storage Runge-Kutta 4th order stepper.')
                     bstep = ls_rk(rk_order=4)
-                case ('LS-RK3')
+                case ('ls-rk3')
                     call mpi_print('Using low-storage Runge-Kutta 3rd order stepper.')
                     bstep = ls_rk(rk_order=3)
-                case ('CN2')
+                case ('cn2')
                     call mpi_print('Using Crank-Nicholson 2nd order stepper.')
                     bstep = cn2()
 #ifndef ENABLE_SMAGORINSKY
-                case ('IMPL-RK4')
+                case ('impl-diff-rk4')
                     call mpi_print('Using implicit diffusion Runge-Kutta 4th order stepper.')
                     bstep = impl_rk4()
 #endif
