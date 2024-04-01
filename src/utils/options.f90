@@ -21,7 +21,7 @@ module options
     character(len=512) :: filename = ''
 
     ! time integrator
-    character(len=8) :: stepper = 'IMPL-RK4' ! 'LS-RK4', 'LS-RK3' or 'CN2'
+    character(len=16) :: stepper = 'impl-diff-rk4' ! 'ls-rk4', 'ls-rk3' or 'cn2'
     !
     ! output options
     !
