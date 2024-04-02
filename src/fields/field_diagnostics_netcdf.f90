@@ -54,21 +54,23 @@ module field_diagnostics_netcdf
                         , NC_OZMAX  = 19    &
                         , NC_HEMAX  = 20    &
                         , NC_GMAX   = 21    &
-                        , NC_RGMAX  = 22
+                        , NC_RGMAX  = 22    &
+                        , NC_RIMIN  = 23    &
+                        , NC_ROMIN  = 24
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 23    &
-                        , NC_BMAX   = 24    &
-                        , NC_BMIN   = 25
+    integer, parameter :: NC_APE    = 25    &
+                        , NC_BMAX   = 26    &
+                        , NC_BMIN   = 27
 
 #ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ   = 26    &
-                        , NC_MSS    = 27      ! mss = minimum static stability
+    integer, parameter :: NC_BASQ   = 28    &
+                        , NC_MSS    = 29      ! mss = minimum static stability
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
 #endif
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_RGMAX)
+    type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
 #endif
 
 
@@ -294,26 +296,32 @@ module field_diagnostics_netcdf
             buf(nc) = minval(vor(:, :, :, nc))
         enddo
 
+        buf(4) = get_min_rossby_number(l_global=.false.)
+
 #ifdef ENABLE_BUOYANCY
-        buf(4) = bmin
+        buf(5) = get_min_richardson_number(l_global=.false.)
+
+        buf(6) = bmin
 #endif
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        buf(5) = get_minimum_static_stability(l_global=.false.)
+        buf(7) = get_minimum_static_stability(l_global=.false.)
 #endif
 
-        call mpi_blocking_reduce(buf(1:5), MPI_MIN, world)
+        call mpi_blocking_reduce(buf(1:7), MPI_MIN, world)
 
 
         nc_dset(NC_OXMIN)%val = buf(1)
         nc_dset(NC_OYMIN)%val = buf(2)
         nc_dset(NC_OZMIN)%val = buf(3)
+        nc_dset(NC_ROMIN)%val = buf(4)
 #ifdef ENABLE_BUOYANCY
-        nc_dset(NC_BMIN)%val  = buf(4)
+        nc_dset(NC_RIMIN)%val = buf(5)
+        nc_dset(NC_BMIN)%val  = buf(6)
 #endif
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_MSS)%val   = buf(5)
+        nc_dset(NC_MSS)%val   = buf(7)
 #endif
 
         !
@@ -474,6 +482,20 @@ module field_diagnostics_netcdf
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 #endif
+
+            nc_dset(NC_RIMIN) = netcdf_stat_info(                       &
+                name='ri_min',                                          &
+                long_name='minimum Richardon number',                   &
+                std_name='',                                            &
+                unit='1',                                               &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_ROMIN) = netcdf_stat_info(                       &
+                name='ro_min',                                          &
+                long_name='minimum Rossby number',                      &
+                std_name='',                                            &
+                unit='1',                                               &
+                dtype=NF90_DOUBLE)
 
             nc_dset(NC_KEXY) = netcdf_stat_info(                        &
                 name='kexy',                                            &
