@@ -485,7 +485,7 @@ module field_diagnostics_netcdf
 
             nc_dset(NC_RIMIN) = netcdf_stat_info(                       &
                 name='ri_min',                                          &
-                long_name='minimum Richardon number',                   &
+                long_name='minimum Richardson number',                  &
                 std_name='',                                            &
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)
