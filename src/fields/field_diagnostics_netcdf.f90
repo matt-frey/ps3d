@@ -15,7 +15,7 @@ module field_diagnostics_netcdf
     use physics, only : write_physical_quantities
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
                             , apebal, apeubal
@@ -63,21 +63,16 @@ module field_diagnostics_netcdf
                         , NC_RIMIN  = 23    &
                         , NC_ROMIN  = 24
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 25    &
-                        , NC_BMAX   = 26    &
-                        , NC_BMIN   = 27
-
-#ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ    = 28    &
+    integer, parameter :: NC_APE     = 25    &
+                        , NC_BMAX    = 26    &
+                        , NC_BMIN    = 27    &
+                        , NC_BASQ    = 28    &
                         , NC_MSS     = 29    &  ! mss = minimum static stability
                         , NC_KEBAL   = 30    &
                         , NC_KEUBAL  = 31    &
                         , NC_APEBAL  = 32    &
                         , NC_APEUBAL = 33
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
-#else
-    type(netcdf_stat_info) :: nc_dset(NC_BMIN)
-#endif
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
 #endif
@@ -239,29 +234,23 @@ module field_diagnostics_netcdf
 
         !@Pre Assumes all fields are up-to-date
         subroutine update_netcdf_field_diagnostics
-#ifdef ENABLE_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
             use options, only : output
 #endif
             integer          :: nc
 #ifdef ENABLE_BUOYANCY
             double precision :: bmin, bmax
             double precision :: buf(13) = zero
-#ifdef ENABLE_PERTURBATION_MODE
             integer          :: iz
-#endif
-#else
-            double precision :: buf(8) = zero
-#endif
 
-#ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
             buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
-#ifdef ENABLE_PERTURBATION_MODE
+            ! get total buoyancy:
             do iz = 0, nz
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
-#endif
+
             bmin = minval(buoy)
             bmax = maxval(buoy)
 #endif
@@ -278,9 +267,10 @@ module field_diagnostics_netcdf
         buf(6) = get_vertical_enstrophy(l_global=.false.)
         buf(7) = get_squared_horizontal_divergence(l_global=.false.)
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
         buf(9) = get_squared_buoyancy_anomaly(l_global=.false.)
 
+#ifdef ENABLE_BALANCE
         if (output%l_balanced) then
             call balance_fields(l_global=.false.)
             buf(10) = kebal
@@ -288,6 +278,7 @@ module field_diagnostics_netcdf
             buf(12) = apebal
             buf(13) = apeubal
         endif
+#endif
 #endif
 
         call mpi_blocking_reduce(buf, MPI_SUM, world)
@@ -301,9 +292,6 @@ module field_diagnostics_netcdf
         nc_dset(NC_DIVXY2)%val = buf(7)
 #ifdef ENABLE_BUOYANCY
         nc_dset(NC_APE)%val    = buf(8)
-#endif
-
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         nc_dset(NC_BASQ)%val    = buf(9)
         nc_dset(NC_KEBAL)%val   = buf(10)
         nc_dset(NC_KEUBAL)%val  = buf(11)
@@ -326,9 +314,7 @@ module field_diagnostics_netcdf
         buf(5) = get_min_richardson_number(l_global=.false.)
 
         buf(6) = bmin
-#endif
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         buf(7) = get_minimum_static_stability(l_global=.false.)
 #endif
 
@@ -342,9 +328,6 @@ module field_diagnostics_netcdf
 #ifdef ENABLE_BUOYANCY
         nc_dset(NC_RIMIN)%val = buf(5)
         nc_dset(NC_BMIN)%val  = buf(6)
-#endif
-
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         nc_dset(NC_MSS)%val   = buf(7)
 #endif
 
@@ -386,7 +369,7 @@ module field_diagnostics_netcdf
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine set_netcdf_stat_info
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
             use options, only : output
 #endif
 
@@ -582,7 +565,6 @@ module field_diagnostics_netcdf
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-#ifdef ENABLE_PERTURBATION_MODE
             nc_dset(NC_BASQ) = netcdf_stat_info(                        &
                 name='squared_buoyancy_anomaly',                        &
                 long_name='domain-averaged squared buoyancy anomaly',   &
@@ -626,7 +608,6 @@ module field_diagnostics_netcdf
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
             endif
-#endif
 #endif
 
         end subroutine set_netcdf_stat_info

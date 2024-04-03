@@ -18,7 +18,7 @@ ps3d_SOURCES = 					\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
 
-if ENABLE_PERTURBATION_MODE
+if ENABLE_BALANCE
 ps3d_SOURCES += fields/field_balance.f90
 endif
 
@@ -91,7 +91,7 @@ beltrami_SOURCES = 				\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
 
-if ENABLE_PERTURBATION_MODE
+if ENABLE_BALANCE
 beltrami_SOURCES += fields/field_balance.f90
 endif
 

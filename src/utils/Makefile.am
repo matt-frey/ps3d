@@ -11,6 +11,9 @@ libps_utils_la_SOURCES = 	\
 	physics.f90		\
 	jacobi.f90		\
 	merge_sort.f90		\
-	ape_density.f90		\
 	dimensions.f90
 
+if ENABLE_BUOYANCY
+libps_utils_la_SOURCES += 	\
+	ape_density.f90
+endif

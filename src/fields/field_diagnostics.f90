@@ -16,10 +16,8 @@ module field_diagnostics
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use fields, only : buoy, sbuoy
-#ifdef ENABLE_PERTURBATION_MODE
     use fields, only : bbarz
     use physics, only : bfsq
-#endif
 #endif
     use mpi_utils, only : mpi_check_for_error
     implicit none
@@ -49,16 +47,9 @@ module field_diagnostics
             ape = zero
             do i = box%lo(1), box%hi(1)
                 do j = box%lo(2), box%hi(2)
-#ifdef ENABLE_PERTURBATION_MODE
-                    bb(:, j, i) = bb(:, j, i) + bbarz
-#endif
                     ape = ape + sum(ape_den(bb(1:nz-1, j, i), z(1:nz-1))) &
                         + f12 *     ape_den(bb(0,      j, i), z(0))       &
                         + f12 *     ape_den(bb(nz,     j, i), z(nz))
-
-#ifdef ENABLE_PERTURBATION_MODE
-                    bb(:, j, i) = bb(:, j, i) - bbarz
-#endif
                 enddo
             enddo
 
@@ -283,13 +274,9 @@ module field_diagnostics
 
             call central_diffz(buoy, dbdz)
 
-#ifdef ENABLE_PERTURBATION_MODE
-            ! In perturbation mode we only have b'_z, i.e. we must
+            ! As we use the pertubation mode, we only have b'_z, i.e. we must
             ! add N^2 because b_z = N^2 + b'_z
-            dbdz = bfsq + dbdz
-#endif
-
-            dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
+            dbdz = (bfsq + dbdz) / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
 
             ri = minval(dbdz)
 
@@ -316,7 +303,7 @@ module field_diagnostics
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
         ! domain-averaged squared buoyancy anomaly, i.e. (b')^2
         function get_squared_buoyancy_anomaly(l_global) result(basq)
             logical, intent(in) :: l_global

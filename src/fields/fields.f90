@@ -41,9 +41,8 @@ module fields
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
     double precision, allocatable :: bbarz(:) ! N**2 * z
-#endif
+
     contains
 
         ! Allocate all fields
@@ -74,9 +73,7 @@ module fields
             allocate(sbuoy(0:nz,  lo(2):hi(2), lo(1):hi(1)))
             allocate(sbuoys(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
-#ifdef ENABLE_PERTURBATION_MODE
             allocate(bbarz(0:nz))
-#endif
 #endif
 
             allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))

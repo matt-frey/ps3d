@@ -2,9 +2,7 @@ module inversion_mod
     use inversion_utils
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
     use physics, only : bfsq
-#endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
@@ -275,7 +273,6 @@ module inversion_mod
             call diffz(fs, ds)
             call field_combine_physical(ds, fp)
 
-#ifdef ENABLE_PERTURBATION_MODE
             ! b = N^2 * z + b'
             ! db/dt = db/dz * dz/dt + db'/dt
             ! db/dt = N^2 * w + db'/dt
@@ -292,10 +289,7 @@ module inversion_mod
             !
             !   d(w*b)/dz = w * db/dz
             !
-            btend = btend - bfsq * vel(:, :, :, 3)
-#endif
-
-            btend = btend - fp
+            btend = btend - bfsq * vel(:, :, :, 3) - fp
 
             ! Convert to mixed-spectral space:
             call field_decompose_physical(btend, sbuoys)
@@ -415,10 +409,8 @@ module inversion_mod
                                                        box%lo(1):box%hi(1)) ! dw/dz in physical space
             double precision             :: rs(0:nz, box%lo(2):box%hi(2),   &
                                                      box%lo(1):box%hi(1))   ! rhs in spectral space
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             double precision             :: dbdz(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
-#endif
             integer                      :: kx, ky
 
             call start_timer(pres_timer)
@@ -441,11 +433,9 @@ module inversion_mod
                           dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))
             !$omp end parallel workshare
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             call field_combine_physical(sbuoy, buoy)
             call central_diffz(buoy, dbdz)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
-#endif
 
             !-------------------------------------------------------
             ! Transform to full spectral space:
@@ -475,7 +465,6 @@ module inversion_mod
             enddo
             !$omp end parallel do
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             ! now in semi-spectral space, note k2l2i(0, 0) = 0
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
@@ -484,7 +473,6 @@ module inversion_mod
                                   + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
                 enddo
             enddo
-#endif
 
             call fftxys2p(rs, pres)
 

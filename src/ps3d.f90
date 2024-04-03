@@ -21,7 +21,7 @@ program ps3d
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
     use advance_mod, only : advance, base_stepper
-#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
 #endif
     use ls_rk_mod, only : ls_rk
@@ -76,7 +76,7 @@ program ps3d
 
             call init_inversion
 
-#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call initialise_balance
             endif
@@ -139,7 +139,7 @@ program ps3d
 
             call finalise_inversion
 
-#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call finalise_balance
             endif

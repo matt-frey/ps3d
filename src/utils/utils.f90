@@ -16,9 +16,7 @@ module utils
     use field_diagnostics
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
     use physics, only : bfsq, calculate_basic_reference_state
-#endif
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     implicit none
@@ -135,7 +133,7 @@ module utils
 
         subroutine setup_fields
             double precision :: bbdif, ke, ape, te, en
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_PERTURBATION_MODE)
+#ifdef ENABLE_BUOYANCY
             integer          :: iz
             double precision :: z
 #endif
@@ -148,7 +146,6 @@ module utils
 #ifdef ENABLE_BUOYANCY
             bbdif = maxval(buoy) - minval(buoy)
 
-#ifdef ENABLE_PERTURBATION_MODE
             call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
 
             ! remove basic state from buoyancy
@@ -157,7 +154,6 @@ module utils
                 bbarz(iz) = bfsq * z
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
-#endif
             call field_decompose_physical(buoy, sbuoy)
 #else
             bbdif = zero

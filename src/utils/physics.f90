@@ -87,7 +87,7 @@ module physics
     ! planetary vorticity (all three components)
     double precision, protected :: f_cor(3)
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
     ! N**2
     double precision, protected :: bfsq = zero
     logical                     :: l_bfsq = .false.
@@ -104,7 +104,7 @@ module physics
                print_physical_quantity_double,      &
                print_physical_quantity_integer,     &
                print_physical_quantity_logical,     &
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
                l_bfsq,                              &
 #endif
                print_physical_quantity_character
@@ -186,7 +186,7 @@ module physics
                 call read_netcdf_attribute_default(grp_ncid, 'planetary_vorticity', l_planet_vorticity)
                 call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
                 call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
                 l_bfsq = has_attribute(grp_ncid, 'squared_buoyancy_frequency')
                 if (l_bfsq) then
                     call read_netcdf_attribute_default(grp_ncid, 'squared_buoyancy_frequency', bfsq)
@@ -221,7 +221,7 @@ module physics
             call write_netcdf_attribute(grp_ncid, 'planet_vorticity', l_planet_vorticity)
             call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
             call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
             if (l_bfsq) then
                 call write_netcdf_attribute(grp_ncid, 'squared_buoyancy_frequency', bfsq)
             endif
@@ -247,7 +247,7 @@ module physics
             call print_physical_quantity('latitude degrees', lat_degrees, 'deg')
             call print_physical_quantity('scale height', height_c, 'm')
             call print_physical_quantity('inverse scale height', lambda_c, '1/m')
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
             if (l_bfsq) then
                 call print_physical_quantity('squared_buoyancy_frequency', bfsq, '1/s^2')
             endif
@@ -306,7 +306,7 @@ module physics
             write (*, "(a, a14)") fix_length_name, val
         end subroutine print_physical_quantity_character
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
         subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
             integer,          intent(in) :: nx, ny, nz
             double precision, intent(in) :: zext

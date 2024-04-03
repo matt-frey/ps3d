@@ -46,13 +46,9 @@ module field_netcdf
 #ifdef ENABLE_BUOYANCY
     integer, parameter :: NC_BUOY    = 8
 
-#ifdef ENABLE_PERTURBATION_MODE
     integer, parameter :: NC_BUOY_AN = 9
 
     type(netcdf_field_info) :: nc_dset(NC_BUOY_AN)
-#else
-    type(netcdf_field_info) :: nc_dset(NC_BUOY)
-#endif
 
 #else
     type(netcdf_field_info) :: nc_dset(NC_PRES)
@@ -184,7 +180,7 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-#if ENABLE_BUOYANCY_PERTURBATION_MODE
+#if ENABLE_BUOYANCY
             integer                      :: iz
 #endif
 
@@ -230,14 +226,18 @@ module field_netcdf
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-#ifdef ENABLE_PERTURBATION_MODE
+
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
 
             do iz = 0, nz
                 buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
-#endif
+
             call write_field_double(NC_BUOY, buoy, start, cnt)
+
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
 #endif
 
             ! increment counter
@@ -448,9 +448,7 @@ module field_netcdf
                 nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
                 nc_dset(NC_BUOY)%l_enabled  = .true.
-#ifdef ENABLE_PERTURBATION_MODE
                 nc_dset(NC_BUOY_AN)%l_enabled = .true.
-#endif
 #endif
             else
                 ! check individual fields
@@ -482,9 +480,7 @@ module field_netcdf
                 nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
                 nc_dset(NC_BUOY)%l_enabled  = .true.
-#ifdef ENABLE_PERTURBATION_MODE
                 nc_dset(NC_BUOY_AN)%l_enabled = .true.
-#endif
 #endif
             endif
 
@@ -541,26 +537,19 @@ module field_netcdf
                                                   unit='1/s',                           &
                                                   dtype=NF90_DOUBLE)
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
             nc_dset(NC_PRES) = netcdf_field_info(name='pressure_anomaly',               &
                                                  long_name='pressure anomaly',          &
-#else
-            nc_dset(NC_PRES) = netcdf_field_info(name='pressure',                       &
-                                                 long_name='pressure',                  &
-#endif
                                                  std_name='',                           &
                                                  unit='m^2/s^2',                        &
                                                  dtype=NF90_DOUBLE)
 
-#ifdef ENABLE_BUOYANCY
             nc_dset(NC_BUOY) = netcdf_field_info(name='buoyancy',                       &
                                                  long_name='buoyancy',                  &
                                                  std_name='',                           &
                                                  unit='m/s^2',                          &
                                                  dtype=NF90_DOUBLE)
-#endif
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
             nc_dset(NC_BUOY_AN) = netcdf_field_info(name='buoyancy_anomaly',            &
                                                     long_name='buoyancy anomaly',       &
                                                     std_name='',                        &
