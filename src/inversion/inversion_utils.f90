@@ -73,6 +73,7 @@ module inversion_utils
             , central_diffz         &
             , filt                  &
             , hdzi                  &
+            , k2l2                  &
             , k2l2i                 &
             , hdis                  &
             , green                 &

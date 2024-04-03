@@ -16,7 +16,13 @@ ps3d_SOURCES = 					\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
-	fields/field_diagnostics.f90		\
+	fields/field_diagnostics.f90
+
+if ENABLE_PERTURBATION_MODE
+ps3d_SOURCES += fields/field_balance.f90
+endif
+
+ps3d_SOURCES +=					\
 	fields/field_diagnostics_netcdf.f90	\
 	smagorinsky.f90				\
 	inversion/inversion.f90			\
@@ -29,6 +35,7 @@ ps3d_SOURCES = 					\
 if ! ENABLE_SMAGORINSKY
 ps3d_SOURCES += stepper/impl_rk4.f90
 endif
+
 
 ps3d_SOURCES += ps3d.f90
 
@@ -82,7 +89,13 @@ beltrami_SOURCES = 				\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
-	fields/field_diagnostics.f90		\
+	fields/field_diagnostics.f90
+
+if ENABLE_PERTURBATION_MODE
+beltrami_SOURCES += fields/field_balance.f90
+endif
+
+beltrami_SOURCES += 				\
 	fields/field_diagnostics_netcdf.f90	\
 	smagorinsky.f90				\
         inversion/inversion.f90         	\

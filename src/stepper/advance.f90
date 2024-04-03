@@ -159,10 +159,13 @@ module advance_mod
             call fftxys2p(xs, zp)
             call field_decompose_semi_spectral(sbuoy)
 
+#ifdef ENABLE_PERTURBATION_MODE
+            zp = zp + bfsq
+#endif
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             !$omp parallel workshare
-            xp = xp ** 2 + yp ** 2 + (zp + bfsq) ** 2
+            xp = xp ** 2 + yp ** 2 + zp ** 2
             !$omp end parallel workshare
 
             !Maximum buoyancy frequency:
