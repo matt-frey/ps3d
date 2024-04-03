@@ -181,6 +181,9 @@ module field_netcdf
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
 #if ENABLE_BUOYANCY
+            double precision             :: tbuoy(0:nz,                & ! total buoyancy
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
             integer                      :: iz
 #endif
 
@@ -232,15 +235,10 @@ module field_netcdf
             if (nc_dset(NC_BUOY)%l_enabled) then
                 ! get total buoyancy
                 do iz = 0, nz
-                    buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+                    tbuoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
                 enddo
 
-                call write_field_double(NC_BUOY, buoy, start, cnt)
-
-                ! undo
-                do iz = 0, nz
-                    buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
-                enddo
+                call write_field_double(NC_BUOY, tbuoy, start, cnt)
             endif
 #endif
 

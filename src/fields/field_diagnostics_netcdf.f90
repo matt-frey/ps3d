@@ -239,6 +239,9 @@ module field_diagnostics_netcdf
 #endif
             integer          :: nc
 #ifdef ENABLE_BUOYANCY
+            double precision :: tbuoy(0:nz,                 & ! total buoyancy
+                                      box%lo(2):box%hi(2),  &
+                                      box%lo(1):box%hi(1))
             double precision :: bmin, bmax
             double precision :: buf(13) = zero
             integer          :: iz
@@ -252,16 +255,11 @@ module field_diagnostics_netcdf
 
             ! get total buoyancy:
             do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+                tbuoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
 
-            bmin = minval(buoy)
-            bmax = maxval(buoy)
-
-            ! undo
-            do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
-            enddo
+            bmin = minval(tbuoy)
+            bmax = maxval(tbuoy)
 #endif
 
         !
