@@ -257,6 +257,11 @@ module field_diagnostics_netcdf
 
             bmin = minval(buoy)
             bmax = maxval(buoy)
+
+            ! undo
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
 #endif
 
         !

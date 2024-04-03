@@ -229,15 +229,19 @@ module field_netcdf
 
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
 
-            do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
-            enddo
+            if (nc_dset(NC_BUOY)%l_enabled) then
+                ! get total buoyancy
+                do iz = 0, nz
+                    buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+                enddo
 
-            call write_field_double(NC_BUOY, buoy, start, cnt)
+                call write_field_double(NC_BUOY, buoy, start, cnt)
 
-            do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
-            enddo
+                ! undo
+                do iz = 0, nz
+                    buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+                enddo
+            endif
 #endif
 
             ! increment counter
