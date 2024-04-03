@@ -304,26 +304,6 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 #ifdef ENABLE_BUOYANCY
-        ! domain-averaged squared buoyancy anomaly, i.e. (b')^2
-        function get_squared_buoyancy_anomaly(l_global) result(basq)
-            logical, intent(in) :: l_global
-            double precision    :: basq
-
-            call field_combine_physical(sbuoy, buoy)
-
-            basq =       sum(buoy(1:nz-1, :, :) ** 2)  &
-                 + f12 * sum(buoy(0,      :, :) ** 2)  &
-                 + f12 * sum(buoy(nz,     :, :) ** 2)
-
-            basq = basq * ncelli
-
-            if (l_global) then
-                call mpi_blocking_reduce(basq, MPI_SUM, world)
-            endif
-
-        end function get_squared_buoyancy_anomaly
-
-
         ! minimum static stability value, 1 + min(b'_z)/N^2 (if < 0 the flow is overturning)
         ! #pre Assumes we already have the buoyancy anomaly in physical space
         function get_minimum_static_stability(l_global) result(mss)
