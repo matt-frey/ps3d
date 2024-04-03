@@ -192,7 +192,7 @@ module field_balance
             ! Calculate imbalanced properties:
 
             velbal(:, :, :, 3) = zero
-            velbal = velbal - vel
+            velbal = vel - velbal
 
             ! domain-averaged imbalanced kinetic energy:
             keubal = get_kinetic_energy(velbal, l_global, l_allreduce=.false.)
