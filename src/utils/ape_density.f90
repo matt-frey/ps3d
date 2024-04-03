@@ -8,7 +8,7 @@ module ape_density
     contains
 
         elemental function ape_den(b, z) result(a)
-            double precision, intent(in) :: b       ! perturbation buoyancy value
+            double precision, intent(in) :: b       ! perturbation buoyancy
             double precision, intent(in) :: z       ! height
             double precision             :: a       ! APE density
             double precision             :: br
