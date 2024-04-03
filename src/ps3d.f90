@@ -21,6 +21,9 @@ program ps3d
     use mpi_environment, only : mpi_env_initialise, mpi_env_finalise
     use mpi_utils, only : mpi_print, mpi_stop
     use advance_mod, only : advance, base_stepper
+#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+    use field_balance, only : initialise_balance, finalise_balance
+#endif
     use ls_rk_mod, only : ls_rk
     use cn2_mod, only : cn2
 #ifndef ENABLE_SMAGORINSKY
@@ -72,6 +75,12 @@ program ps3d
             call setup_domain_and_parameters
 
             call init_inversion
+
+#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+            if (output%l_balanced) then
+                call initialise_balance
+            endif
+#endif
 
             call setup_fields
 
@@ -129,6 +138,12 @@ program ps3d
             use options, only : output
 
             call finalise_inversion
+
+#ifdef ENABLE_BUOYNACY_PERTURBATION_MODE
+            if (output%l_balanced) then
+                call finalise_balance
+            endif
+#endif
 
             call stop_timer(ps_timer)
             call write_time_to_csv(output%basename)

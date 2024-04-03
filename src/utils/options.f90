@@ -33,6 +33,7 @@ module options
         logical                           :: write_field_stats  = .true.
         logical                           :: overwrite          = .false.
         character(len=512)                :: basename           = ''
+        logical                           :: l_balanced         = .false. ! balanced and imbalanced KE and APE
     end type info
 
     type(info) :: output

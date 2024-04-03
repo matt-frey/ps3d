@@ -170,8 +170,12 @@ module utils
             ini_vor_mean = calc_vorticity_mean()
 
             call vor2vel
-            ke = get_kinetic_energy(l_global=.true., l_allreduce=.true.)
-            ape = get_available_potential_energy(l_global=.true., l_allreduce=.true.)
+            ke = get_kinetic_energy(vel, l_global=.true., l_allreduce=.true.)
+#ifdef ENABLE_BUOYANCY
+            ape = get_available_potential_energy(buoy, l_global=.true., l_allreduce=.true.)
+#else
+            ape = zero
+#endif
             te = ke + ape
             en = get_enstrophy(l_global=.true., l_allreduce=.true.)
 

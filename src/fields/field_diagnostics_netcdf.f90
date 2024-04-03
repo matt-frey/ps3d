@@ -15,6 +15,11 @@ module field_diagnostics_netcdf
     use physics, only : write_physical_quantities
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+    use field_balance, only : balance_fields      &
+                            , kebal, keubal       &
+                            , apebal, apeubal
+#endif
     implicit none
 
     private
@@ -63,9 +68,13 @@ module field_diagnostics_netcdf
                         , NC_BMIN   = 27
 
 #ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ   = 28    &
-                        , NC_MSS    = 29      ! mss = minimum static stability
-    type(netcdf_stat_info) :: nc_dset(NC_MSS)
+    integer, parameter :: NC_BASQ    = 28    &
+                        , NC_MSS     = 29    &  ! mss = minimum static stability
+                        , NC_KEBAL   = 30    &
+                        , NC_KEUBAL  = 31    &
+                        , NC_APEBAL  = 32    &
+                        , NC_APEUBAL = 33
+    type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_BMIN)
 #endif
@@ -230,20 +239,23 @@ module field_diagnostics_netcdf
 
         !@Pre Assumes all fields are up-to-date
         subroutine update_netcdf_field_diagnostics
+#ifdef ENABLE_PERTURBATION_MODE
+            use options, only : output
+#endif
             integer          :: nc
 #ifdef ENABLE_BUOYANCY
             double precision :: bmin, bmax
+            double precision :: buf(13) = zero
 #ifdef ENABLE_PERTURBATION_MODE
             integer          :: iz
-            double precision :: buf(9)
 #endif
 #else
-            double precision :: buf(8)
+            double precision :: buf(8) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            buf(8) = get_available_potential_energy(l_global=.false., l_allreduce=.false.)
+            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
 #ifdef ENABLE_PERTURBATION_MODE
             do iz = 0, nz
@@ -258,9 +270,9 @@ module field_diagnostics_netcdf
         ! Summed values
         !
 
-        buf(1) = get_kinetic_energy(l_global=.false., l_allreduce=.false.)
+        buf(1) = get_kinetic_energy(vel, l_global=.false., l_allreduce=.false.)
         buf(2) = get_enstrophy(l_global=.false., l_allreduce=.false.)
-        buf(3) = get_horizontal_kinetic_energy(l_global=.false.)
+        buf(3) = get_horizontal_kinetic_energy(vel, l_global=.false.)
         buf(4) = get_vertical_kinetic_energy(l_global=.false.)
         buf(5) = get_horizontal_enstrophy(l_global=.false.)
         buf(6) = get_vertical_enstrophy(l_global=.false.)
@@ -268,6 +280,14 @@ module field_diagnostics_netcdf
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
         buf(9) = get_squared_buoyancy_anomaly(l_global=.false.)
+
+        if (output%l_balanced) then
+            call balance_fields(l_global=.false.)
+            buf(10) = kebal
+            buf(11) = keubal
+            buf(12) = apebal
+            buf(13) = apeubal
+        endif
 #endif
 
         call mpi_blocking_reduce(buf, MPI_SUM, world)
@@ -284,7 +304,11 @@ module field_diagnostics_netcdf
 #endif
 
 #ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_BASQ)%val = buf(9)
+        nc_dset(NC_BASQ)%val    = buf(9)
+        nc_dset(NC_KEBAL)%val   = buf(10)
+        nc_dset(NC_KEUBAL)%val  = buf(11)
+        nc_dset(NC_APEBAL)%val  = buf(12)
+        nc_dset(NC_APEUBAL)%val = buf(13)
 #endif
 
 
@@ -362,6 +386,10 @@ module field_diagnostics_netcdf
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine set_netcdf_stat_info
+#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+            use options, only : output
+#endif
+
             nc_dset(NC_KE) = netcdf_stat_info(                          &
                 name='ke',                                              &
                 long_name='domain-averaged kinetic energy',             &
@@ -568,6 +596,36 @@ module field_diagnostics_netcdf
                 std_name='',                                            &
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)
+
+            if (output%l_balanced) then
+                nc_dset(NC_KEBAL) = netcdf_stat_info(                       &
+                    name='kebal',                                           &
+                    long_name='domain-averaged balanced kinetic energy',    &
+                    std_name='',                                            &
+                    unit='m^2/s^2',                                         &
+                    dtype=NF90_DOUBLE)
+
+                nc_dset(NC_KEUBAL) = netcdf_stat_info(                      &
+                    name='keubal',                                          &
+                    long_name='domain-averaged imbalanced kinetic energy',  &
+                    std_name='',                                            &
+                    unit='m^2/s^2',                                         &
+                    dtype=NF90_DOUBLE)
+
+                nc_dset(NC_APEBAL) = netcdf_stat_info(                      &
+                    name='apebal',                                          &
+                    long_name='domain-averaged balanced APE',               &
+                    std_name='',                                            &
+                    unit='m^2/s^2',                                         &
+                    dtype=NF90_DOUBLE)
+
+                nc_dset(NC_APEUBAL) = netcdf_stat_info(                     &
+                    name='apeubal',                                         &
+                    long_name='domain-averaged imbalanced APE',             &
+                    std_name='',                                            &
+                    unit='m^2/s^2',                                         &
+                    dtype=NF90_DOUBLE)
+            endif
 #endif
 #endif
 

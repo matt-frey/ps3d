@@ -26,17 +26,20 @@ module field_diagnostics
 
     contains
 
-        ! domain-averaged available potential energy
-        function get_available_potential_energy(l_global, l_allreduce) result(ape)
-            logical, intent(in) :: l_global
-            logical, intent(in) :: l_allreduce
-            double precision    :: ape
-#if !defined(ENABLE_BUOYANCY) && !defined(NDEBUG)
-            logical :: l_dummy
-#endif
 #ifdef ENABLE_BUOYANCY
-            integer             :: i, j, k
-            double precision    :: z(0:nz)
+        ! domain-averaged available potential energy
+        function get_available_potential_energy(bb, l_global, l_allreduce) result(ape)
+            double precision, intent(inout) :: bb(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            logical,          intent(in) :: l_global
+            logical,          intent(in) :: l_allreduce
+            double precision             :: ape
+#if !defined(NDEBUG)
+            logical                      :: l_dummy
+#endif
+            integer                      :: i, j, k
+            double precision             :: z(0:nz)
 
             do k = 0, nz
                 z(k) = lower(3) + dble(k) * dx(3)
@@ -47,14 +50,14 @@ module field_diagnostics
             do i = box%lo(1), box%hi(1)
                 do j = box%lo(2), box%hi(2)
 #ifdef ENABLE_PERTURBATION_MODE
-                    buoy(:, j, i) = buoy(:, j, i) + bbarz
+                    bb(:, j, i) = bb(:, j, i) + bbarz
 #endif
-                    ape = ape + sum(ape_den(buoy(1:nz-1, j, i), z(1:nz-1))) &
-                        + f12 *     ape_den(buoy(0,      j, i), z(0))       &
-                        + f12 *     ape_den(buoy(nz,     j, i), z(nz))
+                    ape = ape + sum(ape_den(bb(1:nz-1, j, i), z(1:nz-1))) &
+                        + f12 *     ape_den(bb(0,      j, i), z(0))       &
+                        + f12 *     ape_den(bb(nz,     j, i), z(nz))
 
 #ifdef ENABLE_PERTURBATION_MODE
-                    buoy(:, j, i) = buoy(:, j, i) - bbarz
+                    bb(:, j, i) = bb(:, j, i) - bbarz
 #endif
                 enddo
             enddo
@@ -77,32 +80,34 @@ module field_diagnostics
                     call mpi_blocking_reduce(ape, MPI_SUM, world)
                 endif
             endif
-#else
-            ape = zero
+
 #ifndef NDEBUG
             l_dummy = l_allreduce ! just to avoid unused variable compiler error in debug mode
             l_dummy = l_global
 #endif
-#endif
         end function get_available_potential_energy
+#endif
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged kinetic energy
-        function get_kinetic_energy(l_global, l_allreduce) result(ke)
-            logical, intent(in) :: l_global
-            logical, intent(in) :: l_allreduce
-            double precision    :: ke
+        function get_kinetic_energy(vv, l_global, l_allreduce) result(ke)
+            double precision, intent(in) :: vv(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1), 3)
+            logical,          intent(in) :: l_global
+            logical,          intent(in) :: l_allreduce
+            double precision             :: ke
 
-            ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2      &
-                         + vel(1:nz-1, :, :, 2) ** 2      &
-                         + vel(1:nz-1, :, :, 3) ** 2)     &
-               + f14 * sum(vel(0,  :, :, 1) ** 2          &
-                         + vel(0,  :, :, 2) ** 2          &
-                         + vel(0,  :, :, 3) ** 2)         &
-               + f14 * sum(vel(nz, :, :, 1) ** 2          &
-                         + vel(nz, :, :, 2) ** 2          &
-                         + vel(nz, :, :, 3) ** 2)
+            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2      &
+                         + vv(1:nz-1, :, :, 2) ** 2      &
+                         + vv(1:nz-1, :, :, 3) ** 2)     &
+               + f14 * sum(vv(0,  :, :, 1) ** 2          &
+                         + vv(0,  :, :, 2) ** 2          &
+                         + vv(0,  :, :, 3) ** 2)         &
+               + f14 * sum(vv(nz, :, :, 1) ** 2          &
+                         + vv(nz, :, :, 2) ** 2          &
+                         + vv(nz, :, :, 3) ** 2)
 
             ke = ke * ncelli
 
@@ -129,16 +134,19 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged horizontal kinetic energy, i.e. (u^2 + v^2) / 2
-        function get_horizontal_kinetic_energy(l_global) result(ke)
-            logical, intent(in) :: l_global
-            double precision    :: ke
+        function get_horizontal_kinetic_energy(vv, l_global) result(ke)
+            double precision, intent(in) :: vv(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1), 3)
+            logical,          intent(in) :: l_global
+            double precision             :: ke
 
-            ke = f12 * sum(vel(1:nz-1, :, :, 1) ** 2    &
-                         + vel(1:nz-1, :, :, 2) ** 2)   &
-               + f14 * sum(vel(0,      :, :, 1) ** 2    &
-                         + vel(0,      :, :, 2) ** 2)   &
-               + f14 * sum(vel(nz,     :, :, 1) ** 2    &
-                         + vel(nz,     :, :, 2) ** 2)
+            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2    &
+                         + vv(1:nz-1, :, :, 2) ** 2)   &
+               + f14 * sum(vv(0,      :, :, 1) ** 2    &
+                         + vv(0,      :, :, 2) ** 2)   &
+               + f14 * sum(vv(nz,     :, :, 1) ** 2    &
+                         + vv(nz,     :, :, 2) ** 2)
 
             ke = ke * ncelli
 
