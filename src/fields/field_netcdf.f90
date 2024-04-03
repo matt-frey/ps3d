@@ -540,10 +540,15 @@ module field_netcdf
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_PRES) = netcdf_field_info(name='pressure_anomaly',               &
                                                  long_name='pressure anomaly',          &
+#else
+            nc_dset(NC_PRES) = netcdf_field_info(name='pressure',                       &
+                                                 long_name='pressure',                  &
+#endif
                                                  std_name='',                           &
                                                  unit='m^2/s^2',                        &
                                                  dtype=NF90_DOUBLE)
 
+#ifdef ENABLE_BUOYANCY
             nc_dset(NC_BUOY) = netcdf_field_info(name='buoyancy',                       &
                                                  long_name='buoyancy',                  &
                                                  std_name='',                           &

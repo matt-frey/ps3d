@@ -249,7 +249,7 @@ AC_ARG_ENABLE([balance],
 
 AM_CONDITIONAL([ENABLE_BALANCE], [test "$ENABLE_BALANCE" = "yes"])
 
-AC_MSG_CHECKING([whether we are enabling buoyancy])
+AC_MSG_CHECKING([whether we are enabling balance])
 if test "x$ENABLE_BALANCE" = "xyes"; then
     AC_MSG_RESULT([yes])
     FCFLAGS="$FCFLAGS -DENABLE_BALANCE"

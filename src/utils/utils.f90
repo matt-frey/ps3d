@@ -16,7 +16,9 @@ module utils
     use field_diagnostics
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
+#ifdef ENABLE_BUOYANCY
     use physics, only : bfsq, calculate_basic_reference_state
+#endif
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     implicit none

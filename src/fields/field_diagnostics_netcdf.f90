@@ -242,7 +242,11 @@ module field_diagnostics_netcdf
             double precision :: bmin, bmax
             double precision :: buf(13) = zero
             integer          :: iz
+#else
+            double precision :: buf(7) = zero
+#endif
 
+#ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
             buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
