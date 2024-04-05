@@ -294,10 +294,13 @@ module field_diagnostics_netcdf
             nc_dset(NC_DIVXY2)%val = buf(7)
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_APE)%val    = buf(8)
-            nc_dset(NC_KEBAL)%val   = buf(9)
-            nc_dset(NC_KEUBAL)%val  = buf(10)
-            nc_dset(NC_APEBAL)%val  = buf(11)
-            nc_dset(NC_APEUBAL)%val = buf(12)
+
+            if (output%l_balanced) then
+                nc_dset(NC_KEBAL)%val   = buf(9)
+                nc_dset(NC_KEUBAL)%val  = buf(10)
+                nc_dset(NC_APEBAL)%val  = buf(11)
+                nc_dset(NC_APEUBAL)%val = buf(12)
+            endif
 #endif
 
 
