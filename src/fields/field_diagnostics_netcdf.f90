@@ -271,7 +271,9 @@ module field_diagnostics_netcdf
             buf(5) = get_horizontal_enstrophy(l_global=.false.)
             buf(6) = get_vertical_enstrophy(l_global=.false.)
             buf(7) = get_squared_horizontal_divergence(l_global=.false.)
+#ifdef ENABLE_BUOYANCY
             buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
+#endif
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then

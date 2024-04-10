@@ -306,10 +306,12 @@ module advance_mod
                     open(unit=1235, file=trim(fname), status='old', position='append')
                 else
                     open(unit=1235, file=trim(fname), status='replace')
-                    write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     \alpha_b/N_{max}'
+                    write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     ' // &
+                                   '\alpha_b/N_{max}          CFL'
                 endif
 
-                write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small)
+                write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small), &
+                               cflpf / (velmax + small)
 
                 close(1235)
             endif
