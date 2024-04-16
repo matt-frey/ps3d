@@ -15,7 +15,7 @@ module field_diagnostics_netcdf
     use physics, only : write_physical_quantities
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
                             , apebal, apeubal
@@ -63,21 +63,15 @@ module field_diagnostics_netcdf
                         , NC_RIMIN  = 23    &
                         , NC_ROMIN  = 24
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE    = 25    &
-                        , NC_BMAX   = 26    &
-                        , NC_BMIN   = 27
-
-#ifdef ENABLE_PERTURBATION_MODE
-    integer, parameter :: NC_BASQ    = 28    &
-                        , NC_MSS     = 29    &  ! mss = minimum static stability
-                        , NC_KEBAL   = 30    &
-                        , NC_KEUBAL  = 31    &
-                        , NC_APEBAL  = 32    &
-                        , NC_APEUBAL = 33
+    integer, parameter :: NC_APE     = 25    &
+                        , NC_BMAX    = 26    &
+                        , NC_BMIN    = 27    &
+                        , NC_MSS     = 28    &  ! mss = minimum static stability
+                        , NC_KEBAL   = 29    &
+                        , NC_KEUBAL  = 30    &
+                        , NC_APEBAL  = 31    &
+                        , NC_APEUBAL = 32
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
-#else
-    type(netcdf_stat_info) :: nc_dset(NC_BMIN)
-#endif
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
 #endif
@@ -239,136 +233,131 @@ module field_diagnostics_netcdf
 
         !@Pre Assumes all fields are up-to-date
         subroutine update_netcdf_field_diagnostics
-#ifdef ENABLE_PERTURBATION_MODE
+#ifdef ENABLE_BALANCE
             use options, only : output
 #endif
             integer          :: nc
 #ifdef ENABLE_BUOYANCY
+            double precision :: tbuoy(0:nz,                 & ! total buoyancy
+                                      box%lo(2):box%hi(2),  &
+                                      box%lo(1):box%hi(1))
             double precision :: bmin, bmax
-            double precision :: buf(13) = zero
-#ifdef ENABLE_PERTURBATION_MODE
+            double precision :: buf(12) = zero
             integer          :: iz
-#endif
 #else
-            double precision :: buf(8) = zero
+            double precision :: buf(7) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
-            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
-#ifdef ENABLE_PERTURBATION_MODE
+            ! get total buoyancy:
             do iz = 0, nz
-                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+                tbuoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
             enddo
-#endif
-            bmin = minval(buoy)
-            bmax = maxval(buoy)
-#endif
 
-        !
-        ! Summed values
-        !
-
-        buf(1) = get_kinetic_energy(vel, l_global=.false., l_allreduce=.false.)
-        buf(2) = get_enstrophy(l_global=.false., l_allreduce=.false.)
-        buf(3) = get_horizontal_kinetic_energy(vel, l_global=.false.)
-        buf(4) = get_vertical_kinetic_energy(l_global=.false.)
-        buf(5) = get_horizontal_enstrophy(l_global=.false.)
-        buf(6) = get_vertical_enstrophy(l_global=.false.)
-        buf(7) = get_squared_horizontal_divergence(l_global=.false.)
-
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        buf(9) = get_squared_buoyancy_anomaly(l_global=.false.)
-
-        if (output%l_balanced) then
-            call balance_fields(l_global=.false.)
-            buf(10) = kebal
-            buf(11) = keubal
-            buf(12) = apebal
-            buf(13) = apeubal
-        endif
+            bmin = minval(tbuoy)
+            bmax = maxval(tbuoy)
 #endif
 
-        call mpi_blocking_reduce(buf, MPI_SUM, world)
+            !
+            ! Summed values
+            !
 
-        nc_dset(NC_KE)%val     = buf(1)
-        nc_dset(NC_EN)%val     = buf(2)
-        nc_dset(NC_KEXY)%val   = buf(3)
-        nc_dset(NC_KEZ)%val    = buf(4)
-        nc_dset(NC_ENXY)%val   = buf(5)
-        nc_dset(NC_ENZ)%val    = buf(6)
-        nc_dset(NC_DIVXY2)%val = buf(7)
+            buf(1) = get_kinetic_energy(vel, l_global=.false., l_allreduce=.false.)
+            buf(2) = get_enstrophy(l_global=.false., l_allreduce=.false.)
+            buf(3) = get_horizontal_kinetic_energy(vel, l_global=.false.)
+            buf(4) = get_vertical_kinetic_energy(l_global=.false.)
+            buf(5) = get_horizontal_enstrophy(l_global=.false.)
+            buf(6) = get_vertical_enstrophy(l_global=.false.)
+            buf(7) = get_squared_horizontal_divergence(l_global=.false.)
 #ifdef ENABLE_BUOYANCY
-        nc_dset(NC_APE)%val    = buf(8)
+            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 #endif
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_BASQ)%val    = buf(9)
-        nc_dset(NC_KEBAL)%val   = buf(10)
-        nc_dset(NC_KEUBAL)%val  = buf(11)
-        nc_dset(NC_APEBAL)%val  = buf(12)
-        nc_dset(NC_APEUBAL)%val = buf(13)
+#ifdef ENABLE_BALANCE
+            if (output%l_balanced) then
+                call balance_fields(l_global=.false.)
+                buf(9) = kebal
+                buf(10) = keubal
+                buf(11) = apebal
+                buf(12) = apeubal
+            endif
+#endif
+
+            call mpi_blocking_reduce(buf, MPI_SUM, world)
+
+            nc_dset(NC_KE)%val     = buf(1)
+            nc_dset(NC_EN)%val     = buf(2)
+            nc_dset(NC_KEXY)%val   = buf(3)
+            nc_dset(NC_KEZ)%val    = buf(4)
+            nc_dset(NC_ENXY)%val   = buf(5)
+            nc_dset(NC_ENZ)%val    = buf(6)
+            nc_dset(NC_DIVXY2)%val = buf(7)
+#ifdef ENABLE_BUOYANCY
+            nc_dset(NC_APE)%val    = buf(8)
+
+            if (output%l_balanced) then
+                nc_dset(NC_KEBAL)%val   = buf(9)
+                nc_dset(NC_KEUBAL)%val  = buf(10)
+                nc_dset(NC_APEBAL)%val  = buf(11)
+                nc_dset(NC_APEUBAL)%val = buf(12)
+            endif
 #endif
 
 
-        !
-        ! Minimum values
-        !
+            !
+            ! Minimum values
+            !
 
-        do nc = 1, 3
-            buf(nc) = minval(vor(:, :, :, nc))
-        enddo
+            do nc = 1, 3
+                buf(nc) = minval(vor(:, :, :, nc))
+            enddo
 
-        buf(4) = get_min_rossby_number(l_global=.false.)
+            buf(4) = get_min_rossby_number(l_global=.false.)
 
 #ifdef ENABLE_BUOYANCY
-        buf(5) = get_min_richardson_number(l_global=.false.)
+            buf(5) = get_min_richardson_number(l_global=.false.)
 
-        buf(6) = bmin
+            buf(6) = bmin
+
+            buf(7) = get_minimum_static_stability(l_global=.false.)
 #endif
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        buf(7) = get_minimum_static_stability(l_global=.false.)
-#endif
-
-        call mpi_blocking_reduce(buf(1:7), MPI_MIN, world)
+            call mpi_blocking_reduce(buf(1:7), MPI_MIN, world)
 
 
-        nc_dset(NC_OXMIN)%val = buf(1)
-        nc_dset(NC_OYMIN)%val = buf(2)
-        nc_dset(NC_OZMIN)%val = buf(3)
-        nc_dset(NC_ROMIN)%val = buf(4)
+            nc_dset(NC_OXMIN)%val = buf(1)
+            nc_dset(NC_OYMIN)%val = buf(2)
+            nc_dset(NC_OZMIN)%val = buf(3)
+            nc_dset(NC_ROMIN)%val = buf(4)
 #ifdef ENABLE_BUOYANCY
-        nc_dset(NC_RIMIN)%val = buf(5)
-        nc_dset(NC_BMIN)%val  = buf(6)
+            nc_dset(NC_RIMIN)%val = buf(5)
+            nc_dset(NC_BMIN)%val  = buf(6)
+            nc_dset(NC_MSS)%val   = buf(7)
 #endif
 
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-        nc_dset(NC_MSS)%val   = buf(7)
-#endif
+            !
+            ! Maximum values
+            !
 
-        !
-        ! Maximum values
-        !
+            do nc = 1, 3
+                buf(nc) = maxval(vor(:, :, :, nc))
+            enddo
 
-        do nc = 1, 3
-            buf(nc) = maxval(vor(:, :, :, nc))
-        enddo
-
-        buf(4) = get_max_horizontal_enstrophy(l_global=.false.)
+            buf(4) = get_max_horizontal_enstrophy(l_global=.false.)
 #ifdef ENABLE_BUOYANCY
-        buf(5) = bmax
+            buf(5) = bmax
 #endif
 
-        call mpi_blocking_reduce(buf(1:5), MPI_MAX, world)
+            call mpi_blocking_reduce(buf(1:5), MPI_MAX, world)
 
-        nc_dset(NC_OXMAX)%val = buf(1)
-        nc_dset(NC_OYMAX)%val = buf(2)
-        nc_dset(NC_OZMAX)%val = buf(3)
-        nc_dset(NC_HEMAX)%val = buf(4)
+            nc_dset(NC_OXMAX)%val = buf(1)
+            nc_dset(NC_OYMAX)%val = buf(2)
+            nc_dset(NC_OZMAX)%val = buf(3)
+            nc_dset(NC_HEMAX)%val = buf(4)
 #ifdef ENABLE_BUOYANCY
-        nc_dset(NC_BMAX)%val  = buf(5)
+            nc_dset(NC_BMAX)%val  = buf(5)
 #endif
 
         end subroutine update_netcdf_field_diagnostics
@@ -386,7 +375,7 @@ module field_diagnostics_netcdf
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine set_netcdf_stat_info
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
+#ifdef ENABLE_BUOYANCY
             use options, only : output
 #endif
 
@@ -582,14 +571,6 @@ module field_diagnostics_netcdf
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-#ifdef ENABLE_PERTURBATION_MODE
-            nc_dset(NC_BASQ) = netcdf_stat_info(                        &
-                name='squared_buoyancy_anomaly',                        &
-                long_name='domain-averaged squared buoyancy anomaly',   &
-                std_name='',                                            &
-                unit='m^2/s^4',                                         &
-                dtype=NF90_DOUBLE)
-
             nc_dset(NC_MSS) = netcdf_stat_info(                         &
                 name='minimum_static_stability',                        &
                 long_name='minimum static stability',                   &
@@ -626,7 +607,6 @@ module field_diagnostics_netcdf
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
             endif
-#endif
 #endif
 
         end subroutine set_netcdf_stat_info

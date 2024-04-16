@@ -7,9 +7,7 @@ module advance_mod
     use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
     use inversion_mod, only : vor2vel, source, pressure
 #ifdef ENABLE_BUOYANCY
-#ifdef ENABLE_PERTURBATION_MODE
     use physics, only : bfsq
-#endif
 #endif
     use inversion_utils
     use utils, only : write_step
@@ -159,13 +157,9 @@ module advance_mod
             call fftxys2p(xs, zp)
             call field_decompose_semi_spectral(sbuoy)
 
-#ifdef ENABLE_PERTURBATION_MODE
-            zp = zp + bfsq
-#endif
-
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             !$omp parallel workshare
-            xp = xp ** 2 + yp ** 2 + zp ** 2
+            xp = xp ** 2 + yp ** 2 + (zp + bfsq) ** 2
             !$omp end parallel workshare
 
             !Maximum buoyancy frequency:
@@ -312,10 +306,12 @@ module advance_mod
                     open(unit=1235, file=trim(fname), status='old', position='append')
                 else
                     open(unit=1235, file=trim(fname), status='replace')
-                    write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     \alpha_b/N_{max}'
+                    write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     ' // &
+                                   '\alpha_b/N_{max}          CFL'
                 endif
 
-                write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small)
+                write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small), &
+                               cflpf / (velmax + small)
 
                 close(1235)
             endif

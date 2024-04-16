@@ -242,18 +242,23 @@ else
     AC_MSG_RESULT([no])
 fi
 
-ENABLE_PERTURBATION_MODE='no'
-AC_ARG_ENABLE([perturbation-mode],
-	      [AS_HELP_STRING([--enable-perturbation-mode], [enable buoyancy perturbation mode (default=no)])],
-              [ENABLE_PERTURBATION_MODE=$enableval])
-AM_CONDITIONAL([ENABLE_PERTURBATION_MODE], [test "$ENABLE_PERTURBATION_MODE" = "yes"])
-AC_MSG_CHECKING([whether we are tracking buoyancy perturbation])
+ENABLE_BALANCE='no'
+AC_ARG_ENABLE([balance],
+              [AS_HELP_STRING([--enable-balance], [enable balance mode (default=no)])],
+              [ENABLE_BALANCE=$enableval])
 
-if test "x$ENABLE_PERTURBATION_MODE" = "xyes"; then
-   AC_MSG_RESULT([yes])
-   FCFLAGS="$FCFLAGS -DENABLE_PERTURBATION_MODE -DENABLE_BUOYANCY_PERTURBATION_MODE"
+AM_CONDITIONAL([ENABLE_BALANCE], [test "$ENABLE_BALANCE" = "yes"])
+
+AC_MSG_CHECKING([whether we are enabling balance])
+if test "x$ENABLE_BALANCE" = "xyes"; then
+    AC_MSG_RESULT([yes])
+    FCFLAGS="$FCFLAGS -DENABLE_BALANCE"
+
+    if test "x$ENABLE_BUOYANCY" = "xno"; then
+        AC_MSG_ERROR([Add '--enable-buoyancy' for balance mode.])
+    fi
 else
-   AC_MSG_RESULT([no])
+    AC_MSG_RESULT([no])
 fi
 
 ENABLE_DEBUG='no'
@@ -301,7 +306,7 @@ AM_CONDITIONAL([ENABLE_IW_TEST_CASE], [test "$ENABLE_IW_TEST_CASE" = "yes"])
 AC_MSG_CHECKING([whether we are enabling the IW test case])
 if test "x$ENABLE_IW_TEST_CASE" = "xyes"; then
     AC_MSG_RESULT([yes])
-    FCFLAGS="$FCFLAGS -DENABLE_IW_TEST_CASE"
+    FCFLAGS="$FCFLAGS -DENABLE_IW_TEST_CASE -DENABLE_LINEAR_STRATIFICATION"
 else
     AC_MSG_RESULT([no])
 fi

@@ -1,5 +1,6 @@
 module ape_density
     use constants
+    use physics, only : bfsq
     implicit none
 
     public :: ape_den
@@ -7,26 +8,28 @@ module ape_density
     contains
 
         elemental function ape_den(b, z) result(a)
-            double precision, intent(in) :: b       ! buoyancy value
+            double precision, intent(in) :: b       ! perturbation buoyancy
             double precision, intent(in) :: z       ! height
             double precision             :: a       ! APE density
-#if defined(ENABLE_IW_TEST_CASE) || defined(ENABLE_RT_TEST_CASE)
             double precision             :: br
-#endif
+
+            br = b
 
 #ifdef ENABLE_IW_TEST_CASE
-            br = max(b, -twopi)
-            br = min(br, twopi)
-            a = f18 * (br - four * z) ** 2
-#elif ENABLE_RT_TEST_CASE
-            br = max(b, -one)
-            br = min(br, one)
+            br = br + bfsq * z
+            br = max(br, -twopi)
+            br = min(br,  twopi)
+            br = br - bfsq * z
+#endif
+
+#ifdef ENABLE_RT_TEST_CASE
+            br = b + bfsq * z  ! convert buoyancy perturbation to total buoyancy
+            br = max(br, -one)
+            br = min(br,  one)
             a = br * dasin(br) + dsqrt(one - br ** 2) - z * br - dcos(z)
 #else
-            ! dummy line to avoid compiler warning of 'unused variables'
-            a = b + z
-
-            a = zero
+            ! linear stratification:
+            a = br ** 2 / (two * bfsq)
 #endif
         end function ape_den
 

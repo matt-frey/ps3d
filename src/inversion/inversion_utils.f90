@@ -69,6 +69,8 @@ module inversion_utils
             , init_diffusion        &
 #ifdef ENABLE_BUOYANCY
             , diffz                 &
+            , dphim                 &
+            , dphip                 &
 #endif
             , central_diffz         &
             , filt                  &
@@ -83,10 +85,6 @@ module inversion_utils
             , dthetam               &
             , gambot                &
             , gamtop                &
-#ifdef ENABLE_BUOYANCY_PERTURBATION_MODE
-            , dphim                 &
-            , dphip                 &
-#endif
             , call_ptospc
 
     public :: field_combine_semi_spectral   &
@@ -331,7 +329,7 @@ module inversion_utils
             deallocate(gambot)
             deallocate(phim)
             deallocate(phip)
-#ifdef ENABLE_BUOYNACY
+#ifdef ENABLE_BUOYANCY
             deallocate(dphim)
             deallocate(dphip)
 #endif
