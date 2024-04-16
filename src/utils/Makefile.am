@@ -10,6 +10,7 @@ libps_utils_la_SOURCES = 	\
 	config.f90		\
 	physics.f90		\
 	jacobi.f90		\
+	linsolve.f90		\
 	merge_sort.f90		\
 	dimensions.f90
 
