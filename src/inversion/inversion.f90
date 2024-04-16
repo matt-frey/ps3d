@@ -303,79 +303,104 @@ module inversion_mod
         end subroutine buoyancy_tendency
 #endif
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Compute the gridded vorticity tendency:
-        subroutine vorticity_tendency
-            double precision :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
-            double precision :: gp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
-            double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-            double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-            double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
+        ! dfs/dt = - u dfs/dx - v dfs/dy - w dfs/dz
+        subroutine convective_derivative(fs, dfs)
+            double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision              :: df(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+            call diffx(fs, ds)
+            call field_combine_physical(ds, df)
+
+            ttend = - vel(:, :, :, 1) * df
+
+        end subroutine convective_derivative
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Compute the gridded material vorticity tendency:
+        subroutine material_vorticity_tendency
+            double precision :: df(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
+            double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! (mixed) spectral space
+            double precision :: qtend(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ! physical space
             integer          :: nc
+#ifdef ENABLE_BUOYANCY
+            double precision :: dbdx(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision :: dbdy(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+#endif
 
             call start_timer(vtend_timer)
 
-            !-------------------------------------------------------
-            ! First store absolute vorticity in physical space:
+
+#ifdef ENABLE_BUOYANCY
+            call diffx(sbuoy, ds)
+            call field_combine_physical(ds, dbdx)
+
+            call diffy(sbuoy, ds)
+            call field_combine_physical(ds, dbdy)
+#endif
+
+            ! Dp/Dt = - u --> dp/dt = - u (dp/dx + 1) - v dp/dy - w dp/dz
+            call diffx(stheta(:, :, :, 1), ds)
+            call field_combine_physical(ds, df)
+
+            ttend = - vel(:, :, :, 1) * (df + one)
+
+            call diffy(stheta(:, :, :, 1), ds)
+            call field_combine_physical(ds, df)
+
+            ttend = ttend - vel(:, :, :, 2) * df
+
+            call field_combine_physical(stheta(:, :, :, 1), df)
+
+            ! Dr/Dt = - v --> dr/dt = - u dr/dx - v (dr/dy + 1) - w dr/dz
+            ! Ds/Dt = 0   --> ds/dt = - u ds/dx - v ds/dy - w ds/dz
+
+
+            ! Dq/Dt = dq/dt + u dq/dx + v dq/dy + w dq/dz
+            ! --> dq/dt = - u dq/dx - v dq/dy - w dq/dz
             do nc = 1, 3
+                ! dq/dx
+                call diffx(svorts(:, :, :, nc), ds)
+                call field_combine_physical(ds, df)
+
                 !$omp parallel workshare
-                vor(:, :, :, nc) = vor(:, :, :, nc) + f_cor(nc)
+                qtend = - df * vel(:, :, :, 1)
+
+#ifdef ENABLE_BUOYANCY
+                qtend = qtend + df * dbdy
+#endif
                 !$omp end parallel workshare
+
+
+                ! dq/dy
+                call diffy(svorts(:, :, :, nc), ds)
+                call field_combine_physical(ds, df)
+
+                !$omp parallel workshare
+                qtend = qtend - df * vel(:, :, :, 2)
+
+#ifdef ENABLE_BUOYANCY
+                qtend = qtend - df * dbdx
+#endif
+                !$omp end parallel workshare
+
+
+                ! dq/dz
+                call field_combine_semi_spectral(sqvor(:, :, :, nc))
+                call central_diffz(sqvor(:, :, :, nc), ds)
+                call field_decompose_semi_spectral(sqvor(:, :, :, nc))
+                call fftxys2p(ds, df)
+
+                !$omp parallel workshare
+                qtend = qtend - df * vel(:, :, :, 3)
+                !$omp end parallel workshare
+
+                call field_decompose_physical(qtend, sqtend(:, :, :, nc))
+
             enddo
-
-#ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
-#endif
-            !-------------------------------------------------------
-            ! Tendency in flux form:
-            !   dxi/dt  = dr/dy - dq/dz
-            !   deta/dt = dp/dz - dr/dx
-            !  dzeta/dt = dq/dx - dp/dy
-
-            ! r = u * eta - v * xi + b
-            !$omp parallel workshare
-            fp = vel(:, :, :, 1) * vor(:, :, :, 2) - vel(:, :, :, 2) * vor(:, :, :, 1)
-#ifdef ENABLE_BUOYANCY
-            fp = fp + buoy
-#endif
-            !$omp end parallel workshare
-            call field_decompose_physical(fp, r)
-
-            ! q = w * xi - u * zeta
-            !$omp parallel workshare
-            fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
-            !$omp end parallel workshare
-            call field_decompose_physical(fp, q)
-
-            ! dxi/dt  = dr/dy - dq/dz
-            call diffy(r, svorts(:, :, :, 1))
-            call central_diffz(fp, gp)
-            call field_decompose_physical(gp, p)
-            !$omp parallel workshare
-            svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
-            !$omp end parallel workshare
-
-            ! p = v * zeta - w * eta
-            !$omp parallel workshare
-            fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
-            !$omp end parallel workshare
-            call field_decompose_physical(fp, p)
-
-            ! deta/dt = dp/dz - dr/dx
-            call diffx(r, svorts(:, :, :, 2))
-            call central_diffz(fp, gp)
-            call field_decompose_physical(gp, r)
-            !$omp parallel workshare
-            svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
-            !$omp end parallel workshare
-
-            ! dzeta/dt = dq/dx - dp/dy
-            call diffx(q, svorts(:, :, :, 3))
-            call diffy(p, r)                                ! here: r = dp/dy
-            !$omp parallel workshare
-            svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
-            !$omp end parallel workshare
 
 #ifdef ENABLE_SMAGORINSKY
             !------------------------------------------------------------------
@@ -385,7 +410,11 @@ module inversion_mod
 
             call stop_timer(vtend_timer)
 
-        end subroutine vorticity_tendency
+        end subroutine material_vorticity_tendency
+
+        ! w1 * dth1/dx + w2 * dth1/dy + w3 * dth1/dz = q1
+        ! w1 * dth2/dx + w2 * dth2/dy + w3 * dth2/dz = q2
+        ! w1 * dth3/dx + w2 * dth3/dy + w3 * dth3/dz = q3
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
