@@ -4,7 +4,7 @@ module advance_mod
     use options, only : output
 #endif
     use constants
-    use parameters, only : nx, ny, nz, glmin, cflpf, ncelli
+    use parameters, only : nx, ny, nz, ncelli
     use inversion_mod, only : vor2vel, source, pressure
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
@@ -132,7 +132,8 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(3)
+            double precision                :: buf(5)
+            double precision                :: umax, vmax, wmax, dtcfl
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
@@ -267,18 +268,20 @@ module advance_mod
 
             !Maximum speed:
             !$omp parallel workshare
-            velmax = maxval(vel(:, :, :, 1) ** 2   &
-                          + vel(:, :, :, 2) ** 2   &
-                          + vel(:, :, :, 3) ** 2)
+            umax = maxval(vel(:, :, :, 1))
+            vmax = maxval(vel(:, :, :, 2))
+            wmax = maxval(vel(:, :, :, 3))
             !$omp end parallel workshare
 
             buf(1) = bfmax
             buf(2) = ggmax
-            buf(3) = velmax
+            buf(3) = umax
+            buf(4) = vmax
+            buf(5) = wmax
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:3),                &
-                               3,                       &
+                               buf(1:5),                &
+                               5,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
                                world%comm,              &
@@ -286,16 +289,21 @@ module advance_mod
 
             bfmax = buf(1)
             ggmax = buf(2)
-            velmax = buf(3)
+            umax = buf(3)
+            vmax = buf(4)
+            wmax = buf(5)
 
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
 
-            velmax = dsqrt(velmax)
+            ! CFL time step constraint:
+            dtcfl = cflmax * min(dx(1) / (umax + small), &
+                                 dx(2) / (vmax + small), &
+                                 dx(3) / (wmax + small))
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
                      time%alpha / (bfmax + small),  &
-                     cflpf / (velmax + small),      &
+                     dtcfl,                         &
                      time%limit - t)
 
 #ifdef ENABLE_VERBOSE
@@ -311,7 +319,7 @@ module advance_mod
                 endif
 
                 write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small), &
-                               cflpf / (velmax + small)
+                               dtcfl
 
                 close(1235)
             endif

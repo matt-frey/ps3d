@@ -52,12 +52,6 @@ module parameters
     ! domain upper boundary
     double precision :: upper(3)
 
-    ! smallest grid length for CFL condition
-    double precision :: glmin
-
-    !For controlling numerical stability
-    double precision :: cflpf
-
     double precision :: fnzi
 
     contains
@@ -87,9 +81,6 @@ module parameters
         center = f12 * (lower + upper)
         hl = extent / two
         hli = one / hl
-
-        glmin = minval(dx)
-        cflpf = cflmax * glmin
 
         fnzi = one / dble(nz)
 
