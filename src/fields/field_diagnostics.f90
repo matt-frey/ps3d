@@ -328,47 +328,6 @@ module field_diagnostics
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! domain-averaged squared horizontal divergence, i.e. (u_x^2 + u_y^2)
-        function get_squared_horizontal_divergence(l_global) result(divxy2)
-            logical, intent(in) :: l_global
-            double precision    :: divxy2
-            double precision    :: ds(box%lo(3):box%hi(3), &
-                                      box%lo(2):box%hi(2), &
-                                      box%lo(1):box%hi(1))
-            double precision    :: ux(box%lo(3):box%hi(3), &
-                                      box%lo(2):box%hi(2), &
-                                      box%lo(1):box%hi(1))
-            double precision    :: vy(box%lo(3):box%hi(3), &
-                                      box%lo(2):box%hi(2), &
-                                      box%lo(1):box%hi(1))
-
-            ! svel is the velocity in mixed-spectral space
-
-            ! du/dx
-            call diffx(svel(:, :, :, 1), ds)
-            call field_combine_physical(ds, ux)
-
-            ! dv/dy
-            call diffy(svel(:, :, :, 2), ds)
-            call field_combine_physical(ds, vy)
-
-            divxy2 =       sum(ux(1:nz-1, :, :) ** 2    &
-                             + vy(1:nz-1, :, :) ** 2)   &
-                   + f12 * sum(ux(0,      :, :) ** 2    &
-                             + vy(0,      :, :) ** 2)   &
-                   + f12 * sum(ux(nz,     :, :) ** 2    &
-                             + vy(nz,     :, :) ** 2)
-
-            divxy2 = divxy2 * ncelli
-
-            if (l_global) then
-                call mpi_blocking_reduce(divxy2, MPI_SUM, world)
-            endif
-
-        end function get_squared_horizontal_divergence
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
 #ifdef ENABLE_BUOYANCY
         ! domain-averaged grad(b) integral
         function get_gradb_integral(l_global, l_allreduce) result(enb)

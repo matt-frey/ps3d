@@ -48,29 +48,28 @@ module field_diagnostics_netcdf
                         , NC_OZMEAN = 8     &
                         , NC_KEXY   = 9     &
                         , NC_KEZ    = 10    &
-                        , NC_DIVXY2 = 11    &
-                        , NC_ENXY   = 12    &
-                        , NC_ENZ    = 13    &
-                        , NC_OXMIN  = 14    &
-                        , NC_OYMIN  = 15    &
-                        , NC_OZMIN  = 16    &
-                        , NC_OXMAX  = 17    &
-                        , NC_OYMAX  = 18    &
-                        , NC_OZMAX  = 19    &
-                        , NC_HEMAX  = 20    &
-                        , NC_GMAX   = 21    &
-                        , NC_RGMAX  = 22    &
-                        , NC_RIMIN  = 23    &
-                        , NC_ROMIN  = 24
+                        , NC_ENXY   = 11    &
+                        , NC_ENZ    = 12    &
+                        , NC_OXMIN  = 13    &
+                        , NC_OYMIN  = 14    &
+                        , NC_OZMIN  = 15    &
+                        , NC_OXMAX  = 16    &
+                        , NC_OYMAX  = 17    &
+                        , NC_OZMAX  = 18    &
+                        , NC_HEMAX  = 19    &
+                        , NC_GMAX   = 20    &
+                        , NC_RGMAX  = 21    &
+                        , NC_RIMIN  = 22    &
+                        , NC_ROMIN  = 23
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE     = 25    &
-                        , NC_BMAX    = 26    &
-                        , NC_BMIN    = 27    &
-                        , NC_MSS     = 28    &  ! mss = minimum static stability
-                        , NC_KEBAL   = 29    &
-                        , NC_KEUBAL  = 30    &
-                        , NC_APEBAL  = 31    &
-                        , NC_APEUBAL = 32
+    integer, parameter :: NC_APE     = 24    &
+                        , NC_BMAX    = 25    &
+                        , NC_BMIN    = 26    &
+                        , NC_MSS     = 27    &  ! mss = minimum static stability
+                        , NC_KEBAL   = 28    &
+                        , NC_KEUBAL  = 29    &
+                        , NC_APEBAL  = 30    &
+                        , NC_APEUBAL = 31
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -242,10 +241,10 @@ module field_diagnostics_netcdf
                                       box%lo(2):box%hi(2),  &
                                       box%lo(1):box%hi(1))
             double precision :: bmin, bmax
-            double precision :: buf(12) = zero
+            double precision :: buf(11) = zero
             integer          :: iz
 #else
-            double precision :: buf(7) = zero
+            double precision :: buf(6) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
@@ -270,18 +269,17 @@ module field_diagnostics_netcdf
             buf(4) = get_vertical_kinetic_energy(l_global=.false.)
             buf(5) = get_horizontal_enstrophy(l_global=.false.)
             buf(6) = get_vertical_enstrophy(l_global=.false.)
-            buf(7) = get_squared_horizontal_divergence(l_global=.false.)
 #ifdef ENABLE_BUOYANCY
-            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
+            buf(7) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 #endif
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call balance_fields(l_global=.false.)
-                buf(9) = kebal
-                buf(10) = keubal
-                buf(11) = apebal
-                buf(12) = apeubal
+                buf(8) = kebal
+                buf(9) = keubal
+                buf(10) = apebal
+                buf(11) = apeubal
             endif
 #endif
 
@@ -293,15 +291,14 @@ module field_diagnostics_netcdf
             nc_dset(NC_KEZ)%val    = buf(4)
             nc_dset(NC_ENXY)%val   = buf(5)
             nc_dset(NC_ENZ)%val    = buf(6)
-            nc_dset(NC_DIVXY2)%val = buf(7)
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_APE)%val    = buf(8)
+            nc_dset(NC_APE)%val    = buf(7)
 
             if (output%l_balanced) then
-                nc_dset(NC_KEBAL)%val   = buf(9)
-                nc_dset(NC_KEUBAL)%val  = buf(10)
-                nc_dset(NC_APEBAL)%val  = buf(11)
-                nc_dset(NC_APEUBAL)%val = buf(12)
+                nc_dset(NC_KEBAL)%val   = buf(8)
+                nc_dset(NC_KEUBAL)%val  = buf(9)
+                nc_dset(NC_APEBAL)%val  = buf(10)
+                nc_dset(NC_APEUBAL)%val = buf(11)
             endif
 #endif
 
@@ -540,13 +537,6 @@ module field_diagnostics_netcdf
                 long_name='domain-averaged vertical enstrophy',         &
                 std_name='',                                            &
                 unit='1/s^2',                                           &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_DIVXY2) = netcdf_stat_info(                          &
-                name='divxy2',                                              &
-                long_name='domain-averaged squared horizontal divergence',  &
-                std_name='',                                                &
-                unit='1/s^2',                                               &
                 dtype=NF90_DOUBLE)
 
 #ifdef ENABLE_BUOYANCY
