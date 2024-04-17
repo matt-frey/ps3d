@@ -29,7 +29,7 @@ module field_diagnostics
         function get_available_potential_energy(bb, l_global, l_allreduce) result(ape)
             double precision, intent(inout) :: bb(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))get
+                                                  box%lo(1):box%hi(1))
             logical,          intent(in) :: l_global
             logical,          intent(in) :: l_allreduce
             double precision             :: ape
