@@ -306,15 +306,34 @@ module inversion_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! dfs/dt = - u dfs/dx - v dfs/dy - w dfs/dz
-        subroutine convective_derivative(fs, dfs)
+        subroutine convective_derivative(fs, cx, cy, dfs)
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(in)  :: cx, cy
             double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision              :: df(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             call diffx(fs, ds)
-            call field_combine_physical(ds, df)
+            call field_combine_physical(ds, dfs)
 
-            ttend = - vel(:, :, :, 1) * df
+            !$omp parallel workshare
+            df = - vel(:, :, :, 1) * (dfs + cx)
+            !$omp end parallel workshare
+
+            call diffy(fs, ds)
+            call field_combine_physical(ds, dfs)
+
+            !$omp parallel workshare
+            df = df - vel(:, :, :, 2) * (dfs + cy)
+            !$omp end parallel workshare
+
+            call field_combine_physical(fs, ds)
+            call central_diffz(ds, dfs)
+
+            !$omp parallel workshare
+            df = df - vel(:, :, :, 3) * dfs
+            !$omp end parallel workshare
+
+            call field_decompose_physical(df, dfs)
 
         end subroutine convective_derivative
 
@@ -343,20 +362,13 @@ module inversion_mod
 #endif
 
             ! Dp/Dt = - u --> dp/dt = - u (dp/dx + 1) - v dp/dy - w dp/dz
-            call diffx(stheta(:, :, :, 1), ds)
-            call field_combine_physical(ds, df)
-
-            ttend = - vel(:, :, :, 1) * (df + one)
-
-            call diffy(stheta(:, :, :, 1), ds)
-            call field_combine_physical(ds, df)
-
-            ttend = ttend - vel(:, :, :, 2) * df
-
-            call field_combine_physical(stheta(:, :, :, 1), df)
+            call convective_derivative(stheta(:, :, :, 1), one, zero, ds)
 
             ! Dr/Dt = - v --> dr/dt = - u dr/dx - v (dr/dy + 1) - w dr/dz
+            call convective_derivative(stheta(:, :, :, 2), zero, one, ds)
+
             ! Ds/Dt = 0   --> ds/dt = - u ds/dx - v ds/dy - w ds/dz
+            call convective_derivative(stheta(:, :, :, 3), zero, zero, ds)
 
 
             ! Dq/Dt = dq/dt + u dq/dx + v dq/dy + w dq/dz
