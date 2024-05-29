@@ -294,12 +294,14 @@ module field_diagnostics_netcdf
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_APE)%val    = buf(7)
 
+#ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 nc_dset(NC_KEBAL)%val   = buf(8)
                 nc_dset(NC_KEUBAL)%val  = buf(9)
                 nc_dset(NC_APEBAL)%val  = buf(10)
                 nc_dset(NC_APEUBAL)%val = buf(11)
             endif
+#endif
 #endif
 
 
