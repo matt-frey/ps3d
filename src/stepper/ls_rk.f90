@@ -32,7 +32,7 @@ module ls_rk_mod
                  -2404267990393.0_dp/2016746695238.0_dp,  &
                  -3550918686646.0_dp/2091501179385.0_dp,  &
                  -1275806237668.0_dp/842570457699.0_dp,   &
-                 0.0/) !dummy value, not actually used
+                 0.0_dp/) !dummy value, not actually used
 
     double precision, dimension(5), target ::             &
         cbs4 =  (/1432997174477.0_dp/9575080441755.0_dp,  &
@@ -45,7 +45,7 @@ module ls_rk_mod
     double precision, dimension(3), target :: &
         cas3 = (/  -5.0d0 / 9.0d0,            &
                  -153.0d0 / 128.d0,           &
-                    0.0 /) !dummy value, not actually used
+                    0.0d0 /) !dummy value, not actually used
 
     double precision, dimension(3), target :: &
         cbs3 =  (/ 1.0d0 / 3.0d0,             &
