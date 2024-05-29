@@ -39,7 +39,7 @@ module inversion_utils
     double precision, allocatable :: green(:, :, :)
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :)
+    double precision, allocatable :: hdis(:, :, :)
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
@@ -109,10 +109,11 @@ module inversion_utils
             double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: rkxmax, rkymax, K2max
+            double precision             :: rkxmax, rkymax, rkzmax, K2max
             double precision             :: visc, wfac
+            integer                      :: kx, ky, kz
 
-            allocate(hdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(hdis(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
             ! check if initialised
             if (.not. is_initialised) then
@@ -121,23 +122,30 @@ module inversion_utils
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
+            rkzmax = maxval(rkz)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
                 !Define viscosity:
-                visc = viscosity%prediss * sqrt(bbdif / rkxmax ** 3)
+                visc = viscosity%prediss * sqrt(bbdif / (rkxmax * rkymax * rkzmax))
                 if (world%rank == world%root) then
                     write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
                 endif
 
                 !Define spectral dissipation operator:
-                !$omp parallel workshare
-                hdis = visc * k2l2
-                !$omp end parallel workshare
+                do kx = box%lo(1), box%hi(1)
+                    do ky = box%lo(2), box%hi(2)
+                        hdis(0,  ky, kx) = visc * k2l2(ky, kx)
+                        hdis(nz, ky, kx) = hdis(0, ky, kx)
+                        do kz = 1, nz-1
+                            hdis(kz, ky, kx) = hdis(0, ky, kx) + visc * rkz(kz) ** 2
+                        enddo
+                    enddo 
+                enddo
              else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax) ** 2
+                K2max = max(rkxmax, rkymax, rkzmax) ** 2
                 wfac = one / K2max
                 visc = viscosity%prediss *  (K2max * te /en) ** f13
                 if (world%rank == world%root) then
@@ -145,13 +153,19 @@ module inversion_utils
                 endif
 
                 !Define dissipation operator:
-                !$omp parallel workshare
-                hdis = visc * (wfac * k2l2) ** viscosity%nnu
-                !$omp end parallel workshare
+                do kx = box%lo(1), box%hi(1)
+                    do ky = box%lo(2), box%hi(2)
+                        hdis(0,  ky, kx) = visc * (wfac * k2l2(ky, kx)) ** viscosity%nnu
+                        hdis(nz, ky, kx) = hdis(0, ky, kx)
+                        do kz = 1, nz-1
+                            hdis(kz, ky, kx) = visc * (wfac * (k2l2(ky, kx) + rkz(kz) ** 2)) ** viscosity%nnu
+                        enddo
+                    enddo
+                enddo
 
                 if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                     !Ensure average is not modified by hyperviscosity:
-                    hdis(0, 0) = zero
+                    hdis(:, 0, 0) = zero
                 endif
              endif
         end subroutine init_diffusion

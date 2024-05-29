@@ -94,13 +94,9 @@ module cn2_mod
             bsm = sbuoy + dt2 * sbuoys
             sbuoy = filt * (bsm + dt2 * sbuoys)
 #ifndef ENABLE_SMAGORINSKY
-            call field_combine_semi_spectral(sbuoy)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sbuoy)
+            !$omp parallel workshare
+            sbuoy = diss * sbuoy
+            !$omp end parallel workshare
 #endif
 #endif
 
@@ -114,13 +110,9 @@ module cn2_mod
                 svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                 !$omp end parallel workshare
 #ifndef ENABLE_SMAGORINSKY
-                call field_combine_semi_spectral(svor(:, :, :, nc))
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
+                !$omp parallel workshare
+                svor(:, :, :, nc) = diss * svor(:, :, :, nc)
+                !$omp end parallel workshare
 #endif
             enddo
 
@@ -141,13 +133,9 @@ module cn2_mod
 #ifdef ENABLE_BUOYANCY
                 sbuoy = filt * (bsm + dt2 * sbuoys)
 #ifndef ENABLE_SMAGORINSKY
-                call field_combine_semi_spectral(sbuoy)
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-                enddo
-                !$omp end parallel do
-                call field_decompose_semi_spectral(sbuoy)
+                !$omp parallel workshare
+                sbuoy = diss * sbuoy
+                !$omp end parallel workshare
 #endif
 #endif
 
@@ -156,13 +144,9 @@ module cn2_mod
                     svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
                     !$omp end parallel workshare
 #ifndef ENABLE_SMAGORINSKY
-                    call field_combine_semi_spectral(svor(:, :, :, nc))
-                    !$omp parallel do private(iz)  default(shared)
-                    do iz = 0, nz
-                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                    enddo
-                    !$omp end parallel do
-                    call field_decompose_semi_spectral(svor(:, :, :, nc))
+                    !$omp parallel workshare
+                    svor(:, :, :, nc) = diss * svor(:, :, :, nc)
+                    !$omp end parallel workshare
 #endif
                 enddo
 
