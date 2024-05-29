@@ -32,7 +32,7 @@ ps3d_SOURCES +=					\
 	stepper/cn2.f90				\
 	stepper/ls_rk.f90
 
-if ! ENABLE_SMAGORINSKY
+if !ENABLE_SMAGORINSKY
 ps3d_SOURCES += stepper/impl_rk4.f90
 endif
 
