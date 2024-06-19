@@ -224,7 +224,7 @@ module inversion_utils
                 endif
             enddo
 
-            do kz = 0, nz)
+            do kz = 0, nz
                 if (rkz(kz) <= f23 * rkzmax)
                     skz(kz) = one
                 else
