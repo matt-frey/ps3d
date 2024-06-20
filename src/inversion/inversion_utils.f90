@@ -209,7 +209,7 @@ module inversion_utils
             rkzmax = maxval(rkz)
 
             do kx = box%lo(1), box%hi(1)
-                if (rkx(kx) <= f23 * rkxmax)
+                if (rkx(kx) <= f23 * rkxmax) then
                     skx(kx) = one
                 else
                     skx(kx) = zero
@@ -217,7 +217,7 @@ module inversion_utils
             enddo
 
             do ky = box%lo(2), box%hi(2)
-                if (rky(ky) <= f23 * rkymax)
+                if (rky(ky) <= f23 * rkymax) then
                     sky(ky) = one
                 else
                     sky(ky) = zero
@@ -225,7 +225,7 @@ module inversion_utils
             enddo
 
             do kz = 0, nz
-                if (rkz(kz) <= f23 * rkzmax)
+                if (rkz(kz) <= f23 * rkzmax) then
                     skz(kz) = one
                 else
                     skz(kz) = zero
