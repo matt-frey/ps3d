@@ -61,6 +61,8 @@ module options
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
+        double precision :: peclet_number = 1.0d0
+
     end type visc_type
 
     type(visc_type) :: viscosity
