@@ -124,7 +124,7 @@ module impl_rk4_mod
                                            qdi=self%sbuoyi,  &
                                            qdf=self%sbuoyf,  &
                                            em=self%emb,      &
-                                           ep=self%epb))
+                                           ep=self%epb)
 #endif
 
             do nc = 1, 3
