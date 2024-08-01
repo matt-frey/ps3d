@@ -16,7 +16,7 @@ module zops
     logical          :: l_initialised = .false.
     integer          :: nxym1 = 0
 
-    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel
+    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb
 
     contains
 

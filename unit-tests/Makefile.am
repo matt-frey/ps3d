@@ -37,7 +37,8 @@ unittests_PROGRAMS =   		\
         test_diffz_4		\
         test_diffx		\
         test_diffy		\
-        test_omp_collapse
+        test_omp_collapse	\
+        test_zops
 
 if ! ENABLE_SMAGORINSKY
 unittests_PROGRAMS += test_implicit_rk
@@ -81,6 +82,10 @@ test_diffy_LDADD = libcombi.la
 
 test_omp_collapse_SOURCES = unit_test.f90 test_omp_collapse.f90
 test_omp_collapse_LDADD = libcombi.la
+
+test_zops_SOURCES = unit_test.f90 test_zops.f90
+test_zops_LDADD = libcombi.la
+
 
 if ! ENABLE_SMAGORINSKY
 test_implicit_rk_SOURCES = unit_test.f90 test_implicit_rk.f90

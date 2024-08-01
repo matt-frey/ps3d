@@ -1,8 +1,11 @@
 module unit_test
+    use mpi_environment, only : world
     implicit none
 
     ! abolute tolerance
     double precision, parameter :: atol_m = dble(1.0e-15)
+
+    logical :: verbose = .false.
 
     private :: atol_m
 
@@ -51,7 +54,6 @@ module unit_test
             integer           :: i
             character(len=32) :: arg
             character(len=32) :: testname
-            logical           :: verbose = .false.
 
             testname = ''
             i = 0
@@ -67,7 +69,7 @@ module unit_test
                 i = i+1
             end do
 
-            if (verbose) then
+            if (verbose .and. (world%rank == world%root)) then
                 print *, 'Running ', trim(testname),' verbosely'
             endif
         end subroutine parse_command_line
