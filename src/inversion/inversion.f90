@@ -16,6 +16,7 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
+    use zops, only : zderiv
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -49,9 +50,8 @@ module inversion_mod
             ds = as - bs                     ! ds = D
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
-            call field_combine_semi_spectral(cs)
-            call central_diffz(cs, es)                     ! es = E
-            call field_decompose_semi_spectral(es)
+
+            call zderiv(cs, es)                     ! es = E
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
@@ -85,7 +85,7 @@ module inversion_mod
             !----------------------------------------------------------
             !Combine vorticity in physical space:
             do nc = 1, 3
-                call field_combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+                call fftxys2p(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
@@ -96,79 +96,20 @@ module inversion_mod
             ds = ds - es
             !$omp end parallel workshare
 
-            !Calculate the boundary contributions of the source to the vertical velocity (bs)
-            !and its derivative (es) in semi-spectral space:
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 1, nz-1
-                bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
-            enddo
-            !$omp end parallel do
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
-            enddo
-            !$omp end parallel do
-
-            !Invert Laplacian to find the part of w expressible as a sine series:
-            !$omp parallel workshare
-            ds(1:nz-1, :, :) = green(1:nz-1, :, :) * ds(1:nz-1, :, :)
-            !$omp end parallel workshare
-
-            ! Calculate d/dz of this sine series:
-            !$omp parallel workshare
-            as(0, :, :) = zero
-            !$omp end parallel workshare
-            !$omp parallel do private(iz)  default(shared)
-            do kz = 1, nz-1
-                as(kz, :, :) = rkz(kz) * ds(kz, :, :)
-            enddo
-            !$omp end parallel do
-            !$omp parallel workshare
-            as(nz, :, :) = zero
-            !$omp end parallel workshare
-
-            !FFT these quantities back to semi-spectral space:
-            !$omp parallel do collapse(2) private(kx, ky)
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    call dct(1, nz, as(0:nz, ky, kx), ztrig, zfactors)
-                    call dst(1, nz, ds(1:nz, ky, kx), ztrig, zfactors)
-                enddo
-            enddo
-            !$omp end parallel do
-
-            ! Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
-            !$omp parallel workshare
-            ds(0     , :, :) = zero
-            ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
-            ds(nz    , :, :) = zero
-            es = es + as
+            !----------------------------------------------------------
+            ! Invert to get vertical velocity:
+            call vertvel(ds)
 
             ! Get complete zeta field in semi-spectral space
+            !$omp parallel workshare
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
-            call field_combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
-
-            !First integrate the sine series in svor(1:nz-1, 0, 0, 1 & 2):
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                ubar(0) = zero
-                vbar(0) = zero
-                ubar(1:nz-1) = -rkzi * svor(1:nz-1, 0, 0, 2)
-                vbar(1:nz-1) =  rkzi * svor(1:nz-1, 0, 0, 1)
-                ubar(nz) = zero
-                vbar(nz) = zero
-
-                !Transform to semi-spectral space as a cosine series:
-                call dct(1, nz, ubar, ztrig, zfactors)
-                call dct(1, nz, vbar, ztrig, zfactors)
-
-                !Add contribution from the linear function connecting the boundary values:
-                ubar = ubar + svor(nz, 0, 0, 2) * gamtop - svor(0, 0, 0, 2) * gambot
-                vbar = vbar - svor(nz, 0, 0, 1) * gamtop + svor(0, 0, 0, 1) * gambot
+                call zinteg(svor(:, 0, 0, 1), ubar, .true.) ! x-vorticity
+                call zinteg(svor(:, 0, 0, 2), vbar, .true.) ! y-vorticity
             endif
 
             !-------------------------------------------------------
