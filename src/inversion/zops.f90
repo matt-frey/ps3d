@@ -5,7 +5,7 @@ module zops
     use constants, only : zero
     use parameters, only : nz, extent, hli
     use cheby ! Import Chebyshev module to set up various matrices needed below
-    use inversion_utils, only : k2l2
+    use inversion_utils, only : k2l2, init_inversion
     implicit none
 
 
@@ -46,6 +46,9 @@ module zops
             ! Scale d1z & d2z for the actual z limits:
             d1z = fdz1 * d1z
             d2z = fdz2 * d2z
+
+            ! Ensure wave numbers etc are initialised:
+            call init_inversion
 
         end subroutine init_zops
 
