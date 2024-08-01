@@ -47,9 +47,6 @@ module zops
             d1z = fdz1 * d1z
             d2z = fdz2 * d2z
 
-            ! Initialise horizontal wavenumbers (from the spectral.f90 module):
-            call init_spectral
-
         end subroutine init_zops
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
