@@ -11,9 +11,9 @@ bin_PROGRAMS = ps3d beltrami
 
 ps3d_SOURCES = 					\
 	utils/options.f90			\
-	utils/parameters.f90			\
 	utils/merge_sort.f90			\
 	inversion/inversion_utils.f90		\
+	inversion/zops.f90			\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
@@ -27,7 +27,6 @@ ps3d_SOURCES +=					\
 	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
-	utils/rolling_mean.f90			\
 	stepper/advance.f90			\
 	stepper/cn2.f90				\
 	stepper/ls_rk.f90
