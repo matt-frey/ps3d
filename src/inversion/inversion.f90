@@ -110,8 +110,9 @@ module inversion_mod
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                call zinteg(svor(:, 0, 0, 1), ubar, .true.) ! x-vorticity
-                call zinteg(svor(:, 0, 0, 2), vbar, .true.) ! y-vorticity
+                ubar = - svor(:, 0, 0, 1)
+                call zinteg(ubar, vbar, .true.)             ! <xi>_{x,y} = <w_y>_{x,y} - <v_z>_{x,y} = - <v_z>_{x,y}
+                call zinteg(svor(:, 0, 0, 2), ubar, .true.) ! <eta>_{x,y} = <u_z>_{x,y} - <w_x>_{x,y} = <u_z>_{x,y}
             endif
 
             !-------------------------------------------------------

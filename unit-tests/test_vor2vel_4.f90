@@ -15,7 +15,7 @@
 program test_vor2vel_4
     use unit_test
     use constants, only : one, f12, f13, two
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent, hl, center
     use fields
     use sta3dfft, only : fftxyp2s
     use zops, only : init_zops, zcheb
@@ -58,7 +58,7 @@ program test_vor2vel_4
     zz = center(3) - hl(3) * zcheb
 
     do iz = 0, nz
-        z = zz(iz) !lower(3) + iz * dx(3)
+        z = zz(iz)
 
         ! velocity
         vel_ref(iz, :, :, 1) = z ** 2 - f13
@@ -78,10 +78,6 @@ program test_vor2vel_4
     call vor2vel
 
     error = maxval(dabs(vel_ref - vel))
-
-    print *, maxval(dabs(vel_ref(:, :, :, 1) - vel(:, :, :, 1)))
-    print *, maxval(dabs(vel_ref(:, :, :, 2) - vel(:, :, :, 2)))
-    print *, maxval(dabs(vel_ref(:, :, :, 3) - vel(:, :, :, 3)))
 
     call mpi_blocking_reduce(error, MPI_MAX, world)
 

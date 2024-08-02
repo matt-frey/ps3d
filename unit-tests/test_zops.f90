@@ -4,7 +4,7 @@
 program test_zops
     use unit_test
     use constants, only : zero, f12, one, pi, twopi, f14
-    use parameters, only : lower, dx, nx, ny, nz, extent, hl &
+    use parameters, only : lower, nx, ny, nz, extent, hl &
                          , update_parameters, center, upper
     use fields
     use inversion_utils, only : k2l2

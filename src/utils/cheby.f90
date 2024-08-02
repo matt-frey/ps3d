@@ -6,12 +6,12 @@ module cheby
     contains
 
         subroutine init_cheby(x, d1, d2)
-            double precision, dimension(0:nz),       intent(out) :: x
-            double precision, dimension(0:nz, 0:nz), intent(out) :: d1, d2
-            integer                                              :: i, j
-            double precision, dimension(0:nz)                    :: c
-            double precision, dimension(0:nz, 0:nz)              :: rc
-            double precision                                     :: fac, ss
+            double precision, intent(out) :: x(0:nz)
+            double precision, intent(out) :: d1(0:nz, 0:nz), d2(0:nz, 0:nz)
+            integer                       :: i, j
+            double precision              :: c(0:nz)
+            double precision              :: rc(0:nz, 0:nz)
+            double precision              :: fac, ss
 
             ! Compute Chebyshev points:
             fac = pi / dble(nz)   ! acos(-1) = pi

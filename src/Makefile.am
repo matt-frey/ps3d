@@ -86,6 +86,7 @@ beltrami_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
 	inversion/inversion_utils.f90   	\
+	inversion/zops.f90			\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90

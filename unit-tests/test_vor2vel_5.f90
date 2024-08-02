@@ -15,9 +15,10 @@
 program test_vor2vel_5
     use unit_test
     use constants, only : one, three, f12, f14, two
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent, hl, center
     use fields
     use sta3dfft, only : fftxyp2s
+    use zops, only : init_zops, zcheb
     use inversion_utils, only : init_inversion
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
@@ -27,7 +28,7 @@ program test_vor2vel_5
     implicit none
 
     double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
+    double precision, allocatable :: vel_ref(:, :, :, :), zz(:)
     integer                       :: iz
     double precision              :: z
 
@@ -46,15 +47,19 @@ program test_vor2vel_5
 
 
     allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+    allocate(zz(0:nz))
 
     call update_parameters
 
     call field_default
 
     call init_inversion
+    call init_zops
+
+    zz = center(3) - hl(3) * zcheb
 
     do iz = 0, nz
-        z = lower(3) + iz * dx(3)
+        z = zz(iz)
 
         ! velocity
         vel_ref(iz, :, :, 1) = z ** 3 - f14
@@ -78,10 +83,11 @@ program test_vor2vel_5
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test vor2vel', error, atol=4.0e-6)
+        call print_result_dp('Test vor2vel', error, atol=3.0e-15)
     endif
 
     deallocate(vel_ref)
+    deallocate(zz)
 
     call mpi_env_finalise
 
