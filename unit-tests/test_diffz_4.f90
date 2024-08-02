@@ -14,6 +14,7 @@ program test_diffz_4
     use mpi_environment
     use mpi_layout
     use mpi_collectives
+    use zops, only : zderiv
     implicit none
 
     double precision              :: error
@@ -49,7 +50,7 @@ program test_diffz_4
         dfdz_ref(iz, :, :) = - six * z
     enddo
 
-    call central_diffz(fp, dfdz)
+    call zderiv(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 

@@ -7,7 +7,7 @@ program test_omp_collapse
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use inversion_utils
     use sta2dfft, only : dst
-    use sta3dfft, only : zfactors, ztrig
+    use sta3dfft, only : zfactors, ztrig, fftxyp2s
     use fields
     use omp_lib
     use mpi_environment
@@ -66,7 +66,7 @@ program test_omp_collapse
 
 
     do nc = 1, 3
-        call field_decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
+        call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
     enddo
 
     svor = svel

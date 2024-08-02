@@ -200,15 +200,11 @@ module ls_rk_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            call field_combine_semi_spectral(q)
-            call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) - diss * q(iz, :, :)
             enddo
             !$omp end parallel do
-            call field_decompose_semi_spectral(q)
-            call field_decompose_semi_spectral(sqs)
 
         end subroutine apply_hyperdiffusion
 #endif

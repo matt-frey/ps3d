@@ -11,9 +11,7 @@ module smagorinsky_mod
                        , diffy      &
                        , fftxys2p   &
                        , fftxyp2s
-    use inversion_utils, only : field_decompose_physical    &
-                              , field_combine_physical      &
-                              , central_diffz
+    use zops, only : zderiv
     implicit none
 
     private
@@ -199,12 +197,12 @@ module smagorinsky_mod
                 ! dxi/dx, deta/dx or dzeta/dx
                 call diffx(svor(:, :, :, nc), ds)
 
-                call field_combine_physical(ds, dp)
+                call fftxys2p(ds, dp)
 
                 ! apply eddy viscosity:
                 dp = smag * dp
 
-                call field_decompose_physical(dp, ds)
+                call fftxyp2s(dp, ds)
 
                 ! d^2*/dx^2
                 call diffx(ds, omg)
@@ -217,12 +215,12 @@ module smagorinsky_mod
                 ! dxi/dy, deta/dy or dzeta/dy
                 call diffy(svor(:, :, :, nc), ds)
 
-                call field_combine_physical(ds, dp)
+                call fftxys2p(ds, dp)
 
                 ! apply eddy viscosity:
                 dp = smag * dp
 
-                call field_decompose_physical(dp, ds)
+                call fftxyp2s(dp, ds)
 
                 ! d^2*/dy^2
                 call diffy(ds, omg)
@@ -233,17 +231,17 @@ module smagorinsky_mod
                 ! z-derivatives:
 
                 ! dxi/dz, deta/dz or dzeta/dz
-                call field_combine_physical(svor(:, :, :, nc), omg)
+                call fftxys2p(svor(:, :, :, nc), omg)
 
-                call central_diffz(omg, dp)
+                call zderiv(omg, dp)
 
                 ! apply eddy viscosity:
                 omg = smag * dp
 
                 ! d^2*/dz^2
-                call central_diffz(omg, dp)
+                call zderiv(omg, dp)
 
-                call field_decompose_physical(dp, omg)
+                call fftxyp2s(dp, omg)
 
                 svorts(:, :, :, nc) = svorts(:, :, :, nc) + omg
 
@@ -277,12 +275,12 @@ module smagorinsky_mod
             ! x-derivatives:
             call diffx(sbuoy, ds)
 
-            call field_combine_physical(ds, dp)
+            call fftxys2p(ds, dp)
 
             ! apply eddy viscosity:
             dp = smag * dp
 
-            call field_decompose_physical(dp, ds)
+            call fftxyp2s(dp, ds)
 
             ! d^2*/dx^2
             call diffx(ds, omg)
@@ -294,12 +292,12 @@ module smagorinsky_mod
 
             call diffy(sbuoy, ds)
 
-            call field_combine_physical(ds, dp)
+            call fftxys2p(ds, dp)
 
             ! apply eddy viscosity:
             dp = smag * dp
 
-            call field_decompose_physical(dp, ds)
+            call fftxyp2s(dp, ds)
 
             ! d^2*/dy^2
             call diffy(ds, omg)
@@ -309,17 +307,17 @@ module smagorinsky_mod
             !--------------------------------------------------------------
             ! z-derivatives:
 
-            call field_combine_physical(sbuoy, omg)
+            call fftxys2p(sbuoy, omg)
 
-            call central_diffz(omg, dp)
+            call zderiv(omg, dp)
 
             ! apply eddy viscosity:
             omg = smag * dp
 
             ! d^2*/dz^2
-            call central_diffz(omg, dp)
+            call zderiv(omg, dp)
 
-            call field_decompose_physical(dp, omg)
+            call fftxyp2s(dp, omg)
 
             sbuoys = sbuoys + omg
 

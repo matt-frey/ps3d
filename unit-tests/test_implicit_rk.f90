@@ -71,13 +71,9 @@ program test_implicit_rk
 
         ed = dexp(-time_step * diss)
         do nc = 1, 3
-            call field_combine_semi_spectral(ref(:, :, :, nc))
-            call field_combine_semi_spectral(src(:, :, :, nc))
             do iz = 0, nz
                 ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / diss
             enddo
-            call field_decompose_semi_spectral(ref(:, :, :, nc))
-            call field_decompose_semi_spectral(src(:, :, :, nc))
         enddo
 
         call impl_rk4(time, time_step)
@@ -128,13 +124,11 @@ program test_implicit_rk
             qdi = svor
             svor = (qdi + dt2 * svorts)
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
 
@@ -150,24 +144,20 @@ program test_implicit_rk
             svorts = src
             ! apply integrating factors to source
             do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
             enddo
 
             svor = (qdi + dt2 * svorts)
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             qdf = qdf + dt3 * svorts
@@ -182,25 +172,21 @@ program test_implicit_rk
             svorts = src
             ! apply integrating factors to source
             do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
             enddo
 
             emq = emq**2
             svor = qdi + dt * svorts
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             qdf = qdf + dt3 * svorts
@@ -216,24 +202,20 @@ program test_implicit_rk
             epq = epq**2
             ! apply integrating factors to source
             do nc = 1, 3
-                call field_combine_semi_spectral(svorts(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svorts(:, :, :, nc))
             enddo
 
             svor = qdf + dt6 * svorts
             do nc = 1, 3
-                call field_combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
                 enddo
                 !$omp end parallel do
-                call field_decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
         end subroutine impl_rk4

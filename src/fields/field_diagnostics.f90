@@ -4,10 +4,6 @@ module field_diagnostics
     use merge_sort
     use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
     use stafft, only : dst
-    use inversion_utils, only : central_diffz                           &
-                              , field_combine_semi_spectral             &
-                              , field_decompose_semi_spectral           &
-                              , field_combine_physical
     use mpi_environment
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
@@ -20,6 +16,7 @@ module field_diagnostics
     use physics, only : bfsq
 #endif
     use mpi_utils, only : mpi_check_for_error
+    use zops, only : zderiv
     implicit none
 
     contains
@@ -341,16 +338,14 @@ module field_diagnostics
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
-            call field_combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call central_diffz(sbuoy, mag)
+            call zderiv(sbuoy, mag)
             call fftxys2p(ds, mag)
-            call field_decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

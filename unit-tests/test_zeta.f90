@@ -7,7 +7,7 @@ program test_zeta
     use constants, only : one, two, pi, f12, twopi
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
-    use inversion_utils
+    use sta3dfft, only : fftxyp2s
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -54,8 +54,8 @@ program test_zeta
         enddo
     enddo
 
-    call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+    call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
     vor(0, :, :, 3) = zeta(0, :, :)
     call surf_fftxyp2s(vor(0, :, :, 3), szeta(0, :, :))
 

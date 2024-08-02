@@ -16,7 +16,7 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
-    use zops, only : zderiv
+    use zops, only : zderiv, vertvel, zinteg
     implicit none
 
     integer :: vor2vel_timer,   &

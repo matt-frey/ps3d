@@ -10,7 +10,6 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
-    use inversion_utils, only : field_combine_physical
     implicit none
 
     private
@@ -228,7 +227,7 @@ module field_netcdf
             call write_field_double(NC_PRES, pres, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call fftxys2p(sbuoy, buoy)
 
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
 

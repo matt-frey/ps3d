@@ -17,7 +17,8 @@ program test_vor2vel_3
     use constants, only : f12, one
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
-    use inversion_utils
+    use sta3dfft, only : fftxyp2s
+    use inversion_utils, only : init_inversion
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -65,9 +66,9 @@ program test_vor2vel_3
         vor(iz, :, :, 3) = zero
     enddo
 
-    call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+    call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+    call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+    call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
     call vor2vel
 
