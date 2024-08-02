@@ -44,15 +44,12 @@ module inversion_utils
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
 
-    double precision :: dzi, hdzi
-
     logical :: is_initialised = .false.
 
     public :: init_inversion        &
             , finalise_inversion    &
             , init_diffusion        &
             , filt                  &
-            , hdzi                  &
             , k2l2                  &
             , k2l2i                 &
             , hdis                  &
@@ -139,9 +136,6 @@ module inversion_utils
             endif
 
             is_initialised = .true.
-
-            dzi = dxi(3)
-            hdzi = f12 * dxi(3)
 
             call initialise_fft(extent)
 
