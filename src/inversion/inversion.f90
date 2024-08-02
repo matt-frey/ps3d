@@ -7,7 +7,7 @@ module inversion_mod
 #endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
-    use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
     use mpi_timer, only : start_timer, stop_timer
     use fields
 #ifdef ENABLE_SMAGORINSKY
@@ -98,6 +98,9 @@ module inversion_mod
             !----------------------------------------------------------
             ! Invert to get vertical velocity:
             call vertvel(ds)
+
+            ! Calculate z-derivative of vertical velocity:
+            call zderiv(ds, es)
 
             ! Get complete zeta field in semi-spectral space
             !$omp parallel workshare
