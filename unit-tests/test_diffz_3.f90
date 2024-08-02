@@ -8,13 +8,13 @@
 program test_diffz_3
     use unit_test
     use constants, only : zero, one, two, pi, twopi, f12, six, three
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
     use inversion_utils
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives
-    use zops, only : zderiv
+    use zops, only : zderiv, init_zops, zcheb
     implicit none
 
     double precision              :: error
@@ -43,6 +43,7 @@ program test_diffz_3
     call update_parameters
 
     call init_inversion
+    call init_zops
 
     k = two
     l = one
@@ -54,7 +55,7 @@ program test_diffz_3
             y = lower(2) + iy * dx(2)
             sinly = dsin(l * y)
             do iz = 0, nz
-                z = lower(3) + iz * dx(3)
+                z = center(3) - hl(3) * zcheb(iz)
 
                 fp(iz, iy, ix) = six * z + three * coskx * sinly * z
                 dfdz_ref(iz, iy, ix) = six + three * coskx * sinly
@@ -69,7 +70,7 @@ program test_diffz_3
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test diffz', error, atol=2.0e-13)
+        call print_result_dp('Test diffz', error, atol=2.0e-12)
     endif
 
     deallocate(fp)
