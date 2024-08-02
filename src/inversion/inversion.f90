@@ -189,22 +189,22 @@ module inversion_mod
             ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
             ! but u_x + v_y + w_z = 0 as we assume incompressibility.
 
-            call field_combine_physical(sbuoy, buoy)
+            call fftxys2p(sbuoy, buoy)
 
             ! Define the x-component of the flux
             fp = vel(:, :, :, 1) * buoy
 
             ! Differentiate
-            call field_decompose_physical(fp, fs)
+            call fftxyp2s(fp, fs)
             call diffx(fs, ds)
-            call field_combine_physical(ds, btend)
+            call fftxys2p(ds, btend)
 
             ! Define the y-component of the flux
             fp = vel(:, :, :, 2) * buoy
 
-            call field_decompose_physical(fp, fs)
+            call fftxyp2s(fp, fs)
             call diffy(fs, ds)
-            call field_combine_physical(ds, fp)
+            call fftxys2p(ds, fp)
 
             btend = - btend - fp
 
@@ -212,9 +212,9 @@ module inversion_mod
             fp = vel(:, :, :, 3) * buoy
 
             ! Differentiate
-            call field_decompose_physical(fp, fs)
+            call fftxyp2s(fp, fs)
             call diffz(fs, ds)
-            call field_combine_physical(ds, fp)
+            call fftxys2p(ds, fp)
 
             ! b = N^2 * z + b'
             ! db/dt = db/dz * dz/dt + db'/dt
@@ -235,7 +235,7 @@ module inversion_mod
             btend = btend - bfsq * vel(:, :, :, 3) - fp
 
             ! Convert to mixed-spectral space:
-            call field_decompose_physical(btend, sbuoys)
+            call fftxyp2s(btend, sbuoys)
 
 #ifdef ENABLE_SMAGORINSKY
             call apply_smagorinsky_buoyancy
@@ -266,7 +266,7 @@ module inversion_mod
             enddo
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call fftxys2p(sbuoy, buoy)
 #endif
             !-------------------------------------------------------
             ! Tendency in flux form:
@@ -281,18 +281,17 @@ module inversion_mod
             fp = fp + buoy
 #endif
             !$omp end parallel workshare
-            call field_decompose_physical(fp, r)
+            call fftxyp2s(fp, r)
 
             ! q = w * xi - u * zeta
             !$omp parallel workshare
             fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
             !$omp end parallel workshare
-            call field_decompose_physical(fp, q)
+            call fftxyp2s(fp, q)
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
-            call central_diffz(fp, gp)
-            call field_decompose_physical(gp, p)
+            call zderiv(q, p)
             !$omp parallel workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
             !$omp end parallel workshare
@@ -301,12 +300,11 @@ module inversion_mod
             !$omp parallel workshare
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
             !$omp end parallel workshare
-            call field_decompose_physical(fp, p)
+            call fftxyp2s(fp, p)
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
-            call central_diffz(fp, gp)
-            call field_decompose_physical(gp, r)
+            call zderiv(p, r)
             !$omp parallel workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
             !$omp end parallel workshare
@@ -379,8 +377,8 @@ module inversion_mod
             !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
-            call central_diffz(buoy, dbdz)
+            call fftxys2p(sbuoy, buoy)
+            call zderiv(buoy, dbdz)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 #endif
 
