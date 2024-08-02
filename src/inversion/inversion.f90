@@ -35,7 +35,7 @@ module inversion_mod
             double precision :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
             double precision :: cs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
-            integer          :: iz, nc, kx, ky, kz
+            integer          :: iz, nc
 
             call start_timer(vor2vel_timer)
 
@@ -251,7 +251,6 @@ module inversion_mod
         ! Compute the gridded vorticity tendency:
         subroutine vorticity_tendency
             double precision :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
-            double precision :: gp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
             double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space

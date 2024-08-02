@@ -123,9 +123,7 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            integer          :: kx, ky, iz, kz
-            double precision :: z, zm(0:nz), zp(0:nz)
-            double precision :: phip00(0:nz)
+            integer          :: kx, ky, kz
             double precision :: kxmaxi, kymaxi, kzmaxi
             double precision :: skx(box%lo(1):box%hi(1)), &
                                 sky(box%lo(2):box%hi(2)), &
