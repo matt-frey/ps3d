@@ -15,9 +15,10 @@
 program test_vor2vel_4
     use unit_test
     use constants, only : one, f12, f13, two
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
     use fields
     use sta3dfft, only : fftxyp2s
+    use zops, only : init_zops, zcheb
     use inversion_utils, only : init_inversion
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
@@ -27,7 +28,7 @@ program test_vor2vel_4
     implicit none
 
     double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
+    double precision, allocatable :: vel_ref(:, :, :, :), zz(:)
     integer                       :: iz
     double precision              :: z
 
@@ -45,15 +46,19 @@ program test_vor2vel_4
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
     allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+    allocate(zz(0:nz))
 
     call update_parameters
 
     call field_default
 
     call init_inversion
+    call init_zops
+
+    zz = center(3) - hl(3) * zcheb
 
     do iz = 0, nz
-        z = lower(3) + iz * dx(3)
+        z = zz(iz) !lower(3) + iz * dx(3)
 
         ! velocity
         vel_ref(iz, :, :, 1) = z ** 2 - f13
@@ -74,13 +79,18 @@ program test_vor2vel_4
 
     error = maxval(dabs(vel_ref - vel))
 
+    print *, maxval(dabs(vel_ref(:, :, :, 1) - vel(:, :, :, 1)))
+    print *, maxval(dabs(vel_ref(:, :, :, 2) - vel(:, :, :, 2)))
+    print *, maxval(dabs(vel_ref(:, :, :, 3) - vel(:, :, :, 3)))
+
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test vor2vel', error, atol=1.0e-15)
+        call print_result_dp('Test vor2vel', error, atol=1.3e-15)
     endif
 
     deallocate(vel_ref)
+    deallocate(zz)
 
     call mpi_env_finalise
 

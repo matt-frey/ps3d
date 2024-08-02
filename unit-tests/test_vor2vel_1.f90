@@ -14,10 +14,11 @@
 program test_vor2vel_1
     use unit_test
     use constants, only : one, two, pi, f12
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
     use fields
     use sta3dfft, only : fftxyp2s
     use inversion_utils, only : init_inversion
+    use zops, only : init_zops, zcheb
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -26,7 +27,7 @@ program test_vor2vel_1
     implicit none
 
     double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
+    double precision, allocatable :: vel_ref(:, :, :, :), zz(:)
     integer                       :: ix, iy, iz
     double precision              :: x, y, z, alpha, fk2l2, k, l, m
     double precision              :: cosmz, sinmz, sinkxly, coskxly
@@ -45,6 +46,7 @@ program test_vor2vel_1
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
     allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+    allocate(zz(0:nz))
 
     call update_parameters
 
@@ -55,17 +57,20 @@ program test_vor2vel_1
     m = one
 
     call init_inversion
+    call init_zops
 
 
     alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
     fk2l2 = one / dble(k ** 2 + l ** 2)
+
+    zz = center(3) - hl(3) * zcheb
 
     do ix = box%lo(1), box%hi(1)
         x = lower(1) + ix * dx(1)
         do iy = box%lo(2), box%hi(2)
             y = lower(2) + iy * dx(2)
             do iz = 0, nz
-                z = lower(3) + iz * dx(3)
+                z = zz(iz)
 
                 cosmz = dcos(m * z)
                 sinmz = dsin(m * z)
@@ -101,6 +106,7 @@ program test_vor2vel_1
     endif
 
     deallocate(vel_ref)
+    deallocate(zz)
 
     call mpi_env_finalise
 

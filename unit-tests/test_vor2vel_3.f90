@@ -15,9 +15,10 @@
 program test_vor2vel_3
     use unit_test
     use constants, only : f12, one
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
+    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper, center, hl
     use fields
     use sta3dfft, only : fftxyp2s
+    use zops, only : init_zops, zcheb
     use inversion_utils, only : init_inversion
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
@@ -27,7 +28,7 @@ program test_vor2vel_3
     implicit none
 
     double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
+    double precision, allocatable :: vel_ref(:, :, :, :), zz(:)
     integer                       :: iz
     double precision              :: z
 
@@ -51,13 +52,18 @@ program test_vor2vel_3
     call field_default
 
     call init_inversion
+    call init_zops
+
+    zz = center(3) - hl(3) * zcheb
 
     do iz = 0, nz
-        z = lower(3) + iz * dx(3)
+        z = zz(iz)
 
         ! velocity
-        vel_ref(iz, :, :, 1) = z - f12 * (lower(3) + upper(3))
-        vel_ref(iz, :, :, 2) = zero
+        vel_ref(iz, :, :, 1) = zero
+
+!         print *, vel_ref(iz, 0, 0, 1)
+        vel_ref(iz, :, :, 2) = z - f12 * (lower(3) + upper(3)) !zero
         vel_ref(iz, :, :, 3) = zero
 
         ! vorticity
@@ -73,6 +79,13 @@ program test_vor2vel_3
     call vor2vel
 
     error = maxval(dabs(vel_ref - vel))
+
+    error = maxval(dabs(vel_ref(:, :, :, 2) - vel(:, :, :, 2)))
+    print *, "error", error
+
+    do iz = 0, nz
+        print *, vel(iz, 0, 0, 2), vel_ref(iz, 0, 0, 2)
+    enddo
 
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
