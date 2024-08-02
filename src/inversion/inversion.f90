@@ -48,10 +48,9 @@ module inversion_mod
             call diffy(svor(:, :, :, 1), bs) ! bs = A_y
             !$omp parallel workshare
             ds = as - bs                     ! ds = D
-            cs = svor(:, :, :, 3)
             !$omp end parallel workshare
 
-            call zderiv(cs, es)                     ! es = E
+            call zderiv(svor(:, :, :, 3), es)                     ! es = E
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
