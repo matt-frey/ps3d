@@ -553,18 +553,13 @@ module field_diagnostics
 
         ! This is only calculated on the MPI rank having kx = ky = 0
         function calc_vorticity_mean() result(savg)
-            double precision :: wk(1:nz)
             integer          :: nc
             double precision :: savg(2)
 
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                 do nc = 1, 2
-                    ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
-                    wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
-                    wk(nz) = zero
-                    call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                    ! Compute average (first part is the part due to svor_L):
-                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
+                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) &
+                             + fnzi * sum(svor(1:nz-1, 0, 0, nc))
                 enddo
             endif
         end function calc_vorticity_mean
@@ -581,9 +576,7 @@ module field_diagnostics
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                 ! Ensure zero global mean horizontal vorticity conservation:
                 do nc = 1, 2
-                    ! Remove from boundary values (0 & nz):
-                    svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
-                    svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                    svor(: , 0, 0, nc) = svor(: , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
                 enddo
             endif
 
