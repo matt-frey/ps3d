@@ -22,6 +22,7 @@ module utils
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     use sta3dfft, only : fftxyp2s
+    use zops, only : zg
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
@@ -138,7 +139,6 @@ module utils
             double precision :: bbdif, ke, ape, te, en
 #ifdef ENABLE_BUOYANCY
             integer          :: iz
-            double precision :: z
 #endif
 
             call field_default
@@ -153,8 +153,7 @@ module utils
 
             ! remove basic state from buoyancy
             do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                bbarz(iz) = bfsq * z
+                bbarz(iz) = bfsq * zg(iz)
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
             call fftxyp2s(buoy, sbuoy)

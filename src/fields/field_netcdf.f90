@@ -204,7 +204,7 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis_3d(ncid, dimids(1:3), box%lower, dx, &
+                call write_netcdf_axis_3d(ncid, dimids(1:3), box%lower, (/dx(1), dx(2), 1.0d0/), &
                                           box%size, start(1:3), cnt(1:3))
             endif
 

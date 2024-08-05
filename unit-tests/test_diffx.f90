@@ -16,7 +16,7 @@ program test_diffx
                                      fs(:, :, :), &
                                      ds(:, :, :)
     integer                       :: i, j, k
-    double precision              :: x, y, z
+    double precision              :: x, y
     logical                       :: passed = .false.
 
     call mpi_env_initialise
@@ -47,7 +47,6 @@ program test_diffx
         do j = box%lo(2), box%hi(2)
             y = lower(2) + dble(j) * dx(2)
             do k = box%lo(3), box%hi(3)
-                z = lower(3) + dble(k) * dx(3)
                 fp(k, j, i) = dcos(four * x)
             enddo
         enddo
@@ -71,7 +70,6 @@ program test_diffx
         do j = box%lo(2), box%hi(2)
             y = lower(2) + dble(j) * dx(2)
             do k = box%lo(3), box%hi(3)
-                z = lower(3) + dble(k) * dx(3)
                 passed = (passed .and. (fp(k, j, i) - (-four * dsin(four * x)) < 1.0e-12))
             enddo
         enddo

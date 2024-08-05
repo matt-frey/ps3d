@@ -11,6 +11,7 @@ program test_zeta
     use mpi_timer
     use mpi_environment
     use mpi_layout
+    use zops, only : init_zops, zg
     implicit none
 
     double precision              :: error
@@ -36,13 +37,14 @@ program test_zeta
     call field_default
 
     call init_inversion
+    call init_zops
 
     do ix = box%lo(1), box%hi(1)
         x = lower(1) + ix * dx(1)
         do iy = box%lo(2), box%hi(2)
             y = lower(2) + iy * dx(2)
             do iz = 0, nz
-                z = lower(3) + iz * dx(3)
+                z = zg(iz)
 
                 zeta_ref(iz, iy, ix) = dsin(x) * dsin(z)
 

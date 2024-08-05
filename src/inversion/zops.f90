@@ -3,7 +3,7 @@
 module zops
     use mpi_layout, only : box
     use constants, only : zero
-    use parameters, only : nz, extent, hli
+    use parameters, only : nz, extent, hli, center, hl
     use cheby ! Import Chebyshev module to set up various matrices needed below
     use inversion_utils, only : k2l2, init_inversion
     implicit none
@@ -11,12 +11,12 @@ module zops
 
     private
 
-    double precision, allocatable :: d1z(:, :), d2z(:, :), zcheb(:)
+    double precision, allocatable :: d1z(:, :), d2z(:, :), zcheb(:), zg(:)
 
     logical          :: l_initialised = .false.
     integer          :: nxym1 = 0
 
-    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb
+    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb, zg
 
     contains
 
@@ -32,6 +32,7 @@ module zops
             allocate(d1z(0:nz, 0:nz))
             allocate(d2z(0:nz, 0:nz))
             allocate(zcheb(0:nz))
+            allocate(zg(0:nz))
 
             nxym1 = box%size(1) * box%size(2) - 1
 
@@ -42,6 +43,8 @@ module zops
             !-----------------------------------------------------------------
             ! Get Chebyshev points & 1st & 2nd order differentiation matrices:
             call init_cheby(zcheb, d1z, d2z)
+
+            zg = center(3) - hl(3) * zcheb
 
             ! Scale d1z & d2z for the actual z limits:
             d1z = fdz1 * d1z
@@ -63,6 +66,7 @@ module zops
             deallocate(d1z)
             deallocate(d2z)
             deallocate(zcheb)
+            deallocate(zg)
 
         end subroutine finalise_zops
 

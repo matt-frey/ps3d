@@ -92,14 +92,14 @@ module cn2_mod
             !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
-            sbuoy = filt * (bsm + dt2 * sbuoys)
-#ifndef ENABLE_SMAGORINSKY
             !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
+            for iz = 0, nz
+                sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
+#ifndef ENABLE_SMAGORINSKY
                 sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+#endif
             enddo
             !$omp end parallel do
-#endif
 #endif
 
             ! Advance interior and boundary values of vorticity
@@ -107,18 +107,16 @@ module cn2_mod
             vortsm = svor + dt2 * svorts
             !$omp end parallel workshare
 
+            !$omp parallel do collapse(2) private(iz) default(shared)
             do nc = 1, 3
-                !$omp parallel workshare
-                svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                !$omp end parallel workshare
-#ifndef ENABLE_SMAGORINSKY
-                !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
+                    svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
+#ifndef ENABLE_SMAGORINSKY
                     svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
 #endif
+                enddo
             enddo
+            !$omp end parallel do
 
             call adjust_vorticity_mean
 
@@ -135,28 +133,26 @@ module cn2_mod
 
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
-                sbuoy = filt * (bsm + dt2 * sbuoys)
-#ifndef ENABLE_SMAGORINSKY
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
+                    sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
+#ifndef ENABLE_SMAGORINSKY
                     sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+#endif
                 enddo
                 !$omp end parallel do
 #endif
-#endif
 
+                !$omp parallel do collapse(2) private(iz) default(shared)
                 do nc = 1, 3
-                    !$omp parallel workshare
-                    svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                    !$omp end parallel workshare
-#ifndef ENABLE_SMAGORINSKY
-                    !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
+                        svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
+#ifndef ENABLE_SMAGORINSKY
                         svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-                    enddo
-                    !$omp end parallel do
 #endif
+                    enddo
                 enddo
+                !$omp end parallel do
 
                 call adjust_vorticity_mean
 

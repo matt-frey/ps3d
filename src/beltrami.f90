@@ -17,11 +17,14 @@
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
-    use parameters, only : nx, ny, nz, dx, lower, extent
+    use parameters, only : nx, ny, nz, dx, lower, extent, update_parameters
     use netcdf_utils
     use netcdf_writer
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist
+    use zops, only : init_zops, zcheb
+    use inversion_utils, only : init_inversion
+    use mpi_layout, only : mpi_layout_init
     implicit none
 
     logical                     :: verbose = .false.
@@ -32,6 +35,7 @@ program beltrami
     double precision            :: fk2l2, kk, ll, mm, alpha
     integer                     :: x_vor_id, y_vor_id, z_vor_id
     double precision, parameter :: hpi = f12 * pi
+    double precision            :: zcen, zhl
 
     type box_type
         integer          :: ncells(3)   ! number of cells
@@ -48,6 +52,8 @@ program beltrami
     type(beltrami_type) :: beltrami_flow
 
 
+    call mpi_env_initialise
+
     ! Read command line (verbose, filename, etc.)
     call parse_command_line
 
@@ -57,13 +63,15 @@ program beltrami
 
     call generate_fields
 
+    call mpi_env_finalise
+
     contains
 
         subroutine generate_fields
 
             call create_netcdf_file(ncfname, .false., ncid, l_serial=.true.)
 
-            dx = box%extent / dble(box%ncells)
+            dx = box%extent(1:2) / dble(box%ncells(1:2))
             nx = box%ncells(1)
             ny = box%ncells(2)
             nz = box%ncells(3)
@@ -88,14 +96,25 @@ program beltrami
             box%extent = pi * box%extent
             dx = dx * pi
 
+            zcen = f12 * (two * box%origin(3) + box%extent(3))
+            zhl = f12 * box%extent(3)
+
             ! write box
             lower = box%origin
             extent = box%extent
+            call mpi_layout_init(lower, extent, nx, ny, nz)
+
             call write_netcdf_box(ncid, lower, extent, box%ncells)
+
+
+            call update_parameters
+
+            call init_inversion
+            call init_zops
 
             call beltrami_init
 
-            call write_netcdf_axis_3d(ncid, dimids, lower, dx, box%ncells)
+            call write_netcdf_axis_3d(ncid, dimids, lower, (/dx, 1.0d0/), box%ncells)
 
             ! write time
             call write_netcdf_scalar(ncid, axids(4), zero, 1)
@@ -147,7 +166,8 @@ program beltrami
             do i = 0, nx - 1
                 do j = 0, ny - 1
                     do k = 0, nz
-                        pos = box%origin + dx * dble((/i, j, k/))
+                        pos(1:2) = box%origin(1:2) + dx * dble((/i, j/))
+                        pos(3) = zcen - zhl * zcheb(k)
                         vor(k, j, i, :) = get_flow_vorticity(pos)
                     enddo
                 enddo

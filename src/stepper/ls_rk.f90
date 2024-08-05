@@ -120,7 +120,7 @@ module ls_rk_mod
             double precision, intent(in) :: dt
             integer,          intent(in) :: step
             double precision             :: ca, cb
-            integer                      :: nc
+            integer                      :: nc, iz
 
             ca = captr(step)
             cb = cbptr(step)
@@ -166,14 +166,18 @@ module ls_rk_mod
 
 
 #ifdef ENABLE_BUOYANCY
-            sbuoy = filt * (sbuoy + cb * dt * bsm)
+            do iz = 0, nz
+                sbuoy(iz, :, :) = filt * (sbuoy(iz, :, :) + cb * dt * bsm(iz, :, :))
+            enddo
 #endif
 
+            !$omp parallel do collapse(2)
             do nc = 1, 3
-                !$omp parallel workshare
-                svor(:, :, :, nc) = filt * (svor(:, :, :, nc) + cb * dt * vortsm(:, :, :, nc))
-                !$omp end parallel workshare
+                do iz = 0, nz
+                    svor(iz, :, :, nc) = filt * (svor(iz, :, :, nc) + cb * dt * vortsm(iz, :, :, nc))
+                enddo
             enddo
+            !$omp end parallel workshare
 
             call adjust_vorticity_mean
 

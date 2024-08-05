@@ -188,15 +188,14 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            qdi = q
-            q = filt * (qdi + dt2 * sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
+                qdi(iz, :, :) = q(iz, :, :)
+                q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
                 q(iz, :, :) = q(iz, :, :) * self%emq
+                qdf(iz, :, :) = filt * (qdi(iz, :, :) + dt6 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
-
-            qdf = filt * (qdi + dt6 * sqs)
 
         end subroutine impl_rk4_substep_one
 
@@ -219,18 +218,11 @@ module impl_rk4_mod
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
-            enddo
-            !$omp end parallel do
-
-            q = filt * (qdi + dt2 * sqs)
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
+                q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
                 q(iz, :, :) = q(iz, :, :) * self%emq
+                qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
-
-            qdf = filt * (qdf + dt3 * sqs)
 
         end subroutine impl_rk4_substep_two
 
@@ -254,18 +246,11 @@ module impl_rk4_mod
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
-            enddo
-            !$omp end parallel do
-
-            q = filt * (qdi + dt * sqs)
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
+                q(iz, :, :) = filt * (qdi(iz, :, :) + dt * sqs(iz, :, :))
                 q(iz, :, :) = q(iz, :, :) * self%emq
+                qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
-
-            qdf = filt * (qdf + dt3 * sqs)
         end subroutine impl_rk4_substep_three
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -285,13 +270,7 @@ module impl_rk4_mod
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
-            enddo
-            !$omp end parallel do
-
-            q = filt * (qdf + dt6 * sqs)
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
+                q(iz, :, :) = filt * (qdf(iz, :, :) + dt6 * sqs(iz, :, :))
                 q(iz, :, :) = q(iz, :, :) * self%emq
             enddo
             !$omp end parallel do

@@ -1,6 +1,6 @@
 module smagorinsky_mod
     use constants, only : f12, f13, two
-    use parameters, only : vcell
+    use parameters, only : acell
     use dimensions, only : I_X, I_Y, I_Z
     use mpi_layout, only : box
     use fields, only : svorts, svel, svor, vor
@@ -55,7 +55,7 @@ module smagorinsky_mod
 
             ! Multiply with length scale (Smagorinsky coefficient: c_s = 0.173 according to Lilly)
             ! Deardorff: (dx * dy * dz) ** f13
-            lscale = (c_s * vcell ** f13) ** 2
+            lscale = (c_s * acell ** f13) ** 2
 
             !$omp parallel workshare
             smag = lscale * smag

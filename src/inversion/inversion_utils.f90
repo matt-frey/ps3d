@@ -42,7 +42,7 @@ module inversion_utils
     double precision, allocatable :: hdis(:, :)
 
     ! Spectral filter:
-    double precision, allocatable :: filt(:, :, :)
+    double precision, allocatable :: filt(:, :)
 
     logical :: is_initialised = .false.
 
@@ -124,10 +124,9 @@ module inversion_utils
 
         subroutine init_inversion
             integer          :: kx, ky, kz
-            double precision :: kxmaxi, kymaxi, kzmaxi
+            double precision :: kxmaxi, kymaxi
             double precision :: skx(box%lo(1):box%hi(1)), &
-                                sky(box%lo(2):box%hi(2)), &
-                                skz(0:nz)
+                                sky(box%lo(2):box%hi(2))
 
             if (is_initialised) then
                 return
@@ -161,28 +160,22 @@ module inversion_utils
 
             !----------------------------------------------------------
             !Define Hou and Li filter (2D and 3D):
-            allocate(filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
             kxmaxi = one / maxval(rkx)
             skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
             kymaxi = one/maxval(rky)
             sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
-            kzmaxi = one/maxval(rkz)
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
 
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
-                  filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
-                  filt(nz, ky, kx) = filt(0, ky, kx)
-                  do kz = 1, nz-1
-                     filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
-                  enddo
+                     filt(ky, kx) = dexp(skx(kx) + sky(ky))
                enddo
             enddo
 
             !Ensure filter does not change domain mean:
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                filt(:, 0, 0) = one
+                filt(0, 0) = one
             endif
 
             !---------------------------------------------------------------------

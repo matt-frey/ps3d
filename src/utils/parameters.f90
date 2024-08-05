@@ -7,16 +7,16 @@ module parameters
     implicit none
 
     ! mesh spacing
-    double precision :: dx(3)
+    double precision :: dx(2)
 
     ! inverse mesh spacing
-    double precision :: dxi(3)
+    double precision :: dxi(2)
 
-    ! grid cell volume, really area in 2D:
-    double precision :: vcell
+    ! horizontal grid cell area:
+    double precision :: acell
 
-    ! inverse grid cell volume
-    double precision :: vcelli
+    ! horizontal inverse grid cell area
+    double precision :: acelli
 
     ! number of grid cells in each dimension
     integer :: nx, ny, nz
@@ -62,13 +62,13 @@ module parameters
 
         upper = lower + extent
 
-        dx = extent / dble((/nx, ny, nz/))
+        dx = extent(1:2) / dble((/nx, ny/))
         dxi = one / dx;
 
         vdomaini = one / product(extent)
 
-        vcell = product(dx)
-        vcelli = one / vcell
+        acell = product(dx)
+        acelli = one / acell
 
         ncell = nx * ny * nz
         ncelli = one / dble(ncell)

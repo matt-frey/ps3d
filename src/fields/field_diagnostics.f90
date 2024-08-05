@@ -16,7 +16,7 @@ module field_diagnostics
     use physics, only : bfsq
 #endif
     use mpi_utils, only : mpi_check_for_error
-    use zops, only : zderiv
+    use zops, only : zderiv, zg
     implicit none
 
     contains
@@ -33,20 +33,14 @@ module field_diagnostics
 #if !defined(NDEBUG)
             logical                      :: l_dummy
 #endif
-            integer                      :: i, j, k
-            double precision             :: z(0:nz)
-
-            do k = 0, nz
-                z(k) = lower(3) + dble(k) * dx(3)
-            enddo
-
+            integer                      :: i, j
 
             ape = zero
             do i = box%lo(1), box%hi(1)
                 do j = box%lo(2), box%hi(2)
-                    ape = ape + sum(ape_den(bb(1:nz-1, j, i), z(1:nz-1))) &
-                        + f12 *     ape_den(bb(0,      j, i), z(0))       &
-                        + f12 *     ape_den(bb(nz,     j, i), z(nz))
+                    ape = ape + sum(ape_den(bb(1:nz-1, j, i), zg(1:nz-1))) &
+                        + f12 *     ape_den(bb(0,      j, i), zg(0))       &
+                        + f12 *     ape_den(bb(nz,     j, i), zg(nz))
                 enddo
             enddo
 

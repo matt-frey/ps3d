@@ -296,8 +296,8 @@ module advance_mod
 
             ! CFL time step constraint:
             dtcfl = cflmax * min(dx(1) / (umax + small), &
-                                 dx(2) / (vmax + small), &
-                                 dx(3) / (wmax + small))
+                                 dx(2) / (vmax + small)) !, &
+!                                  dx(3) / (wmax + small))
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &

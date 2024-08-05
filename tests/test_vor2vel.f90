@@ -7,6 +7,7 @@ program test_vor2vel
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
+    use zops, only : init_zops, zg
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -38,6 +39,7 @@ program test_vor2vel
     call field_default
 
     call init_inversion
+    call init_zops
 
     if (casenum == 1) then
         k = two
@@ -52,10 +54,8 @@ program test_vor2vel
             do iy = box%lo(2), box%hi(2)
                 y = lower(2) + iy * dx(2)
                 do iz = 0, nz
-                    z = lower(3) + iz * dx(3)
-
-                    cosmz = dcos(m * z)
-                    sinmz = dsin(m * z)
+                    cosmz = dcos(m * zg(iz))
+                    sinmz = dsin(m * zg(iz))
                     sinkxly = dsin(k * x + l * y)
                     coskxly = dcos(k * x + l * y)
 
@@ -90,7 +90,7 @@ program test_vor2vel
             do iy = box%lo(2), box%hi(2)
                 y = lower(2) + iy * dx(2)
                 do iz = 0, nz
-                    z = lower(3) + iz * dx(3)
+                    z = zg(iz)
 
                     f = two * z - z ** 2 - z ** 3
                     dfdz = two - two * z - three * z ** 2
@@ -121,7 +121,7 @@ program test_vor2vel
 
         ! linear -- test_vor2vel_3
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
+            z = zg(iz)
 
             ! velocity
             vel_ref(iz, :, :, 1) = z - f12 * (lower(3) + upper(3))
@@ -142,7 +142,7 @@ program test_vor2vel
 
         ! quadratic -- test_vor2vel_4
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
+            z = zg(iz)
 
             ! velocity
             vel_ref(iz, :, :, 1) = z ** 2 - f13
@@ -163,7 +163,7 @@ program test_vor2vel
 
         ! cubic -- test_vor2vel_5
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
+            z = zg(iz)
 
             ! velocity
             vel_ref(iz, :, :, 1) = z ** 3 - f14

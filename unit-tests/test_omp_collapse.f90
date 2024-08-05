@@ -13,6 +13,7 @@ program test_omp_collapse
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use zops, only : init_zops, zg
     implicit none
 
     double precision               :: error
@@ -36,6 +37,7 @@ program test_omp_collapse
     call field_default
 
     call init_inversion
+    call init_zops
 
     k = two
     l = two
@@ -49,7 +51,7 @@ program test_omp_collapse
         do iy = box%lo(2), box%hi(2)
             y = lower(2) + iy * dx(2)
             do iz = 0, nz
-                z = lower(3) + iz * dx(3)
+                z = zg(iz)
 
                 cosmz = dcos(m * z)
                 sinmz = dsin(m * z)
