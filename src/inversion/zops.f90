@@ -11,12 +11,15 @@ module zops
 
     private
 
-    double precision, allocatable :: d1z(:, :), d2z(:, :), zcheb(:), zg(:)
+    double precision, allocatable :: d1z(:, :), d2z(:, :) &
+                                    , zcheb(:)            & ! Chebyshev grid points
+                                    , zg(:)               & ! Chebyshev domains points
+                                    , zccw(:)               ! Clenshaw-Curtis weights
 
     logical          :: l_initialised = .false.
     integer          :: nxym1 = 0
 
-    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb, zg
+    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb, zg, zccw
 
     contains
 
@@ -33,6 +36,7 @@ module zops
             allocate(d2z(0:nz, 0:nz))
             allocate(zcheb(0:nz))
             allocate(zg(0:nz))
+            allocate(zccw(0:nz))
 
             nxym1 = box%size(1) * box%size(2) - 1
 
@@ -49,6 +53,9 @@ module zops
             ! Scale d1z & d2z for the actual z limits:
             d1z = fdz1 * d1z
             d2z = fdz2 * d2z
+
+            ! Get Clenshaw-Curtis weights:
+            call clencurt(zccw)
 
             ! Ensure wave numbers etc are initialised:
             call init_inversion

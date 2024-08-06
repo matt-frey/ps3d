@@ -1,5 +1,5 @@
 module cheby
-    use constants, only : one, two, pi
+    use constants, only : zero, one, two, pi, four
     use parameters, only : nz
     implicit none
 
@@ -53,5 +53,40 @@ module cheby
 
         end subroutine init_cheby
 
-end module cheby
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        ! w:  Clenshaw-Curtis weights
+        subroutine clencurt(w)
+            double precision, intent(out) :: w(0:nz)
+            double precision              :: v(0:nz-2)
+            double precision              :: theta
+            integer                       :: i, k
+
+            ! Initialize weights
+            w = zero
+            w(0) = one / (dble(nz) ** 2 - one)
+            w(nz) = w(0)
+
+            ! Initialize vector v
+            v = one
+
+            ! Update vector v using the given formula
+            do k = 1, nz/2 - 1
+                do i = 1, nz-1
+                    theta = pi * dble(i) / dble(nz)
+                    v(i-1) = v(i-1) - two * cos(two * dble(k) * theta) / (four * dble(k) ** 2 - one)
+                end do
+            end do
+
+            ! Finalize vector v
+            do i = 1, nz-1
+                theta = pi * dble(i) / dble(nz)
+                v(i-1) = v(i-1) - cos(dble(nz) * theta) / (dble(nz) ** 2 - one)
+            end do
+
+            ! Compute the weights
+            w(1:nz-1) = two * v / dble(nz)
+
+        end subroutine clencurt
+
+end module cheby
