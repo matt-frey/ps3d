@@ -1,5 +1,5 @@
 module field_diagnostics
-    use parameters, only : nz, ncelli, dx, lower, extent, fnzi, ncell
+    use parameters, only : nz, ncelli, dx, lower, extent, fnzi, ncell, acell
     use constants, only : zero, f12, f14, one, small
     use merge_sort
     use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
@@ -16,7 +16,7 @@ module field_diagnostics
     use physics, only : bfsq
 #endif
     use mpi_utils, only : mpi_check_for_error
-    use zops, only : zderiv, zg
+    use zops, only : zderiv, zg, zccw
     implicit none
 
     contains
@@ -80,18 +80,26 @@ module field_diagnostics
             logical,          intent(in) :: l_global
             logical,          intent(in) :: l_allreduce
             double precision             :: ke
+            integer                      :: iz
 
-            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2      &
-                         + vv(1:nz-1, :, :, 2) ** 2      &
-                         + vv(1:nz-1, :, :, 3) ** 2)     &
-               + f14 * sum(vv(0,  :, :, 1) ** 2          &
-                         + vv(0,  :, :, 2) ** 2          &
-                         + vv(0,  :, :, 3) ** 2)         &
-               + f14 * sum(vv(nz, :, :, 1) ** 2          &
-                         + vv(nz, :, :, 2) ** 2          &
-                         + vv(nz, :, :, 3) ** 2)
+            ke = 0.0d0
 
-            ke = ke * ncelli
+            do iz = 0, nz
+                ke = ke + zccw(iz) * sum(vv(iz, :, :, 1) ** 2      &
+                                       + vv(iz, :, :, 2) ** 2      &
+                                       + vv(iz, :, :, 3) ** 2)
+            enddo
+
+            ! The factor dx(1) * dx(2) comes from the trapezoidal rule in x and y
+            ! (note that the problem is periodic in x and y, simplifying the
+            ! trapezoidal rule, i.e. no 1/2 factor)
+            ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
+            ! where the Chebyshev points are given in [-1, 1]
+            ! z = (b-a) / 2 * t + (a+b)/2 for [a, b] --> dz = (b-a) / 2 * dt
+            ke = f12 * ke * f12 * extent(3) * dx(1) * dx(2)
+
+            ! divide by domain volume to get domain-average
+            ke = ke / product(extent)
 
             if (l_global) then
                 if (l_allreduce) then
@@ -164,18 +172,31 @@ module field_diagnostics
             logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: en
+            double precision    :: vc(0:nz-1), dz
+            integer             :: iz
 
-            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
-                         + vor(1:nz-1, :, :, 2) ** 2    &
-                         + vor(1:nz-1, :, :, 3) ** 2)   &
-               + f14 * sum(vor(0,      :, :, 1) ** 2    &
-                         + vor(0,      :, :, 2) ** 2    &
-                         + vor(0,      :, :, 3) ** 2)   &
-               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
-                         + vor(nz,     :, :, 2) ** 2    &
-                         + vor(nz,     :, :, 3) ** 2)
+            do iz = 0, nz-1
+                dz = zg(iz+1) - zg(iz)
+                vc(iz) = acell * dz
+            enddo
 
-            en = en * ncelli
+            en = 0.0d0
+
+            do iz = 1, nz-1
+                en = en + f12 * vc(iz) * sum(vor(1:nz-1, :, :, 1) ** 2    &
+                                           + vor(1:nz-1, :, :, 2) ** 2    &
+                                           + vor(1:nz-1, :, :, 3) ** 2)
+            enddo
+
+            en = en &
+               + f14 * vc(0) * sum(vor(0,      :, :, 1) ** 2    &
+                                + vor(0,      :, :, 2) ** 2    &
+                                + vor(0,      :, :, 3) ** 2)   &
+               + f14 * vc(0) * sum(vor(nz,     :, :, 1) ** 2    &
+                                 + vor(nz,     :, :, 2) ** 2    &
+                                 + vor(nz,     :, :, 3) ** 2)
+
+            en = en / product(extent)
 
             if (l_global) then
                 if (l_allreduce) then
