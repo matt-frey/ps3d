@@ -39,7 +39,10 @@ unittests_PROGRAMS =   		\
         test_diffy		\
         test_omp_collapse	\
         test_zops		\
-        test_clenshaw
+        test_clenshaw		\
+        test_clenshaw_1		\
+        test_clenshaw_2		\
+        test_integrate
 
 if ! ENABLE_SMAGORINSKY
 unittests_PROGRAMS += test_implicit_rk
@@ -90,6 +93,14 @@ test_zops_LDADD = libcombi.la
 test_clenshaw_SOURCES = unit_test.f90 test_clenshaw.f90
 test_clenshaw_LDADD = libcombi.la
 
+test_clenshaw_1_SOURCES = unit_test.f90 test_clenshaw_1.f90
+test_clenshaw_1_LDADD = libcombi.la
+
+test_clenshaw_2_SOURCES = unit_test.f90 test_clenshaw_2.f90
+test_clenshaw_2_LDADD = libcombi.la
+
+test_integrate_SOURCES = unit_test.f90 test_integrate.f90
+test_integrate_LDADD = libcombi.la
 
 if ! ENABLE_SMAGORINSKY
 test_implicit_rk_SOURCES = unit_test.f90 test_implicit_rk.f90

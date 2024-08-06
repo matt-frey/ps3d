@@ -1,14 +1,16 @@
 ! =============================================================================
-!                        Test integration using
-!                        Clenshaw-Curtis weights
+!                 Test integration using Clenshaw-Curtis weights
+!                 for arbitrary integration bounds.
 !
-!   This unit test integrates the function exp(x) on the interval [-1, 1].
+!   This unit test integrates the function sin(x)
+!   on the interval [0, pi].
 !
 !   Note: The Chebyshev points are defined on the interval [-1, 1].
+!         We therefore need to apply the proper rescaling.
 ! =============================================================================
 program test_clenshaw
     use unit_test
-    use constants, only : zero, one
+    use constants, only : zero, one, two, pi
     use parameters, only : lower, nx, ny, nz, extent &
                          , update_parameters
     use mpi_environment
@@ -17,7 +19,7 @@ program test_clenshaw
     implicit none
 
     double precision :: integral_approx, exact_integral
-    double precision :: rsum, f, error
+    double precision :: rsum, f, error, x
     integer          :: n, i
 
     call mpi_env_initialise
@@ -39,17 +41,24 @@ program test_clenshaw
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
     call init_zops
 
-    ! Define the exact integral of f(x) = exp(x) over [-1, 1]
-    exact_integral = dexp(one) - dexp(-one)
+    ! Define the exact integral of f(x) = sin(x) over [0, pi]
+    exact_integral = two
 
     ! Compute the integral using Clenshaw-Curtis quadrature
     rsum = zero
     do i = 0, nz
-        ! Define the function f(x) = exp(x)
-        f = dexp(zcheb(i))
+        ! Define the function f(x) = sin(x)
+        ! Map from Chebyhshev points t in [-1, 1] to [0, pi]
+        ! x = (b-a) / 2 * t + (a+b)/2 for [a, b]
+        x = pi / two * zcheb(i) + pi / two
+
+        f = sin(x)
+
         rsum = rsum + zccw(i) * f
     enddo
-    integral_approx = rsum
+
+    ! dx = (b-a)/ 2 * dt
+    integral_approx = rsum * pi / two
 
     error = abs(exact_integral-integral_approx)
 
@@ -60,14 +69,14 @@ program test_clenshaw
         do i = 0, nz
             print *, zcheb(i), zccw(i)
         enddo
-        print *, 'Exact integral of f(x) = exp(x) over [-1, 1]:', exact_integral
+        print *, 'Exact integral of f(x) = sin(x) over [0, pi]:', exact_integral
         print *, 'Integral using Clenshaw-Curtis quadrature:', integral_approx
         print *, ''
         print *, 'error: ', error
     endif
 
     if (world%rank == world%root) then
-        call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-15)
+        call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-13)
     endif
 
     call finalise_zops
