@@ -42,6 +42,7 @@ unittests_PROGRAMS =   		\
         test_clenshaw		\
         test_clenshaw_1		\
         test_clenshaw_2		\
+        test_clenshaw_3		\
         test_integrate
 
 if ! ENABLE_SMAGORINSKY
@@ -98,6 +99,10 @@ test_clenshaw_1_LDADD = libcombi.la
 
 test_clenshaw_2_SOURCES = unit_test.f90 test_clenshaw_2.f90
 test_clenshaw_2_LDADD = libcombi.la
+
+test_clenshaw_3_SOURCES = unit_test.f90 test_clenshaw_3.f90
+test_clenshaw_3_LDADD = libcombi.la
+
 
 test_integrate_SOURCES = unit_test.f90 test_integrate.f90
 test_integrate_LDADD = libcombi.la
