@@ -12,7 +12,7 @@ module advance_mod
     use inversion_utils
     use utils, only : write_step
     use sta2dfft, only : dst
-    use zops, only : zderiv
+    use zops, only : zderiv, zg
     use fields
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
@@ -133,8 +133,9 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(5)
-            double precision                :: umax, vmax, wmax, dtcfl
+            double precision                :: buf(5+nz)
+            double precision                :: umax, vmax, wmax(0:nz), dtcfl, dz
+            integer                         :: iz
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
@@ -267,20 +268,22 @@ module advance_mod
 
             !Maximum speed:
             !$omp parallel workshare
-            umax = maxval(vel(:, :, :, 1))
-            vmax = maxval(vel(:, :, :, 2))
-            wmax = maxval(vel(:, :, :, 3))
+            umax = maxval(abs(vel(:, :, :, 1)))
+            vmax = maxval(abs(vel(:, :, :, 2)))
+            do iz = 0, nz
+                wmax(iz) = maxval(abs(vel(iz, :, :, 3)))
+            enddo
             !$omp end parallel workshare
 
             buf(1) = bfmax
             buf(2) = ggmax
             buf(3) = umax
             buf(4) = vmax
-            buf(5) = wmax
+            buf(5:) = wmax
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:5),                &
-                               5,                       &
+                               buf(1:5+nz),             &
+                               5+nz,                    &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
                                world%comm,              &
@@ -290,14 +293,21 @@ module advance_mod
             ggmax = buf(2)
             umax = buf(3)
             vmax = buf(4)
-            wmax = buf(5)
+            wmax = buf(5:)
 
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
 
+            ! vertical CFL condition
+            dtcfl = huge(0.0d0)
+            do iz = 1, nz-1
+                dz = min(zg(iz) - zg(iz-1), zg(iz+1) - zg(iz))
+                dtcfl = min(dtcfl, dz / (wmax(iz) + small))
+            enddo
+
             ! CFL time step constraint:
             dtcfl = cflmax * min(dx(1) / (umax + small), &
-                                 dx(2) / (vmax + small)) !, &
-!                                  dx(3) / (wmax + small))
+                                 dx(2) / (vmax + small), &
+                                 dtcfl)
 
             !Choose new time step:
             dt = min(time%alpha / (ggmax + small),  &
