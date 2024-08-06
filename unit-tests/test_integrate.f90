@@ -1,8 +1,8 @@
 ! =============================================================================
 !                          Test 3D field integration
 !
-!   This unit test integrates the function sin(x) * cos(x+y) * z
-!   on the interval x = [0, pi/4], y = [0, pi/4] and z = [1/2, 3/2]
+!   This unit test integrates the function x^2 + y^2 * z
+!   on the interval x = [-1, 1], y = [-1, 1] and z = [1/2, 3/2]
 !
 !   In x and y we use the trapezoidal rule where
 !       integrate f(x) from a to b
@@ -50,7 +50,7 @@ program test_integrate
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
     call init_zops
 
-    ! Define the exact integral of f(x, y, z) = sin(x) * cos(x+y) * z
+    ! Define the exact integral of f(x, y, z) = x^2 + y^2 * z
     exact_integral = 8.0d0 / 3.0d0
 
     ! Define the function f(x, y, z)
@@ -87,7 +87,7 @@ program test_integrate
         do iz = 0, nz
             print *, zcheb(iz), zccw(iz)
         enddo
-        print *, 'Exact integral of f(x, y, z):', exact_integral
+        print *, 'Exact integral of f(x,y,z):', exact_integral
         print *, 'Integral using Clenshaw-Curtis quadrature:', integral_approx
         print *, ''
         print *, 'error: ', error
