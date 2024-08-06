@@ -172,30 +172,20 @@ module field_diagnostics
             logical, intent(in) :: l_global
             logical, intent(in) :: l_allreduce
             double precision    :: en
-            double precision    :: vc(0:nz-1), dz
             integer             :: iz
-
-            do iz = 0, nz-1
-                dz = zg(iz+1) - zg(iz)
-                vc(iz) = acell * dz
-            enddo
 
             en = 0.0d0
 
-            do iz = 1, nz-1
-                en = en + f12 * vc(iz) * sum(vor(1:nz-1, :, :, 1) ** 2    &
-                                           + vor(1:nz-1, :, :, 2) ** 2    &
-                                           + vor(1:nz-1, :, :, 3) ** 2)
+            do iz = 0, nz
+                en = en + zccw(iz) * sum(vor(iz, :, :, 1) ** 2      &
+                                       + vor(iz, :, :, 2) ** 2      &
+                                       + vor(iz, :, :, 3) ** 2)
             enddo
 
-            en = en &
-               + f14 * vc(0) * sum(vor(0,      :, :, 1) ** 2    &
-                                + vor(0,      :, :, 2) ** 2    &
-                                + vor(0,      :, :, 3) ** 2)   &
-               + f14 * vc(0) * sum(vor(nz,     :, :, 1) ** 2    &
-                                 + vor(nz,     :, :, 2) ** 2    &
-                                 + vor(nz,     :, :, 3) ** 2)
+            ! See get_kinetic_energy for explanation of factors
+            en = f12 * qen * f12 * extent(3) * dx(1) * dx(2)
 
+            ! divide by domain volume to get domain-average
             en = en / product(extent)
 
             if (l_global) then
