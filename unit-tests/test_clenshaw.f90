@@ -37,7 +37,7 @@ program test_clenshaw
     ! Compute the integral using Clenshaw-Curtis quadrature
     rsum = zero
     do i = 0, nz
-        ! Define the function f(x) = x^6
+        ! Define the function f(x) = exp(x)
         f = dexp(zcheb(i))
         rsum = rsum + zccw(i) * f
     enddo
@@ -59,7 +59,7 @@ program test_clenshaw
     endif
 
     if (world%rank == world%root) then
-        call print_result_dp('Test zops', error, atol=1.0e-15)
+        call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-15)
     endif
 
     call finalise_zops
