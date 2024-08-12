@@ -2,7 +2,7 @@
 ! integration, and solving Poisson's equation for the vertical velocity.
 module zops
     use mpi_layout, only : box
-    use constants, only : zero
+    use constants, only : zero, f12, one, two, pi
     use parameters, only : nz, extent, hli, center, hl
     use cheby ! Import Chebyshev module to set up various matrices needed below
     use inversion_utils, only : k2l2, init_inversion
@@ -14,17 +14,29 @@ module zops
     double precision, allocatable :: d1z(:, :), d2z(:, :) &
                                     , zcheb(:)            & ! Chebyshev grid points
                                     , zg(:)               & ! Chebyshev domains points
-                                    , zccw(:)               ! Clenshaw-Curtis weights
+                                    , zccw(:)             & ! Clenshaw-Curtis weights
+                                    , zfilt(:)            &
+                                    , tm(:, :)
 
     logical          :: l_initialised = .false.
     integer          :: nxym1 = 0
 
-    public :: init_zops, finalise_zops, zderiv, zzderiv, zinteg, vertvel, zcheb, zg, zccw
+    public :: init_zops         &
+            , finalise_zops     &
+            , zderiv            &
+            , zzderiv           &
+            , zinteg            &
+            , vertvel           &
+            , zcheb             &
+            , zg                &
+            , zccw              &
+            , apply_zfilter
 
     contains
 
         subroutine init_zops
-            double precision :: fdz1, fdz2
+            double precision :: fdz1, fdz2, c, cutoff
+            integer          :: iz, p, i, j
 
             if (l_initialised) then
                 return
@@ -37,6 +49,8 @@ module zops
             allocate(zcheb(0:nz))
             allocate(zg(0:nz))
             allocate(zccw(0:nz))
+            allocate(tm(0:nz, 0:nz))
+            allocate(zfilt(0:nz))
 
             nxym1 = box%size(1) * box%size(2) - 1
 
@@ -60,6 +74,22 @@ module zops
             ! Ensure wave numbers etc are initialised:
             call init_inversion
 
+            !------------------------------------------------------------------
+            ! Butterworth filter:
+            cutoff = 0.25d0
+            p = 4 ! filter order
+            do iz = 0, nz
+                c = dble(iz) / dble(nz)
+                zfilt(iz) = one / sqrt(one + (c / cutoff)**(p))
+            enddo
+
+            ! Construct the T matrix using the cosine formulation
+            do i = 0, nz
+                do j = 0, nz
+                    tm(i, j) = cos(dble(j) * acos(zcheb(i)))
+                enddo
+            enddo
+
         end subroutine init_zops
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -74,6 +104,8 @@ module zops
             deallocate(d2z)
             deallocate(zcheb)
             deallocate(zg)
+            deallocate(tm)
+            deallocate(zfilt)
 
         end subroutine finalise_zops
 
@@ -172,5 +204,84 @@ module zops
             enddo
 
         end subroutine vertvel
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine apply_zfilter(fs)
+            double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision                :: coeffs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            integer                         :: iz
+            double precision                :: fsbot(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision                :: fstop(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+            ! get Chebyshev coefficients
+            call grid_to_cheb(fs, coeffs)
+
+            ! apply filter on coefficients
+            do iz = 0, nz
+                coeffs(iz, :, :) = zfilt(iz) * coeffs(iz, :, :)
+            enddo
+
+            fsbot = fs(0,  :, :)
+            fstop = fs(nz, :, :)
+            ! only works on interior points: fix the endpoints afterwards
+            call cheb_eval(fs, coeffs)
+            fs(0,  :, :) = fsbot
+            fs(nz, :, :) = fstop
+
+        end subroutine apply_zfilter
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Input:
+        ! f_values - a vector of length N+1 containing function values at Chebyshev extrema points
+        ! Output:
+        ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
+        subroutine grid_to_cheb(fs, c)
+            double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision              :: sum_term(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            integer                       :: k, j
+
+            ! Initialize the coefficients vector
+            c = zero
+
+            ! Compute the coefficients
+            do k = 0, nz
+                sum_term = zero
+                do j = 0, nz
+                    sum_term = sum_term + fs(j, :, :) * cos(pi * k * j / dble(nz))
+                enddo
+
+                if (k == 0) then
+                    c(k, :, :) = sum_term / dble(nz)
+                else
+                    c(k, :, :) = two * sum_term / dble(nz)
+                endif
+            enddo
+
+            c(nz, :, :) = f12 * c(nz, :, :)
+
+        end subroutine grid_to_cheb
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Input:
+        ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
+        ! Output:
+        ! f_values - a vector of length M containing the values of f(x) at the points in y
+        subroutine cheb_eval(fs, c)
+            double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(in)    :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            integer                         :: i, j, kx, ky
+
+            ! Compute fs = tm * c using matrix multiplication
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    fs(:, ky, kx) = matmul(tm, c(:, ky, kx))
+                enddo
+            enddo
+
+        end subroutine cheb_eval
 
 end module zops

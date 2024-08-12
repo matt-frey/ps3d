@@ -5,6 +5,7 @@ module impl_rk4_mod
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, source
+!     use zops, only : apply_zfilter
     use field_diagnostics
     implicit none
 
@@ -192,10 +193,19 @@ module impl_rk4_mod
             do iz = 0, nz
                 qdi(iz, :, :) = q(iz, :, :)
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
+            enddo
+            !$omp end parallel do
+
+!             call apply_zfilter(q)
+
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
                 q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdi(iz, :, :) + dt6 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
+
+!             call apply_zfilter(qdf)
 
         end subroutine impl_rk4_substep_one
 
@@ -219,10 +229,19 @@ module impl_rk4_mod
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
+            enddo
+            !$omp end parallel do
+
+!             call apply_zfilter(q)
+
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
                 q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
+
+!             call apply_zfilter(qdf)
 
         end subroutine impl_rk4_substep_two
 
@@ -247,10 +266,20 @@ module impl_rk4_mod
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt * sqs(iz, :, :))
+            enddo
+            !$omp end parallel do
+
+!             call apply_zfilter(q)
+
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
                 q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
+
+!             call apply_zfilter(qdf)
+
         end subroutine impl_rk4_substep_three
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -271,6 +300,13 @@ module impl_rk4_mod
             do iz = 0, nz
                 sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdf(iz, :, :) + dt6 * sqs(iz, :, :))
+            enddo
+            !$omp end parallel do
+
+!             call apply_zfilter(q)
+
+            !$omp parallel do private(iz)  default(shared)
+            do iz = 0, nz
                 q(iz, :, :) = q(iz, :, :) * self%emq
             enddo
             !$omp end parallel do

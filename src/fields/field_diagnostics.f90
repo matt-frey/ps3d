@@ -2,7 +2,7 @@ module field_diagnostics
     use parameters, only : nz, ncelli, dx, lower, extent, fnzi, ncell, acell
     use constants, only : zero, f12, f14, one, small
     use merge_sort
-    use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
+    use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors, fftxyp2s
     use stafft, only : dst
     use mpi_environment
     use mpi_layout, only : box
@@ -389,12 +389,19 @@ module field_diagnostics
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
             logical,          intent(in) :: l_allreduce
-            double precision              :: mean
+            double precision             :: mean
+            integer                      :: iz
 
-            ! (divide by ncell since lower and upper edge weights are halved)
-            mean = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                            + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
-                        + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))) / dble(ncell)
+
+            mean = zero
+
+            do iz = 0, nz
+                mean = mean + zccw(iz) * sum(ff(iz, :, :) ** 2)
+            enddo
+
+            mean = mean * f12 * extent(3) * dx(1) * dx(2)
+
+            mean = mean / product(extent)
 
             if (l_allreduce) then
                 call MPI_Allreduce(MPI_IN_PLACE,            &
@@ -421,10 +428,16 @@ module field_diagnostics
                                                box%lo(1):box%hi(1))
             logical,          intent(in) :: l_allreduce
             double precision             :: rms
+            integer                      :: iz
 
-            rms = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2  &
-                           + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2) &
-                       + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2)) / dble(ncell)
+            rms = zero
+            do iz = 0, nz
+                rms = rms + zccw(iz) * sum(ff(iz, :, :) ** 2)
+            enddo
+
+            rms = rms * f12 * extent(3) * dx(1) * dx(2)
+
+            rms = rms / product(extent)
 
             if (l_allreduce) then
                 call MPI_Allreduce(MPI_IN_PLACE,            &
@@ -531,17 +544,18 @@ module field_diagnostics
         function get_mean_vorticity(l_allreduce) result(vormean)
             logical, intent(in) :: l_allreduce
             double precision    :: vormean(3)
-            integer             :: nc
+            integer             :: nc, iz
 
+
+            vormean = zero
             do nc = 1, 3
-                !$omp parallel workshare
-                vormean(nc) =       sum(vor(1:nz-1, :, :, nc)) &
-                            + f12 * sum(vor(0,      :, :, nc)) &
-                            + f12 * sum(vor(nz,     :, :, nc))
-                !$omp end parallel workshare
+                do iz = 0, nz
+                    vormean(nc) = vormean(nc)  &
+                                + zccw(iz) * sum(vor(iz, :, :, nc))
+                enddo
+                vormean(nc) = vormean(nc) * f12 * extent(3) * dx(1) * dx(2)
+                vormean(nc) = vormean(nc) / product(extent)
             enddo
-
-            vormean = vormean * ncelli
 
             if (l_allreduce) then
                 call MPI_Allreduce(MPI_IN_PLACE,            &
@@ -564,13 +578,16 @@ module field_diagnostics
 
         ! This is only calculated on the MPI rank having kx = ky = 0
         function calc_vorticity_mean() result(savg)
-            integer          :: nc
-            double precision :: savg(2)
+            integer          :: nc, iz
+            double precision :: savg(3)
 
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                do nc = 1, 2
-                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) &
-                             + fnzi * sum(svor(1:nz-1, 0, 0, nc))
+                do nc = 1, 3
+                    savg(nc) = zero
+                    do iz = 0, nz
+                        savg(nc) = savg(nc) + zccw(iz) * svor(iz, 0, 0, nc)
+                    enddo
+                    savg(nc) = fnzi * savg(nc)
                 enddo
             endif
         end function calc_vorticity_mean
@@ -579,17 +596,18 @@ module field_diagnostics
 
         ! This is only calculated on the MPI rank having kx = ky = 0
         subroutine adjust_vorticity_mean
-            double precision :: savg(2)
+            double precision :: savg(3)
             integer          :: nc
 
             savg = calc_vorticity_mean()
 
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+
+             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                 ! Ensure zero global mean horizontal vorticity conservation:
-                do nc = 1, 2
-                    svor(: , 0, 0, nc) = svor(: , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
+                do nc = 1, 3
+                    svor(: , 0, 0, nc) = svor(:, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
                 enddo
-            endif
+             endif
 
         end subroutine adjust_vorticity_mean
 

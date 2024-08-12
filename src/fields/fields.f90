@@ -39,7 +39,7 @@ module fields
 #endif
 
     ! initial \xi and \eta mean
-    double precision :: ini_vor_mean(2)
+    double precision :: ini_vor_mean(3)
 
     double precision, allocatable :: bbarz(:) ! N**2 * z
 
