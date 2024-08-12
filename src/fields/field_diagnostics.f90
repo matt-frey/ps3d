@@ -183,7 +183,7 @@ module field_diagnostics
             enddo
 
             ! See get_kinetic_energy for explanation of factors
-            en = f12 * qen * f12 * extent(3) * dx(1) * dx(2)
+            en = f12 * en * f12 * extent(3) * dx(1) * dx(2)
 
             ! divide by domain volume to get domain-average
             en = en / product(extent)

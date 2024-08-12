@@ -300,6 +300,7 @@ module advance_mod
             ! vertical CFL condition
             dtcfl = huge(0.0d0)
             do iz = 1, nz-1
+                !FIXME Pre-store dzmin as they never change.
                 dz = min(zg(iz) - zg(iz-1), zg(iz+1) - zg(iz))
                 dtcfl = min(dtcfl, dz / (wmax(iz) + small))
             enddo
