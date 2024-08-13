@@ -587,7 +587,12 @@ module field_diagnostics
                     do iz = 0, nz
                         savg(nc) = savg(nc) + zccw(iz) * svor(iz, 0, 0, nc)
                     enddo
-                    savg(nc) = fnzi * savg(nc)
+                    ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
+                    ! where the Chebyshev points are given in [-1, 1]
+                    ! z = (b-a) / 2 * t + (a+b)/2 for [a, b] --> dz = (b-a) / 2 * dt
+                    ! However, we must divide by extent(3) again in order to get the vertical domain-average.
+                    ! Hence, we only scale by f12.
+                    savg(nc) = savg(nc) * f12
                 enddo
             endif
         end function calc_vorticity_mean
