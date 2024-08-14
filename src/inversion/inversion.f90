@@ -16,7 +16,7 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
-    use zops, only : zderiv, vertvel, zinteg
+    use zops, only : zderiv, vertvel, zinteg, apply_zfilter
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -323,6 +323,10 @@ module inversion_mod
             ! Add Smagorinsky diffusion to vorticity source (svorts):
             call apply_smagorinsky
 #endif
+
+            do nc = 1, 3
+                call apply_zfilter(svorts(:, :, :, nc))
+            enddo
 
             call stop_timer(vtend_timer)
 
