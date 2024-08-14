@@ -76,11 +76,11 @@ module zops
 
             !------------------------------------------------------------------
             ! Butterworth filter:
-            cutoff = 0.25d0
-            p = 4 ! filter order
+            cutoff = 0.8d0
+            p = 8 ! filter order
             do iz = 0, nz
                 c = dble(iz) / dble(nz)
-                zfilt(iz) = one / sqrt(one + (c / cutoff)**(p))
+                zfilt(iz) = one / sqrt(one + (c / cutoff)**(2*p))
             enddo
 
             ! Construct the T matrix using the cosine formulation
