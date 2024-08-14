@@ -90,7 +90,11 @@ module inversion_utils
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
                 !Define viscosity:
-                visc = viscosity%prediss * sqrt(bbdif / rkxmax ** 3)
+                visc = viscosity%prediss
+                if (bbdif > zero) then
+                    visc = visc * sqrt(bbdif / rkxmax ** 3)
+                endif
+
                 if (world%rank == world%root) then
                     write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
                 endif
