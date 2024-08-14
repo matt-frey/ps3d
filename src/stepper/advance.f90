@@ -70,6 +70,7 @@ module advance_mod
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
     double precision :: vorch
     integer          :: ix, iy, iz
+    logical          :: l_vorch = .false.
 
     contains
 
@@ -166,8 +167,6 @@ module advance_mod
             !Maximum buoyancy frequency:
             bfmax = dsqrt(dsqrt(maxval(xp)))
 #endif
-
-
             !Compute enstrophy: (reuse xp)
             !$omp parallel workshare
             xp = vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2 + vor(:, :, :, 3) ** 2
@@ -336,7 +335,12 @@ module advance_mod
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-            if (viscosity%pretype == 'vorch') then
+            if (viscosity%pretype == 'constant') then
+                if (.not. l_vorch) then
+                    l_vorch = .true.
+                    call bstep%set_diffusion(dt, vorch)
+                endif
+            else if (viscosity%pretype == 'vorch') then
                 call bstep%set_diffusion(dt, vorch)
             else if (viscosity%pretype == 'roll-mean-gmax') then
                 call rollmean%alloc(viscosity%roll_mean_win_size)

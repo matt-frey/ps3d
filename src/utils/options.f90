@@ -56,6 +56,7 @@ module options
         ! Prefactor type to use:
         ! - vorch: characteristic vorticity
         ! - roll-mean-gmax: rolling mean of gamma_max
+        ! - constant: uses initial vorch
         character(len=16) :: pretype = 'vorch'
 
         ! Window size for the rolling mean approach
