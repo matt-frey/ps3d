@@ -21,7 +21,7 @@ module inversion_utils
     use stafft, only : dst
     use sta2dfft, only : ptospc
     use deriv1d, only : init_deriv
-    use options, only : viscosity
+    use options, only : viscosity, l_disable_zfilter
     use mpi_utils, only : mpi_print
     implicit none
 
@@ -126,7 +126,11 @@ module inversion_utils
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
                 !Define viscosity:
-                visc = viscosity%prediss * sqrt(bbdif / rkxmax ** 3)
+                visc = viscosity%prediss
+                if (bbdif > zero) then
+                    visc = visc * sqrt(bbdif / rkxmax ** 3)
+                endif
+
                 if (world%rank == world%root) then
                     write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
                 endif
@@ -211,14 +215,18 @@ module inversion_utils
             kzmaxi = one/maxval(rkz)
             skz = -36.d0 * (kzmaxi * rkz) ** 36
 
+            if (l_disable_zfilter) then
+                skz = zero
+            endif
+
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
-                  filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
-                  filt(nz, ky, kx) = filt(0, ky, kx)
-                  do kz = 1, nz-1
-                     filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
-                  enddo
-               enddo
+                    filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
+                    filt(nz, ky, kx) = filt(0, ky, kx)
+                    do kz = 1, nz-1
+                        filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
+                    enddo
+                enddo
             enddo
 
             !Ensure filter does not change domain mean:
