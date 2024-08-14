@@ -396,7 +396,7 @@ module field_diagnostics
             mean = zero
 
             do iz = 0, nz
-                mean = mean + zccw(iz) * sum(ff(iz, :, :) ** 2)
+                mean = mean + zccw(iz) * sum(ff(iz, :, :))
             enddo
 
             mean = mean * f12 * extent(3) * dx(1) * dx(2)
