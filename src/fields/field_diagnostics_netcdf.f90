@@ -321,9 +321,12 @@ module field_diagnostics_netcdf
             buf(6) = bmin
 
             buf(7) = get_minimum_static_stability(l_global=.false.)
-#endif
 
             call mpi_blocking_reduce(buf(1:7), MPI_MIN, world)
+#else
+            call mpi_blocking_reduce(buf(1:4), MPI_MIN, world)
+#endif
+
 
 
             nc_dset(NC_OXMIN)%val = buf(1)
