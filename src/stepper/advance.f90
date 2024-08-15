@@ -70,9 +70,6 @@ module advance_mod
     double precision :: vorch
     integer          :: ix, iy, iz
 
-    ! only used for constant viscosity
-    logical :: l_vorch = .false.
-
     contains
 
         subroutine advance(bstep, t)
@@ -330,10 +327,8 @@ module advance_mod
 
 #ifndef ENABLE_SMAGORINSKY
             if (viscosity%pretype == 'constant') then
-                if (.not. l_vorch) then
-                    call bstep%set_diffusion(dt, vorch)
-                    l_vorch = .true.
-                endif
+                ! diffusion is only controlled by the viscosity
+                call bstep%set_diffusion(dt, one)
             else if (viscosity%pretype == 'vorch') then
                 call bstep%set_diffusion(dt, vorch)
             else if (viscosity%pretype == 'roll-mean-gmax') then
