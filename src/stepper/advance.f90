@@ -70,7 +70,6 @@ module advance_mod
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
     double precision :: vorch
     integer          :: ix, iy, iz
-    logical          :: l_vorch = .false.
 
     contains
 
@@ -336,10 +335,8 @@ module advance_mod
 
 #ifndef ENABLE_SMAGORINSKY
             if (viscosity%pretype == 'constant') then
-                if (.not. l_vorch) then
-                    l_vorch = .true.
-                    call bstep%set_diffusion(dt, vorch)
-                endif
+                ! diffusivity is only controlled by viscosity: diss = -nu*(k^2+l^2)*dt/2
+                call bstep%set_diffusion(dt, one)
             else if (viscosity%pretype == 'vorch') then
                 call bstep%set_diffusion(dt, vorch)
             else if (viscosity%pretype == 'roll-mean-gmax') then
