@@ -82,7 +82,7 @@ module field_diagnostics
             double precision             :: ke
             integer                      :: iz
 
-            ke = 0.0d0
+            ke = zero
 
             do iz = 0, nz
                 ke = ke + zccw(iz) * sum(vv(iz, :, :, 1) ** 2      &
@@ -130,15 +130,19 @@ module field_diagnostics
                                                box%lo(1):box%hi(1), 3)
             logical,          intent(in) :: l_global
             double precision             :: ke
+            integer                      :: iz
 
-            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2    &
-                         + vv(1:nz-1, :, :, 2) ** 2)   &
-               + f14 * sum(vv(0,      :, :, 1) ** 2    &
-                         + vv(0,      :, :, 2) ** 2)   &
-               + f14 * sum(vv(nz,     :, :, 1) ** 2    &
-                         + vv(nz,     :, :, 2) ** 2)
+            ke = zero
 
-            ke = ke * ncelli
+            do iz = 0, nz
+                ke = ke + zccw(iz) * sum(vv(iz, :, :, 1) ** 2       &
+                                       + vv(iz, :, :, 2) ** 2)
+            enddo
+
+            ke = f12 * ke * f12 * extent(3) * dx(1) * dx(2)
+
+            ! divide by domain volume to get domain-average
+            ke = ke / product(extent)
 
             if (l_global) then
                 call mpi_blocking_reduce(ke, MPI_SUM, world)
@@ -152,12 +156,18 @@ module field_diagnostics
         function get_vertical_kinetic_energy(l_global) result(ke)
             logical, intent(in) :: l_global
             double precision    :: ke
+            integer             :: iz
 
-            ke = f12 * sum(vel(1:nz-1, :, :, 3) ** 2)   &
-               + f14 * sum(vel(0,      :, :, 3) ** 2)   &
-               + f14 * sum(vel(nz,     :, :, 3) ** 2)
+            ke = zero
 
-            ke = ke * ncelli
+            do iz = 0, nz
+                ke = ke + zccw(iz) * sum(vel(iz, :, :, 3) ** 2)
+            enddo
+
+            ke = f12 * ke * f12 * extent(3) * dx(1) * dx(2)
+
+            ! divide by domain volume to get domain-average
+            ke = ke / product(extent)
 
             if (l_global) then
                 call mpi_blocking_reduce(ke, MPI_SUM, world)
@@ -174,7 +184,7 @@ module field_diagnostics
             double precision    :: en
             integer             :: iz
 
-            en = 0.0d0
+            en = zero
 
             do iz = 0, nz
                 en = en + zccw(iz) * sum(vor(iz, :, :, 1) ** 2      &
@@ -213,15 +223,20 @@ module field_diagnostics
         function get_horizontal_enstrophy(l_global) result(en)
             logical, intent(in) :: l_global
             double precision    :: en
+            integer             :: iz
 
-            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
-                         + vor(1:nz-1, :, :, 2) ** 2)   &
-               + f14 * sum(vor(0,      :, :, 1) ** 2    &
-                         + vor(0,      :, :, 2) ** 2)   &
-               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
-                         + vor(nz,     :, :, 2) ** 2)
+            en = zero
 
-            en = en * ncelli
+            do iz = 0, nz
+                en = en + zccw(iz) * sum(vor(iz, :, :, 1) ** 2      &
+                                       + vor(iz, :, :, 2) ** 2)
+            enddo
+
+            ! See get_kinetic_energy for explanation of factors
+            en = f12 * en * f12 * extent(3) * dx(1) * dx(2)
+
+            ! divide by domain volume to get domain-average
+            en = en / product(extent)
 
             if (l_global) then
                 call mpi_blocking_reduce(en, MPI_SUM, world)
@@ -250,12 +265,19 @@ module field_diagnostics
         function get_vertical_enstrophy(l_global) result(en)
             logical, intent(in) :: l_global
             double precision    :: en
+            integer             :: iz
 
-            en = f12 * sum(vor(1:nz-1, :, :, 3) ** 2)  &
-               + f14 * sum(vor(0,      :, :, 3) ** 2)  &
-               + f14 * sum(vor(nz,     :, :, 3) ** 2)
+            en = zero
 
-            en = en * ncelli
+            do iz = 0, nz
+                en = en + zccw(iz) * sum(vor(iz, :, :, 3) ** 2)
+            enddo
+
+            ! See get_kinetic_energy for explanation of factors
+            en = f12 * en * f12 * extent(3) * dx(1) * dx(2)
+
+            ! divide by domain volume to get domain-average
+            en = en / product(extent)
 
             if (l_global) then
                 call mpi_blocking_reduce(en, MPI_SUM, world)
