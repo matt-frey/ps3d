@@ -16,6 +16,7 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
+    use diffusion, only : visc
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -254,7 +255,7 @@ module inversion_mod
             double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-            integer          :: nc
+            integer          :: nc, iz
 
             call start_timer(vtend_timer)
 
@@ -290,6 +291,12 @@ module inversion_mod
             !$omp end parallel workshare
             call fftxyp2s(fp, q)
 
+            ! Add second term of diffusion for xi: nu * xi_z
+            call zderiv(svor(:, :, :, 1), p)
+            do iz = 0, nz
+                q(iz, :, :) = q(iz, :, :) + visc(iz) * p(iz, :, :)
+            enddo
+
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
             call zderiv(q, p)
@@ -302,6 +309,12 @@ module inversion_mod
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
             !$omp end parallel workshare
             call fftxyp2s(fp, p)
+
+            ! Add second term of diffusion for eta: nu * eta_z
+            call zderiv(svor(:, :, :, 2), q)
+            do iz = 0, nz
+                p(iz, :, :) = p(iz, :, :) + visc(iz) * q(iz, :, :)
+            enddo
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
@@ -323,9 +336,9 @@ module inversion_mod
             call apply_smagorinsky
 #endif
 
-            do nc = 1, 3
-                call apply_zfilter(svorts(:, :, :, nc))
-            enddo
+!             do nc = 1, 3
+!                 call apply_zfilter(svorts(:, :, :, nc))
+!             enddo
 
             call stop_timer(vtend_timer)
 
