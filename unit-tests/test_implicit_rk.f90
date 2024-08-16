@@ -27,8 +27,8 @@ program test_implicit_rk
     implicit none
 
     double precision :: error
-    integer          :: iz, nc, n
-    double precision, allocatable :: ref(:, :, :, :), ed(:, :)
+    integer          :: nc, n
+    double precision, allocatable :: ref(:, :, :, :), ed(:, :, :)
     double precision, allocatable :: src(:, :, :, :)
     double precision :: time, time_step
 
@@ -51,7 +51,7 @@ program test_implicit_rk
 
     allocate(ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
     allocate(src(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
-    allocate(ed(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(ed(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
     call update_parameters
 
@@ -71,9 +71,7 @@ program test_implicit_rk
 
         ed = dexp(-time_step * diss)
         do nc = 1, 3
-            do iz = 0, nz
-                ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / diss
-            enddo
+            ref(:, :, :, nc) = ed * ref(:, :, :, nc) + (one - ed) * src(:, :, :, nc) / diss
         enddo
 
         call impl_rk4(time, time_step)
@@ -103,9 +101,11 @@ program test_implicit_rk
             double precision, intent(inout) :: t
             double precision, intent(in)    :: dt
             double precision                :: dt2, dt3, dt6
-            double precision                :: epq(box%lo(2):box%hi(2), &       ! exp(D * (t-t0))
+            double precision                :: epq(0:nz,                &       ! exp(D * (t-t0))
+                                                   box%lo(2):box%hi(2), &
                                                    box%lo(1):box%hi(1))
-            double precision                :: emq(box%lo(2):box%hi(2), &       ! exp(- D * (t-t0))
+            double precision                :: emq(0:nz,                &       ! exp(- D * (t-t0))
+                                                   box%lo(2):box%hi(2), &
                                                    box%lo(1):box%hi(1))
             double precision                :: qdi(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1), 3)
@@ -124,11 +124,9 @@ program test_implicit_rk
             qdi = svor
             svor = (qdi + dt2 * svorts)
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svor(:, :, :, nc) = svor(:, :, :, nc) * emq
+                !$omp end parallel workshare
             enddo
 
 
@@ -144,20 +142,16 @@ program test_implicit_rk
             svorts = src
             ! apply integrating factors to source
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
+                !$omp end parallel workshare
             enddo
 
             svor = (qdi + dt2 * svorts)
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svor(:, :, :, nc) = svor(:, :, :, nc) * emq
+                !$omp end parallel workshare
             enddo
 
             qdf = qdf + dt3 * svorts
@@ -172,21 +166,17 @@ program test_implicit_rk
             svorts = src
             ! apply integrating factors to source
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
+                !$omp end parallel workshare
             enddo
 
             emq = emq**2
             svor = qdi + dt * svorts
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svor(:, :, :, nc) = svor(:, :, :, nc) * emq
+                !$omp end parallel workshare
             enddo
 
             qdf = qdf + dt3 * svorts
@@ -202,20 +192,16 @@ program test_implicit_rk
             epq = epq**2
             ! apply integrating factors to source
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
+                !$omp end parallel workshare
             enddo
 
             svor = qdf + dt6 * svorts
             do nc = 1, 3
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svor(:, :, :, nc) = svor(:, :, :, nc) * emq
+                !$omp end parallel workshare
             enddo
 
         end subroutine impl_rk4

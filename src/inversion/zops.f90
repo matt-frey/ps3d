@@ -22,6 +22,7 @@ module zops
                                    , tm(:, :)
 
     integer :: nxym1 = 0
+    logical :: l_zops_initialised = .false.
 
     public :: init_zops             &
             , finalise_zops         &
@@ -41,6 +42,12 @@ module zops
         subroutine init_zops
             double precision :: fdz1, fdz2, c, cutoff
             integer          :: iz, p, i, j
+
+            if (l_zops_initialised) then
+                return
+            endif
+
+            l_zops_initialised = .true.
 
             !------------------------------------------------------------------
             ! Ensure FFT module is initialised:
@@ -98,12 +105,15 @@ module zops
 
         subroutine finalise_zops
 
-            deallocate(d1z)
-            deallocate(d2z)
-            deallocate(zcheb)
-            deallocate(zg)
-            deallocate(tm)
-            deallocate(zfilt)
+            if (l_zops_initialised) then
+                deallocate(d1z)
+                deallocate(d2z)
+                deallocate(zcheb)
+                deallocate(zg)
+                deallocate(tm)
+                deallocate(zfilt)
+                l_zops_initialised = .false.
+            endif
 
         end subroutine finalise_zops
 

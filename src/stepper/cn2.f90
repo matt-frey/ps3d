@@ -97,7 +97,7 @@ module cn2_mod
             for iz = 0, nz
                 sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
 #ifndef ENABLE_SMAGORINSKY
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                sbuoy(iz, :, :) = diss(iz, :, :) * sbuoy(iz, :, :)
 #endif
             enddo
             !$omp end parallel do
@@ -113,7 +113,7 @@ module cn2_mod
                 do iz = 0, nz
                     svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
 #ifndef ENABLE_SMAGORINSKY
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    svor(iz, :, :, nc) = diss(iz, :, :) * svor(iz, :, :, nc)
 #endif
                 enddo
             enddo
@@ -138,7 +138,7 @@ module cn2_mod
                 do iz = 0, nz
                     sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
 #ifndef ENABLE_SMAGORINSKY
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                    sbuoy(iz, :, :) = diss(iz, :, :) * sbuoy(iz, :, :)
 #endif
                 enddo
                 !$omp end parallel do
@@ -149,7 +149,7 @@ module cn2_mod
                     do iz = 0, nz
                         svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
 #ifndef ENABLE_SMAGORINSKY
-                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                        svor(iz, :, :, nc) = diss(iz, :, :) * svor(iz, :, :, nc)
 #endif
                     enddo
                 enddo

@@ -62,6 +62,9 @@ module options
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
+        ! Specified boundary layer width
+        double precision :: delta = 0.5d0
+
     end type visc_type
 
     type(visc_type) :: viscosity

@@ -14,7 +14,7 @@ module impl_rk4_mod
     type, extends(base_stepper) :: impl_rk4
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
-        double precision, allocatable :: epq(:, :), emq(:, :)
+        double precision, allocatable :: epq(:, :, :), emq(:, :, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
@@ -53,8 +53,8 @@ module impl_rk4_mod
         subroutine impl_rk4_setup(self)
             class(impl_rk4), intent(inout) :: self
 
-            allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%epq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%emq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
             allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
@@ -193,7 +193,7 @@ module impl_rk4_mod
             do iz = 0, nz
                 qdi(iz, :, :) = q(iz, :, :)
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
                 qdf(iz, :, :) = filt * (qdi(iz, :, :) + dt6 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -218,9 +218,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -246,9 +246,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -271,9 +271,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
                 q(iz, :, :) = filt * (qdf(iz, :, :) + dt6 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
             enddo
             !$omp end parallel do
 

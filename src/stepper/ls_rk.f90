@@ -205,11 +205,9 @@ module ls_rk_mod
                                                          box%lo(1):box%hi(1))
             integer                         :: iz
 
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) - diss * q(iz, :, :)
-            enddo
-            !$omp end parallel do
+            !$omp parallel workshare
+            sqs = sqs - diss * q
+            !$omp end parallel workshare
 
         end subroutine apply_hyperdiffusion
 #endif

@@ -79,7 +79,7 @@ module inversion_utils
             call initialise_fft(extent)
 
             !----------------------------------------------------------
-            !Define Hou and Li filter (2D and 3D):
+            !Define Hou and Li filter in 2D:
             allocate(filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
             kxmaxi = one / maxval(rkx)
@@ -98,6 +98,8 @@ module inversion_utils
                 filt(0, 0) = one
             endif
 
+            !------------------------------------------------------------------
+            !Initialise vertical operations:
             call init_zops
 
         end subroutine init_inversion
@@ -105,7 +107,11 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine finalise_inversion
-            deallocate(filt)
+
+            if (is_initialised) then
+                deallocate(filt)
+                is_initialised = .false.
+            endif
 
             call finalise_zops
             call finalise_fft
