@@ -129,8 +129,6 @@ module inversion_utils
 
         subroutine finalise_inversion
             deallocate(green)
-            deallocate(k2l2i)
-            deallocate(k2l2)
             deallocate(filt)
 
             call finalise_zops
