@@ -30,8 +30,6 @@ module inversion_utils
     ! Ordering in physical space: z, y, x
     ! Ordering in spectral space: z, y, x
 
-    double precision, allocatable :: green(:, :, :)
-
     ! Spectral filter:
     double precision, allocatable :: filt(:, :)
 
@@ -40,7 +38,6 @@ module inversion_utils
     public :: init_inversion        &
             , finalise_inversion    &
             , filt                  &
-            , green                 &
             , call_ptospc
 
 
@@ -101,17 +98,6 @@ module inversion_utils
                 filt(0, 0) = one
             endif
 
-            !---------------------------------------------------------------------
-            !Define Green function:
-            allocate(green(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            !$omp parallel do
-            do kz = 1, nz
-                green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
-            enddo
-            !$omp end parallel do
-            green(0, :, :) = - k2l2i
-
             call init_zops
 
         end subroutine init_inversion
@@ -119,7 +105,6 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine finalise_inversion
-            deallocate(green)
             deallocate(filt)
 
             call finalise_zops

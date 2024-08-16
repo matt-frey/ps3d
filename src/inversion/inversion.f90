@@ -401,9 +401,10 @@ module inversion_mod
 
             !-------------------------------------------------------
             !Invert Laplacian:
-            !$omp parallel workshare
-            rs = green * rs
-            !$omp end parallel workshare
+            ! FIXME
+!             !$omp parallel workshare
+!             rs = green * rs
+!             !$omp end parallel workshare
 
             !-------------------------------------------------------
             ! Transform to physical space:
