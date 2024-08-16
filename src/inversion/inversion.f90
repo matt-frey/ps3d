@@ -7,7 +7,7 @@ module inversion_mod
 #endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
-    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, k2l2i
     use mpi_timer, only : start_timer, stop_timer
     use fields
 #ifdef ENABLE_SMAGORINSKY
@@ -16,7 +16,6 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
-    use zops, only : zderiv, vertvel, zinteg, apply_zfilter
     implicit none
 
     integer :: vor2vel_timer,   &

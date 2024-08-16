@@ -1,18 +1,18 @@
 ! =============================================================================
-!                               Test zops module
+!                               Test vertical filter module
 ! =============================================================================
-program test_zops
+program test_zfilter
     use unit_test
     use constants, only : zero, f12, one, pi, twopi, f14
     use parameters, only : lower, nx, ny, nz, extent, hl &
                          , update_parameters, center, upper
     use fields
-    use inversion_utils, only : k2l2
+    use inversion_utils
+    use sta3dfft, only : k2l2
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use zops
     implicit none
 
     double precision, allocatable :: f(:, :, :)
@@ -38,8 +38,8 @@ program test_zops
     call update_parameters
 
     !-----------------------------------------------------------------
-    ! Initialise zops module:
-    call init_zops
+    ! Initialise inversion module:
+    call init_inversion
 
 
     do iz = 0, nz
@@ -68,7 +68,7 @@ program test_zops
         call print_result_dp('Test zfilter', 0.0d0, atol=6.0e-7)
     endif
 
-    call finalise_zops
+    call finalise_inversion
 
     deallocate(f)
     deallocate(g)
@@ -110,4 +110,4 @@ program test_zops
 
         end subroutine random_gaussian
 
-end program test_zops
+end program test_zfilter

@@ -12,7 +12,6 @@ module advance_mod
     use inversion_utils
     use utils, only : write_step
     use sta2dfft, only : dst
-    use zops, only : zderiv, zg
     use fields
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues

@@ -7,6 +7,7 @@ module ls_rk_mod
     use constants, only : zero, one
     use fields
     use inversion_utils
+    use diffusion, only : hdis
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
     use mpi_utils, only : mpi_stop

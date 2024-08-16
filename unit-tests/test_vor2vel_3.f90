@@ -18,8 +18,7 @@ program test_vor2vel_3
     use parameters, only : lower, update_parameters, nx, ny, nz, extent, upper, center, hl
     use fields
     use sta3dfft, only : fftxyp2s
-    use zops, only : init_zops, zcheb
-    use inversion_utils, only : init_inversion
+    use inversion_utils, only : init_inversion, zcheb
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -53,7 +52,6 @@ program test_vor2vel_3
     call field_default
 
     call init_inversion
-    call init_zops
 
     zz = center(3) - hl(3) * zcheb
 

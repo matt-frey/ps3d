@@ -7,7 +7,6 @@ program test_vor2vel
     use fields
     use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
-    use zops, only : init_zops, zg
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -39,7 +38,6 @@ program test_vor2vel
     call field_default
 
     call init_inversion
-    call init_zops
 
     if (casenum == 1) then
         k = two

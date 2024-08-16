@@ -7,12 +7,12 @@ program test_zops
     use parameters, only : lower, nx, ny, nz, extent, hl &
                          , update_parameters, center, upper
     use fields
-    use inversion_utils, only : k2l2
+    use inversion_utils
+    use sta3dfft, only : k2l2
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use zops
     implicit none
 
     double precision, allocatable :: f(:, :, :), f1(:)
@@ -42,9 +42,7 @@ program test_zops
 
     call update_parameters
 
-    !-----------------------------------------------------------------
-    ! Initialise zops module:
-    call init_zops
+    call init_inversion
 
     ! Set up z grid:
     z = center(3) - hl(3) * zcheb
@@ -156,7 +154,7 @@ program test_zops
         call print_result_dp('Test zops', maxerr, atol=6.0e-7)
     endif
 
-    call finalise_zops
+    call finalise_inversion
 
     deallocate(f)
     deallocate(g)

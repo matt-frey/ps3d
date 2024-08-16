@@ -21,7 +21,7 @@ program test_integrate
                          , update_parameters
     use mpi_environment
     use mpi_layout
-    use zops
+    use inversion_utils
     implicit none
 
     double precision :: integral_approx, exact_integral
@@ -48,7 +48,7 @@ program test_integrate
 
     !-----------------------------------------------------------------
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
-    call init_zops
+    call init_inversion
 
     ! Define the exact integral of f(x, y, z) = x^2 + y^2 * z
     exact_integral = 8.0d0 / 3.0d0
@@ -97,7 +97,7 @@ program test_integrate
         call print_result_dp('Test field integration', error, atol=6.0e-3)
     endif
 
-    call finalise_zops
+    call finalise_inversion
 
     deallocate(f)
 

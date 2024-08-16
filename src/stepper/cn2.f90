@@ -12,6 +12,7 @@
 module cn2_mod
 #ifndef ENABLE_SMAGORINSKY
     use options, only : viscosity
+    use diffusion, only : hdis
 #endif
     use advance_mod, only : base_stepper
     use constants, only : f12, one

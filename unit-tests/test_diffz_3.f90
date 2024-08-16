@@ -14,7 +14,6 @@ program test_diffz_3
     use mpi_environment
     use mpi_layout
     use mpi_collectives
-    use zops, only : zderiv, init_zops, zcheb
     implicit none
 
     double precision              :: error
@@ -43,7 +42,6 @@ program test_diffz_3
     call update_parameters
 
     call init_inversion
-    call init_zops
 
     k = two
     l = one

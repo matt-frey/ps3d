@@ -17,8 +17,7 @@ program test_vor2vel_1
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
     use fields
     use sta3dfft, only : fftxyp2s
-    use inversion_utils, only : init_inversion
-    use zops, only : init_zops, zcheb
+    use inversion_utils, only : init_inversion, zcheb
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -57,7 +56,6 @@ program test_vor2vel_1
     m = one
 
     call init_inversion
-    call init_zops
 
 
     alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)

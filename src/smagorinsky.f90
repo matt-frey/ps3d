@@ -11,7 +11,7 @@ module smagorinsky_mod
                        , diffy      &
                        , fftxys2p   &
                        , fftxyp2s
-    use zops, only : zderiv
+    use inversion_utils, only : zderiv
     implicit none
 
     private

@@ -13,7 +13,7 @@ program test_clenshaw
                          , update_parameters
     use mpi_environment
     use mpi_layout
-    use zops
+    use inversion_utils
     implicit none
 
     double precision :: integral_approx, exact_integral
@@ -37,7 +37,7 @@ program test_clenshaw
 
     !-----------------------------------------------------------------
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
-    call init_zops
+    call init_inversion
 
     ! Define the exact integral of f(x) = exp(x) over [-1, 1]
     exact_integral = dexp(one) - dexp(-one)
@@ -70,7 +70,7 @@ program test_clenshaw
         call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-15)
     endif
 
-    call finalise_zops
+    call finalise_inversion
 
     call mpi_env_finalise
 

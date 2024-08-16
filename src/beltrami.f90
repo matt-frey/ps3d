@@ -22,8 +22,7 @@ program beltrami
     use netcdf_writer
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist
-    use zops, only : init_zops, zcheb
-    use inversion_utils, only : init_inversion
+    use inversion_utils, only : init_inversion, zcheb
     use mpi_layout, only : mpi_layout_init
     implicit none
 
@@ -110,7 +109,6 @@ program beltrami
             call update_parameters
 
             call init_inversion
-            call init_zops
 
             call beltrami_init
 

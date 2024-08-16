@@ -8,7 +8,7 @@ module utils
     use netcdf_utils
     use field_netcdf
     use field_diagnostics_netcdf
-    use inversion_utils, only : init_diffusion
+    use diffusion, only : init_diffusion
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : nx, ny, lower, extent, update_parameters, dx
@@ -22,7 +22,7 @@ module utils
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
     use sta3dfft, only : fftxyp2s
-    use zops, only : zg
+    use inversion_utils, only : zg
     implicit none
 
     integer :: nfw  = 0    ! number of field writes

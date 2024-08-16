@@ -26,7 +26,6 @@ program ps3d
 #endif
     use ls_rk_mod, only : ls_rk
     use cn2_mod, only : cn2
-    use zops, only : init_zops, finalise_zops
 #ifndef ENABLE_SMAGORINSKY
     use impl_rk4_mod, only : impl_rk4
 #endif
@@ -76,7 +75,6 @@ program ps3d
             call setup_domain_and_parameters
 
             call init_inversion
-            call init_zops
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
@@ -139,7 +137,6 @@ program ps3d
         subroutine post_run
             use options, only : output
 
-            call finalise_zops
             call finalise_inversion
 
 #ifdef ENABLE_BALANCE

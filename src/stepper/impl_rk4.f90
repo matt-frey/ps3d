@@ -6,6 +6,7 @@ module impl_rk4_mod
     use inversion_utils
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
+    use diffusion, only : hdis
     implicit none
 
     double precision :: dt2, dt3, dt6

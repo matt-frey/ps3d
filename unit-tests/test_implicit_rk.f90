@@ -24,7 +24,6 @@ program test_implicit_rk
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use mpi_utils, only : mpi_stop
-    use zops, only : init_zops
     implicit none
 
     double precision :: error
@@ -59,7 +58,6 @@ program test_implicit_rk
     call field_default
 
     call init_inversion
-    call init_zops
 
     time_step = 0.1d0
     do n = 1, 4

@@ -17,6 +17,12 @@ module sta3dfft
     ! Wavenumbers:
     double precision, protected, allocatable :: rkx(:), hrkx(:), rky(:), hrky(:), rkz(:), rkzi(:)
 
+    ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
+    double precision, allocatable :: k2l2i(:, :)
+
+    ! Note k2l2 = k^2+l^2
+    double precision, allocatable :: k2l2(:, :)
+
     !Quantities needed in FFTs:
     double precision, protected, allocatable :: xtrig(:), ytrig(:), ztrig(:)
     integer,          protected              :: xfactors(5), yfactors(5), zfactors(5)
@@ -44,7 +50,9 @@ module sta3dfft
             , xfactors       &
             , xtrig          &
             , yfactors       &
-            , ytrig
+            , ytrig          &
+            , k2l2           &
+            , k2l2i
 
     contains
 
@@ -107,10 +115,32 @@ module sta3dfft
             call init_deriv(nz, extent(3), rkz(1:nz))
             rkzi(1:nz-1) = one / rkz(1:nz-1)
 
+            !----------------------------------------------------------
+            !Squared horizontal wavenumber array:
+            allocate(k2l2i(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(k2l2(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    k2l2(ky, kx) = rkx(kx) ** 2 + rky(ky) ** 2
+                enddo
+            enddo
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                k2l2(0, 0) = one
+            endif
+
+            k2l2i = one / k2l2
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                k2l2(0, 0) = zero
+                k2l2i(0, 0) = zero
+            endif
+
         end subroutine initialise_fft
 
         subroutine finalise_fft
-            if (allocated(rkx)) then
+            if (is_fft_initialised) then
                 deallocate(rkx)
                 deallocate(hrkx)
                 deallocate(rky)
@@ -120,11 +150,15 @@ module sta3dfft
                 deallocate(xtrig)
                 deallocate(ytrig)
                 deallocate(ztrig)
+                deallocate(k2l2)
+                deallocate(k2l2i)
+
+                call finalise_pencil_fft
+
+                call finalise_mpi_reverse
+
+                is_fft_initialised = .false.
             endif
-
-            call finalise_pencil_fft
-
-            call finalise_mpi_reverse
         end subroutine finalise_fft
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

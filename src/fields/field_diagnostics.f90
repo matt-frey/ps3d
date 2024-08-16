@@ -16,7 +16,7 @@ module field_diagnostics
     use physics, only : bfsq
 #endif
     use mpi_utils, only : mpi_check_for_error
-    use zops, only : zderiv, zg, zccw
+    use inversion_utils, only : zderiv, zg, zccw
     implicit none
 
     contains
