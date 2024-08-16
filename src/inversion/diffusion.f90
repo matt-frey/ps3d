@@ -23,8 +23,9 @@ module diffusion
     ! Vertically varying viscosity
     double precision, allocatable :: visc(:)
 
-    public :: init_diffusion        &
-            , hdis
+    public :: init_diffusion    &
+            , hdis              &
+            , visc
 
     contains
 
@@ -35,7 +36,7 @@ module diffusion
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, K2max
-            double precision             :: wfac
+            double precision             :: wfac, delta
             integer                      :: iz
 
             if (l_hdis_initialised) then
@@ -58,18 +59,22 @@ module diffusion
             call init_zops
 
             !------------------------------------------------------------------
-            ! N(z) = 0.5*[tanh((z-z_min)/delta) + tanh((z_max-z)/delta)]
+            ! N(z) = tanh((z-z_min)/delta) * tanh((z_max-z)/delta)
             ! 0 <= N(z) <= 1
             ! N vanishes on each boundary, while reaching 1 at the domain centre (in z)
+
+
+            ! specified boundary layer width
+            ! delta = (upper(3) - lower(3))/dble((2*nz))
+            delta = (upper(3) - lower(3)) / dble((nz))
             do iz = 0, nz
                 ! N(z)
-                visc(iz) = f12 * (tanh((zg(iz) - lower(3)) / viscosity%delta)   &
-                                + tanh((upper(3) - zg(iz)) / viscosity%delta))
+                visc(iz) = tanh((zg(iz) - lower(3)) / delta)   &
+                         * tanh((upper(3) - zg(iz)) / delta)
 
                 ! nu(z) = nu_max * N(z)
                 visc(iz) = viscosity%prediss * visc(iz)
             enddo
-
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
