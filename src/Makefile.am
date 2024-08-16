@@ -13,6 +13,7 @@ ps3d_SOURCES = 					\
 	utils/options.f90			\
 	utils/merge_sort.f90			\
 	inversion/diffusion.f90			\
+	inversion/zops.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
@@ -85,6 +86,7 @@ ps3d_LDADD = 						\
 beltrami_SOURCES = 				\
 	utils/options.f90			\
 	utils/parameters.f90			\
+	inversion/zops.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
