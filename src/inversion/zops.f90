@@ -33,7 +33,8 @@ module zops
             , zcheb                 &
             , zg                    &
             , zccw                  &
-            , apply_zfilter
+            , apply_zfilter         &
+            , d1z
 
     contains
 

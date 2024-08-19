@@ -44,7 +44,8 @@ unittests_PROGRAMS =   		\
         test_clenshaw_2		\
         test_clenshaw_3		\
         test_integrate		\
-        test_zfilter
+        test_zfilter		\
+        test_crank_nicolson
 
 if ! ENABLE_SMAGORINSKY
 unittests_PROGRAMS += test_implicit_rk
@@ -109,6 +110,9 @@ test_integrate_LDADD = libcombi.la
 
 test_zfilter_SOURCES = unit_test.f90 test_zfilter.f90
 test_zfilter_LDADD = libcombi.la
+
+test_crank_nicolson_SOURCES = unit_test.f90 test_crank_nicolson.f90
+test_crank_nicolson_LDADD = libcombi.la
 
 if ! ENABLE_SMAGORINSKY
 test_implicit_rk_SOURCES = unit_test.f90 test_implicit_rk.f90
