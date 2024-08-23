@@ -2,8 +2,9 @@
 !                          Test Crank-Nicolson method
 !
 ! This test solves
-!       u_t = (D u_z)_z - D K^2 u
-! where D = D(z) is the diffusivity, u = u(z, t) and subscripts t or z denote
+!       u_t = (\alpha_v(z) u_z)_z - \alpha_h K^2 u
+! where D = D(z) is the vertical diffusivity and
+! \alpha_h is the horizontal diffusivity, u = u(z, t) and subscripts t or z denote
 ! derivatives with respect to that variable. We assume K = 1. Here, we use
 ! the time-average approach according to
 !
@@ -13,7 +14,7 @@
 !
 ! We use u(z, t=0) = exp(z) and
 !
-!           D(z) = [tanh(5 * (1 + z)) * tanh(5 * (1 - z))]^2
+!           \alpha_v(z) = [tanh(5 * (1 + z)) * tanh(5 * (1 - z))]^2
 ! =============================================================================
 program test_crank_nicolson
     use unit_test
@@ -30,10 +31,10 @@ program test_crank_nicolson
     use zops, only : d1z
     implicit none
 
-    double precision, allocatable :: u(:), d_x(:), eye(:, :), Lm(:, :), Am(:, :), v(:)
+    double precision, allocatable :: u(:), alpha_v(:), eye(:, :), Lm(:, :), Am(:, :), v(:)
     double precision, allocatable :: sol(:, :)
     double precision              :: dt, k2
-    double precision              :: gavg, alpha, rk, fac, l1norm_initial, l1norm_final
+    double precision              :: gavg, alpha_h, rk, fac, l1norm_initial, l1norm_final
     integer                       :: iz, i, j, nt, info, nsave
     integer, allocatable          :: ipiv(:)
 
@@ -53,7 +54,7 @@ program test_crank_nicolson
 
     allocate(u(0:nz))
     allocate(v(0:nz))
-    allocate(d_x(0:nz))
+    allocate(alpha_v(0:nz))
     allocate(eye(0:nz, 0:nz))
     allocate(Am(0:nz, 0:nz))
     allocate(Lm(0:nz, 0:nz))
@@ -71,19 +72,21 @@ program test_crank_nicolson
     u = exp(zcheb)
 
     ! Diffusivity (hyperbolic function)
-    d_x = (tanh(5.0d0 * (zcheb + 1.0d0)) * tanh(5.0d0 * (1.0d0 - zcheb))) ** 2
+    alpha_v = (tanh(5.0d0 * (zcheb + 1.0d0)) * tanh(5.0d0 * (1.0d0 - zcheb))) ** 2
+
+    alpha_h = maxval(alpha_v)
 
     ! Create the system matrix for the Crank-Nicolson method
     eye = zero
     Am = zero
     do iz = 0, nz
         eye(iz, iz) = one
-        Am(iz, iz) = d_x(iz)
+        Am(iz, iz) = alpha_v(iz)
     enddo
 
     k2 = 1.0d0
 
-    Lm = eye + f12 * k2 * dt * Am
+    Lm = eye + f12 * k2 * dt * alpha_h * eye
 
     Am = matmul(matmul(d1z, Am), d1z)
 
@@ -127,7 +130,7 @@ program test_crank_nicolson
     call finalise_inversion
 
     deallocate(u, v, sol)
-    deallocate(d_x, ipiv)
+    deallocate(alpha_v, ipiv)
     deallocate(eye, Am, Lm)
 
     call mpi_env_finalise
