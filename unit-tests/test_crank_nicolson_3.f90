@@ -1,11 +1,14 @@
 ! =============================================================================
 !                          Test Crank-Nicolson method
 !
-! This test solves the diffusion equation
-!       u_t = (D u_z)_z
-!           = D_z u_z + D u_zz
-! where D = D(z) is the diffusivity and subscripts t or z denote derivatives
-! with respect to that variable.
+! This test solves
+!       u_t = (D u_z)_z - D K^2 u
+! where D = D(z) is the diffusivity, u = u(z, t) and subscripts t or z denote
+! derivatives with respect to that variable. We assume K = 1.
+!
+! We use u(z, t=0) = exp(z) and
+!
+!           D(z) = [tanh(5 * (1 + z)) * tanh(5 * (1 - z))]^2
 ! =============================================================================
 program test_crank_nicolson
     use unit_test
@@ -19,12 +22,12 @@ program test_crank_nicolson
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use zops, only : d1z, d2z
+    use zops, only : d1z
     implicit none
 
     double precision, allocatable :: u(:), d_x(:), eye(:, :), Lm(:, :), Rm(:, :), Am(:, :), v(:)
     double precision, allocatable :: sol(:, :)
-    double precision              :: a, b, dt
+    double precision              :: dt, k2
     double precision              :: gavg, alpha, rk, fac, l1norm_initial, l1norm_final
     integer                       :: iz, i, j, nt, info, nsave
     integer, allocatable          :: ipiv(:)
@@ -61,16 +64,10 @@ program test_crank_nicolson
 
     call init_inversion
 
-    a = 0.75d0
-    b = 0.75d0
-    u = one - two * ( (zcheb - b) / a) * dexp(-( (zcheb - b) / a) ** 2) + 0.1d0 * dsin(3.0d0 * pi * zcheb)
+    u = exp(zcheb)
 
     ! Diffusivity (hyperbolic function)
     d_x = (tanh(5.0d0 * (zcheb + 1.0d0)) * tanh(5.0d0 * (1.0d0 - zcheb))) ** 2
-
-!     do iz = 0, nz
-!         print *, zcheb(iz), d_x(iz)
-!     enddo
 
     ! Create the system matrix for the Crank-Nicolson method
     eye = zero
@@ -80,10 +77,15 @@ program test_crank_nicolson
         Am(iz, iz) = d_x(iz)
     enddo
 
+    k2 = 1.0d0
+
+    Lm = eye + f12 * dt * k2 * Am
+    Rm = eye - f12 * dt * k2 * Am
+
     Am = matmul(matmul(d1z, Am), d1z)
 
-    Lm = eye - f12 * dt * Am
-    Rm = eye + f12 * dt * Am
+    Lm = Lm - f12 * dt * Am
+    Rm = Rm + f12 * dt * Am
 
     l1norm_initial = dot_product(zccw, u)
 
@@ -110,8 +112,7 @@ program test_crank_nicolson
     l1norm_final = dot_product(zccw, u)
 
     if (world%rank == world%root) then
-        ! L1 norm should remain constant.
-        call print_result_dp('Test Crank-Nicolson', dabs(l1norm_final - l1norm_initial), atol=1.0e-13)
+        call print_result_logical('Test Crank-Nicolson 3', (l1norm_final < l1norm_initial))
     endif
 
     if (verbose .and. (world%rank == world%root)) then

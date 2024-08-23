@@ -34,7 +34,7 @@ module zops
             , zg                    &
             , zccw                  &
             , apply_zfilter         &
-            , d1z
+            , d1z, d2z
 
     contains
 

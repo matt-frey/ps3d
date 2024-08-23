@@ -5,7 +5,13 @@
 !       u_t = (D u_z)_z
 !           = D_z u_z + D u_zz
 ! where D = D(z) is the diffusivity and subscripts t or z denote derivatives
-! with respect to that variable.
+! with respect to that variable. This method uses the time-average approach
+! according to
+!
+!   Dritschel D. G., Jalali M. R.
+!   The validity of two-dimensional models of a rotating shallow fluid layer.
+!   Journal of Fluid Mechanics. 2020;900:A33. doi:10.1017/jfm.2020.487
+!
 ! =============================================================================
 program test_crank_nicolson
     use unit_test
@@ -22,7 +28,7 @@ program test_crank_nicolson
     use zops, only : d1z, d2z
     implicit none
 
-    double precision, allocatable :: u(:), d_x(:), eye(:, :), Lm(:, :), Rm(:, :), Am(:, :), v(:)
+    double precision, allocatable :: u(:), d_x(:), eye(:, :), Lm(:, :), Am(:, :), v(:)
     double precision, allocatable :: sol(:, :)
     double precision              :: a, b, dt
     double precision              :: gavg, alpha, rk, fac, l1norm_initial, l1norm_final
@@ -49,7 +55,6 @@ program test_crank_nicolson
     allocate(eye(0:nz, 0:nz))
     allocate(Am(0:nz, 0:nz))
     allocate(Lm(0:nz, 0:nz))
-    allocate(Rm(0:nz, 0:nz))
     allocate(ipiv(0:nz))
 
     call update_parameters
@@ -83,23 +88,26 @@ program test_crank_nicolson
     Am = matmul(matmul(d1z, Am), d1z)
 
     Lm = eye - f12 * dt * Am
-    Rm = eye + f12 * dt * Am
 
     l1norm_initial = dot_product(zccw, u)
 
     sol(0, :) = u
     i = 1
     do j = 1, nt
-        ! right-hand side
-        v = matmul(Rm, u)
+        ! right-hand side u^{n}
+        v = u
 
-        ! solve the linear system
+        ! solve the linear system to get \bar{u}
         Am = Lm
         ipiv = 0
         call dgesv(nz+1, 1, Am, nz+1, ipiv, v, nz+1, info)
 
+        ! update u^{n+1} = 2\bar{u} - u^{n}
+        u = 2.0d0 * v - u
+
         ! compute L1 norm
-        u = v
+!         l1norm = dot_product(zccw, u)
+!         print *, j * dt, l1norm
 
         if (mod(j, nsave) == 0) then
             sol(i, :) = u
@@ -111,7 +119,7 @@ program test_crank_nicolson
 
     if (world%rank == world%root) then
         ! L1 norm should remain constant.
-        call print_result_dp('Test Crank-Nicolson', dabs(l1norm_final - l1norm_initial), atol=1.0e-13)
+        call print_result_dp('Test Crank-Nicolson 1', dabs(l1norm_final - l1norm_initial), atol=1.0e-13)
     endif
 
     if (verbose .and. (world%rank == world%root)) then
@@ -124,7 +132,7 @@ program test_crank_nicolson
 
     deallocate(u, v, sol)
     deallocate(d_x, ipiv)
-    deallocate(eye, Am, Lm, Rm)
+    deallocate(eye, Am, Lm)
 
     call mpi_env_finalise
 
