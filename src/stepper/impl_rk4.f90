@@ -6,7 +6,7 @@ module impl_rk4_mod
     use inversion_utils
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
-    use diffusion, only : hdis
+    use diffusion, only : hdis, apply_zdiffusion
     implicit none
 
     double precision :: dt2, dt3, dt6
@@ -14,7 +14,7 @@ module impl_rk4_mod
     type, extends(base_stepper) :: impl_rk4
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
-        double precision, allocatable :: epq(:, :, :), emq(:, :, :)
+        double precision, allocatable :: epq(:, :), emq(:, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
@@ -53,8 +53,8 @@ module impl_rk4_mod
         subroutine impl_rk4_setup(self)
             class(impl_rk4), intent(inout) :: self
 
-            allocate(self%epq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%emq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
             allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
@@ -81,6 +81,7 @@ module impl_rk4_mod
             self%emq = dexp(- diss)
             self%epq = 1.0d0 / self%emq
 
+
             !------------------------------------------------------------------
             ! RK4 predictor step at time t0 + dt/2:
 #ifdef ENABLE_BUOYANCY
@@ -91,6 +92,8 @@ module impl_rk4_mod
 #endif
 
             do nc = 1, 3
+                call apply_zdiffusion(svor(:, :, :, nc), dt2)
+
                 call self%impl_rk4_substep_one(q=svor(:, :, :, nc),          &
                                                sqs=svorts(:, :, :, nc),      &
                                                qdi=self%svori(:, :, :, nc),  &
@@ -168,6 +171,8 @@ module impl_rk4_mod
                 call self%impl_rk4_substep_four(q=svor(:, :, :, nc),          &
                                                 sqs=svorts(:, :, :, nc),      &
                                                 qdf=self%svorf(:, :, :, nc))
+
+                call apply_zdiffusion(svor(:, :, :, nc), dt2)
             enddo
 
             call adjust_vorticity_mean
@@ -193,7 +198,7 @@ module impl_rk4_mod
             do iz = 0, nz
                 qdi(iz, :, :) = q(iz, :, :)
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
+                q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdi(iz, :, :) + dt6 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -218,9 +223,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt2 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
+                q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -246,9 +251,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdi(iz, :, :) + dt * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
+                q(iz, :, :) = q(iz, :, :) * self%emq
                 qdf(iz, :, :) = filt * (qdf(iz, :, :) + dt3 * sqs(iz, :, :))
             enddo
             !$omp end parallel do
@@ -271,9 +276,9 @@ module impl_rk4_mod
             ! apply integrating factors to source
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq(iz, :, :)
+                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
                 q(iz, :, :) = filt * (qdf(iz, :, :) + dt6 * sqs(iz, :, :))
-                q(iz, :, :) = q(iz, :, :) * self%emq(iz, :, :)
+                q(iz, :, :) = q(iz, :, :) * self%emq
             enddo
             !$omp end parallel do
 

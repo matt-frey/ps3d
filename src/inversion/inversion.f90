@@ -16,7 +16,7 @@ module inversion_mod
 #if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
     use smagorinsky_mod, only : apply_smagorinsky_buoyancy
 #endif
-    use diffusion, only : visc
+!     use diffusion, only : visc
     implicit none
 
     integer :: vor2vel_timer,   &
@@ -291,11 +291,11 @@ module inversion_mod
             !$omp end parallel workshare
             call fftxyp2s(fp, q)
 
-            ! Add second term of diffusion for xi: nu * xi_z
-            call zderiv(svor(:, :, :, 1), p)
-            do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) + visc(iz) * p(iz, :, :)
-            enddo
+!             ! Add second term of diffusion for xi: nu * xi_z
+!             call zderiv(svor(:, :, :, 1), p)
+!             do iz = 0, nz
+!                 q(iz, :, :) = q(iz, :, :) + visc(iz) * p(iz, :, :)
+!             enddo
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
@@ -310,11 +310,11 @@ module inversion_mod
             !$omp end parallel workshare
             call fftxyp2s(fp, p)
 
-            ! Add second term of diffusion for eta: nu * eta_z
-            call zderiv(svor(:, :, :, 2), q)
-            do iz = 0, nz
-                p(iz, :, :) = p(iz, :, :) + visc(iz) * q(iz, :, :)
-            enddo
+!             ! Add second term of diffusion for eta: nu * eta_z
+!             call zderiv(svor(:, :, :, 2), q)
+!             do iz = 0, nz
+!                 p(iz, :, :) = p(iz, :, :) + visc(iz) * q(iz, :, :)
+!             enddo
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))

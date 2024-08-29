@@ -19,12 +19,13 @@ module diffusion
     logical :: l_hdis_initialised = .false.
 
     ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :, :)
+    double precision, allocatable :: hdis(:, :)
 
     ! Vertically varying viscosity
     double precision, allocatable :: visc(:)
 
     public :: init_diffusion    &
+            , apply_zdiffusion  &
             , hdis              &
             , visc
 
@@ -37,7 +38,7 @@ module diffusion
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, K2max
-            double precision             :: wfac, delta
+            double precision             :: wfac, delta, hvisc
             integer                      :: iz
 
             if (l_hdis_initialised) then
@@ -46,7 +47,7 @@ module diffusion
 
             l_hdis_initialised = .true.
 
-            allocate(hdis(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(hdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(visc(0:nz))
 
             !------------------------------------------------------------------
@@ -83,40 +84,37 @@ module diffusion
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
+                hvisc = viscosity%prediss
                 !Define viscosity:
                 if (bbdif > zero) then
-                    visc = visc * sqrt(bbdif / rkxmax ** 3)
+                    hvisc = hvisc * sqrt(bbdif / rkxmax ** 3)
                 endif
 
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Max viscosity nu = ', maxval(visc)
+                    write(*,'(a,1p,e14.7)') ' Viscosity nu = ', hvisc
                 endif
 
                 !Define spectral dissipation operator:
-                !$omp parallel do
-                do iz = 0, nz
-                    hdis(iz, :, :) = visc(iz) * k2l2
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                hdis = hvisc * k2l2
+                !$omp end parallel workshare
              else
                 !Define hyperviscosity:
                 K2max = max(rkxmax, rkymax) ** 2
                 wfac = one / K2max
-                visc = visc *  (K2max * te /en) ** f13
+                hvisc = viscosity%prediss *  (K2max * te /en) ** f13
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Max hyperviscosity nu = ', maxval(visc) * wfac ** viscosity%nnu
+                    write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', hvisc * wfac ** viscosity%nnu
                 endif
 
                 !Define dissipation operator:
-                !$omp parallel do
-                do iz = 0, nz
-                    hdis(iz, :, :) = visc(iz) * (wfac * k2l2) ** viscosity%nnu
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                hdis = hvisc * (wfac * k2l2) ** viscosity%nnu
+                !$omp end parallel workshare
 
                 if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                     !Ensure average is not modified by hyperviscosity:
-                    hdis(:, 0, 0) = zero
+                    hdis(0, 0) = zero
                 endif
              endif
         end subroutine init_diffusion

@@ -34,7 +34,7 @@ module fields
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-    double precision, allocatable, dimension(:, :, :) :: &
+    double precision, allocatable, dimension(:, :) :: &
         diss        ! dissipation operator
 #endif
 
@@ -79,7 +79,7 @@ module fields
             allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
 #ifndef ENABLE_SMAGORINSKY
-            allocate(diss(0:nz, lo(2):hi(2), lo(1):hi(1)))
+            allocate(diss(lo(2):hi(2), lo(1):hi(1)))
 #endif
 
             ! Spectral fields needed in time stepping:
