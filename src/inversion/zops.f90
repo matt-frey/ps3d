@@ -242,6 +242,43 @@ module zops
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        subroutine apply_zdiffusion(fs, dt)
+            double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(in)    :: dt
+            double precision                :: u(0:nz), Am(0:nz, 0:nz), Lm(0:nz, 0:nz), eye(0:nz, 0:nz)
+            integer                         :: ipiv(0:nz)
+            integer                         :: kx, ky
+
+            eye = zero
+            Am = zero
+            do iz = 0, nz
+                eye(iz, iz) = one
+                Am(iz, iz) = visc(iz)
+            enddo
+
+            Am = matmul(matmul(d1z, Am), d1z)
+            Lm = eye - f12 * dt * Am
+
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%hi(2), box%hi(2)
+
+                    ! right-hand side u^{n}
+                    u = fs(:, ky, kx)
+
+                    ! solve the linear system to get \bar{u}
+                    Am = Lm
+                    ipiv = 0
+                    call dgesv(nz+1, 1, Am, nz+1, ipiv, u, nz+1, info)
+
+                    ! update u^{n+1} = 2\bar{u} - u^{n}
+                    fs(:, ky, kx) = 2.0d0 * u - fs(:, ky, kx)
+                enddo
+            enddo
+
+        end subroutine apply_zdiffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         ! Input:
         ! f_values - a vector of length N+1 containing function values at Chebyshev extrema points
         ! Output:
