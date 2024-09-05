@@ -11,7 +11,8 @@ module diffusion
     use zops, only : init_zops          &
                    , finalise_zops      &
                    , zg                 &
-                   , d1z
+                   , d1z                &
+                   , zcheb
     implicit none
 
     private
@@ -71,8 +72,10 @@ module diffusion
             delta = (upper(3) - lower(3)) / dble((nz))
             do iz = 0, nz
                 ! N(z)
-                visc(iz) = tanh((zg(iz) - lower(3)) / delta)   &
-                         * tanh((upper(3) - zg(iz)) / delta)
+                visc(iz) = (tanh(5.0d0 * (zcheb(iz) + 1.0d0)) &
+                          * tanh(5.0d0 * (1.0d0 - zcheb(iz)))) ** 2
+!                 visc(iz) = tanh((zg(iz) - lower(3)) / delta)   &
+!                          * tanh((upper(3) - zg(iz)) / delta)
 
                 ! nu(z) = nu_max * N(z)
                 visc(iz) = viscosity%prediss * visc(iz)
