@@ -61,6 +61,15 @@ module diffusion
             ! Ensure Chebyshev is initialised:
             call init_zops
 
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+
+            !------------------------------------------------------------------
+            ! Define viscosity:
+            K2max = max(rkxmax, rkymax) ** 2
+            wfac = one / K2max
+            hvisc = viscosity%prediss *  (K2max * te /en) ** f13 * wfac ** viscosity%nnu
+
             !------------------------------------------------------------------
             ! N(z) = tanh((z-z_min)/delta) * tanh((z_max-z)/delta)
             ! 0 <= N(z) <= 1
@@ -78,23 +87,15 @@ module diffusion
 !                          * tanh((upper(3) - zg(iz)) / delta)
 
                 ! nu(z) = nu_max * N(z)
-                visc(iz) = viscosity%prediss * visc(iz)
+                visc(iz) = hvisc * visc(iz)
             enddo
 
-            rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
-                hvisc = viscosity%prediss
-                !Define viscosity:
-                if (bbdif > zero) then
-                    hvisc = hvisc * sqrt(bbdif / rkxmax ** 3)
-                endif
-
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Viscosity nu = ', hvisc
+                    write(*,'(a,1p,e14.7)') ' Molecular viscosity nu = ', hvisc
                 endif
 
                 !Define spectral dissipation operator:
@@ -103,16 +104,13 @@ module diffusion
                 !$omp end parallel workshare
              else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax) ** 2
-                wfac = one / K2max
-                hvisc = viscosity%prediss *  (K2max * te /en) ** f13
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', hvisc * wfac ** viscosity%nnu
+                    write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', hvisc
                 endif
 
                 !Define dissipation operator:
                 !$omp parallel workshare
-                hdis = hvisc * (wfac * k2l2) ** viscosity%nnu
+                hdis = hvisc * k2l2 ** viscosity%nnu
                 !$omp end parallel workshare
 
                 if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
