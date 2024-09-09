@@ -122,17 +122,18 @@ module inversion_utils
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
 
+            ! Define viscosity:
+            K2max = max(rkxmax, rkymax) ** 2
+            wfac = one / K2max
+            visc = viscosity%prediss *  (K2max * te /en) ** f13 * wfac ** viscosity%nnu
+
+            visc = 0.005d0
+
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
-                !Define viscosity:
-                visc = viscosity%prediss
-                if (bbdif > zero) then
-                    visc = visc * sqrt(bbdif / rkxmax ** 3)
-                endif
-
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
+                    write(*,'(a,1p,e14.7)') ' Moleculra viscosity nu = ', visc
                 endif
 
                 !Define spectral dissipation operator:
@@ -141,22 +142,14 @@ module inversion_utils
                 !$omp end parallel workshare
              else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax) ** 2
-                wfac = one / K2max
-                visc = viscosity%prediss *  (K2max * te /en) ** f13
                 if (world%rank == world%root) then
                     write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
                 endif
 
                 !Define dissipation operator:
                 !$omp parallel workshare
-                hdis = visc * (wfac * k2l2) ** viscosity%nnu
+                hdis = visc * k2l2 ** viscosity%nnu
                 !$omp end parallel workshare
-
-                if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                    !Ensure average is not modified by hyperviscosity:
-                    hdis(0, 0) = zero
-                endif
              endif
         end subroutine init_diffusion
 
