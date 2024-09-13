@@ -61,13 +61,14 @@ module ls_rk_mod
     contains
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine ls_rk_set_diffusion(self, dt, vorch)
+        subroutine ls_rk_set_diffusion(self, dt, vorch, bf)
             class(ls_rk),     intent(inout) :: self
             double precision, intent(in)    :: dt       ! unused here
-            double precision, intent(in)    :: vorch
+            double precision, intent(in)    :: vorch, bf
 
             !$omp parallel workshare
             diss = vorch * hdis
+            disb = vorch * hdis
             !$omp end parallel workshare
 
         end subroutine ls_rk_set_diffusion
@@ -128,11 +129,12 @@ module ls_rk_mod
             if (step == 1) then
 #ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
-                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys)
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=disb)
 #endif
                 do nc = 1, 3
-                    call apply_hyperdiffusion(q=svor(:, :, :, nc),    &
-                                              sqs=svorts(:, :, :, nc))
+                    call apply_hyperdiffusion(q=svor(:, :, :, nc),     &
+                                              sqs=svorts(:, :, :, nc), &
+                                              diff=diss)
                 enddo
 #endif
                 !$omp parallel workshare
@@ -148,11 +150,12 @@ module ls_rk_mod
 
 #ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
-                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys)
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=disb)
 #endif
                 do nc = 1, 3
-                    call apply_hyperdiffusion(q=svor(:, :, :, nc),    &
-                                              sqs=svorts(:, :, :, nc))
+                    call apply_hyperdiffusion(q=svor(:, :, :, nc),      &
+                                              sqs=svorts(:, :, :, nc),  &
+                                              diff=diss)
                 enddo
 #endif
 
@@ -193,18 +196,20 @@ module ls_rk_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine apply_hyperdiffusion(q, sqs)
+        subroutine apply_hyperdiffusion(q, sqs, diff)
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
             double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            double precision, intent(in)    :: diff(box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
             integer                         :: iz
 
             call field_combine_semi_spectral(q)
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) - diss * q(iz, :, :)
+                sqs(iz, :, :) = sqs(iz, :, :) - diff * q(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)

@@ -39,11 +39,11 @@ module cn2_mod
     contains
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine cn2_set_diffusion(self, dt, vorch)
+        subroutine cn2_set_diffusion(self, dt, vorch, bf)
             class(cn2),       intent(inout) :: self
             double precision, intent(in)    :: dt
-            double precision, intent(in)    :: vorch
-            double precision                :: dfac
+            double precision, intent(in)    :: vorch, bf
+            double precision                :: dfac, bbac
 
             !---------------------------------------------------------------------
             if (viscosity%nnu .eq. 1) then
@@ -52,10 +52,12 @@ module cn2_mod
             else
                 !Update hyperdiffusion operator used in time stepping:
                 dfac = vorch * dt
+                bbac = bf * dt
              endif
 
             !$omp parallel workshare
             diss = one / (one + dfac * hdis)
+            disb = one / (one + bbac * hdis)
             !$omp end parallel workshare
             !(see inversion_utils.f90)
 
@@ -97,7 +99,7 @@ module cn2_mod
             call field_combine_semi_spectral(sbuoy)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                sbuoy(iz, :, :) = disb * sbuoy(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sbuoy)
@@ -144,7 +146,7 @@ module cn2_mod
                 call field_combine_semi_spectral(sbuoy)
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                    sbuoy(iz, :, :) = disb * sbuoy(iz, :, :)
                 enddo
                 !$omp end parallel do
                 call field_decompose_semi_spectral(sbuoy)

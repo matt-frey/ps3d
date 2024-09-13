@@ -14,6 +14,7 @@ module impl_rk4_mod
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
         double precision, allocatable :: epq(:, :), emq(:, :)
+        double precision, allocatable :: bpq(:, :), bmq(:, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
@@ -33,16 +34,18 @@ module impl_rk4_mod
 
     contains
 
-        subroutine impl_rk4_set_diffusion(self, dt, vorch)
+        subroutine impl_rk4_set_diffusion(self, dt, vorch, bf)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(in)    :: dt
-            double precision, intent(in)    :: vorch
-            double precision                :: dfac
+            double precision, intent(in)    :: vorch, bf
+            double precision                :: dfac, dbac
 
             dfac = f12 * vorch * dt
+            dbac = f12 * bf * dt
 
             !$omp parallel workshare
             diss = dfac * hdis
+            disb = dbac * hdis
             !$omp end parallel workshare
 
         end subroutine impl_rk4_set_diffusion
@@ -54,6 +57,8 @@ module impl_rk4_mod
 
             allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%bpq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%bmq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
             allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
@@ -80,20 +85,25 @@ module impl_rk4_mod
             self%emq = dexp(- diss)
             self%epq = 1.0d0 / self%emq
 
+            self%bmq = dexp(- disb)
+            self%bpq = 1.0d0 / self%bmq
+
             !------------------------------------------------------------------
             ! RK4 predictor step at time t0 + dt/2:
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_one(q=sbuoy,          &
                                            sqs=sbuoys,       &
                                            qdi=self%sbuoyi,  &
-                                           qdf=self%sbuoyf)
+                                           qdf=self%sbuoyf,  &
+                                           mq=self%bmq)
 #endif
 
             do nc = 1, 3
                 call self%impl_rk4_substep_one(q=svor(:, :, :, nc),          &
                                                sqs=svorts(:, :, :, nc),      &
                                                qdi=self%svori(:, :, :, nc),  &
-                                               qdf=self%svorf(:, :, :, nc))
+                                               qdf=self%svorf(:, :, :, nc),  &
+                                               mq=self%emq)
             enddo
 
             !------------------------------------------------------------------
@@ -109,14 +119,18 @@ module impl_rk4_mod
             call self%impl_rk4_substep_two(q=sbuoy,          &
                                            sqs=sbuoys,       &
                                            qdi=self%sbuoyi,  &
-                                           qdf=self%sbuoyf)
+                                           qdf=self%sbuoyf,  &
+                                           mq=self%bmq,      &
+                                           pq=self%bpq)
 #endif
 
             do nc = 1, 3
                 call self%impl_rk4_substep_two(q=svor(:, :, :, nc),          &
                                                sqs=svorts(:, :, :, nc),      &
                                                qdi=self%svori(:, :, :, nc),  &
-                                               qdf=self%svorf(:, :, :, nc))
+                                               qdf=self%svorf(:, :, :, nc),  &
+                                               mq=self%emq,                  &
+                                               pq=self%epq)
             enddo
 
             !------------------------------------------------------------------
@@ -129,12 +143,15 @@ module impl_rk4_mod
             t = t + dt2
 
             self%emq = self%emq ** 2
+            self%bmq = self%bmq ** 2
 
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_three(q=sbuoy,          &
                                              sqs=sbuoys,       &
                                              qdi=self%sbuoyi,  &
                                              qdf=self%sbuoyf,  &
+                                             mq=self%bmq,      &
+                                             pq=self%bpq,      &
                                              dt=dt)
 #endif
 
@@ -143,6 +160,8 @@ module impl_rk4_mod
                                                  sqs=svorts(:, :, :, nc),      &
                                                  qdi=self%svori(:, :, :, nc),  &
                                                  qdf=self%svorf(:, :, :, nc),  &
+                                                 mq=self%emq,                  &
+                                                 pq=self%epq,                  &
                                                  dt=dt)
             enddo
 
@@ -156,17 +175,22 @@ module impl_rk4_mod
             !RK4 corrector step at time t0 + dt:
 
             self%epq = self%epq ** 2
+            self%bpq = self%bpq ** 2
 
 #ifdef ENABLE_BUOYANCY
             call self%impl_rk4_substep_four(q=sbuoy,          &
                                             sqs=sbuoys,       &
-                                            qdf=self%sbuoyf)
+                                            qdf=self%sbuoyf,  &
+                                            mq=self%bmq,      &
+                                            pq=self%bqp)
 #endif
 
             do nc = 1, 3
                 call self%impl_rk4_substep_four(q=svor(:, :, :, nc),          &
                                                 sqs=svorts(:, :, :, nc),      &
-                                                qdf=self%svorf(:, :, :, nc))
+                                                qdf=self%svorf(:, :, :, nc),  &
+                                                mq=self%emq,                  &
+                                                pq=self%epq)
             enddo
 
             call adjust_vorticity_mean
@@ -176,7 +200,7 @@ module impl_rk4_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Initialisation step (t = t0) (predictor):
-        subroutine impl_rk4_substep_one(self, q, sqs, qdi, qdf)
+        subroutine impl_rk4_substep_one(self, q, sqs, qdi, qdf, mq)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
@@ -186,6 +210,8 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
             integer                         :: iz
 
             qdi = q
@@ -193,7 +219,7 @@ module impl_rk4_mod
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * mq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
@@ -205,7 +231,7 @@ module impl_rk4_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! First corrector step (t = t0 + dt/2):
-        subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf)
+        subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf, mq, pq)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
@@ -215,13 +241,17 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
             integer                         :: iz
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * pq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
@@ -231,7 +261,7 @@ module impl_rk4_mod
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * mq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
@@ -243,7 +273,7 @@ module impl_rk4_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Second predictor step (t = t0 + dt):
-        subroutine impl_rk4_substep_three(self, q, sqs, qdi, qdf, dt)
+        subroutine impl_rk4_substep_three(self, q, sqs, qdi, qdf, mq, pq, dt)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
@@ -253,6 +283,10 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
             double precision, intent(in)    :: dt
             integer                         :: iz
 
@@ -260,7 +294,7 @@ module impl_rk4_mod
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * pq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
@@ -270,7 +304,7 @@ module impl_rk4_mod
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * mq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
@@ -281,7 +315,7 @@ module impl_rk4_mod
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Second corrector step (t = t0 + dt):
-        subroutine impl_rk4_substep_four(self, q, sqs, qdf)
+        subroutine impl_rk4_substep_four(self, q, sqs, qdf, mq, pq)
             class(impl_rk4),  intent(inout) :: self
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
@@ -289,13 +323,17 @@ module impl_rk4_mod
                                                          box%lo(1):box%hi(1))
             double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
+            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
             integer                         :: iz
 
             ! apply integrating factors to source
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * self%epq
+                sqs(iz, :, :) = sqs(iz, :, :) * pq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
@@ -305,7 +343,7 @@ module impl_rk4_mod
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * self%emq
+                q(iz, :, :) = q(iz, :, :) * mq
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)

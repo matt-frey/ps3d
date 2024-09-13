@@ -35,7 +35,8 @@ module fields
 
 #ifndef ENABLE_SMAGORINSKY
     double precision, allocatable, dimension(:, :) :: &
-        diss        ! dissipation operator
+        diss,   &   ! dissipation operator
+        disb
 #endif
 
     ! initial \xi and \eta mean
@@ -80,6 +81,7 @@ module fields
 
 #ifndef ENABLE_SMAGORINSKY
             allocate(diss(lo(2):hi(2), lo(1):hi(1)))
+            allocate(disb(lo(2):hi(2), lo(1):hi(1)))
 #endif
 
             ! Spectral fields needed in time stepping:
@@ -110,6 +112,7 @@ module fields
 
 #ifndef ENABLE_SMAGORINSKY
             diss   = zero
+            disb   = zero
 #endif
 
             ini_vor_mean = zero

@@ -37,11 +37,12 @@ module advance_mod
 
     abstract interface
 #ifndef ENABLE_SMAGORINSKY
-        subroutine base_diffusion(self, dt, vorch)
+        subroutine base_diffusion(self, dt, vorch, bf)
             import base_stepper
             class(base_stepper), intent(inout) :: self
             double precision,    intent(in)    :: dt
             double precision,    intent(in)    :: vorch
+            double precision,    intent(in)    :: bf
         end subroutine base_diffusion
 #endif
 
@@ -61,6 +62,7 @@ module advance_mod
 
 #ifndef ENABLE_SMAGORINSKY
     type(rolling_mean_t) :: rollmean
+    type(rolling_mean_t) :: buoy_rollmean
 #endif
 
     integer :: advance_timer
@@ -328,14 +330,16 @@ module advance_mod
 #ifndef ENABLE_SMAGORINSKY
             if (viscosity%pretype == 'constant') then
                 ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
-                call bstep%set_diffusion(dt, one)
+                call bstep%set_diffusion(dt, one, one)
             else if (viscosity%pretype == 'vorch') then
-                call bstep%set_diffusion(dt, vorch)
+                call bstep%set_diffusion(dt, vorch, bfmax)
             else if (viscosity%pretype == 'roll-mean-gmax') then
                 call rollmean%alloc(viscosity%roll_mean_win_size)
                 rm = rollmean%get_next(ggmax)
+                call buoy_rollmean%alloc(viscosity%roll_mean_win_size)
+                bfmax = buoy_rollmean%get_next(bfmax)
                 call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-                call bstep%set_diffusion(dt, rm)
+                call bstep%set_diffusion(dt, rm, bfmax)
             else
                 call mpi_stop(&
                     "We only support characteristic vorticity 'vorch' or rolling mean 'roll-mean-gmax'")
