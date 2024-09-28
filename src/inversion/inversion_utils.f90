@@ -127,13 +127,11 @@ module inversion_utils
             wfac = one / K2max
             visc = viscosity%prediss *  (K2max * te /en) ** f13 * wfac ** viscosity%nnu
 
-            visc = 0.005d0
-
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Moleculra viscosity nu = ', visc
+                    write(*,'(a,1p,e14.7)') ' Molecular viscosity nu = ', visc
                 endif
 
                 !Define spectral dissipation operator:

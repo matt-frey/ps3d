@@ -141,7 +141,7 @@ module advance_mod
             character(512)                  :: fname
 #endif
 #ifndef ENABLE_SMAGORINSKY
-            double precision                :: rm
+            double precision                :: rm, rmb
 #endif
 
             bfmax = zero
@@ -332,14 +332,14 @@ module advance_mod
                 ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
                 call bstep%set_diffusion(dt, one, one)
             else if (viscosity%pretype == 'vorch') then
-                call bstep%set_diffusion(dt, vorch, bfmax)
+               call bstep%set_diffusion(dt, vorch, bfmax)
             else if (viscosity%pretype == 'roll-mean-gmax') then
                 call rollmean%alloc(viscosity%roll_mean_win_size)
                 rm = rollmean%get_next(ggmax)
                 call buoy_rollmean%alloc(viscosity%roll_mean_win_size)
-                bfmax = buoy_rollmean%get_next(bfmax)
+                rmb = buoy_rollmean%get_next(bfmax)
                 call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-                call bstep%set_diffusion(dt, rm, bfmax)
+                call bstep%set_diffusion(dt, rm, rmb)
             else
                 call mpi_stop(&
                     "We only support characteristic vorticity 'vorch' or rolling mean 'roll-mean-gmax'")

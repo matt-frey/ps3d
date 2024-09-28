@@ -182,7 +182,7 @@ module impl_rk4_mod
                                             sqs=sbuoys,       &
                                             qdf=self%sbuoyf,  &
                                             mq=self%bmq,      &
-                                            pq=self%bqp)
+                                            pq=self%bpq)
 #endif
 
             do nc = 1, 3
