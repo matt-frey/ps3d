@@ -1,5 +1,5 @@
 module advance_mod
-    use options, only : time, viscosity, stepper
+    use options, only : time, visc_type, vor_visc, stepper
 #ifdef ENABLE_VERBOSE
     use options, only : output
 #endif
@@ -8,6 +8,7 @@ module advance_mod
     use inversion_mod, only : vor2vel, source, pressure
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
+    use options, only : buoy_visc
 #endif
     use inversion_utils
     use utils, only : write_step
@@ -141,7 +142,10 @@ module advance_mod
             character(512)                  :: fname
 #endif
 #ifndef ENABLE_SMAGORINSKY
-            double precision                :: rm, rmb
+            double precision                :: rm, vval, bval
+#ifdef ENABLE_BUOYANCY
+            double precision                :: rmb
+#endif
 #endif
 
             bfmax = zero
@@ -327,26 +331,54 @@ module advance_mod
             endif
 #endif
 
+
 #ifndef ENABLE_SMAGORINSKY
-            if (viscosity%pretype == 'constant') then
-                ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
-                call bstep%set_diffusion(dt, one, one)
-            else if (viscosity%pretype == 'vorch') then
-               call bstep%set_diffusion(dt, vorch, bfmax)
-            else if (viscosity%pretype == 'roll-mean-gmax') then
-                call rollmean%alloc(viscosity%roll_mean_win_size)
-                rm = rollmean%get_next(ggmax)
-                call buoy_rollmean%alloc(viscosity%roll_mean_win_size)
-                rmb = buoy_rollmean%get_next(bfmax)
-                call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-                call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
-                call bstep%set_diffusion(dt, rm, rmb)
-            else
-                call mpi_stop(&
-                    "We only support characteristic vorticity 'vorch' or rolling mean 'roll-mean-gmax'")
-            endif
+            vval = zero
+            bval = zero
+
+            call rollmean%alloc(vor_visc%roll_mean_win_size)
+            rm = rollmean%get_next(ggmax)
+            call set_netcdf_field_diagnostic(rm, NC_RGMAX)
+
+            vval = get_diffusion_pre_factor(vor_visc, rm)
+
+#ifdef ENABLE_BUOYANCY
+            call buoy_rollmean%alloc(buoy_visc%roll_mean_win_size)
+            rmb = buoy_rollmean%get_next(bfmax)
+            call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
+
+            bval = get_diffusion_pre_factor(buoy_visc, rmb)
+#endif
+
+            call bstep%set_diffusion(dt, vval, bval)
 #endif
 
         end subroutine adapt
+
+        !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+#ifndef ENABLE_SMAGORINSKY
+        function get_diffusion_pre_factor(visc, rm) result(val)
+            type(visc_type),  intent(in) :: visc
+            double precision, intent(in) :: rm
+            double precision             :: val
+
+            select case (visc%pretype)
+                case ('constant')
+                    ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
+                    val = one
+                case ('vorch')
+                    val = vorch
+                case ('bfmax')
+                    val = bfmax
+                case ('roll-mean')
+                    val = rm
+                case default
+                    call mpi_stop(&
+                        "We only support 'constant', 'vorch', 'bfmax' or rolling mean 'roll-mean'")
+            end select
+
+        end function get_diffusion_pre_factor
+#endif
 
 end module advance_mod

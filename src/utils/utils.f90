@@ -134,7 +134,7 @@ module utils
         end subroutine setup_domain_and_parameters
 
         subroutine setup_fields
-            double precision :: bbdif, ke, ape, te, en
+            double precision :: ke, ape, te, en
 #ifdef ENABLE_BUOYANCY
             integer          :: iz
             double precision :: z
@@ -146,8 +146,6 @@ module utils
 
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
-            bbdif = maxval(buoy) - minval(buoy)
-
             call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
 
             ! remove basic state from buoyancy
@@ -157,8 +155,6 @@ module utils
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
             call field_decompose_physical(buoy, sbuoy)
-#else
-            bbdif = zero
 #endif
             call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
             call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
@@ -183,7 +179,7 @@ module utils
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-            call init_diffusion(bbdif, te, en)
+            call init_diffusion(te, en)
 #endif
 
         end subroutine setup_fields

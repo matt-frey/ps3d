@@ -14,9 +14,9 @@ module impl_rk4_mod
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
         double precision, allocatable :: epq(:, :), emq(:, :)
-        double precision, allocatable :: bpq(:, :), bmq(:, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
+        double precision, allocatable :: bpq(:, :), bmq(:, :)
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
 #endif
 
@@ -44,8 +44,10 @@ module impl_rk4_mod
             dbac = f12 * bf * dt
 
             !$omp parallel workshare
-            diss = dfac * hdis
-            disb = dbac * hdis
+            vdiss = dfac * vhdis
+#ifdef ENABLE_BUOYANCY
+            bdiss = dbac * bhdis
+#endif
             !$omp end parallel workshare
 
         end subroutine impl_rk4_set_diffusion
@@ -57,12 +59,12 @@ module impl_rk4_mod
 
             allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%bpq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%bmq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
             allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
 #ifdef ENABLE_BUOYANCY
+            allocate(self%bpq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(self%bmq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%sbuoyf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(self%sbuoyi(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 #endif
@@ -82,11 +84,13 @@ module impl_rk4_mod
             dt6 = f16 * dt
 
             ! set integrating factors
-            self%emq = dexp(- diss)
+            self%emq = dexp(- vdiss)
             self%epq = 1.0d0 / self%emq
 
-            self%bmq = dexp(- disb)
+#ifdef ENABLE_BUOYANCY
+            self%bmq = dexp(- bdiss)
             self%bpq = 1.0d0 / self%bmq
+#endif
 
             !------------------------------------------------------------------
             ! RK4 predictor step at time t0 + dt/2:
@@ -143,9 +147,11 @@ module impl_rk4_mod
             t = t + dt2
 
             self%emq = self%emq ** 2
-            self%bmq = self%bmq ** 2
+
 
 #ifdef ENABLE_BUOYANCY
+            self%bmq = self%bmq ** 2
+
             call self%impl_rk4_substep_three(q=sbuoy,          &
                                              sqs=sbuoys,       &
                                              qdi=self%sbuoyi,  &
@@ -175,9 +181,10 @@ module impl_rk4_mod
             !RK4 corrector step at time t0 + dt:
 
             self%epq = self%epq ** 2
-            self%bpq = self%bpq ** 2
 
 #ifdef ENABLE_BUOYANCY
+            self%bpq = self%bpq ** 2
+
             call self%impl_rk4_substep_four(q=sbuoy,          &
                                             sqs=sbuoys,       &
                                             qdf=self%sbuoyf,  &

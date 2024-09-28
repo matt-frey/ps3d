@@ -67,8 +67,10 @@ module ls_rk_mod
             double precision, intent(in)    :: vorch, bf
 
             !$omp parallel workshare
-            diss = vorch * hdis
-            disb = vorch * hdis
+            vdiss = vorch * vhdis
+#ifdef ENABLE_BUOYANCY
+            bdiss = bf * bhdis
+#endif
             !$omp end parallel workshare
 
         end subroutine ls_rk_set_diffusion
@@ -129,12 +131,12 @@ module ls_rk_mod
             if (step == 1) then
 #ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
-                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=disb)
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=bdiss)
 #endif
                 do nc = 1, 3
                     call apply_hyperdiffusion(q=svor(:, :, :, nc),     &
                                               sqs=svorts(:, :, :, nc), &
-                                              diff=diss)
+                                              diff=vdiss)
                 enddo
 #endif
                 !$omp parallel workshare
@@ -150,12 +152,12 @@ module ls_rk_mod
 
 #ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
-                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=disb)
+                call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=bdiss)
 #endif
                 do nc = 1, 3
                     call apply_hyperdiffusion(q=svor(:, :, :, nc),      &
                                               sqs=svorts(:, :, :, nc),  &
-                                              diff=diss)
+                                              diff=vdiss)
                 enddo
 #endif
 
