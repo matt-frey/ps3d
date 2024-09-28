@@ -20,7 +20,7 @@ module advance_mod
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic        &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR         &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
-                                       , NC_GMAX, NC_RGMAX
+                                       , NC_GMAX, NC_RGMAX, NC_RBFMAX
 #ifndef ENABLE_SMAGORINSKY
     use rolling_mean_mod, only : rolling_mean_t
 #endif
