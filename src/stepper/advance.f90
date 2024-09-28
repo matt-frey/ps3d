@@ -339,6 +339,7 @@ module advance_mod
                 call buoy_rollmean%alloc(viscosity%roll_mean_win_size)
                 rmb = buoy_rollmean%get_next(bfmax)
                 call set_netcdf_field_diagnostic(rm, NC_RGMAX)
+                call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
                 call bstep%set_diffusion(dt, rm, rmb)
             else
                 call mpi_stop(&

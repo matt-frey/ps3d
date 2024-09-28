@@ -59,17 +59,18 @@ module field_diagnostics_netcdf
                         , NC_HEMAX  = 19    &
                         , NC_GMAX   = 20    &
                         , NC_RGMAX  = 21    &
-                        , NC_RIMIN  = 22    &
-                        , NC_ROMIN  = 23
+                        , NC_RBFMAX = 22    &
+                        , NC_RIMIN  = 23    &
+                        , NC_ROMIN  = 24
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE     = 24    &
-                        , NC_BMAX    = 25    &
-                        , NC_BMIN    = 26    &
-                        , NC_MSS     = 27    &  ! mss = minimum static stability
-                        , NC_KEBAL   = 28    &
-                        , NC_KEUBAL  = 29    &
-                        , NC_APEBAL  = 30    &
-                        , NC_APEUBAL = 31
+    integer, parameter :: NC_APE     = 25    &
+                        , NC_BMAX    = 26    &
+                        , NC_BMIN    = 27    &
+                        , NC_MSS     = 28    &  ! mss = minimum static stability
+                        , NC_KEBAL   = 29    &
+                        , NC_KEUBAL  = 30    &
+                        , NC_APEBAL  = 31    &
+                        , NC_APEUBAL = 32
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -91,7 +92,8 @@ module field_diagnostics_netcdf
               NC_OYMEAN,                        &
               NC_OZMEAN,                        &
               NC_GMAX,                          &
-              NC_RGMAX
+              NC_RGMAX,                         &
+              NC_RBFMAX
 
     contains
 
@@ -497,6 +499,13 @@ module field_diagnostics_netcdf
             nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
                 name='rolling_mean_gmax',                               &
                 long_name='rolling mean maximum gamma',                 &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_RBFMAX) = netcdf_stat_info(                      &
+                name='rolling_mean_bfmax',                              &
+                long_name='rolling mean maximum buoyancy frequency',    &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
