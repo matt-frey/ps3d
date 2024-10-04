@@ -201,7 +201,7 @@ AC_ARG_WITH([blas],
             [])
 
 
-for lib in NONE openblas blas; do
+for lib in NONE openblas blas refblas; do
     save_LIBS=$LIBS
     if test x"$lib" = xNONE; then
     AC_MSG_CHECKING([for function saxpy])
