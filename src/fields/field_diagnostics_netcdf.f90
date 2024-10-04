@@ -15,6 +15,9 @@ module field_diagnostics_netcdf
     use physics, only : write_physical_quantities
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
+#ifdef ENABLE_BUOYANCY
+    use sta3dfft, only : fftxys2p
+#endif
 #ifdef ENABLE_BALANCE
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
@@ -248,7 +251,7 @@ module field_diagnostics_netcdf
 #endif
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call fftxys2p(sbuoy, buoy)
 
             ! get total buoyancy:
             do iz = 0, nz

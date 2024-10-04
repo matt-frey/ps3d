@@ -216,7 +216,7 @@ module inversion_mod
 
             ! Differentiate
             call fftxyp2s(fp, fs)
-            call diffz(fs, ds)
+            call zderiv(fs, ds)
             call fftxys2p(ds, fp)
 
             ! b = N^2 * z + b'
@@ -429,16 +429,16 @@ module inversion_mod
             enddo
             !$omp end parallel do
 
-#ifdef ENABLE_BUOYANCY
-            ! now in semi-spectral space, note k2l2i(0, 0) = 0
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    rs(:, ky, kx) = rs(:, ky, kx) &
-                                  + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
-                                  + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
-                enddo
-            enddo
-#endif
+! c #ifdef ENABLE_BUOYANCY
+! c             ! now in semi-spectral space, note k2l2i(0, 0) = 0
+! c             do kx = box%lo(1), box%hi(1)
+! c                 do ky = box%lo(2), box%hi(2)
+! c                     rs(:, ky, kx) = rs(:, ky, kx) &
+! c                                   + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
+! c                                   + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
+! c                 enddo
+! c             enddo
+! c #endif
 
             call fftxys2p(rs, pres)
 

@@ -296,7 +296,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call central_diffz(buoy, dbdz)
+            call zderiv(buoy, dbdz)
 
             ! As we use the pertubation mode, we only have b'_z, i.e. we must
             ! add N^2 because b_z = N^2 + b'_z
@@ -337,7 +337,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call central_diffz(buoy, dbdz)
+            call zderiv(buoy, dbdz)
 
             mss = minval(dbdz)
 

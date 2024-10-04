@@ -80,9 +80,7 @@ module cn2_mod
             double precision, intent(in)    :: dt
             integer                         :: iter
             integer                         :: nc
-#ifndef ENABLE_SMAGORINSKY
             integer                         :: iz
-#endif
 
             !Update value of dt/2:
             dt2 = f12 * dt
@@ -94,7 +92,7 @@ module cn2_mod
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
             !$omp parallel do private(iz)  default(shared)
-            for iz = 0, nz
+            do iz = 0, nz
                 sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
 #ifndef ENABLE_SMAGORINSKY
                 sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)

@@ -10,6 +10,9 @@ module field_netcdf
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
+#ifdef ENABLE_BUOYANCY
+    use sta3dfft, only : fftxys2p
+#endif
     implicit none
 
     private
