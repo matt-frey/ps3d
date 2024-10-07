@@ -383,7 +383,7 @@ module advance_mod
                     val = up_surf_zzrms
                 case default
                     call mpi_stop(&
-                        "We only support 'constant', 'vorch', 'bfmax', " &
+                        "We only support 'constant', 'vorch', 'bfmax', " // &
                         "rolling mean 'roll-mean' and 'upper-surface-zeta-rms'")
             end select
 

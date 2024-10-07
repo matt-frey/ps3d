@@ -25,7 +25,7 @@ module inversion_utils
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
 #endif
-    use mpi_utils, only : mpi_print
+    use mpi_utils, only : mpi_print, mpi_stop
     implicit none
 
     private
@@ -157,7 +157,7 @@ module inversion_utils
         function get_viscosity(lscale, prediss, p, te, en) result(vis)
             character(len=11), intent(in) :: lscale
             double precision,  intent(in) :: prediss
-            double precision,  intent(in) :: p
+            integer,           intent(in) :: p
             double precision,  intent(in) :: te ! total energy
             double precision,  intent(in) :: en ! enstrophy
             double precision              :: rkmsi, vis
