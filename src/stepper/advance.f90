@@ -70,7 +70,7 @@ module advance_mod
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
-    double precision :: vorch
+    double precision :: vorch, up_surf_zzrms
     integer          :: ix, iy, iz
 
     contains
@@ -135,7 +135,7 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(5)
+            double precision                :: buf(6)
             double precision                :: umax, vmax, wmax, dtcfl
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
@@ -184,6 +184,10 @@ module advance_mod
 
             !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
             vortrms = dsqrt(get_mean(xp, l_allreduce=.true.))
+
+
+            !Surface r.m.s. of z-vorticity
+            up_surf_zzrms = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
@@ -284,10 +288,11 @@ module advance_mod
             buf(3) = umax
             buf(4) = vmax
             buf(5) = wmax
+            buf(6) = up_surf_zzrms
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:5),                &
-                               5,                       &
+                               buf(1:6),                &
+                               6,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
                                world%comm,              &
@@ -298,6 +303,7 @@ module advance_mod
             umax = buf(3)
             vmax = buf(4)
             wmax = buf(5)
+            up_surf_zzrms = dsqrt(buf(6))
 
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
 
@@ -373,9 +379,12 @@ module advance_mod
                     val = bfmax
                 case ('roll-mean')
                     val = rm
+                case ('upper-surface-zeta-rms')
+                    val = up_surf_zzrms
                 case default
                     call mpi_stop(&
-                        "We only support 'constant', 'vorch', 'bfmax' or rolling mean 'roll-mean'")
+                        "We only support 'constant', 'vorch', 'bfmax', " &
+                        "rolling mean 'roll-mean' and 'upper-surface-zeta-rms'")
             end select
 
         end function get_diffusion_pre_factor

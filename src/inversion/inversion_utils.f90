@@ -124,8 +124,6 @@ module inversion_utils
         subroutine init_diffusion(te, en)
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
-            double precision             :: rkxmax, rkymax, K2max
-            double precision             :: wfac
 
 
             ! check if initialised
@@ -133,21 +131,19 @@ module inversion_utils
                 call mpi_print("Error: Inversion not initialised!")
             endif
 
-            rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
 
-
-            ! Define viscosity:
-            K2max = max(rkxmax, rkymax) ** 2
-            wfac = one / K2max
-            vvisc = vor_visc%prediss *  (K2max * te /en) ** f13 * wfac ** vor_visc%nnu
+            vvisc = get_viscosity(vor_visc%length_scale, &
+                                  vor_visc%prediss,      &
+                                  vor_visc%nnu, te, en)
 
             allocate(vhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
             call init_dissipation('Vorticity', vvisc, vor_visc%nnu, vhdis)
 
 #ifdef ENABLE_BUOYANCY
-            bvisc = buoy_visc%prediss *  (K2max * te /en) ** f13 * wfac ** buoy_visc%nnu
+            bvisc = get_viscosity(buoy_visc%length_scale, &
+                                  buoy_visc%prediss,      &
+                                  buoy_visc%nnu, te, en)
 
             allocate(bhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
@@ -155,6 +151,37 @@ module inversion_utils
 #endif
 
         end subroutine init_diffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        function get_viscosity(lscale, prediss, p, te, en) result(vis)
+            character(len=11), intent(in) :: lscale
+            double precision,  intent(in) :: prediss
+            double precision,  intent(in) :: p
+            double precision,  intent(in) :: te ! total energy
+            double precision,  intent(in) :: en ! enstrophy
+            double precision              :: rkmsi, vis
+            double precision              :: rkxmax, rkymax, K2max
+
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+
+
+            ! Define viscosity:
+            K2max = max(rkxmax, rkymax) ** 2
+            rkmsi = one / K2max
+
+            select case (lscale)
+                case ('Kolmogorov')
+                    vis = prediss *  (K2max * te /en) ** f13 * rkmsi ** p
+                case ('geophysical')
+                    vis = prediss * rkmsi ** p
+                case default
+                    call mpi_stop(&
+                        "We only support 'Kolmogorov' or 'geophysical'")
+            end select
+
+        end function get_viscosity
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
