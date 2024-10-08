@@ -4,7 +4,7 @@
 module options
     use constants, only : zero, one, two, pi, four, twopi
     use netcdf_writer
-    use mpi_utils, only : mpi_stop
+    use mpi_utils, only : mpi_stop, mpi_print
     implicit none
     !
     ! global options
@@ -56,12 +56,15 @@ module options
         ! Prefactor type to use:
         ! - vorch: characteristic vorticity
         ! - roll-mean-gmax: rolling mean of gamma_max
+        ! - constant: takes initial vorch
         character(len=16) :: pretype = 'vorch'
 
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
     end type visc_type
+
+    logical :: l_disable_zfilter = .false.
 
     type(visc_type) :: viscosity
 
@@ -87,7 +90,7 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, field_step, stepper, viscosity, output, time
+            namelist /PS3D/ field_file, field_step, stepper, viscosity, l_disable_zfilter, output, time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -110,6 +113,10 @@ module options
 
             ! check whether NetCDF files already exist
             inquire(file=output%basename, exist=exists)
+
+            if (l_disable_zfilter) then
+                call mpi_print("WARNING: You are about to disable the vertical filter.")
+            endif
 
             if (exists) then
                 call mpi_stop(&
@@ -138,6 +145,7 @@ module options
             call write_netcdf_attribute(ncid, "pretype", viscosity%pretype)
             call write_netcdf_attribute(ncid, "roll_mean_win_size", viscosity%roll_mean_win_size)
 #endif
+            call write_netcdf_attribute(ncid, "l_disable_zfilter", l_disable_zfilter)
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
 

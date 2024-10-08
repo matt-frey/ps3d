@@ -21,7 +21,7 @@ module inversion_utils
     use stafft, only : dst
     use sta2dfft, only : ptospc
     use deriv1d, only : init_deriv
-    use options, only : viscosity
+    use options, only : viscosity, l_disable_zfilter
     use mpi_utils, only : mpi_print
     implicit none
 
@@ -122,13 +122,18 @@ module inversion_utils
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
 
+            ! Define viscosity:
+            K2max = max(rkxmax, rkymax) ** 2
+            wfac = one / K2max
+            visc = viscosity%prediss *  (K2max * te /en) ** f13 * wfac ** viscosity%nnu
+
+            visc = 0.005d0
+
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
             if (viscosity%nnu .eq. 1) then
-                !Define viscosity:
-                visc = viscosity%prediss * sqrt(bbdif / rkxmax ** 3)
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Viscosity nu = ', visc
+                    write(*,'(a,1p,e14.7)') ' Moleculra viscosity nu = ', visc
                 endif
 
                 !Define spectral dissipation operator:
@@ -137,22 +142,14 @@ module inversion_utils
                 !$omp end parallel workshare
              else
                 !Define hyperviscosity:
-                K2max = max(rkxmax, rkymax) ** 2
-                wfac = one / K2max
-                visc = viscosity%prediss *  (K2max * te /en) ** f13
                 if (world%rank == world%root) then
                     write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', visc * wfac ** viscosity%nnu
                 endif
 
                 !Define dissipation operator:
                 !$omp parallel workshare
-                hdis = visc * (wfac * k2l2) ** viscosity%nnu
+                hdis = visc * k2l2 ** viscosity%nnu
                 !$omp end parallel workshare
-
-                if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                    !Ensure average is not modified by hyperviscosity:
-                    hdis(0, 0) = zero
-                endif
              endif
         end subroutine init_diffusion
 
@@ -211,14 +208,18 @@ module inversion_utils
             kzmaxi = one/maxval(rkz)
             skz = -36.d0 * (kzmaxi * rkz) ** 36
 
+            if (l_disable_zfilter) then
+                skz = zero
+            endif
+
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
-                  filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
-                  filt(nz, ky, kx) = filt(0, ky, kx)
-                  do kz = 1, nz-1
-                     filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
-                  enddo
-               enddo
+                    filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
+                    filt(nz, ky, kx) = filt(0, ky, kx)
+                    do kz = 1, nz-1
+                        filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
+                    enddo
+                enddo
             enddo
 
             !Ensure filter does not change domain mean:
