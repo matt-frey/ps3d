@@ -72,8 +72,6 @@ module options
     ! 'Hou & Li' or '2/3-rule'
     character(len=8) :: filtering = "Hou & Li"
 
-    logical :: l_disable_zfilter = .false.
-
     type(visc_type) :: vor_visc
 
 #ifdef ENABLE_BUOYANCY
@@ -109,7 +107,6 @@ module options
                             buoy_visc,          &
 #endif
                             filtering,          &
-                            l_disable_zfilter,  &
                             output,             &
                             time
 
@@ -135,10 +132,6 @@ module options
             ! check whether NetCDF files already exist
             inquire(file=output%basename, exist=exists)
 
-            if (l_disable_zfilter) then
-                call mpi_print("WARNING: You are about to disable the vertical filter.")
-            endif
-
             if (exists) then
                 call mpi_stop(&
                     'Error: output file "' // trim(output%basename) // '" already exists.')
@@ -158,7 +151,6 @@ module options
             call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
 #endif
             call write_netcdf_attribute(ncid, "filtering", filtering)
-            call write_netcdf_attribute(ncid, "l_disable_zfilter", l_disable_zfilter)
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
 
