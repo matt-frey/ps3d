@@ -69,6 +69,9 @@ module options
 
     end type visc_type
 
+    ! 'Hou & Li' or '2/3-rule'
+    character(len=8) :: filtering = "Hou & Li"
+
     logical :: l_disable_zfilter = .false.
 
     type(visc_type) :: vor_visc
@@ -106,6 +109,7 @@ module options
 #ifdef ENABLE_BUOYANCY
                             buoy_visc,          &
 #endif
+                            filtering,          &
                             l_disable_zfilter,  &
                             output,             &
                             time
@@ -156,6 +160,7 @@ module options
             call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
 #endif
 #endif
+            call write_netcdf_attribute(ncid, "filtering", filtering)
             call write_netcdf_attribute(ncid, "l_disable_zfilter", l_disable_zfilter)
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
