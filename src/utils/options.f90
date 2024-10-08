@@ -54,19 +54,28 @@ module options
         ! Note: nnu = 3 and prediss = 10 are recommended.
 
         ! Prefactor type to use:
-        ! - vorch: characteristic vorticity
-        ! - roll-mean-gmax: rolling mean of gamma_max
-        ! - constant: takes initial vorch
-        character(len=16) :: pretype = 'vorch'
+        ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
+        ! - roll-mean: rolling mean of gamma_max / buoyancy frequency (bfmax)
+        ! - constant: takes initial vorch or bfmax
+        ! - zeta-rms: takes the rms of the upper surface z-vorticity
+        ! - strain-rms: takes the rms of the upper surface strain
+        character(len=16) :: pretype = 'roll-mean'
 
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
+
+        ! "Kolmogorov or "geophysical"
+        character(len=11) :: length_scale = "Kolmogorov"
 
     end type visc_type
 
     logical :: l_disable_zfilter = .false.
 
-    type(visc_type) :: viscosity
+    type(visc_type) :: vor_visc
+
+#ifdef ENABLE_BUOYANCY
+    type(visc_type) :: buoy_visc
+#endif
 
     ! time limit
     type time_info_type
@@ -90,7 +99,16 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, field_step, stepper, viscosity, l_disable_zfilter, output, time
+            namelist /PS3D/ field_file,         &
+                            field_step,         &
+                            stepper,            &
+                            vor_visc,           &
+#ifdef ENABLE_BUOYANCY
+                            buoy_visc,          &
+#endif
+                            l_disable_zfilter,  &
+                            output,             &
+                            time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -133,17 +151,10 @@ module options
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-            if (viscosity%nnu == 1) then
-                call write_netcdf_attribute(ncid, "viscosity", "molecular")
-            else
-                call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
-            endif
-
-            call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
-            call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
-            call write_netcdf_attribute(ncid, "prediss", viscosity%prediss)
-            call write_netcdf_attribute(ncid, "pretype", viscosity%pretype)
-            call write_netcdf_attribute(ncid, "roll_mean_win_size", viscosity%roll_mean_win_size)
+            call write_netcdf_viscosity(ncid, vor_visc, 'vor_visc')
+#ifdef ENABLE_BUOYANCY
+            call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
+#endif
 #endif
             call write_netcdf_attribute(ncid, "l_disable_zfilter", l_disable_zfilter)
 
@@ -162,5 +173,28 @@ module options
             call write_netcdf_attribute(ncid, "alpha", time%alpha)
 
         end subroutine write_netcdf_options
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+#ifndef ENABLE_SMAGORINSKY
+        subroutine write_netcdf_viscosity(ncid, visc, label)
+            integer,          intent(in) :: ncid
+            type(visc_type),  intent(in) :: visc
+            character(len=*), intent(in) :: label
+
+            if (visc%nnu == 1) then
+                call write_netcdf_attribute(ncid, label, "molecular")
+            else
+                call write_netcdf_attribute(ncid, label, "hyperviscosity")
+            endif
+
+            call write_netcdf_attribute(ncid, label // "%nnu", visc%nnu)
+            call write_netcdf_attribute(ncid, label // "%prediss", visc%prediss)
+            call write_netcdf_attribute(ncid, label // "%pretype", visc%pretype)
+            call write_netcdf_attribute(ncid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+            call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
+
+        end subroutine write_netcdf_viscosity
+#endif
 
 end module options
