@@ -231,7 +231,7 @@ module advance_mod
             ! S = 0.5 * sqrt{(u_y + v_x)^2 + (u_x - v_y)^2}
             ! v_x = u_y + zeta
             up_surf_strain_rms = sum((two * dudy(nz, :, :) +  vor(nz, :, :, 3)) ** 2 + &
-                                     (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2)
+                                     (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2) / dble(nx * ny)
 
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
@@ -296,6 +296,7 @@ module advance_mod
             buf(4) = vmax
             buf(5) = wmax
             buf(6) = up_surf_zzrms
+            buf(7) = up_surf_strain_rms
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
                                buf(1:7),                &
