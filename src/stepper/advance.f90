@@ -326,7 +326,10 @@ module advance_mod
 #endif
 
 #ifndef ENABLE_SMAGORINSKY
-            if (viscosity%pretype == 'vorch') then
+            if (viscosity%pretype == 'constant') then
+                ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
+                call bstep%set_diffusion(dt, one)
+            else if (viscosity%pretype == 'vorch') then
                 call bstep%set_diffusion(dt, vorch)
             else if (viscosity%pretype == 'roll-mean-gmax') then
                 call rollmean%alloc(viscosity%roll_mean_win_size)
