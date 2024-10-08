@@ -192,6 +192,7 @@ module options
             call write_netcdf_attribute(ncid, label // "%prediss", visc%prediss)
             call write_netcdf_attribute(ncid, label // "%pretype", visc%pretype)
             call write_netcdf_attribute(ncid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+            call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
 
         end subroutine write_netcdf_viscosity
 #endif
