@@ -11,7 +11,10 @@
 ! (see parameter statement below).
 module cn2_mod
 #ifndef ENABLE_SMAGORINSKY
-    use options, only : viscosity
+    use options, only : vor_visc
+#ifdef ENABLE_BUOYANCY
+    use options, only : buoy_visc
+#endif
 #endif
     use advance_mod, only : base_stepper
     use constants, only : f12, one
@@ -39,14 +42,17 @@ module cn2_mod
     contains
 
 #ifndef ENABLE_SMAGORINSKY
-        subroutine cn2_set_diffusion(self, dt, vorch)
+        subroutine cn2_set_diffusion(self, dt, vorch, bf)
             class(cn2),       intent(inout) :: self
             double precision, intent(in)    :: dt
-            double precision, intent(in)    :: vorch
+            double precision, intent(in)    :: vorch, bf
             double precision                :: dfac
+#ifdef ENABLE_BUOYANCY
+            double precision                :: dbac
+#endif
 
             !---------------------------------------------------------------------
-            if (viscosity%nnu .eq. 1) then
+            if (vor_visc%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
             else
@@ -55,8 +61,24 @@ module cn2_mod
              endif
 
             !$omp parallel workshare
-            diss = one / (one + dfac * hdis)
+            vdiss = one / (one + dfac * vhdis)
             !$omp end parallel workshare
+
+#ifdef ENABLE_BUOYANCY
+
+            if (buoy_visc%nnu .eq. 1) then
+                !Update diffusion operator used in time stepping:
+                dbac = dt
+            else
+                !Update hyperdiffusion operator used in time stepping:
+                dbac = bf * dt
+             endif
+
+
+            !$omp parallel workshare
+            bdiss = one / (one + dbac * bhdis)
+            !$omp end parallel workshare
+#endif
             !(see inversion_utils.f90)
 
         end subroutine cn2_set_diffusion
@@ -97,7 +119,7 @@ module cn2_mod
             call field_combine_semi_spectral(sbuoy)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sbuoy)
@@ -117,7 +139,7 @@ module cn2_mod
                 call field_combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                 enddo
                 !$omp end parallel do
                 call field_decompose_semi_spectral(svor(:, :, :, nc))
@@ -144,7 +166,7 @@ module cn2_mod
                 call field_combine_semi_spectral(sbuoy)
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
+                    sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
                 enddo
                 !$omp end parallel do
                 call field_decompose_semi_spectral(sbuoy)
@@ -159,7 +181,7 @@ module cn2_mod
                     call field_combine_semi_spectral(svor(:, :, :, nc))
                     !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
-                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
+                        svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                     enddo
                     !$omp end parallel do
                     call field_decompose_semi_spectral(svor(:, :, :, nc))
