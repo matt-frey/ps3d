@@ -57,8 +57,8 @@ module options
         ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
         ! - roll-mean: rolling mean of gamma_max / buoyancy frequency (bfmax)
         ! - constant: takes initial vorch or bfmax
-        ! - upper-surface-zeta-rms: takes the rms of the surface z-vorticity
-        ! - upper-surface-strain-rms: takes the rms of the surface strain
+        ! - zeta-rms: takes the rms of the upper surface z-vorticity
+        ! - strain-rms: takes the rms of the upper surface strain
         character(len=16) :: pretype = 'roll-mean'
 
         ! Window size for the rolling mean approach

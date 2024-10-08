@@ -387,14 +387,14 @@ module advance_mod
                     val = bfmax
                 case ('roll-mean')
                     val = rm
-                case ('upper-surface-zeta-rms')
+                case ('zeta-rms')
                     val = up_surf_zzrms
-                case ('upper-surface-strain-rms')
+                case ('strain-rms')
                     val = up_surf_strain_rms
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean', 'upper-surface-zeta-rms' and 'upper-surface-strain-rms'")
+                        "rolling mean 'roll-mean', 'zeta-rms' and 'strain-rms'")
             end select
 
         end function get_diffusion_pre_factor
