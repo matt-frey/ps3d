@@ -69,14 +69,18 @@ module field_diagnostics_netcdf
                         , NC_RIMIN  = 29    &
                         , NC_ROMIN  = 30
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE     = 31    &
-                        , NC_BMAX    = 32    &
-                        , NC_BMIN    = 33    &
-                        , NC_MSS     = 34    &  ! mss = minimum static stability
-                        , NC_KEBAL   = 35    &
-                        , NC_KEUBAL  = 36    &
-                        , NC_APEBAL  = 37    &
-                        , NC_APEUBAL = 38
+    integer, parameter :: NC_APE     = 31   &
+                        , NC_BMAX    = 32   &
+                        , NC_BMIN    = 33   &
+                        , NC_BUSMIN  = 34   &
+                        , NC_BUSMAX  = 35   &
+                        , NC_BLSMIN  = 36   &
+                        , NC_BLSMAX  = 37   &
+                        , NC_MSS     = 38   &  ! mss = minimum static stability
+                        , NC_KEBAL   = 39   &
+                        , NC_KEUBAL  = 40   &
+                        , NC_APEBAL  = 41   &
+                        , NC_APEUBAL = 42
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -255,6 +259,7 @@ module field_diagnostics_netcdf
                                       box%lo(2):box%hi(2),  &
                                       box%lo(1):box%hi(1))
             double precision :: bmin, bmax
+            double precision :: busmin, busmax, blsmin, blsmax
             double precision :: buf(11) = zero
             integer          :: iz
 #else
@@ -271,6 +276,10 @@ module field_diagnostics_netcdf
 
             bmin = minval(tbuoy)
             bmax = maxval(tbuoy)
+            busmin = minval(tbuoy(nz, :, :))
+            busmax = maxval(tbuoy(nz, :, :))
+            blsmin = minval(tbuoy(0,  :, :))
+            blsmax = maxval(tbuoy(0,  :, :))
 #endif
 
             !
@@ -334,9 +343,12 @@ module field_diagnostics_netcdf
 
             buf(6) = bmin
 
-            buf(7) = get_minimum_static_stability(l_global=.false.)
+            buf(7) = busmin
+            buf(8) = blsmin
 
-            call mpi_blocking_reduce(buf(1:7), MPI_MIN, world)
+            buf(9) = get_minimum_static_stability(l_global=.false.)
+
+            call mpi_blocking_reduce(buf(1:9), MPI_MIN, world)
 #else
             call mpi_blocking_reduce(buf(1:4), MPI_MIN, world)
 #endif
@@ -348,9 +360,11 @@ module field_diagnostics_netcdf
             nc_dset(NC_OZMIN)%val = buf(3)
             nc_dset(NC_ROMIN)%val = buf(4)
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_RIMIN)%val = buf(5)
-            nc_dset(NC_BMIN)%val  = buf(6)
-            nc_dset(NC_MSS)%val   = buf(7)
+            nc_dset(NC_RIMIN)%val  = buf(5)
+            nc_dset(NC_BMIN)%val   = buf(6)
+            nc_dset(NC_BUSMIN)%val = buf(7)
+            nc_dset(NC_BLSMIN)%val = buf(8)
+            nc_dset(NC_MSS)%val    = buf(9)
 #endif
 
             !
@@ -362,18 +376,26 @@ module field_diagnostics_netcdf
             enddo
 
             buf(4) = get_max_horizontal_enstrophy(l_global=.false.)
+
 #ifdef ENABLE_BUOYANCY
             buf(5) = bmax
-#endif
+            buf(6) = busmax
+            buf(7) = blsmax
 
-            call mpi_blocking_reduce(buf(1:5), MPI_MAX, world)
+            call mpi_blocking_reduce(buf(1:7), MPI_MAX, world)
+#else
+            call mpi_blocking_reduce(buf(1:4), MPI_MAX, world)
+#endif
 
             nc_dset(NC_OXMAX)%val = buf(1)
             nc_dset(NC_OYMAX)%val = buf(2)
             nc_dset(NC_OZMAX)%val = buf(3)
             nc_dset(NC_HEMAX)%val = buf(4)
+
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_BMAX)%val  = buf(5)
+            nc_dset(NC_BMAX)%val   = buf(5)
+            nc_dset(NC_BUSMAX)%val = buf(6)
+            nc_dset(NC_BLSMAX)%val = buf(7)
 #endif
 
         end subroutine update_netcdf_field_diagnostics
