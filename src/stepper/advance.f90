@@ -24,22 +24,17 @@ module advance_mod
                                        , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
                                        , NC_WMAX, NC_USZRMS, NC_USSRMS
-#ifndef ENABLE_SMAGORINSKY
     use rolling_mean_mod, only : rolling_mean_t
-#endif
     implicit none
 
     type, abstract :: base_stepper
         contains
-#ifndef ENABLE_SMAGORINSKY
             procedure(base_diffusion),  deferred :: set_diffusion
-#endif
             procedure(base_setup),      deferred :: setup
             procedure(base_step),       deferred :: step
     end type
 
     abstract interface
-#ifndef ENABLE_SMAGORINSKY
         subroutine base_diffusion(self, dt, vorch, bf)
             import base_stepper
             class(base_stepper), intent(inout) :: self
@@ -47,7 +42,6 @@ module advance_mod
             double precision,    intent(in)    :: vorch
             double precision,    intent(in)    :: bf
         end subroutine base_diffusion
-#endif
 
         subroutine base_setup(self)
             import base_stepper
@@ -63,10 +57,8 @@ module advance_mod
 
     end interface
 
-#ifndef ENABLE_SMAGORINSKY
     type(rolling_mean_t) :: rollmean
     type(rolling_mean_t) :: buoy_rollmean
-#endif
 
     integer :: advance_timer
 
@@ -139,15 +131,13 @@ module advance_mod
             double precision                :: vormean(3)
             double precision                :: buf(7)
             double precision                :: umax, vmax, wmax, dtcfl
+            double precision                :: rm, vval, bval
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
 #endif
-#ifndef ENABLE_SMAGORINSKY
-            double precision                :: rm, vval, bval
 #ifdef ENABLE_BUOYANCY
             double precision                :: rmb
-#endif
 #endif
 
             bfmax = zero
@@ -357,7 +347,6 @@ module advance_mod
 #endif
 
 
-#ifndef ENABLE_SMAGORINSKY
             vval = zero
             bval = zero
 
@@ -376,13 +365,11 @@ module advance_mod
 #endif
 
             call bstep%set_diffusion(dt, vval, bval)
-#endif
 
         end subroutine adapt
 
         !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-#ifndef ENABLE_SMAGORINSKY
         function get_diffusion_pre_factor(visc, rm) result(val)
             type(visc_type),  intent(in) :: visc
             double precision, intent(in) :: rm
@@ -409,6 +396,5 @@ module advance_mod
             end select
 
         end function get_diffusion_pre_factor
-#endif
 
 end module advance_mod

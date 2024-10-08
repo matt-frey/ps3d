@@ -154,11 +154,9 @@ module options
             call write_netcdf_attribute(ncid, "verbose", verbose)
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
             call write_netcdf_viscosity(ncid, vor_visc, 'vor_visc')
 #ifdef ENABLE_BUOYANCY
             call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
-#endif
 #endif
             call write_netcdf_attribute(ncid, "filtering", filtering)
             call write_netcdf_attribute(ncid, "l_disable_zfilter", l_disable_zfilter)
@@ -181,7 +179,6 @@ module options
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-#ifndef ENABLE_SMAGORINSKY
         subroutine write_netcdf_viscosity(ncid, visc, label)
             integer,          intent(in) :: ncid
             type(visc_type),  intent(in) :: visc
@@ -200,6 +197,5 @@ module options
             call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
 
         end subroutine write_netcdf_viscosity
-#endif
 
 end module options

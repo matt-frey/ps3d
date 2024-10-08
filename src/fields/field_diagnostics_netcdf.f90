@@ -549,7 +549,6 @@ module field_diagnostics_netcdf
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-#ifndef ENABLE_SMAGORINSKY
             nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
                 name='rolling_mean_gmax',                               &
                 long_name='rolling mean maximum gamma',                 &
@@ -563,7 +562,6 @@ module field_diagnostics_netcdf
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
-#endif
 
             nc_dset(NC_RIMIN) = netcdf_stat_info(                       &
                 name='ri_min',                                          &

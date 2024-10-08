@@ -178,9 +178,7 @@ module utils
             en = en + get_gradb_integral(l_global=.true., l_allreduce=.true.)
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
             call init_diffusion(te, en)
-#endif
 
         end subroutine setup_fields
 

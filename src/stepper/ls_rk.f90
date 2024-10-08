@@ -17,9 +17,7 @@ module ls_rk_mod
     type, extends(base_stepper) :: ls_rk
         integer :: rk_order = 4
         contains
-#ifndef ENABLE_SMAGORINSKY
             procedure :: set_diffusion => ls_rk_set_diffusion
-#endif
             procedure :: setup  => ls_rk_setup
             procedure :: step => ls_rk_step
     end type
@@ -60,7 +58,6 @@ module ls_rk_mod
 
     contains
 
-#ifndef ENABLE_SMAGORINSKY
         subroutine ls_rk_set_diffusion(self, dt, vorch, bf)
             class(ls_rk),     intent(inout) :: self
             double precision, intent(in)    :: dt       ! unused here
@@ -74,7 +71,6 @@ module ls_rk_mod
             !$omp end parallel workshare
 
         end subroutine ls_rk_set_diffusion
-#endif
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -129,7 +125,6 @@ module ls_rk_mod
             cb = cbptr(step)
 
             if (step == 1) then
-#ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
                 call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=bdiss)
 #endif
@@ -138,7 +133,6 @@ module ls_rk_mod
                                               sqs=svorts(:, :, :, nc), &
                                               diff=vdiss)
                 enddo
-#endif
                 !$omp parallel workshare
 #ifdef ENABLE_BUOYANCY
                 bsm = sbuoys
@@ -150,7 +144,6 @@ module ls_rk_mod
 
                 call source
 
-#ifndef ENABLE_SMAGORINSKY
 #ifdef ENABLE_BUOYANCY
                 call apply_hyperdiffusion(q=sbuoy, sqs=sbuoys, diff=bdiss)
 #endif
@@ -159,7 +152,6 @@ module ls_rk_mod
                                               sqs=svorts(:, :, :, nc),  &
                                               diff=vdiss)
                 enddo
-#endif
 
 #ifdef ENABLE_BUOYANCY
                 !$omp parallel workshare
@@ -197,7 +189,6 @@ module ls_rk_mod
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-#ifndef ENABLE_SMAGORINSKY
         subroutine apply_hyperdiffusion(q, sqs, diff)
             double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
@@ -218,6 +209,5 @@ module ls_rk_mod
             call field_decompose_semi_spectral(sqs)
 
         end subroutine apply_hyperdiffusion
-#endif
 
 end module ls_rk_mod
