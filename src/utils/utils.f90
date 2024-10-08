@@ -53,7 +53,6 @@ module utils
             double precision,  intent(in) :: t
 
             ! need to be called in order to set initial time step;
-            ! this is also needed for the first ls-rk4 substep
             call vor2vel
 
             call write_step(t, .true.)

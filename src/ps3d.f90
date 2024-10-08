@@ -24,7 +24,6 @@ program ps3d
 #ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
 #endif
-    use ls_rk_mod, only : ls_rk
     use cn2_mod, only : cn2
     use impl_rk4_mod, only : impl_rk4
     implicit none
@@ -87,12 +86,6 @@ program ps3d
             ! 27 March 2024
             ! https://stackoverflow.com/a/72958237
             select case (stepper)
-                case ('ls-rk4')
-                    call mpi_print('Using low-storage Runge-Kutta 4th order stepper.')
-                    bstep = ls_rk(rk_order=4)
-                case ('ls-rk3')
-                    call mpi_print('Using low-storage Runge-Kutta 3rd order stepper.')
-                    bstep = ls_rk(rk_order=3)
                 case ('cn2')
                     call mpi_print('Using Crank-Nicholson 2nd order stepper.')
                     bstep = cn2()

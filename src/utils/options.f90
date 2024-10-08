@@ -21,7 +21,7 @@ module options
     character(len=512) :: filename = ''
 
     ! time integrator
-    character(len=16) :: stepper = 'impl-diff-rk4' ! 'ls-rk4', 'ls-rk3' or 'cn2'
+    character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
     !
     ! output options
     !
@@ -86,7 +86,6 @@ module options
         double precision :: limit       = zero       ! time limit
         double precision :: alpha       = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
                                                      ! gradient
-                                                     ! Note: EPIC-2D paper recommends alpha = 0.2 for ls-rk4 method
         logical          :: precise_stop = .false.   ! stop at the exact limit
     end type time_info_type
 
