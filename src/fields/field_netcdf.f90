@@ -11,6 +11,7 @@ module field_netcdf
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz
     use inversion_utils, only : field_combine_physical
+    use sta3dfft, only : diffx, diffy, fftxys2p
     implicit none
 
     private
@@ -41,17 +42,18 @@ module field_netcdf
                         , NC_X_VOR   = 4        &
                         , NC_Y_VOR   = 5        &
                         , NC_Z_VOR   = 6        &
-                        , NC_PRES    = 7
+                        , NC_PRES    = 7        &
+                        , NC_HDIV    = 8
 
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_BUOY    = 8
+    integer, parameter :: NC_BUOY    = 9
 
-    integer, parameter :: NC_BUOY_AN = 9
+    integer, parameter :: NC_BUOY_AN = 10
 
     type(netcdf_field_info) :: nc_dset(NC_BUOY_AN)
 
 #else
-    type(netcdf_field_info) :: nc_dset(NC_PRES)
+    type(netcdf_field_info) :: nc_dset(NC_HDIV)
 #endif
 
     public :: create_netcdf_field_file  &
@@ -180,10 +182,16 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-#if ENABLE_BUOYANCY
+            double precision             :: hdiv(0:nz,                & ! horizontal divergence
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+            double precision             :: ds(0:nz,                &
+                                               box%lo(2):box%hi(2), &
+                                               box%lo(1):box%hi(1))
             double precision             :: tbuoy(0:nz,                & ! total buoyancy
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
+#if ENABLE_BUOYANCY
             integer                      :: iz
 #endif
 
@@ -226,6 +234,18 @@ module field_netcdf
 
 
             call write_field_double(NC_PRES, pres, start, cnt)
+
+            ! Horizontal divergence
+            call diffx(svel(:, :, :, 1), ds)   ! du/dx (in spectral space)
+            call diffy(svel(:, :, :, 2), tbuoy)   ! dv/dy (in spectral space) (borrow tbuoy to store)
+
+            !$omp parallel workshare
+            ds = ds + tbuoy
+            !$omp end parallel workshare
+
+            call fftxys2p(ds, hdiv)
+
+            call write_field_double(NC_HDIV, hdiv, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
             call field_combine_physical(sbuoy, buoy)
@@ -548,6 +568,12 @@ module field_netcdf
 #endif
                                                  std_name='',                           &
                                                  unit='m^2/s^2',                        &
+                                                 dtype=NF90_DOUBLE)
+
+            nc_dset(NC_HDIV) = netcdf_field_info(name='delta',                          &
+                                                 long_name='horizontal divergence',     &
+                                                 std_name='',                           &
+                                                 unit='1/s',                            &
                                                  dtype=NF90_DOUBLE)
 
 #ifdef ENABLE_BUOYANCY
