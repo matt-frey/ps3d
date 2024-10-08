@@ -570,7 +570,7 @@ module field_netcdf
                                                  unit='m^2/s^2',                        &
                                                  dtype=NF90_DOUBLE)
 
-            nc_dset(NC_HDIV) = netcdf_field_info(name='horizontal_divergence',          &
+            nc_dset(NC_HDIV) = netcdf_field_info(name='delta',                          &
                                                  long_name='horizontal divergence',     &
                                                  std_name='',                           &
                                                  unit='1/s',                            &
