@@ -21,7 +21,7 @@ module inversion_utils
     use stafft, only : dst
     use sta2dfft, only : ptospc
     use deriv1d, only : init_deriv
-    use options, only : vor_visc, l_disable_zfilter, filtering
+    use options, only : vor_visc, filtering
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
 #endif
@@ -390,10 +390,6 @@ module inversion_utils
             kzmaxi = one/maxval(rkz)
             skz = -36.d0 * (kzmaxi * rkz) ** 36
 
-            if (l_disable_zfilter) then
-                skz = zero
-            endif
-
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
                     filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
@@ -439,7 +435,7 @@ module inversion_utils
             enddo
 
             do kz = 0, nz
-                if ((rkz(kz) <= f23 * rkzmax) .or. l_disable_zfilter) then
+                if (rkz(kz) <= f23 * rkzmax) then
                     skz(kz) = one
                 else
                     skz(kz) = zero
