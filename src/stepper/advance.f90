@@ -21,7 +21,9 @@ module advance_mod
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic        &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR         &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
-                                       , NC_GMAX, NC_RGMAX, NC_RBFMAX
+                                       , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
+                                       , NC_BFMAX, NC_UMAX, NC_VMAX         &
+                                       , NC_WMAX, NC_USZRMS, NC_USSRMS
 #ifndef ENABLE_SMAGORINSKY
     use rolling_mean_mod, only : rolling_mean_t
 #endif
@@ -70,7 +72,7 @@ module advance_mod
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
-    double precision :: vorch, up_surf_zzrms, up_surf_strain_rms
+    double precision :: vorch, uszrms, ussrms
     integer          :: ix, iy, iz
 
     contains
@@ -186,8 +188,8 @@ module advance_mod
             vortrms = dsqrt(get_mean(xp, l_allreduce=.true.))
 
 
-            !Surface r.m.s. of z-vorticity
-            up_surf_zzrms = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
+            !Upper surface r.m.s. of z-vorticity
+            uszrms = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
 
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
@@ -228,10 +230,11 @@ module advance_mod
             call fftxys2p(ys, dwdy)
 
 
+            ! Upper surface strain rms:
             ! S = 0.5 * sqrt{(u_y + v_x)^2 + (u_x - v_y)^2}
             ! v_x = u_y + zeta
-            up_surf_strain_rms = sum((two * dudy(nz, :, :) +  vor(nz, :, :, 3)) ** 2 + &
-                                     (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2) / dble(nx * ny)
+            ussrms = sum((two * dudy(nz, :, :) +  vor(nz, :, :, 3)) ** 2 + &
+                         (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2) / dble(nx * ny)
 
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
@@ -295,8 +298,8 @@ module advance_mod
             buf(3) = umax
             buf(4) = vmax
             buf(5) = wmax
-            buf(6) = up_surf_zzrms
-            buf(7) = up_surf_strain_rms
+            buf(6) = uszrms
+            buf(7) = ussrms
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
                                buf(1:7),                &
@@ -311,10 +314,17 @@ module advance_mod
             umax = buf(3)
             vmax = buf(4)
             wmax = buf(5)
-            up_surf_zzrms = dsqrt(buf(6))
-            up_surf_strain_rms = f12 * dsqrt(buf(7))
+            uszrms = dsqrt(buf(6))
+            ussrms = f12 * dsqrt(buf(7))
 
+            call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
+            call set_netcdf_field_diagnostic(umax, NC_UMAX)
+            call set_netcdf_field_diagnostic(vmax, NC_VMAX)
+            call set_netcdf_field_diagnostic(wmax, NC_WMAX)
+            call set_netcdf_field_diagnostic(uszrms, NC_USZRMS)
+            call set_netcdf_field_diagnostic(ussrms, NC_USSRMS)
+
 
             ! CFL time step constraint:
             dtcfl = cflmax * min(dx(1) / (umax + small), &
@@ -389,9 +399,9 @@ module advance_mod
                 case ('roll-mean')
                     val = rm
                 case ('zeta-rms')
-                    val = up_surf_zzrms
+                    val = uszrms
                 case ('strain-rms')
-                    val = up_surf_strain_rms
+                    val = ussrms
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &

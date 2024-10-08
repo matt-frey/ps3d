@@ -58,19 +58,25 @@ module field_diagnostics_netcdf
                         , NC_OZMAX  = 18    &
                         , NC_HEMAX  = 19    &
                         , NC_GMAX   = 20    &
-                        , NC_RGMAX  = 21    &
-                        , NC_RBFMAX = 22    &
-                        , NC_RIMIN  = 23    &
-                        , NC_ROMIN  = 24
+                        , NC_BFMAX  = 21    &
+                        , NC_UMAX   = 22    &
+                        , NC_VMAX   = 23    &
+                        , NC_WMAX   = 24    &
+                        , NC_USZRMS = 25    &
+                        , NC_USSRMS = 26    &
+                        , NC_RGMAX  = 27    &
+                        , NC_RBFMAX = 28    &
+                        , NC_RIMIN  = 29    &
+                        , NC_ROMIN  = 30
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE     = 25    &
-                        , NC_BMAX    = 26    &
-                        , NC_BMIN    = 27    &
-                        , NC_MSS     = 28    &  ! mss = minimum static stability
-                        , NC_KEBAL   = 29    &
-                        , NC_KEUBAL  = 30    &
-                        , NC_APEBAL  = 31    &
-                        , NC_APEUBAL = 32
+    integer, parameter :: NC_APE     = 31    &
+                        , NC_BMAX    = 32    &
+                        , NC_BMIN    = 33    &
+                        , NC_MSS     = 34    &  ! mss = minimum static stability
+                        , NC_KEBAL   = 35    &
+                        , NC_KEUBAL  = 36    &
+                        , NC_APEBAL  = 37    &
+                        , NC_APEUBAL = 38
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -92,6 +98,12 @@ module field_diagnostics_netcdf
               NC_OYMEAN,                        &
               NC_OZMEAN,                        &
               NC_GMAX,                          &
+              NC_BFMAX,                         &
+              NC_UMAX,                          &
+              NC_VMAX,                          &
+              NC_WMAX,                          &
+              NC_USZRMS,                        &
+              NC_USSRMS,                        &
               NC_RGMAX,                         &
               NC_RBFMAX
 
@@ -491,6 +503,48 @@ module field_diagnostics_netcdf
             nc_dset(NC_GMAX) = netcdf_stat_info(                        &
                 name='gmax',                                            &
                 long_name='maximum gamma',                              &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+             nc_dset(NC_BFMAX) = netcdf_stat_info(                      &
+                name='bfmax',                                           &
+                long_name='maximum buoyancy frequency',                 &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_UMAX) = netcdf_stat_info(                        &
+                name='umax',                                            &
+                long_name='maximum x-velocity',                         &
+                std_name='',                                            &
+                unit='m/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_VMAX) = netcdf_stat_info(                        &
+                name='vmax',                                            &
+                long_name='maximum y-velocity',                         &
+                std_name='',                                            &
+                unit='m/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_WMAX) = netcdf_stat_info(                        &
+                name='wmax',                                            &
+                long_name='maximum z-velocity',                         &
+                std_name='',                                            &
+                unit='m/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
+                name='uszrms',                                          &
+                long_name='upper surface z-vorticity rms',              &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_USSRMS) = netcdf_stat_info(                      &
+                name='ussrms',                                          &
+                long_name='upper surface strain rms',                   &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
