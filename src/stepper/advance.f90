@@ -292,10 +292,18 @@ module advance_mod
             buf(7) = ussrms
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:7),                &
-                               7,                       &
+                               buf(1:5),                &
+                               5,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
+                               world%comm,              &
+                               world%err)
+
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                               buf(6:7),                &
+                               2,						&
+                               MPI_DOUBLE_PRECISION,    &
+                               MPI_SUM,                 &
                                world%comm,              &
                                world%err)
 
