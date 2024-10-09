@@ -71,23 +71,23 @@ module field_diagnostics_netcdf
                         , NC_USOZMAX  = 31  &
                         , NC_LSOZMAX  = 32  &
                         , NC_USUHMAX  = 33  &
-                        , NC_RGMAX    = 33  &
-                        , NC_RBFMAX   = 34  &
-                        , NC_RIMIN    = 35  &
-                        , NC_ROMIN    = 36
+                        , NC_RGMAX    = 34  &
+                        , NC_RBFMAX   = 35  &
+                        , NC_RIMIN    = 36  &
+                        , NC_ROMIN    = 37
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 37  &
-                        , NC_BMAX     = 38  &
-                        , NC_BMIN     = 39  &
-                        , NC_BUSMIN   = 40  &
-                        , NC_BUSMAX   = 41  &
-                        , NC_BLSMIN   = 42  &
-                        , NC_BLSMAX   = 43  &
-                        , NC_MSS      = 44  &  ! mss = minimum static stability
-                        , NC_KEBAL    = 45  &
-                        , NC_KEUBAL   = 46  &
-                        , NC_APEBAL   = 47  &
-                        , NC_APEUBAL  = 48
+    integer, parameter :: NC_APE      = 38  &
+                        , NC_BMAX     = 39  &
+                        , NC_BMIN     = 40  &
+                        , NC_BUSMIN   = 41  &
+                        , NC_BUSMAX   = 42  &
+                        , NC_BLSMIN   = 43  &
+                        , NC_BLSMAX   = 44  &
+                        , NC_MSS      = 45  &  ! mss = minimum static stability
+                        , NC_KEBAL    = 46  &
+                        , NC_KEUBAL   = 47  &
+                        , NC_APEBAL   = 48  &
+                        , NC_APEUBAL  = 49
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
