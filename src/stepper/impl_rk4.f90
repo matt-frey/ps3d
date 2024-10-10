@@ -84,12 +84,14 @@ module impl_rk4_mod
             dt6 = f16 * dt
 
             ! set integrating factors
-            self%emq = dexp(- vdiss)
-            self%epq = 1.0d0 / self%emq
+            self%epq = dexp(vdiss)
+            self%emq = 1.0d0 / self%epq
+            self%epq = self%epq * filt(0, :, :)
 
 #ifdef ENABLE_BUOYANCY
-            self%bmq = dexp(- bdiss)
-            self%bpq = 1.0d0 / self%bmq
+            self%bpq = dexp(- bdiss)
+            self%bmq = 1.0d0 / self%bpq
+            self%bpq = self%bpq * filt(0, :, :)
 #endif
 
             !------------------------------------------------------------------
@@ -221,8 +223,12 @@ module impl_rk4_mod
                                                   box%lo(1):box%hi(1))
             integer                         :: iz
 
+            ! Filter source
+            do iz = 0, nz
+                sqs(iz, :, :) = filt(0, :, :) * sqs(iz, :, :)
+            enddo
             qdi = q
-            q = filt * (qdi + dt2 * sqs)
+            q = (qdi + dt2 * sqs)
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
@@ -231,7 +237,7 @@ module impl_rk4_mod
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = filt * (qdi + dt6 * sqs)
+            qdf = qdi + dt6 * sqs
 
         end subroutine impl_rk4_substep_one
 
@@ -240,7 +246,7 @@ module impl_rk4_mod
         ! First corrector step (t = t0 + dt/2):
         subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf, mq, pq)
             class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+            double precision, intent(inout) :: q(0:n<z, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
             double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
@@ -258,22 +264,22 @@ module impl_rk4_mod
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * pq
+                sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = filt * (qdi + dt2 * sqs)
+            q = qdi + dt2 * sqs
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * mq
+                q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = filt * (qdf + dt3 * sqs)
+            qdf = qdf + dt3 * sqs
 
         end subroutine impl_rk4_substep_two
 
@@ -301,22 +307,22 @@ module impl_rk4_mod
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * pq
+                sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = filt * (qdi + dt * sqs)
+            q = qdi + dt * sqs
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * mq
+                q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
 
-            qdf = filt * (qdf + dt3 * sqs)
+            qdf = qdf + dt3 * sqs
         end subroutine impl_rk4_substep_three
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -340,17 +346,17 @@ module impl_rk4_mod
             call field_combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sqs(iz, :, :) = sqs(iz, :, :) * pq
+                sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(sqs)
 
-            q = filt * (qdf + dt6 * sqs)
+            q = qdf + dt6 * sqs
 
             call field_combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * mq
+                q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
             call field_decompose_semi_spectral(q)
