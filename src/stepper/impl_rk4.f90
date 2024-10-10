@@ -246,7 +246,7 @@ module impl_rk4_mod
         ! First corrector step (t = t0 + dt/2):
         subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf, mq, pq)
             class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:n<z, box%lo(2):box%hi(2),   &
+            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
                                                        box%lo(1):box%hi(1))
             double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
                                                          box%lo(1):box%hi(1))
