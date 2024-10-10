@@ -89,7 +89,7 @@ module impl_rk4_mod
             self%epq = self%epq * filt(0, :, :)
 
 #ifdef ENABLE_BUOYANCY
-            self%bpq = dexp(- bdiss)
+            self%bpq = dexp(bdiss)
             self%bmq = 1.0d0 / self%bpq
             self%bpq = self%bpq * filt(0, :, :)
 #endif
