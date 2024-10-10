@@ -301,7 +301,7 @@ module advance_mod
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
                                buf(6:7),                &
-                               2,						&
+                               2,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_SUM,                 &
                                world%comm,              &
