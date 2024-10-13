@@ -23,7 +23,9 @@ module advance_mod
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
                                        , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
-                                       , NC_WMAX, NC_USZRMS, NC_USSRMS
+                                       , NC_WMAX, NC_USZRMS, NC_USSRMS      &
+                                       , NC_GGMAXRMS, NC_USGGMAXRMS         &
+                                       , NC_LSGGMAXRMS
     use rolling_mean_mod, only : rolling_mean_t
     implicit none
 
@@ -63,7 +65,8 @@ module advance_mod
     integer :: advance_timer
 
     !Diagnostic quantities:
-    double precision :: bfmax, vortmax, vortrms, ggmax, velmax
+    double precision :: bfmax, vortmax, vortrms, ggmax, velmax, ggmaxrms
+    double precision :: usggmaxrms, lsggmaxrms
     double precision :: vorch, uszrms, ussrms
     integer          :: ix, iy, iz
 
@@ -129,7 +132,7 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(7)
+            double precision                :: buf(10)
             double precision                :: umax, vmax, wmax, dtcfl
             double precision                :: rm, vval, bval
 #ifdef ENABLE_VERBOSE
@@ -229,6 +232,9 @@ module advance_mod
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
+            ggmaxrms = zero
+            usggmaxrms = zero
+            lsggmaxrms = zero
             do ix = box%lo(1), box%hi(1)
                 do iy = box%lo(2), box%hi(2)
                     do iz = 0, nz
@@ -269,6 +275,16 @@ module advance_mod
 
                         ! we must take the largest eigenvalue in magnitude (absolute value)
                         ggmax = max(ggmax, maxval(abs(eigs)))
+
+                        ggmaxrms = ggmaxrms + ggmax ** 2
+
+                        if (iz == nz) then
+                            usggmaxrms = usggmaxrms + ggmax ** 2
+                        endif
+
+                        if (iz == 0) then
+                            lsggmaxrms = lsggmaxrms + ggmax ** 2
+                        endif
                     enddo
                 enddo
             enddo
@@ -283,13 +299,16 @@ module advance_mod
             wmax = maxval(vel(:, :, :, 3))
             !$omp end parallel workshare
 
-            buf(1) = bfmax
-            buf(2) = ggmax
-            buf(3) = umax
-            buf(4) = vmax
-            buf(5) = wmax
-            buf(6) = uszrms
-            buf(7) = ussrms
+            buf(1)  = bfmax
+            buf(2)  = ggmax
+            buf(3)  = umax
+            buf(4)  = vmax
+            buf(5)  = wmax
+            buf(6)  = uszrms
+            buf(7)  = ussrms
+            buf(8)  = ggmaxrms * ncelli  ! ncelli = 1 / (nx * ny * nz)
+            buf(9)  = usggmaxrms / dble(nx * ny)
+            buf(10) = lsggmaxrms / dble(nx * ny)
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
                                buf(1:5),                &
@@ -300,8 +319,8 @@ module advance_mod
                                world%err)
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(6:7),                &
-                               2,                       &
+                               buf(6:10),               &
+                               5,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_SUM,                 &
                                world%comm,              &
@@ -314,14 +333,18 @@ module advance_mod
             wmax = buf(5)
             uszrms = dsqrt(buf(6))
             ussrms = f12 * dsqrt(buf(7))
+            ggmaxrms = dsqrt(buf(8))
+            usggmaxrms = dsqrt(buf(9))
+            lsggmaxrms = dsqrt(buf(10))
 
             call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
             call set_netcdf_field_diagnostic(umax, NC_UMAX)
             call set_netcdf_field_diagnostic(vmax, NC_VMAX)
             call set_netcdf_field_diagnostic(wmax, NC_WMAX)
-            call set_netcdf_field_diagnostic(uszrms, NC_USZRMS)
-            call set_netcdf_field_diagnostic(ussrms, NC_USSRMS)
+            call set_netcdf_field_diagnostic(ggmaxrms, NC_GGMAXRMS)
+            call set_netcdf_field_diagnostic(usggmaxrms, NC_USGGMAXRMS)
+            call set_netcdf_field_diagnostic(lsggmaxrms, NC_LSGGMAXRMS)
 
 
             ! CFL time step constraint:
@@ -395,12 +418,17 @@ module advance_mod
                     val = rm
                 case ('zeta-rms')
                     val = uszrms
-                case ('strain-rms')
+                case ('us-strain-rms')
                     val = ussrms
+                case ('max-strain-rms')
+                    val = ggmaxrms
+                case ('us-max-strain-rms')
+                    val = usggmaxrms
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean', 'zeta-rms' and 'strain-rms'")
+                        "rolling mean 'roll-mean', 'zeta-rms', 'us-strain-rms', " // &
+                        "'max-strain-rms' and us-max-strain-rms")
             end select
 
         end function get_diffusion_pre_factor
