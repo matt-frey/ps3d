@@ -386,7 +386,7 @@ module advance_mod
                     val = bfmax
                 case ('roll-mean')
                     val = rm
-                case ('max-strain-rms')
+                case ('max-strain')
                     val = ggmax
                 case ('us-max-strain')
                     val = usggmax
