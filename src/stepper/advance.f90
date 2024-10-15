@@ -23,8 +23,7 @@ module advance_mod
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
                                        , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
-                                       , NC_WMAX, NC_USZRMS, NC_USSRMS      &
-                                       , NC_USGGMAX, NC_LSGGMAX
+                                       , NC_WMAX, NC_USGGMAX, NC_LSGGMAX
     use rolling_mean_mod, only : rolling_mean_t
     implicit none
 
@@ -66,7 +65,7 @@ module advance_mod
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
     double precision :: usggmax, lsggmax
-    double precision :: vorch, uszrms, ussrms
+    double precision :: vorch
     integer          :: ix, iy, iz
 
     contains
@@ -131,7 +130,7 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(10)
+            double precision                :: buf(7)
             double precision                :: umax, vmax, wmax, dtcfl
             double precision                :: rm, vval, bval, lmax
 #ifdef ENABLE_VERBOSE
@@ -179,11 +178,6 @@ module advance_mod
             !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
             vortrms = dsqrt(get_mean(xp, l_allreduce=.true.))
 
-
-            !Upper surface r.m.s. of z-vorticity
-            uszrms = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
-
-
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
 
@@ -221,12 +215,6 @@ module advance_mod
             call diffy(svel(:, :, :, 3), ys)
             call fftxys2p(ys, dwdy)
 
-
-            ! Upper surface strain rms:
-            ! S = 0.5 * sqrt{(u_y + v_x)^2 + (u_x - v_y)^2}
-            ! v_x = u_y + zeta
-            ussrms = sum((two * dudy(nz, :, :) +  vor(nz, :, :, 3)) ** 2 + &
-                         (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2) / dble(nx * ny)
 
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
@@ -303,22 +291,12 @@ module advance_mod
             buf(5) = wmax
             buf(6) = usggmax
             buf(7) = lsggmax
-            buf(8) = uszrms
-            buf(9) = ussrms
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
                                buf(1:7),                &
                                7,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
-                               world%comm,              &
-                               world%err)
-
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(8:9),                &
-                               2,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
                                world%comm,              &
                                world%err)
 
@@ -329,8 +307,6 @@ module advance_mod
             wmax = buf(5)
             usggmax = buf(6)
             lsggmax = buf(7)
-            uszrms = dsqrt(buf(8))
-            ussrms = f12 * dsqrt(buf(9))
 
             call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
@@ -339,8 +315,6 @@ module advance_mod
             call set_netcdf_field_diagnostic(wmax, NC_WMAX)
             call set_netcdf_field_diagnostic(usggmax, NC_USGGMAX)
             call set_netcdf_field_diagnostic(lsggmax, NC_LSGGMAX)
-            call set_netcdf_field_diagnostic(uszrms, NC_USZRMS)
-            call set_netcdf_field_diagnostic(ussrms, NC_USSRMS)
 
 
             ! CFL time step constraint:
@@ -412,10 +386,6 @@ module advance_mod
                     val = bfmax
                 case ('roll-mean')
                     val = rm
-                case ('zeta-rms')
-                    val = uszrms
-                case ('us-strain-rms')
-                    val = ussrms
                 case ('max-strain-rms')
                     val = ggmax
                 case ('us-max-strain')
@@ -423,7 +393,7 @@ module advance_mod
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean', 'zeta-rms', 'us-strain-rms', " // &
+                        "rolling mean 'roll-mean', " // &
                         "'max-strain' and us-max-strain")
             end select
 

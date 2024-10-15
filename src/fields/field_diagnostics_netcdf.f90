@@ -62,34 +62,32 @@ module field_diagnostics_netcdf
                         , NC_UMAX     = 22  &
                         , NC_VMAX     = 23  &
                         , NC_WMAX     = 24  &
-                        , NC_USZRMS   = 25  &
-                        , NC_USSRMS   = 26  &
-                        , NC_USOXMAX  = 27  &
-                        , NC_LSOXMAX  = 28  &
-                        , NC_USOYMAX  = 29  &
-                        , NC_LSOYMAX  = 30  &
-                        , NC_USOZMAX  = 31  &
-                        , NC_LSOZMAX  = 32  &
-                        , NC_USUHMAX  = 33  &
-                        , NC_USGGMAX  = 34  &
-                        , NC_LSGGMAX  = 35  &
-                        , NC_RGMAX    = 36  &
-                        , NC_RBFMAX   = 37  &
-                        , NC_RIMIN    = 38  &
-                        , NC_ROMIN    = 39
+                        , NC_USOXMAX  = 25  &
+                        , NC_LSOXMAX  = 26  &
+                        , NC_USOYMAX  = 27  &
+                        , NC_LSOYMAX  = 28  &
+                        , NC_USOZMAX  = 29  &
+                        , NC_LSOZMAX  = 30  &
+                        , NC_USUHMAX  = 31  &
+                        , NC_USGGMAX  = 32  &
+                        , NC_LSGGMAX  = 33  &
+                        , NC_RGMAX    = 34  &
+                        , NC_RBFMAX   = 35  &
+                        , NC_RIMIN    = 36  &
+                        , NC_ROMIN    = 37
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 40  &
-                        , NC_BMAX     = 41  &
-                        , NC_BMIN     = 42  &
-                        , NC_BUSMIN   = 43  &
-                        , NC_BUSMAX   = 44  &
-                        , NC_BLSMIN   = 45  &
-                        , NC_BLSMAX   = 46  &
-                        , NC_MSS      = 47  &  ! mss = minimum static stability
-                        , NC_KEBAL    = 48  &
-                        , NC_KEUBAL   = 49  &
-                        , NC_APEBAL   = 50  &
-                        , NC_APEUBAL  = 51
+    integer, parameter :: NC_APE      = 38  &
+                        , NC_BMAX     = 39  &
+                        , NC_BMIN     = 40  &
+                        , NC_BUSMIN   = 41  &
+                        , NC_BUSMAX   = 42  &
+                        , NC_BLSMIN   = 43  &
+                        , NC_BLSMAX   = 44  &
+                        , NC_MSS      = 45  &  ! mss = minimum static stability
+                        , NC_KEBAL    = 46  &
+                        , NC_KEUBAL   = 47  &
+                        , NC_APEBAL   = 48  &
+                        , NC_APEUBAL  = 49
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -115,8 +113,6 @@ module field_diagnostics_netcdf
               NC_UMAX,                          &
               NC_VMAX,                          &
               NC_WMAX,                          &
-              NC_USZRMS,                        &
-              NC_USSRMS,                        &
               NC_RGMAX,                         &
               NC_RBFMAX,                        &
               NC_USGGMAX,                       &
@@ -582,20 +578,6 @@ module field_diagnostics_netcdf
                 long_name='maximum z-velocity',                         &
                 std_name='',                                            &
                 unit='m/s',                                             &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
-                name='uszrms',                                          &
-                long_name='upper surface z-vorticity rms',              &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_USSRMS) = netcdf_stat_info(                      &
-                name='ussrms',                                          &
-                long_name='upper surface strain rms',                   &
-                std_name='',                                            &
-                unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
             nc_dset(NC_USOXMAX) = netcdf_stat_info(                     &
