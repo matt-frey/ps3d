@@ -59,8 +59,8 @@ module options
         ! - constant: takes initial vorch or bfmax
         ! - zeta-rms: takes the rms of the upper surface z-vorticity
         ! - us-strain-rms: takes the rms of the upper surface strain
-        ! - us-max-strain-rms: takes the rms of the maximum upper surface strain
-        ! - max-strain-rms: takes the rms of the maximum surface strain
+        ! - us-max-strain: takes the maximum upper surface strain
+        ! - max-strain: takes the maximum surface strain
         character(len=16) :: pretype = 'roll-mean'
 
         ! Window size for the rolling mean approach

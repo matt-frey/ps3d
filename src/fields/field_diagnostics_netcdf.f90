@@ -38,59 +38,58 @@ module field_diagnostics_netcdf
         double precision :: val       = zero   ! data to be written
     end type netcdf_stat_info
 
-    integer, parameter :: NC_KE         = 1   &
-                        , NC_EN         = 2   &
-                        , NC_OMAX       = 3   &
-                        , NC_ORMS       = 4   &
-                        , NC_OCHAR      = 5   &
-                        , NC_OXMEAN     = 6   &
-                        , NC_OYMEAN     = 7   &
-                        , NC_OZMEAN     = 8   &
-                        , NC_KEXY       = 9   &
-                        , NC_KEZ        = 10  &
-                        , NC_ENXY       = 11  &
-                        , NC_ENZ        = 12  &
-                        , NC_OXMIN      = 13  &
-                        , NC_OYMIN      = 14  &
-                        , NC_OZMIN      = 15  &
-                        , NC_OXMAX      = 16  &
-                        , NC_OYMAX      = 17  &
-                        , NC_OZMAX      = 18  &
-                        , NC_HEMAX      = 19  &
-                        , NC_GMAX       = 20  &
-                        , NC_BFMAX      = 21  &
-                        , NC_UMAX       = 22  &
-                        , NC_VMAX       = 23  &
-                        , NC_WMAX       = 24  &
-                        , NC_USZRMS     = 25  &
-                        , NC_USSRMS     = 26  &
-                        , NC_USOXMAX    = 27  &
-                        , NC_LSOXMAX    = 28  &
-                        , NC_USOYMAX    = 29  &
-                        , NC_LSOYMAX    = 30  &
-                        , NC_USOZMAX    = 31  &
-                        , NC_LSOZMAX    = 32  &
-                        , NC_USUHMAX    = 33  &
-                        , NC_GGMAXRMS   = 34  &
-                        , NC_USGGMAXRMS = 35  &
-                        , NC_LSGGMAXRMS = 36  &
-                        , NC_RGMAX      = 37  &
-                        , NC_RBFMAX     = 38  &
-                        , NC_RIMIN      = 39  &
-                        , NC_ROMIN      = 40
+    integer, parameter :: NC_KE       = 1   &
+                        , NC_EN       = 2   &
+                        , NC_OMAX     = 3   &
+                        , NC_ORMS     = 4   &
+                        , NC_OCHAR    = 5   &
+                        , NC_OXMEAN   = 6   &
+                        , NC_OYMEAN   = 7   &
+                        , NC_OZMEAN   = 8   &
+                        , NC_KEXY     = 9   &
+                        , NC_KEZ      = 10  &
+                        , NC_ENXY     = 11  &
+                        , NC_ENZ      = 12  &
+                        , NC_OXMIN    = 13  &
+                        , NC_OYMIN    = 14  &
+                        , NC_OZMIN    = 15  &
+                        , NC_OXMAX    = 16  &
+                        , NC_OYMAX    = 17  &
+                        , NC_OZMAX    = 18  &
+                        , NC_HEMAX    = 19  &
+                        , NC_GMAX     = 20  &
+                        , NC_BFMAX    = 21  &
+                        , NC_UMAX     = 22  &
+                        , NC_VMAX     = 23  &
+                        , NC_WMAX     = 24  &
+                        , NC_USZRMS   = 25  &
+                        , NC_USSRMS   = 26  &
+                        , NC_USOXMAX  = 27  &
+                        , NC_LSOXMAX  = 28  &
+                        , NC_USOYMAX  = 29  &
+                        , NC_LSOYMAX  = 30  &
+                        , NC_USOZMAX  = 31  &
+                        , NC_LSOZMAX  = 32  &
+                        , NC_USUHMAX  = 33  &
+                        , NC_USGGMAX  = 34  &
+                        , NC_LSGGMAX  = 35  &
+                        , NC_RGMAX    = 36  &
+                        , NC_RBFMAX   = 37  &
+                        , NC_RIMIN    = 38  &
+                        , NC_ROMIN    = 39
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 41  &
-                        , NC_BMAX     = 42  &
-                        , NC_BMIN     = 43  &
-                        , NC_BUSMIN   = 44  &
-                        , NC_BUSMAX   = 45  &
-                        , NC_BLSMIN   = 46  &
-                        , NC_BLSMAX   = 47  &
-                        , NC_MSS      = 48  &  ! mss = minimum static stability
-                        , NC_KEBAL    = 49  &
-                        , NC_KEUBAL   = 50  &
-                        , NC_APEBAL   = 51  &
-                        , NC_APEUBAL  = 52
+    integer, parameter :: NC_APE      = 40  &
+                        , NC_BMAX     = 41  &
+                        , NC_BMIN     = 42  &
+                        , NC_BUSMIN   = 43  &
+                        , NC_BUSMAX   = 44  &
+                        , NC_BLSMIN   = 45  &
+                        , NC_BLSMAX   = 46  &
+                        , NC_MSS      = 47  &  ! mss = minimum static stability
+                        , NC_KEBAL    = 48  &
+                        , NC_KEUBAL   = 49  &
+                        , NC_APEBAL   = 50  &
+                        , NC_APEUBAL  = 51
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
@@ -120,9 +119,8 @@ module field_diagnostics_netcdf
               NC_USSRMS,                        &
               NC_RGMAX,                         &
               NC_RBFMAX,                        &
-              NC_GGMAXRMS,                      &
-              NC_USGGMAXRMS,                    &
-              NC_LSGGMAXRMS
+              NC_USGGMAX,                       &
+              NC_LSGGMAX
 
     contains
 
@@ -649,23 +647,16 @@ module field_diagnostics_netcdf
                 unit='m/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_USGGMAXRMS) = netcdf_stat_info(                  &
-                name='usggmaxrms',                                      &
-                long_name='upper surface rms of maximum strain',        &
+            nc_dset(NC_USGGMAX) = netcdf_stat_info(                     &
+                name='usggmax',                                         &
+                long_name='upper surface maximum strain',               &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_LSGGMAXRMS) = netcdf_stat_info(                  &
-                name='lsggmaxrms',                                      &
-                long_name='lower surface rms of maximum strain',        &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_GGMAXRMS) = netcdf_stat_info(                    &
-                name='ggmaxrms',                                        &
-                long_name='rms of maximum strain',                      &
+            nc_dset(NC_LSGGMAX) = netcdf_stat_info(                     &
+                name='lsggmax',                                         &
+                long_name='lower surface maximum strain',               &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
