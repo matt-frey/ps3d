@@ -339,6 +339,8 @@ module advance_mod
             call set_netcdf_field_diagnostic(wmax, NC_WMAX)
             call set_netcdf_field_diagnostic(usggmax, NC_USGGMAX)
             call set_netcdf_field_diagnostic(lsggmax, NC_LSGGMAX)
+            call set_netcdf_field_diagnostic(uszrms, NC_USZRMS)
+            call set_netcdf_field_diagnostic(ussrms, NC_USSRMS)
 
 
             ! CFL time step constraint:
