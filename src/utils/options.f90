@@ -55,7 +55,8 @@ module options
 
         ! Prefactor type to use:
         ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
-        ! - roll-mean: rolling mean of gamma_max / buoyancy frequency (bfmax)
+        ! - roll-mean-max-strain: rolling mean of gamma_max
+        ! - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax)
         ! - constant: takes initial vorch or bfmax
         ! - us-max-strain: takes the maximum upper surface strain
         ! - max-strain: takes the maximum surface strain

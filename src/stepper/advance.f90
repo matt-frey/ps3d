@@ -64,7 +64,10 @@ module advance_mod
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
-    double precision :: usggmax, lsggmax
+    double precision :: usggmax, lsggmax, rmv
+#ifdef ENABLE_BUOYANCY
+    double precision :: rmb
+#endif
     double precision :: vorch
     integer          :: ix, iy, iz
 
@@ -132,13 +135,10 @@ module advance_mod
             double precision                :: vormean(3)
             double precision                :: buf(7)
             double precision                :: umax, vmax, wmax, dtcfl
-            double precision                :: rm, vval, bval, lmax
+            double precision                :: vval, bval, lmax
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
-#endif
-#ifdef ENABLE_BUOYANCY
-            double precision                :: rmb
 #endif
 
             bfmax = zero
@@ -351,18 +351,21 @@ module advance_mod
             vval = zero
             bval = zero
 
-            call rollmean%alloc(vor_visc%roll_mean_win_size)
-            rm = rollmean%get_next(ggmax)
-            call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-
-            vval = get_diffusion_pre_factor(vor_visc, rm)
-
 #ifdef ENABLE_BUOYANCY
             call buoy_rollmean%alloc(buoy_visc%roll_mean_win_size)
             rmb = buoy_rollmean%get_next(bfmax)
             call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
+#endif
 
-            bval = get_diffusion_pre_factor(buoy_visc, rmb)
+            call rollmean%alloc(vor_visc%roll_mean_win_size)
+            rmv = rollmean%get_next(ggmax)
+            call set_netcdf_field_diagnostic(rmv, NC_RGMAX)
+
+            vval = get_diffusion_pre_factor(vor_visc)
+
+#ifdef ENABLE_BUOYANCY
+
+            bval = get_diffusion_pre_factor(buoy_visc)
 #endif
 
             call bstep%set_diffusion(dt, vval, bval)
@@ -371,9 +374,8 @@ module advance_mod
 
         !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        function get_diffusion_pre_factor(visc, rm) result(val)
+        function get_diffusion_pre_factor(visc) result(val)
             type(visc_type),  intent(in) :: visc
-            double precision, intent(in) :: rm
             double precision             :: val
 
             select case (visc%pretype)
@@ -384,8 +386,12 @@ module advance_mod
                     val = vorch
                 case ('bfmax')
                     val = bfmax
-                case ('roll-mean')
-                    val = rm
+                case ('roll-mean-max-strain')
+                    val = rmv
+#ifdef ENABLE_BUOYANCY
+                case ('roll-mean-bfmax')
+                    val = rmb
+#endif
                 case ('max-strain')
                     val = ggmax
                 case ('us-max-strain')
@@ -393,7 +399,7 @@ module advance_mod
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean', " // &
+                        "rolling mean 'roll-mean-max-srain', 'roll-mean-bfmax', " // &
                         "'max-strain' and us-max-strain")
             end select
 
