@@ -399,7 +399,7 @@ module advance_mod
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean-max-srain', 'roll-mean-bfmax', " // &
+                        "'roll-mean-max-strain', 'roll-mean-bfmax', " // &
                         "'max-strain' and us-max-strain")
             end select
 
