@@ -1,0 +1,33 @@
+== Output
+
+PS3D writes the following files, where `<basename>` is to be replaced by the character
+string that is passed to PS3D via the argument `output%basename` in the configuration file:
+
+.List of PS3D output files.
+[#tab_output_files, reftext=Table {counter:tab-cnt}]
+[cols="1,2"]
+|===
+| Output file | Description
+
+| `<basename>_fields.nc` | NetCDF file containing gridded field output.
+
+| `<basename>_field_stats.nc` | NetCDF file containing diagnostics evaluated on the Eulerian grid.
+
+| `<basename>_alpha_time_step.asc` | ASCII file containing time step estimates for the maximum strain and maximum buoyancy gradient (if compiled with `--enable-verbose`)
+
+| `<basename>.csv` | ASCII file containing timings of the individual components of the code.
+|===
+
+
+=== How to post-process
+In the directory `plotting` we provide many pre-configured scripts to generate cross sections and 3D views of
+fields. The class `nc_reader` is used to retrieve data from the NetCDF file. The visualisation is done with
+matplotlib (version 3.5.2) and ParaView (version 5.10.1). You can install the Python environment with the provided
+`requirements.txt` file found in the root directory of this repository. The basic command to accomplish this is
+```
+$ conda create --name <env> --file requirements.txt
+```
+where `<env>` denotes a user-defined environment name like `ps3d-env`. To install conda, please read the relevant
+documentation.
+
+The enstrophy production rates are calculated using the program `production`. Use the flag `--help` for further information. Note: The post-processing codes are currently switched off as we moved to distributed memory parallelism and these codes are not yet verified.

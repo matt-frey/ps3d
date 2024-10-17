@@ -1,0 +1,69 @@
+== Installation
+
+=== Cloning the Repository
+You can obtain the source code with
+
+[source, bash]
+----
+git clone https://github.com/matt-frey/ps3d.git
+----
+or
+[source, bash]
+----
+git clone git@github.com:matt-frey/ps3d.git
+----
+if you are a member of the project. We recommend users to run the latest link:https://github.com/matt-frey/ps3d/releases[release] for production runs.
+
+=== Prerequisites
+We recommend to use the link:https://gcc.gnu.org/wiki/GFortran[GNU Fortran compiler] to build the executable.
+PS3D depends on MPI,
+link:https://www.hdfgroup.org/solutions/hdf5/[HDF5] and
+link:https://www.unidata.ucar.edu/software/netcdf/[NetCDF].
+
+[#sec-installation-configuring, reftext=Configuring]
+=== Configuring
+Before you can compile, you must type
+[source, bash]
+----
+$ ./bootstrap
+----
+in the root directory of PS3D. Now, you are ready to configure PS3D
+[source, bash]
+----
+$ mkdir build
+$ cd build
+$ ../configure
+----
+We recommend to set the environment variables `$MPI_DIR`, `$NETCDF_C_DIR` and `$NETCDF_FORTRAN_DIR` to their
+root installation root directories. A list of configure options is given in <<tab_configure_options>>.
+
+.Important configuration options.
+[#tab_configure_options, reftext=Table {counter:tab-cnt}]
+[cols="2,4"]
+|===
+|Option                 |Description
+
+|`--enable-verbose`     |Compile in verbose mode to allow running with more output.
+|`--enable-buoyancy`    |Enable buoyancy-driven flows.
+|`--enable-balance`     |Enable balance mode (experimental).
+|`--enable-debug`       |Compile in debug mode with backtrace, floating point operation checks etc.
+|`--enable-openmp`      |Compile with shared memory parallelism
+|`--enable-iw-test-case`|Enable internal wave test case (available potential energy density)
+|`--enable-rt-test-case`|Enable Rayleigh-Taylor test case (available potential energy density)
+|`--prefix=$PREFIX`     |Install directory when performing `make install`
+|===
+
+=== Compiling
+After <<sec-installation-configuring>> PS3D you only need to type
+[source, bash]
+----
+$ make
+$ make install
+----
+inside your build directory.
+
+**Note:** You can add the bin directory `$PREFIX/bin` to your `$PATH` environment variable with
+[source, bash]
+----
+export PATH=$PREFIX/bin:$PATH
+----
