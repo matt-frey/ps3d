@@ -1,0 +1,18 @@
+:stem: latexmath
+== Model
+PS3D assumes an inviscid and incompressible fluid. The basic equations
+including buoyancy are given by
+[stem]
+++++
+\begin{align}
+    \label{eq:progo}
+    & \frac{\mathrm{D}\boldsymbol{\omega}}{\mathrm{D} t}
+        = (2\Omega+ \boldsymbol{\omega})\boldsymbol{\cdot}\boldsymbol{\nabla}\boldsymbol{u}
+        + \boldsymbol{\nabla}b\times\hat{\boldsymbol{e}}_z\,, \\
+    \label{eq:progb}
+    & \frac{\mathrm{D} b}{\mathrm{D} t} = 0 \,.
+\end{align}
+++++
+If the model is compiled without buoyancy, the buoyancy gradient term, i.e. stem:[\boldsymbol{\nabla}b\times\hat{\boldsymbol{e}}_z], is ignored.
+
+// === Vorticity inversion
