@@ -62,15 +62,15 @@ module field_diagnostics_netcdf
                         , NC_UMAX     = 22  &
                         , NC_VMAX     = 23  &
                         , NC_WMAX     = 24  &
-                        , NC_USZRMS   = 25  &
-                        , NC_USSRMS   = 26  &
-                        , NC_USOXMAX  = 27  &
-                        , NC_LSOXMAX  = 28  &
-                        , NC_USOYMAX  = 29  &
-                        , NC_LSOYMAX  = 30  &
-                        , NC_USOZMAX  = 31  &
-                        , NC_LSOZMAX  = 32  &
-                        , NC_USUHMAX  = 33  &
+                        , NC_USOXMAX  = 25  &
+                        , NC_LSOXMAX  = 26  &
+                        , NC_USOYMAX  = 27  &
+                        , NC_LSOYMAX  = 28  &
+                        , NC_USOZMAX  = 29  &
+                        , NC_LSOZMAX  = 30  &
+                        , NC_USUHMAX  = 31  &
+                        , NC_USGGMAX  = 32  &
+                        , NC_LSGGMAX  = 33  &
                         , NC_RGMAX    = 34  &
                         , NC_RBFMAX   = 35  &
                         , NC_RIMIN    = 36  &
@@ -113,10 +113,10 @@ module field_diagnostics_netcdf
               NC_UMAX,                          &
               NC_VMAX,                          &
               NC_WMAX,                          &
-              NC_USZRMS,                        &
-              NC_USSRMS,                        &
               NC_RGMAX,                         &
-              NC_RBFMAX
+              NC_RBFMAX,                        &
+              NC_USGGMAX,                       &
+              NC_LSGGMAX
 
     contains
 
@@ -580,20 +580,6 @@ module field_diagnostics_netcdf
                 unit='m/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
-                name='uszrms',                                          &
-                long_name='upper surface z-vorticity rms',              &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_USSRMS) = netcdf_stat_info(                      &
-                name='ussrms',                                          &
-                long_name='upper surface strain rms',                   &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
             nc_dset(NC_USOXMAX) = netcdf_stat_info(                     &
                 name='uoxmax',                                          &
                 long_name='upper surface maximum x-vorticity',          &
@@ -641,6 +627,20 @@ module field_diagnostics_netcdf
                 long_name='upper surface maximum horizontal speed',     &
                 std_name='',                                            &
                 unit='m/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_USGGMAX) = netcdf_stat_info(                     &
+                name='usggmax',                                         &
+                long_name='upper surface maximum strain',               &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_LSGGMAX) = netcdf_stat_info(                     &
+                name='lsggmax',                                         &
+                long_name='lower surface maximum strain',               &
+                std_name='',                                            &
+                unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
             nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
