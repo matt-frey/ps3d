@@ -2,4 +2,4 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6979867.svg)](https://doi.org/10.5281/zenodo.6979867)
 
 # Pseudo-spectral code for turbulent flows in 3D
-For further information please check the [manual](https://epic-model.github.io/epic/html/intro.html).
+For further information please check the [manual](https://matt-frey.github.io/ps3d/html/intro.html).
