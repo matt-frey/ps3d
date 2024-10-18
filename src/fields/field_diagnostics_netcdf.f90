@@ -15,7 +15,8 @@ module field_diagnostics_netcdf
     use physics, only : write_physical_quantities
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
-#ifdef ENABLE_BALANCE
+    use fields_derived, only : delta
+#if defined(ENABLE_BALANCE) && defined(ENABLE_BUOYANCY)
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
                             , apebal, apeubal
@@ -72,24 +73,25 @@ module field_diagnostics_netcdf
                         , NC_USGMAX   = 32  &
                         , NC_LSGMAX   = 33  &
                         , NC_USZRMS   = 34  &
-                        , NC_RGMAX    = 35  &
-                        , NC_RBFMAX   = 36  &
-                        , NC_RIMIN    = 37  &
-                        , NC_ROMIN    = 38  &
-                        , NC_ROMAX    = 39
+                        , NC_USDELRMS = 35  &
+                        , NC_RGMAX    = 36  &
+                        , NC_RBFMAX   = 37  &
+                        , NC_RIMIN    = 38  &
+                        , NC_ROMIN    = 39  &
+                        , NC_ROMAX    = 40
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 40  &
-                        , NC_BMAX     = 41  &
-                        , NC_BMIN     = 42  &
-                        , NC_BUSMIN   = 43  &
-                        , NC_BUSMAX   = 44  &
-                        , NC_BLSMIN   = 45  &
-                        , NC_BLSMAX   = 46  &
-                        , NC_MSS      = 47  &  ! mss = minimum static stability
-                        , NC_KEBAL    = 48  &
-                        , NC_KEUBAL   = 49  &
-                        , NC_APEBAL   = 50  &
-                        , NC_APEUBAL  = 51
+    integer, parameter :: NC_APE      = 41  &
+                        , NC_BMAX     = 42  &
+                        , NC_BMIN     = 43  &
+                        , NC_BUSMIN   = 44  &
+                        , NC_BUSMAX   = 45  &
+                        , NC_BLSMIN   = 46  &
+                        , NC_BLSMAX   = 47  &
+                        , NC_MSS      = 48  &  ! mss = minimum static stability
+                        , NC_KEBAL    = 49  &
+                        , NC_KEUBAL   = 50  &
+                        , NC_APEBAL   = 51  &
+                        , NC_APEUBAL  = 52
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMAX)
@@ -272,7 +274,7 @@ module field_diagnostics_netcdf
             double precision :: buf(15) = zero
             integer          :: iz
 #else
-            double precision :: buf(12) = zero
+            double precision :: buf(13) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
@@ -306,41 +308,46 @@ module field_diagnostics_netcdf
             ! rms of upper surface z-vorticity
             ! (we must take the square-root after the MPI reduction)
             buf(7) = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
-!             rms surface divergence and rms surface zeta
+
+            ! rms surface divergence
+            ! (we must take the square-root after the MPI reduction)
+            buf(8) = sum(delta(nz, :, :) ** 2) / dble(nx * ny)
+
 
 
 #ifdef ENABLE_BUOYANCY
-            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
+            buf(9) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call balance_fields(l_global=.false.)
-                buf(9) = kebal
-                buf(10) = keubal
-                buf(11) = apebal
-                buf(12) = apeubal
+                buf(10) = kebal
+                buf(11) = keubal
+                buf(12) = apebal
+                buf(13) = apeubal
             endif
 #endif
 #endif
 
             call mpi_blocking_reduce(buf, MPI_SUM, world)
 
-            nc_dset(NC_KE)%val     = buf(1)
-            nc_dset(NC_EN)%val     = buf(2)
-            nc_dset(NC_KEXY)%val   = buf(3)
-            nc_dset(NC_KEZ)%val    = buf(4)
-            nc_dset(NC_ENXY)%val   = buf(5)
-            nc_dset(NC_ENZ)%val    = buf(6)
-            nc_dset(NC_USZRMS)%val = dsqrt(buf(7))
+            nc_dset(NC_KE)%val       = buf(1)
+            nc_dset(NC_EN)%val       = buf(2)
+            nc_dset(NC_KEXY)%val     = buf(3)
+            nc_dset(NC_KEZ)%val      = buf(4)
+            nc_dset(NC_ENXY)%val     = buf(5)
+            nc_dset(NC_ENZ)%val      = buf(6)
+            nc_dset(NC_USZRMS)%val   = dsqrt(buf(7))
+            nc_dset(NC_USDELRMS)%val = dsqrt(buf(8))
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_APE)%val    = buf(8)
+            nc_dset(NC_APE)%val    = buf(9)
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
-                nc_dset(NC_KEBAL)%val   = buf(9)
-                nc_dset(NC_KEUBAL)%val  = buf(10)
-                nc_dset(NC_APEBAL)%val  = buf(11)
-                nc_dset(NC_APEUBAL)%val = buf(12)
+                nc_dset(NC_KEBAL)%val   = buf(10)
+                nc_dset(NC_KEUBAL)%val  = buf(11)
+                nc_dset(NC_APEBAL)%val  = buf(12)
+                nc_dset(NC_APEUBAL)%val = buf(13)
             endif
 #endif
 #endif
@@ -660,6 +667,13 @@ module field_diagnostics_netcdf
             nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
                 name='uszrms',                                          &
                 long_name='rms of upper surface z-vorticity',           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_USDELRMS) = netcdf_stat_info(                    &
+                name='usdeltarms',                                      &
+                long_name='rms of upper surface horizontal divergence', &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)

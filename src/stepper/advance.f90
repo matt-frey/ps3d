@@ -5,7 +5,8 @@ module advance_mod
 #endif
     use constants
     use parameters, only : nx, ny, nz, ncelli
-    use inversion_mod, only : vor2vel, source, pressure
+    use inversion_mod, only : vor2vel, source
+    use fields_derived, only : pressure, horizontal_divergence
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
     use options, only : buoy_visc
@@ -276,6 +277,9 @@ module advance_mod
 
             ! Pressure calculation:
             call pressure(dudx, dudy, dvdy, dwdx, dwdy)
+
+            ! Horizontal divergence calculation:
+            call horizontal_divergence
 
             !Maximum speed:
             !$omp parallel workshare
