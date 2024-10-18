@@ -22,9 +22,6 @@ module fields
         svorts, &   ! vorticity source in mixed spectral space
         vortsm      ! used for time stepping
 
-    double precision, allocatable, dimension(:, :, :) :: &
-        pres        ! pressure field (physical space)
-
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
@@ -75,8 +72,6 @@ module fields
             allocate(bbarz(0:nz))
 #endif
 
-            allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
-
             allocate(vdiss(lo(2):hi(2), lo(1):hi(1)))
             allocate(bdiss(lo(2):hi(2), lo(1):hi(1)))
 
@@ -104,7 +99,6 @@ module fields
             sbuoys = zero
             bsm    = zero
 #endif
-            pres   = zero
             vdiss  = zero
             bdiss  = zero
 
