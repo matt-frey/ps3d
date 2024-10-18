@@ -23,7 +23,7 @@ module advance_mod
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
                                        , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
-                                       , NC_WMAX, NC_USGGMAX, NC_LSGGMAX
+                                       , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
     implicit none
 
@@ -313,8 +313,8 @@ module advance_mod
             call set_netcdf_field_diagnostic(umax, NC_UMAX)
             call set_netcdf_field_diagnostic(vmax, NC_VMAX)
             call set_netcdf_field_diagnostic(wmax, NC_WMAX)
-            call set_netcdf_field_diagnostic(usggmax, NC_USGGMAX)
-            call set_netcdf_field_diagnostic(lsggmax, NC_LSGGMAX)
+            call set_netcdf_field_diagnostic(usggmax, NC_USGMAX)
+            call set_netcdf_field_diagnostic(lsggmax, NC_LSGMAX)
 
 
             ! CFL time step constraint:
