@@ -9,8 +9,9 @@ program ps3d
     use field_diagnostics_netcdf, only : field_stats_io_timer
     use inversion_mod, only : vor2vel_timer &
                             , vtend_timer   &
-                            , vor2vel       &
-                            , pres_timer
+                            , vor2vel
+    use fields_derived, only : pres_timer   &
+                             , delta_timer
     use inversion_utils, only : init_inversion, finalise_inversion
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
@@ -62,6 +63,7 @@ program ps3d
             call register_timer('vorticity tendency', vtend_timer)
             call register_timer('advance', advance_timer)
             call register_timer('pressure calculation', pres_timer)
+            call register_timer('horizontal divergence calculation', delta_timer)
 
             call start_timer(ps_timer)
 

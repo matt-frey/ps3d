@@ -13,6 +13,7 @@ module utils
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : nx, ny, lower, extent, update_parameters, dx
     use fields
+    use fields_derived, only : field_derived_default
     use field_diagnostics
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
@@ -140,6 +141,7 @@ module utils
 #endif
 
             call field_default
+            call field_derived_default
 
             call read_netcdf_fields(trim(field_file), field_step)
 
