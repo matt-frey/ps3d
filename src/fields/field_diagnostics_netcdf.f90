@@ -62,35 +62,37 @@ module field_diagnostics_netcdf
                         , NC_UMAX     = 22  &
                         , NC_VMAX     = 23  &
                         , NC_WMAX     = 24  &
-                        , NC_USZRMS   = 25  &
-                        , NC_USSRMS   = 26  &
-                        , NC_USOXMAX  = 27  &
-                        , NC_LSOXMAX  = 28  &
-                        , NC_USOYMAX  = 29  &
-                        , NC_LSOYMAX  = 30  &
-                        , NC_USOZMAX  = 31  &
-                        , NC_LSOZMAX  = 32  &
-                        , NC_USUHMAX  = 33  &
-                        , NC_RGMAX    = 34  &
-                        , NC_RBFMAX   = 35  &
-                        , NC_RIMIN    = 36  &
-                        , NC_ROMIN    = 37
+                        , NC_USOXMAX  = 25  &
+                        , NC_LSOXMAX  = 26  &
+                        , NC_USOYMAX  = 27  &
+                        , NC_LSOYMAX  = 28  &
+                        , NC_USOZMAX  = 29  &
+                        , NC_LSOZMAX  = 30  &
+                        , NC_USUHMAX  = 31  &
+                        , NC_USGMAX   = 32  &
+                        , NC_LSGMAX   = 33  &
+                        , NC_USZRMS   = 34  &
+                        , NC_RGMAX    = 35  &
+                        , NC_RBFMAX   = 36  &
+                        , NC_RIMIN    = 37  &
+                        , NC_ROMIN    = 38  &
+                        , NC_ROMAX    = 39
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 38  &
-                        , NC_BMAX     = 39  &
-                        , NC_BMIN     = 40  &
-                        , NC_BUSMIN   = 41  &
-                        , NC_BUSMAX   = 42  &
-                        , NC_BLSMIN   = 43  &
-                        , NC_BLSMAX   = 44  &
-                        , NC_MSS      = 45  &  ! mss = minimum static stability
-                        , NC_KEBAL    = 46  &
-                        , NC_KEUBAL   = 47  &
-                        , NC_APEBAL   = 48  &
-                        , NC_APEUBAL  = 49
+    integer, parameter :: NC_APE      = 40  &
+                        , NC_BMAX     = 41  &
+                        , NC_BMIN     = 42  &
+                        , NC_BUSMIN   = 43  &
+                        , NC_BUSMAX   = 44  &
+                        , NC_BLSMIN   = 45  &
+                        , NC_BLSMAX   = 46  &
+                        , NC_MSS      = 47  &  ! mss = minimum static stability
+                        , NC_KEBAL    = 48  &
+                        , NC_KEUBAL   = 49  &
+                        , NC_APEBAL   = 50  &
+                        , NC_APEUBAL  = 51
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_ROMIN)
+    type(netcdf_stat_info) :: nc_dset(NC_ROMAX)
 #endif
 
 
@@ -113,10 +115,10 @@ module field_diagnostics_netcdf
               NC_UMAX,                          &
               NC_VMAX,                          &
               NC_WMAX,                          &
-              NC_USZRMS,                        &
-              NC_USSRMS,                        &
               NC_RGMAX,                         &
-              NC_RBFMAX
+              NC_RBFMAX,                        &
+              NC_USGMAX,                        &
+              NC_LSGMAX
 
     contains
 
@@ -267,10 +269,10 @@ module field_diagnostics_netcdf
                                       box%lo(1):box%hi(1))
             double precision :: bmin, bmax
             double precision :: busmin, busmax, blsmin, blsmax
-            double precision :: buf(14) = zero
+            double precision :: buf(15) = zero
             integer          :: iz
 #else
-            double precision :: buf(11) = zero
+            double precision :: buf(12) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
@@ -299,18 +301,26 @@ module field_diagnostics_netcdf
             buf(4) = get_vertical_kinetic_energy(l_global=.false.)
             buf(5) = get_horizontal_enstrophy(l_global=.false.)
             buf(6) = get_vertical_enstrophy(l_global=.false.)
+
+
+            ! rms of upper surface z-vorticity
+            ! (we must take the square-root after the MPI reduction)
+            buf(7) = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
+!             rms surface divergence and rms surface zeta
+
+
 #ifdef ENABLE_BUOYANCY
-            buf(7) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
-#endif
+            buf(8) = get_available_potential_energy(buoy, l_global=.false., l_allreduce=.false.)
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call balance_fields(l_global=.false.)
-                buf(8) = kebal
-                buf(9) = keubal
-                buf(10) = apebal
-                buf(11) = apeubal
+                buf(9) = kebal
+                buf(10) = keubal
+                buf(11) = apebal
+                buf(12) = apeubal
             endif
+#endif
 #endif
 
             call mpi_blocking_reduce(buf, MPI_SUM, world)
@@ -321,15 +331,16 @@ module field_diagnostics_netcdf
             nc_dset(NC_KEZ)%val    = buf(4)
             nc_dset(NC_ENXY)%val   = buf(5)
             nc_dset(NC_ENZ)%val    = buf(6)
+            nc_dset(NC_USZRMS)%val = dsqrt(buf(7))
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_APE)%val    = buf(7)
+            nc_dset(NC_APE)%val    = buf(8)
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then
-                nc_dset(NC_KEBAL)%val   = buf(8)
-                nc_dset(NC_KEUBAL)%val  = buf(9)
-                nc_dset(NC_APEBAL)%val  = buf(10)
-                nc_dset(NC_APEUBAL)%val = buf(11)
+                nc_dset(NC_KEBAL)%val   = buf(9)
+                nc_dset(NC_KEUBAL)%val  = buf(10)
+                nc_dset(NC_APEBAL)%val  = buf(11)
+                nc_dset(NC_APEUBAL)%val = buf(12)
             endif
 #endif
 #endif
@@ -393,14 +404,16 @@ module field_diagnostics_netcdf
             buf(11) = dsqrt(maxval(vel(nz, :, :, 1) ** 2 + &
                                    vel(nz, :, :, 2) ** 2))
 
-#ifdef ENABLE_BUOYANCY
-            buf(12) = bmax
-            buf(13) = busmax
-            buf(14) = blsmax
+            buf(12) = get_max_rossby_number(l_global=.false.)
 
-            call mpi_blocking_reduce(buf(1:14), MPI_MAX, world)
+#ifdef ENABLE_BUOYANCY
+            buf(13) = bmax
+            buf(14) = busmax
+            buf(15) = blsmax
+
+            call mpi_blocking_reduce(buf(1:15), MPI_MAX, world)
 #else
-            call mpi_blocking_reduce(buf(1:11), MPI_MAX, world)
+            call mpi_blocking_reduce(buf(1:12), MPI_MAX, world)
 #endif
 
             nc_dset(NC_OXMAX)%val    = buf(1)
@@ -414,11 +427,12 @@ module field_diagnostics_netcdf
             nc_dset(NC_USOZMAX)%val  = buf(9)
             nc_dset(NC_LSOZMAX)%val  = buf(10)
             nc_dset(NC_USUHMAX)%val  = buf(11)
+            nc_dset(NC_ROMAX)%val    = buf(12)
 
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_BMAX)%val   = buf(12)
-            nc_dset(NC_BUSMAX)%val = buf(13)
-            nc_dset(NC_BLSMAX)%val = buf(14)
+            nc_dset(NC_BMAX)%val   = buf(13)
+            nc_dset(NC_BUSMAX)%val = buf(14)
+            nc_dset(NC_BLSMAX)%val = buf(15)
 #endif
 
         end subroutine update_netcdf_field_diagnostics
@@ -580,20 +594,6 @@ module field_diagnostics_netcdf
                 unit='m/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
-                name='uszrms',                                          &
-                long_name='upper surface z-vorticity rms',              &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
-            nc_dset(NC_USSRMS) = netcdf_stat_info(                      &
-                name='ussrms',                                          &
-                long_name='upper surface strain rms',                   &
-                std_name='',                                            &
-                unit='1/s',                                             &
-                dtype=NF90_DOUBLE)
-
             nc_dset(NC_USOXMAX) = netcdf_stat_info(                     &
                 name='uoxmax',                                          &
                 long_name='upper surface maximum x-vorticity',          &
@@ -643,6 +643,27 @@ module field_diagnostics_netcdf
                 unit='m/s',                                             &
                 dtype=NF90_DOUBLE)
 
+            nc_dset(NC_USGMAX) = netcdf_stat_info(                      &
+                name='usgmax',                                          &
+                long_name='upper surface maximum strain',               &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_LSGMAX) = netcdf_stat_info(                      &
+                name='lsgmax',                                          &
+                long_name='lower surface maximum strain',               &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_USZRMS) = netcdf_stat_info(                      &
+                name='uszrms',                                          &
+                long_name='rms of upper surface z-vorticity',           &
+                std_name='',                                            &
+                unit='1/s',                                             &
+                dtype=NF90_DOUBLE)
+
             nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
                 name='rolling_mean_gmax',                               &
                 long_name='rolling mean maximum gamma',                 &
@@ -667,6 +688,13 @@ module field_diagnostics_netcdf
             nc_dset(NC_ROMIN) = netcdf_stat_info(                       &
                 name='ro_min',                                          &
                 long_name='minimum Rossby number',                      &
+                std_name='',                                            &
+                unit='1',                                               &
+                dtype=NF90_DOUBLE)
+
+            nc_dset(NC_ROMAX) = netcdf_stat_info(                       &
+                name='ro_max',                                          &
+                long_name='maximum Rossby number',                      &
                 std_name='',                                            &
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)

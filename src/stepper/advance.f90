@@ -23,7 +23,7 @@ module advance_mod
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
                                        , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
-                                       , NC_WMAX, NC_USZRMS, NC_USSRMS
+                                       , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
     implicit none
 
@@ -64,7 +64,11 @@ module advance_mod
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
-    double precision :: vorch, uszrms, ussrms
+    double precision :: usggmax, lsggmax, rmv
+#ifdef ENABLE_BUOYANCY
+    double precision :: rmb
+#endif
+    double precision :: vorch
     integer          :: ix, iy, iz
 
     contains
@@ -131,13 +135,10 @@ module advance_mod
             double precision                :: vormean(3)
             double precision                :: buf(7)
             double precision                :: umax, vmax, wmax, dtcfl
-            double precision                :: rm, vval, bval
+            double precision                :: vval, bval, lmax
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
-#endif
-#ifdef ENABLE_BUOYANCY
-            double precision                :: rmb
 #endif
 
             bfmax = zero
@@ -177,11 +178,6 @@ module advance_mod
             !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
             vortrms = dsqrt(get_mean(xp, l_allreduce=.true.))
 
-
-            !Upper surface r.m.s. of z-vorticity
-            uszrms = sum(vor(nz, :, :, 3) ** 2) / dble(nx * ny)
-
-
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
 
@@ -220,15 +216,11 @@ module advance_mod
             call fftxys2p(ys, dwdy)
 
 
-            ! Upper surface strain rms:
-            ! S = 0.5 * sqrt{(u_y + v_x)^2 + (u_x - v_y)^2}
-            ! v_x = u_y + zeta
-            ussrms = sum((two * dudy(nz, :, :) +  vor(nz, :, :, 3)) ** 2 + &
-                         (      dudx(nz, :, :) - dvdy(nz, :, :   )) ** 2) / dble(nx * ny)
-
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
+            usggmax = zero
+            lsggmax = zero
             do ix = box%lo(1), box%hi(1)
                 do iy = box%lo(2), box%hi(2)
                     do iz = 0, nz
@@ -268,7 +260,16 @@ module advance_mod
                         call jacobi_eigenvalues(strain, eigs)
 
                         ! we must take the largest eigenvalue in magnitude (absolute value)
-                        ggmax = max(ggmax, maxval(abs(eigs)))
+                        lmax = maxval(abs(eigs))
+                        ggmax = max(ggmax, lmax)
+
+                        if (iz == nz) then
+                            usggmax = max(usggmax, lmax)
+                        endif
+
+                        if (iz == 0) then
+                            lsggmax = max(lsggmax, lmax)
+                        endif
                     enddo
                 enddo
             enddo
@@ -288,22 +289,14 @@ module advance_mod
             buf(3) = umax
             buf(4) = vmax
             buf(5) = wmax
-            buf(6) = uszrms
-            buf(7) = ussrms
+            buf(6) = usggmax
+            buf(7) = lsggmax
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:5),                &
-                               5,                       &
+                               buf(1:7),                &
+                               7,                       &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
-                               world%comm,              &
-                               world%err)
-
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(6:7),                &
-                               2,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
                                world%comm,              &
                                world%err)
 
@@ -312,16 +305,16 @@ module advance_mod
             umax = buf(3)
             vmax = buf(4)
             wmax = buf(5)
-            uszrms = dsqrt(buf(6))
-            ussrms = f12 * dsqrt(buf(7))
+            usggmax = buf(6)
+            lsggmax = buf(7)
 
             call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
             call set_netcdf_field_diagnostic(umax, NC_UMAX)
             call set_netcdf_field_diagnostic(vmax, NC_VMAX)
             call set_netcdf_field_diagnostic(wmax, NC_WMAX)
-            call set_netcdf_field_diagnostic(uszrms, NC_USZRMS)
-            call set_netcdf_field_diagnostic(ussrms, NC_USSRMS)
+            call set_netcdf_field_diagnostic(usggmax, NC_USGMAX)
+            call set_netcdf_field_diagnostic(lsggmax, NC_LSGMAX)
 
 
             ! CFL time step constraint:
@@ -358,18 +351,21 @@ module advance_mod
             vval = zero
             bval = zero
 
-            call rollmean%alloc(vor_visc%roll_mean_win_size)
-            rm = rollmean%get_next(ggmax)
-            call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-
-            vval = get_diffusion_pre_factor(vor_visc, rm)
-
 #ifdef ENABLE_BUOYANCY
             call buoy_rollmean%alloc(buoy_visc%roll_mean_win_size)
             rmb = buoy_rollmean%get_next(bfmax)
             call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
+#endif
 
-            bval = get_diffusion_pre_factor(buoy_visc, rmb)
+            call rollmean%alloc(vor_visc%roll_mean_win_size)
+            rmv = rollmean%get_next(ggmax)
+            call set_netcdf_field_diagnostic(rmv, NC_RGMAX)
+
+            vval = get_diffusion_pre_factor(vor_visc)
+
+#ifdef ENABLE_BUOYANCY
+
+            bval = get_diffusion_pre_factor(buoy_visc)
 #endif
 
             call bstep%set_diffusion(dt, vval, bval)
@@ -378,9 +374,8 @@ module advance_mod
 
         !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        function get_diffusion_pre_factor(visc, rm) result(val)
+        function get_diffusion_pre_factor(visc) result(val)
             type(visc_type),  intent(in) :: visc
-            double precision, intent(in) :: rm
             double precision             :: val
 
             select case (visc%pretype)
@@ -391,16 +386,21 @@ module advance_mod
                     val = vorch
                 case ('bfmax')
                     val = bfmax
-                case ('roll-mean')
-                    val = rm
-                case ('zeta-rms')
-                    val = uszrms
-                case ('strain-rms')
-                    val = ussrms
+                case ('roll-mean-max-strain')
+                    val = rmv
+#ifdef ENABLE_BUOYANCY
+                case ('roll-mean-bfmax')
+                    val = rmb
+#endif
+                case ('max-strain')
+                    val = ggmax
+                case ('us-max-strain')
+                    val = usggmax
                 case default
                     call mpi_stop(&
                         "We only support 'constant', 'vorch', 'bfmax', " // &
-                        "rolling mean 'roll-mean', 'zeta-rms' and 'strain-rms'")
+                        "'roll-mean-max-strain', 'roll-mean-bfmax', " // &
+                        "'max-strain' and us-max-strain")
             end select
 
         end function get_diffusion_pre_factor

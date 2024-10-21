@@ -55,11 +55,12 @@ module options
 
         ! Prefactor type to use:
         ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
-        ! - roll-mean: rolling mean of gamma_max / buoyancy frequency (bfmax)
+        ! - roll-mean-max-strain: rolling mean of gamma_max
+        ! - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax)
         ! - constant: takes initial vorch or bfmax
-        ! - zeta-rms: takes the rms of the upper surface z-vorticity
-        ! - strain-rms: takes the rms of the upper surface strain
-        character(len=16) :: pretype = 'roll-mean'
+        ! - us-max-strain: takes the maximum upper surface strain
+        ! - max-strain: takes the maximum surface strain
+        character(len=20) :: pretype = 'roll-mean-max-strain'
 
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
