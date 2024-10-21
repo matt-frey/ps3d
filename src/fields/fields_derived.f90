@@ -5,9 +5,13 @@ module fields_derived
     use mpi_utils, only : mpi_exit_on_error
     use mpi_timer, only : start_timer, stop_timer
     use fields, only : svel, vor
-    use inversion_utils, only : green, k2l2i
+    use inversion_utils
+#ifdef ENABLE_BUOYANCY
+    use fields, only : sbuoy, buoy
+#endif
     use sta2dfft, only : dct
     use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use physics, only : f_cor
     implicit none
 
     integer :: pres_timer       &
