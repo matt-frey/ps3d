@@ -37,7 +37,7 @@ module field_netcdf
         logical        :: l_enabled = .false.
 
         contains
-            procedure set_info
+            procedure :: set_info
 
     end type netcdf_field_info
 
