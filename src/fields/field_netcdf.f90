@@ -27,18 +27,8 @@ module field_netcdf
     double precision   :: restart_time
     integer            :: n_writes
 
-    type netcdf_field_info
-        character(32)  :: name      = ''
-        character(128) :: long_name = ''
-        character(128) :: std_name  = ''
-        character(16)  :: unit      = ''
-        integer        :: dtype     = -1
-        integer        :: varid     = -1
+    type, extends(netcdf_info) :: netcdf_field_info
         logical        :: l_enabled = .false.
-
-        contains
-            procedure :: set_info
-
     end type netcdf_field_info
 
     integer, parameter :: NC_X_VEL   = 1        &
@@ -68,31 +58,6 @@ module field_netcdf
 
 
     contains
-
-        subroutine set_info(this, name, long_name, std_name, unit, dtype)
-            class(netcdf_field_info), intent(inout) :: this
-            character(*),             intent(in)    :: name
-            character(*),             intent(in)    :: long_name
-            character(*),             intent(in)    :: std_name
-            character(*),             intent(in)    :: unit
-            integer,                  intent(in)    :: dtype
-            integer                                 :: l
-
-            l = len(name)
-            this%name(1:l) = name
-
-            l = len(long_name)
-            this%long_name(1:l) = long_name
-
-            l = len(std_name)
-            this%std_name(1:l) = std_name
-
-            l = len(unit)
-            this%unit(1:l) = unit
-
-            this%dtype = dtype
-
-        end subroutine set_info
 
         ! Create the field file.
         ! @param[in] basename of the file
