@@ -31,13 +31,7 @@ module field_diagnostics_netcdf
     integer            :: ncid
     integer            :: t_axis_id, t_dim_id, n_writes
 
-    type netcdf_stat_info
-        character(32)    :: name      = ''
-        character(128)   :: long_name = ''
-        character(128)   :: std_name  = ''
-        character(16)    :: unit      = ''
-        integer          :: dtype     = -1
-        integer          :: varid     = -1
+    type, extends(netcdf_info) :: netcdf_stat_info
         double precision :: val       = zero   ! data to be written
     end type netcdf_stat_info
 
@@ -382,112 +376,112 @@ module field_diagnostics_netcdf
             use options, only : output
 #endif
 
-            nc_dset(NC_KE) = netcdf_stat_info(                          &
+            call nc_dset(NC_KE)%set_info(                               &
                 name='ke',                                              &
                 long_name='domain-averaged kinetic energy',             &
                 std_name='',                                            &
                 unit='m^2/s^2',                                         &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_EN) = netcdf_stat_info(                          &
+            call nc_dset(NC_EN)%set_info(                               &
                 name='en',                                              &
                 long_name='domain-averaged enstrophy',                  &
                 std_name='',                                            &
                 unit='1/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OMAX) = netcdf_stat_info(                        &
+            call nc_dset(NC_OMAX)%set_info(                             &
                 name='vortmax',                                         &
                 long_name='maximum vorticity magnitude',                &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_ORMS) = netcdf_stat_info(                        &
+            call nc_dset(NC_ORMS)%set_info(                             &
                 name='vortrms',                                         &
                 long_name='root-mean square vorticity',                 &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OCHAR) = netcdf_stat_info(                       &
+            call nc_dset(NC_OCHAR)%set_info(                            &
                 name='vorch',                                           &
                 long_name='characteristic vorticity',                   &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OXMEAN) = netcdf_stat_info(                      &
+            call nc_dset(NC_OXMEAN)%set_info(                           &
                 name='x_vormean',                                       &
                 long_name='mean x-vorticity',                           &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OYMEAN) = netcdf_stat_info(                      &
+            call nc_dset(NC_OYMEAN)%set_info(                           &
                 name='y_vormean',                                       &
                 long_name='mean y-vorticity',                           &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OZMEAN) = netcdf_stat_info(                      &
+            call nc_dset(NC_OZMEAN)%set_info(                           &
                 name='z_vormean',                                       &
                 long_name='mean z-vorticity',                           &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OXMIN) = netcdf_stat_info(                       &
+            call nc_dset(NC_OXMIN)%set_info(                            &
                 name='x_vormin',                                        &
                 long_name='min x-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OYMIN) = netcdf_stat_info(                       &
+            call nc_dset(NC_OYMIN)%set_info(                            &
                 name='y_vormin',                                        &
                 long_name='min y-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OZMIN) = netcdf_stat_info(                       &
+            call nc_dset(NC_OZMIN)%set_info(                            &
                 name='z_vormin',                                        &
                 long_name='min z-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OXMAX) = netcdf_stat_info(                       &
+            call nc_dset(NC_OXMAX)%set_info(                            &
                 name='x_vormax',                                        &
                 long_name='max x-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OYMAX) = netcdf_stat_info(                       &
+            call nc_dset(NC_OYMAX)%set_info(                            &
                 name='y_vormax',                                        &
                 long_name='max y-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_OZMAX) = netcdf_stat_info(                       &
+            call nc_dset(NC_OZMAX)%set_info(                            &
                 name='z_vormax',                                        &
                 long_name='max z-vorticity',                            &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_HEMAX) = netcdf_stat_info(                       &
+            call nc_dset(NC_HEMAX)%set_info(                            &
                 name='enxy_max',                                        &
                 long_name='max horizontal enstrophy',                   &
                 std_name='',                                            &
                 unit='1/s',                                             &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_GMAX) = netcdf_stat_info(                        &
+            call nc_dset(NC_GMAX)%set_info(                             &
                 name='gmax',                                            &
                 long_name='maximum gamma',                              &
                 std_name='',                                            &
@@ -495,7 +489,7 @@ module field_diagnostics_netcdf
                 dtype=NF90_DOUBLE)
 
 #ifndef ENABLE_SMAGORINSKY
-            nc_dset(NC_RGMAX) = netcdf_stat_info(                       &
+            call nc_dset(NC_RGMAX)%set_info(                            &
                 name='rolling_mean_gmax',                               &
                 long_name='rolling mean maximum gamma',                 &
                 std_name='',                                            &
@@ -503,42 +497,42 @@ module field_diagnostics_netcdf
                 dtype=NF90_DOUBLE)
 #endif
 
-            nc_dset(NC_RIMIN) = netcdf_stat_info(                       &
+            call nc_dset(NC_RIMIN)%set_info(                            &
                 name='ri_min',                                          &
                 long_name='minimum Richardson number',                  &
                 std_name='',                                            &
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_ROMIN) = netcdf_stat_info(                       &
+            call nc_dset(NC_ROMIN)%set_info(                            &
                 name='ro_min',                                          &
                 long_name='minimum Rossby number',                      &
                 std_name='',                                            &
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_KEXY) = netcdf_stat_info(                        &
+            call nc_dset(NC_KEXY)%set_info(                             &
                 name='kexy',                                            &
                 long_name='domain-averaged horizontal kinetic energy',  &
                 std_name='',                                            &
                 unit='m^2/s^2',                                         &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_KEZ) = netcdf_stat_info(                         &
+            call nc_dset(NC_KEZ)%set_info(                              &
                 name='kez',                                             &
                 long_name='domain-averaged vertical kinetic energy',    &
                 std_name='',                                            &
                 unit='m^2/s^2',                                         &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_ENXY) = netcdf_stat_info(                        &
+            call nc_dset(NC_ENXY)%set_info(                             &
                 name='enxy',                                            &
                 long_name='domain-averaged horizontal enstrophy',       &
                 std_name='',                                            &
                 unit='1/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_ENZ) = netcdf_stat_info(                         &
+            call nc_dset(NC_ENZ)%set_info(                              &
                 name='enz',                                             &
                 long_name='domain-averaged vertical enstrophy',         &
                 std_name='',                                            &
@@ -546,28 +540,28 @@ module field_diagnostics_netcdf
                 dtype=NF90_DOUBLE)
 
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_APE) = netcdf_stat_info(                         &
+            call nc_dset(NC_APE)%set_info(                              &
                 name='ape',                                             &
                 long_name='domain-averaged available potential energy', &
                 std_name='',                                            &
                 unit='m^2/s^2',                                         &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_BMIN) = netcdf_stat_info(                        &
+            call nc_dset(NC_BMIN)%set_info(                             &
                 name='min_buoyancy',                                    &
                 long_name='minimum buoyancy',                           &
                 std_name='',                                            &
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_BMAX) = netcdf_stat_info(                        &
+            call nc_dset(NC_BMAX)%set_info(                             &
                 name='max_buoyancy',                                    &
                 long_name='maximum buoyancy',                           &
                 std_name='',                                            &
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
-            nc_dset(NC_MSS) = netcdf_stat_info(                         &
+            call nc_dset(NC_MSS)%set_info(                              &
                 name='minimum_static_stability',                        &
                 long_name='minimum static stability',                   &
                 std_name='',                                            &
@@ -575,28 +569,28 @@ module field_diagnostics_netcdf
                 dtype=NF90_DOUBLE)
 
             if (output%l_balanced) then
-                nc_dset(NC_KEBAL) = netcdf_stat_info(                       &
+                call nc_dset(NC_KEBAL)%set_info(                            &
                     name='kebal',                                           &
                     long_name='domain-averaged balanced kinetic energy',    &
                     std_name='',                                            &
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
 
-                nc_dset(NC_KEUBAL) = netcdf_stat_info(                      &
+                call nc_dset(NC_KEUBAL)%set_info(                           &
                     name='keubal',                                          &
                     long_name='domain-averaged imbalanced kinetic energy',  &
                     std_name='',                                            &
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
 
-                nc_dset(NC_APEBAL) = netcdf_stat_info(                      &
+                call nc_dset(NC_APEBAL)%set_info(                           &
                     name='apebal',                                          &
                     long_name='domain-averaged balanced APE',               &
                     std_name='',                                            &
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
 
-                nc_dset(NC_APEUBAL) = netcdf_stat_info(                     &
+                call nc_dset(NC_APEUBAL)%set_info(                          &
                     name='apeubal',                                         &
                     long_name='domain-averaged imbalanced APE',             &
                     std_name='',                                            &
