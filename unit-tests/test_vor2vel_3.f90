@@ -86,7 +86,7 @@ contains
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_dp('Test vor2vel ' // grid_type, error, atol=1.4e-15)
+            call print_result_dp('Test vor2vel ' // grid_type, error, atol=1.4d-15)
         endif
 
         deallocate(z)

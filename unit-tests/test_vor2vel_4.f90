@@ -88,7 +88,7 @@ contains
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_dp('Test vor2vel', error, atol=1.3e-15)
+            call print_result_dp('Test vor2vel', error, atol=1.3d-15)
         endif
 
         deallocate(z)

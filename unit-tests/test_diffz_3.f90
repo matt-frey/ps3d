@@ -87,7 +87,7 @@ contains
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_dp('Test diffz 3 ' // grid_type, error, atol=5.0e-12)
+            call print_result_dp('Test diffz 3 ' // grid_type, error, atol=5.0d-12)
         endif
 
         deallocate(fp)
