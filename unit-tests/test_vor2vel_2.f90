@@ -101,7 +101,7 @@ program test_vor2vel_2
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test vor2vel', error, atol=1.2e-2)
+        call print_result_dp('Test vor2vel', error, atol=1.2d-2)
     endif
 
     deallocate(vel_ref)

@@ -95,7 +95,7 @@ program test_omp_collapse
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test OMP collapse', error, atol=1.0e-15)
+        call print_result_dp('Test OMP collapse', error, atol=1.0d-15)
     endif
 
     call mpi_env_finalise
