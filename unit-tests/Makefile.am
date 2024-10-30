@@ -45,6 +45,7 @@ unittests_PROGRAMS =   		\
         test_clenshaw_3		\
         test_integrate		\
         test_zfilter		\
+        test_cheb_poly		\
         test_crank_nicolson	\
         test_crank_nicolson_1	\
         test_crank_nicolson_2	\
@@ -113,6 +114,9 @@ test_integrate_LDADD = libcombi.la
 
 test_zfilter_SOURCES = unit_test.f90 test_zfilter.f90
 test_zfilter_LDADD = libcombi.la
+
+test_cheb_poly_SOURCES = unit_test.f90 test_cheb_poly.f90
+test_cheb_poly_LDADD = libcombi.la
 
 test_crank_nicolson_SOURCES = unit_test.f90 test_crank_nicolson.f90
 test_crank_nicolson_LDADD = libcombi.la
