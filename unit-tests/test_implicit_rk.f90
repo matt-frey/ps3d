@@ -12,7 +12,7 @@
 ! =============================================================================
 program test_implicit_rk
     use unit_test
-    use options, only : viscosity
+    use options, only : vor_visc
     use constants, only : zero, one, f12
     use parameters, only : lower, update_parameters, nx, ny, nz, extent
     use fields
@@ -37,8 +37,8 @@ program test_implicit_rk
     call register_timer('vorticity', vor2vel_timer)
     call register_timer('vtend', vtend_timer)
 
-    viscosity%nnu = 3
-    viscosity%prediss = 30
+    vor_visc%nnu = 3
+    vor_visc%prediss = 30
 
     nx = 32
     ny = 32
@@ -67,12 +67,12 @@ program test_implicit_rk
         src = one
         svorts = src
 
-        diss = one
+        vdiss = one
 
-        ed = dexp(-time_step * diss)
+        ed = dexp(-time_step * vdiss)
         do nc = 1, 3
             do iz = 0, nz
-                ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / diss
+                ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / vdiss
             enddo
         enddo
 
@@ -117,7 +117,7 @@ program test_implicit_rk
             dt6 = dt / 6.0d0
 
             ! set integrating factors
-            emq = dexp(- dt2 * diss)
+            emq = dexp(- dt2 * vdiss)
             epq = 1.0d0 / emq
 
             qdi = svor

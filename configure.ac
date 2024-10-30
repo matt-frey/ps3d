@@ -333,21 +333,6 @@ else
     AC_MSG_RESULT([no])
 fi
 
-ENABLE_SMAGORINSKY='no'
-AC_ARG_ENABLE([smagorinsky],
-              [AS_HELP_STRING([--enable-smagorinsky], [enable Smagorinsky diffusion (default=no)])],
-              [ENABLE_SMAGORINSKY=$enableval])
-
-AM_CONDITIONAL([ENABLE_SMAGORINSKY], [test "$ENABLE_SMAGORINSKY" = "yes"])
-
-AC_MSG_CHECKING([whether we are compiling with Smagorinsky diffusion])
-if test "x$ENABLE_SMAGORINSKY" = "xyes"; then
-    AC_MSG_RESULT([yes])
-    FCFLAGS="$FCFLAGS -DENABLE_SMAGORINSKY"
-else
-    AC_MSG_RESULT([no])
-fi
-
 ENABLE_BUOYANCY='no'
 AC_ARG_ENABLE([buoyancy],
               [AS_HELP_STRING([--enable-buoyancy], [enable buoyancy mode (default=no)])],

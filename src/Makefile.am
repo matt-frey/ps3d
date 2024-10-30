@@ -16,6 +16,7 @@ ps3d_SOURCES = 					\
 	inversion/inversion_utils.f90		\
 	inversion/diffusion.f90			\
 	fields/fields.f90			\
+	fields/fields_derived.f90		\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
 
@@ -25,19 +26,12 @@ endif
 
 ps3d_SOURCES +=					\
 	fields/field_diagnostics_netcdf.f90	\
-	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
 	stepper/advance.f90			\
 	stepper/cn2.f90				\
-	stepper/ls_rk.f90
-
-if !ENABLE_SMAGORINSKY
-ps3d_SOURCES += stepper/impl_rk4.f90
-endif
-
-
-ps3d_SOURCES += ps3d.f90
+	stepper/impl_rk4.f90			\
+	ps3d.f90
 
 ps3d_LDADD = 						\
 	$(top_builddir)/src/utils/libps_utils.la 	\
@@ -53,7 +47,6 @@ ps3d_LDADD = 						\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
-	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
 	genspec.f90
@@ -72,7 +65,6 @@ ps3d_LDADD = 						\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
-	smagorinsky.f90				\
 	inversion/inversion.f90			\
 	utils/utils.f90				\
 	genspec2d.f90
@@ -88,7 +80,9 @@ beltrami_SOURCES = 				\
 	utils/parameters.f90			\
 	inversion/zops.f90			\
 	inversion/inversion_utils.f90   	\
+	inversion/diffusion.f90			\
 	fields/fields.f90			\
+	fields/fields_derived.f90		\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
 
@@ -98,7 +92,6 @@ endif
 
 beltrami_SOURCES += 				\
 	fields/field_diagnostics_netcdf.f90	\
-	smagorinsky.f90				\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
 	beltrami.f90
@@ -117,7 +110,6 @@ beltrami_LDADD = 					\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
-	smagorinsky.f90				\
         inversion/inversion.f90         	\
 	utils/utils.f90				\
 	production.f90

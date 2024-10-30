@@ -9,8 +9,9 @@ program ps3d
     use field_diagnostics_netcdf, only : field_stats_io_timer
     use inversion_mod, only : vor2vel_timer &
                             , vtend_timer   &
-                            , vor2vel       &
-                            , pres_timer
+                            , vor2vel
+    use fields_derived, only : pres_timer   &
+                             , delta_timer
     use inversion_utils, only : init_inversion, finalise_inversion
     use advance_mod, only : advance             &
                           , calc_vorticity_mean &
@@ -24,11 +25,8 @@ program ps3d
 #ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
 #endif
-    use ls_rk_mod, only : ls_rk
     use cn2_mod, only : cn2
-#ifndef ENABLE_SMAGORINSKY
     use impl_rk4_mod, only : impl_rk4
-#endif
     implicit none
 
     integer                          :: ps_timer
@@ -65,6 +63,7 @@ program ps3d
             call register_timer('vorticity tendency', vtend_timer)
             call register_timer('advance', advance_timer)
             call register_timer('pressure calculation', pres_timer)
+            call register_timer('horizontal divergence calculation', delta_timer)
 
             call start_timer(ps_timer)
 
@@ -89,20 +88,12 @@ program ps3d
             ! 27 March 2024
             ! https://stackoverflow.com/a/72958237
             select case (stepper)
-                case ('ls-rk4')
-                    call mpi_print('Using low-storage Runge-Kutta 4th order stepper.')
-                    bstep = ls_rk(rk_order=4)
-                case ('ls-rk3')
-                    call mpi_print('Using low-storage Runge-Kutta 3rd order stepper.')
-                    bstep = ls_rk(rk_order=3)
                 case ('cn2')
                     call mpi_print('Using Crank-Nicholson 2nd order stepper.')
                     bstep = cn2()
-#ifndef ENABLE_SMAGORINSKY
                 case ('impl-diff-rk4')
                     call mpi_print('Using implicit diffusion Runge-Kutta 4th order stepper.')
                     bstep = impl_rk4()
-#endif
                 case default
                     call mpi_stop("No stepper called '" // stepper // "' available.")
             end select

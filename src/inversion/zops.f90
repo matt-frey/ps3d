@@ -9,7 +9,10 @@ module zops
                          , lower
     use cheby ! Import Chebyshev module to set up various matrices needed below
     use sta3dfft, only : initialise_fft &
-                       , k2l2
+                       , k2l2           &
+                       , zfactors       &
+                       , ztrig
+    use stafft, only : dct
     implicit none
 
     private
@@ -34,7 +37,8 @@ module zops
             , zg                    &
             , zccw                  &
             , apply_zfilter         &
-            , d1z, d2z
+            , d1z, d2z              &
+            , cheb_poly
 
     contains
 
@@ -224,7 +228,7 @@ module zops
             double precision                :: fstop(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             ! get Chebyshev coefficients
-            call grid_to_cheb(fs, coeffs)
+            call cheb_poly(fs, coeffs)
 
             ! apply filter on coefficients
             do iz = 0, nz
@@ -243,35 +247,43 @@ module zops
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Input:
-        ! f_values - a vector of length N+1 containing function values at Chebyshev extrema points
+        ! fs - a vector of length N+1 containing function values at Chebyshev nodes in [-1, 1]
         ! Output:
         ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
-        subroutine grid_to_cheb(fs, c)
+        subroutine cheb_poly(fs, c)
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision              :: sum_term(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                       :: k, j
+            integer                       :: kx, ky
+            double precision              :: valsUnitDisc(0:2*nz)
 
             ! Initialize the coefficients vector
-            c = zero
+            c = fs
 
-            ! Compute the coefficients
-            do k = 0, nz
-                sum_term = zero
-                do j = 0, nz
-                    sum_term = sum_term + fs(j, :, :) * cos(pi * k * j / dble(nz))
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+
+                    ! String out values into values on equally spaced theta grid:
+                    ! valsUnitDisc = [fvals ; flipud(fvals(2:end-1))];
+                    valsUnitDisc(0:nz) = fs(0:nz, ky, kx)
+                    valsUnitDisc(nz+1:) = fs(2:nz-1, ky, kx)
+                    call flipud(valsUnitDisc(nz+1:))
+
+
+
+!                     c(:, ky, kx) =
+
+                    ! Forward cosine transform:
+                    call dct(1, 2*nz, valsUnitDisc(0:2*nz), ztrig, zfactors)
+                    c(0:nz, ky, kx) = valsUnitDisc(0:nz)
+
+                    ! Get Chebyshev coefficients:
+                    c(:,  ky, kx) =       c(:,  ky, kx) / dble(nz)
+                    c(0,  ky, kx) = f12 * c(0,  ky, kx)
+                    c(nz, ky, kx) = f12 * c(nz, ky, kx)
                 enddo
-
-                if (k == 0) then
-                    c(k, :, :) = sum_term / dble(nz)
-                else
-                    c(k, :, :) = two * sum_term / dble(nz)
-                endif
             enddo
 
-            c(nz, :, :) = f12 * c(nz, :, :)
-
-        end subroutine grid_to_cheb
+        end subroutine cheb_poly
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -282,7 +294,7 @@ module zops
         subroutine cheb_eval(fs, c)
             double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(in)    :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                         :: i, j, kx, ky
+            integer                         :: kx, ky
 
             ! Compute fs = tm * c using matrix multiplication
             do kx = box%lo(1), box%hi(1)
@@ -292,5 +304,55 @@ module zops
             enddo
 
         end subroutine cheb_eval
+
+
+!         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+!
+!         ! Given N+1 coefficients of the Chebyshev series
+!         ! Returns f(x) evaluated at the N+1 chebyshev nodes in [-1,1];
+!         subroutine cheb_fun(c, fs)
+!             double precision, intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+!             double precision, intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+!             integer                       :: kx, ky
+!
+!
+!             do kx = box%lo(1), box%hi(1)
+!                 do ky = box%lo(2), box%hi(2)
+!                     fs(0,      ky, kx) = two * c(0,      ky, kx)
+!                     fs(1:nz-1, ky, kx) =       c(1:nz-1, ky, kx)
+!                     fs(nz,     ky, kx) = two * c(nz,     ky, kx)
+!                     fs(:,      ky, kx) = nz  * fs(:,     ky, kx)
+!
+!                     !
+!                     ! FourierCoeffs = [ChebC; flipud(ChebC(2:n))];
+!                     !
+!
+!
+!                     ! Backward (i.e. inverse) cosine transform:
+!                     call dct(1, nz, fs(0:nz, ky, kx), ztrig, zfactors)
+!
+!                     ! Get Chebyshev coefficients:
+!                     ! fvals = fvals(1:n+1);
+!                 enddo
+!             enddo
+!
+!         end subroutine cheb_fun
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Flip the vertical direction
+        subroutine flipud(fs)
+            double precision, intent(inout) :: fs(0:nz)
+            double precision                :: gs
+            integer                         :: iz, n
+
+            n = int(nz / 2)
+            do iz = 0, n
+                gs = fs(iz)
+                fs(iz) = fs(nz - iz)
+                fs(nz - iz) = gs
+            enddo
+
+        end subroutine flipud
 
 end module zops

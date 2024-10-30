@@ -26,7 +26,7 @@ program test_integrate
 
     double precision :: integral_approx, exact_integral
     double precision :: rsum, error, x, y, z
-    integer          :: n, ix, iy, iz
+    integer          :: ix, iy, iz
     double precision, allocatable :: f(:, :, :)
 
     call mpi_env_initialise

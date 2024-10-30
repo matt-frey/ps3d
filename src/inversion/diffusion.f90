@@ -1,10 +1,10 @@
 module diffusion
     use mpi_environment, only : world
-    use options, only : viscosity
     use parameters, only : nz, extent, lower, upper
     use constants, only : zero, f13, f12, one
     use mpi_layout, only : box
     use sta3dfft, only : initialise_fft &
+                       , finalise_fft   &
                        , rkx            &
                        , rky            &
                        , k2l2
@@ -13,29 +13,49 @@ module diffusion
                    , zg                 &
                    , d1z                &
                    , zcheb
+    use options, only : vor_visc
+#ifdef ENABLE_BUOYANCY
+    use options, only : buoy_visc
+#endif
+    use mpi_utils, only : mpi_stop
     implicit none
 
     private
 
     logical :: l_hdis_initialised = .false.
 
-    ! Spectral dissipation operator
-    double precision, allocatable :: hdis(:, :)
+    ! Spectral dissipation operator for vorticity
+    double precision, allocatable :: vhdis(:, :)
+
+#ifdef ENABLE_BUOYANCY
+    ! Spectral dissipation operator for buoyancy
+    double precision, allocatable :: bhdis(:, :)
+#endif
+
+    double precision :: vvisc
+#ifdef ENABLE_BUOYANCY
+    double precision :: bvisc
+#endif
 
     ! Vertically varying viscosity
     double precision, allocatable :: visc(:)
 
-    public :: init_diffusion    &
-            , apply_zdiffusion  &
-            , hdis              &
+    public :: init_diffusion        &
+            , finalise_diffusion    &
+            , apply_zdiffusion      &
+            , vhdis                 &
+#ifdef ENABLE_BUOYANCY
+            , bhdis                 &
+            , bvisc                 &
+#endif
+            , vvisc                 &
             , visc
 
     contains
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_diffusion(bbdif, te, en)
-            double precision, intent(in) :: bbdif ! (bbdif = max(b) - min(b) at t = 0):
+        subroutine init_diffusion(te, en)
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
             double precision             :: rkxmax, rkymax, K2max
@@ -48,7 +68,6 @@ module diffusion
 
             l_hdis_initialised = .true.
 
-            allocate(hdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
             allocate(visc(0:nz))
 
             !------------------------------------------------------------------
@@ -68,7 +87,7 @@ module diffusion
             ! Define viscosity:
             K2max = max(rkxmax, rkymax) ** 2
             wfac = one / K2max
-            hvisc = viscosity%prediss *  (K2max * te /en) ** f13 * wfac ** viscosity%nnu
+            hvisc = vor_visc%prediss *  (K2max * te /en) ** f13 * wfac ** vor_visc%nnu
 
             !------------------------------------------------------------------
             ! N(z) = tanh((z-z_min)/delta) * tanh((z_max-z)/delta)
@@ -90,35 +109,90 @@ module diffusion
                 visc(iz) = hvisc * visc(iz)
             enddo
 
+            vvisc = get_viscosity(vor_visc%length_scale, &
+                                  vor_visc%prediss,      &
+                                  vor_visc%nnu, te, en)
+
+            allocate(vhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            call init_dissipation('Vorticity', vvisc, vor_visc%nnu, vhdis)
+
+#ifdef ENABLE_BUOYANCY
+            bvisc = get_viscosity(buoy_visc%length_scale, &
+                                  buoy_visc%prediss,      &
+                                  buoy_visc%nnu, te, en)
+
+            allocate(bhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            call init_dissipation('Buoyancy', bvisc, buoy_visc%nnu, bhdis)
+#endif
+
+        end subroutine init_diffusion
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        function get_viscosity(lscale, prediss, p, te, en) result(vis)
+            character(len=11), intent(in) :: lscale
+            double precision,  intent(in) :: prediss
+            integer,           intent(in) :: p
+            double precision,  intent(in) :: te ! total energy
+            double precision,  intent(in) :: en ! enstrophy
+            double precision              :: rkmsi, vis
+            double precision              :: rkxmax, rkymax, K2max
+
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+
+
+            ! Define viscosity:
+            K2max = max(rkxmax, rkymax) ** 2
+            rkmsi = one / K2max
+
+            select case (lscale)
+                case ('Kolmogorov')
+                    vis = prediss *  (K2max * te /en) ** f13 * rkmsi ** p
+                case ('geophysical')
+                    vis = prediss * rkmsi ** p
+                case default
+                    call mpi_stop(&
+                        "We only support 'Kolmogorov' or 'geophysical'")
+            end select
+
+        end function get_viscosity
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine init_dissipation(label, visc, p, hdis)
+            character(len=*), intent(in)  :: label
+            double precision, intent(in)  :: visc
+            integer,          intent(in)  :: p
+            double precision, intent(out) :: hdis(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
 
             !---------------------------------------------------------------------
             ! Damping, viscous or hyperviscous:
-            if (viscosity%nnu .eq. 1) then
+            if (p .eq. 1) then
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Molecular viscosity nu = ', hvisc
+                    write(*,'(a,1p,e14.7)') label // ' molecular viscosity nu = ', visc
                 endif
 
                 !Define spectral dissipation operator:
                 !$omp parallel workshare
-                hdis = hvisc * k2l2
+                hdis = visc * k2l2
                 !$omp end parallel workshare
              else
                 !Define hyperviscosity:
                 if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') ' Hyperviscosity nu = ', hvisc
+                    write(*,'(a,1p,e14.7)') label // ' hyperviscosity nu = ', visc
                 endif
 
                 !Define dissipation operator:
                 !$omp parallel workshare
-                hdis = hvisc * k2l2 ** viscosity%nnu
+                hdis = visc * k2l2 ** p
                 !$omp end parallel workshare
-
-                if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                    !Ensure average is not modified by hyperviscosity:
-                    hdis(0, 0) = zero
-                endif
              endif
-        end subroutine init_diffusion
+
+        end subroutine init_dissipation
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -162,7 +236,10 @@ module diffusion
         subroutine finalise_diffusion
 
             if (l_hdis_initialised) then
-                deallocate(hdis)
+                deallocate(vhdis)
+#ifdef ENABLE_BUOYANCY
+                deallocate(bhdis)
+#endif
                 deallocate(visc)
                 l_hdis_initialised = .false.
             endif

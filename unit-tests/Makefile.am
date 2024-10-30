@@ -12,7 +12,6 @@ AM_LDFLAGS =                                   	\
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fft/*.o          	\
         $(top_builddir)/src/fields/*.o          \
-        $(top_builddir)/src/smagorinsky.o	\
         $(top_builddir)/src/inversion/*.o
 
 noinst_LTLIBRARIES = libcombi.la
@@ -49,11 +48,8 @@ unittests_PROGRAMS =   		\
         test_crank_nicolson	\
         test_crank_nicolson_1	\
         test_crank_nicolson_2	\
-        test_crank_nicolson_3
-
-if ! ENABLE_SMAGORINSKY
-unittests_PROGRAMS += test_implicit_rk
-endif
+        test_crank_nicolson_3	\
+	test_implicit_rk
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -130,7 +126,5 @@ test_crank_nicolson_2_LDADD = libcombi.la
 test_crank_nicolson_3_SOURCES = unit_test.f90 test_crank_nicolson_3.f90
 test_crank_nicolson_3_LDADD = libcombi.la
 
-if ! ENABLE_SMAGORINSKY
 test_implicit_rk_SOURCES = unit_test.f90 test_implicit_rk.f90
 test_implicit_rk_LDADD = libcombi.la
-endif

@@ -1,13 +1,15 @@
 module advance_mod
-    use options, only : time, viscosity, stepper
+    use options, only : time, visc_type, vor_visc, stepper
 #ifdef ENABLE_VERBOSE
     use options, only : output
 #endif
     use constants
     use parameters, only : nx, ny, nz, ncelli
-    use inversion_mod, only : vor2vel, source, pressure
+    use inversion_mod, only : vor2vel, source
+    use fields_derived, only : pressure, horizontal_divergence
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
+    use options, only : buoy_visc
 #endif
     use inversion_utils
     use utils, only : write_step
@@ -20,30 +22,27 @@ module advance_mod
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic        &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR         &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
-                                       , NC_GMAX, NC_RGMAX
-#ifndef ENABLE_SMAGORINSKY
+                                       , NC_GMAX, NC_RGMAX, NC_RBFMAX       &
+                                       , NC_BFMAX, NC_UMAX, NC_VMAX         &
+                                       , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
-#endif
     implicit none
 
     type, abstract :: base_stepper
         contains
-#ifndef ENABLE_SMAGORINSKY
             procedure(base_diffusion),  deferred :: set_diffusion
-#endif
             procedure(base_setup),      deferred :: setup
             procedure(base_step),       deferred :: step
     end type
 
     abstract interface
-#ifndef ENABLE_SMAGORINSKY
-        subroutine base_diffusion(self, dt, vorch)
+        subroutine base_diffusion(self, dt, vorch, bf)
             import base_stepper
             class(base_stepper), intent(inout) :: self
             double precision,    intent(in)    :: dt
             double precision,    intent(in)    :: vorch
+            double precision,    intent(in)    :: bf
         end subroutine base_diffusion
-#endif
 
         subroutine base_setup(self)
             import base_stepper
@@ -59,14 +58,17 @@ module advance_mod
 
     end interface
 
-#ifndef ENABLE_SMAGORINSKY
     type(rolling_mean_t) :: rollmean
-#endif
+    type(rolling_mean_t) :: buoy_rollmean
 
     integer :: advance_timer
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax, velmax
+    double precision :: usggmax, lsggmax, rmv
+#ifdef ENABLE_BUOYANCY
+    double precision :: rmb
+#endif
     double precision :: vorch
     integer          :: ix, iy, iz
 
@@ -132,15 +134,13 @@ module advance_mod
             double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                           box%lo(1):box%hi(1)) ! dw/dy in physical space
             double precision                :: vormean(3)
-            double precision                :: buf(5+nz)
+            double precision                :: buf(7+nz)
             double precision                :: umax, vmax, wmax(0:nz), dtcfl, dz
+            double precision                :: vval, bval, lmax
             integer                         :: iz
 #ifdef ENABLE_VERBOSE
             logical                         :: l_exist = .false.
             character(512)                  :: fname
-#endif
-#ifndef ENABLE_SMAGORINSKY
-            double precision                :: rm
 #endif
 
             bfmax = zero
@@ -213,9 +213,12 @@ module advance_mod
             call diffy(svel(:, :, :, 3), ys)
             call fftxys2p(ys, dwdy)
 
+
             ! find largest stretch -- this corresponds to largest
             ! eigenvalue over all local symmetrised strain matrices.
             ggmax = epsilon(ggmax)
+            usggmax = zero
+            lsggmax = zero
             do ix = box%lo(1), box%hi(1)
                 do iy = box%lo(2), box%hi(2)
                     do iz = 0, nz
@@ -255,13 +258,25 @@ module advance_mod
                         call jacobi_eigenvalues(strain, eigs)
 
                         ! we must take the largest eigenvalue in magnitude (absolute value)
-                        ggmax = max(ggmax, maxval(abs(eigs)))
+                        lmax = maxval(abs(eigs))
+                        ggmax = max(ggmax, lmax)
+
+                        if (iz == nz) then
+                            usggmax = max(usggmax, lmax)
+                        endif
+
+                        if (iz == 0) then
+                            lsggmax = max(lsggmax, lmax)
+                        endif
                     enddo
                 enddo
             enddo
 
             ! Pressure calculation:
             call pressure(dudx, dudy, dvdy, dwdx, dwdy)
+
+            ! Horizontal divergence calculation:
+            call horizontal_divergence
 
             !Maximum speed:
             !$omp parallel workshare
@@ -276,11 +291,13 @@ module advance_mod
             buf(2) = ggmax
             buf(3) = umax
             buf(4) = vmax
-            buf(5:) = wmax
+            buf(5:5+nz) = wmax
+            buf(6+nz) = usggmax
+            buf(7+nz) = lsggmax
 
             call MPI_Allreduce(MPI_IN_PLACE,            &
-                               buf(1:5+nz),             &
-                               5+nz,                    &
+                               buf(1:7+nz),             &
+                               7+nz,                    &
                                MPI_DOUBLE_PRECISION,    &
                                MPI_MAX,                 &
                                world%comm,              &
@@ -290,9 +307,19 @@ module advance_mod
             ggmax = buf(2)
             umax = buf(3)
             vmax = buf(4)
-            wmax = buf(5:)
+            wmax = buf(5:5+nz)
+            usggmax = buf(6+nz)
+            lsggmax = buf(7+nz)
 
+            call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
             call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
+            call set_netcdf_field_diagnostic(umax, NC_UMAX)
+            call set_netcdf_field_diagnostic(vmax, NC_VMAX)
+            lmax = maxval(wmax)
+            call set_netcdf_field_diagnostic(lmax, NC_WMAX)
+            call set_netcdf_field_diagnostic(usggmax, NC_USGMAX)
+            call set_netcdf_field_diagnostic(lsggmax, NC_LSGMAX)
+
 
             ! vertical CFL condition
             dtcfl = huge(0.0d0)
@@ -332,23 +359,61 @@ module advance_mod
             endif
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
-            if (viscosity%pretype == 'constant') then
-                ! diffusivity is only controlled by viscosity: diss = -nu*(k^2+l^2)*dt/2
-                call bstep%set_diffusion(dt, one)
-            else if (viscosity%pretype == 'vorch') then
-                call bstep%set_diffusion(dt, vorch)
-            else if (viscosity%pretype == 'roll-mean-gmax') then
-                call rollmean%alloc(viscosity%roll_mean_win_size)
-                rm = rollmean%get_next(ggmax)
-                call set_netcdf_field_diagnostic(rm, NC_RGMAX)
-                call bstep%set_diffusion(dt, rm)
-            else
-                call mpi_stop(&
-                    "We only support characteristic vorticity 'vorch' or rolling mean 'roll-mean-gmax'")
-            endif
+            vval = zero
+            bval = zero
+
+#ifdef ENABLE_BUOYANCY
+            call buoy_rollmean%alloc(buoy_visc%roll_mean_win_size)
+            rmb = buoy_rollmean%get_next(bfmax)
+            call set_netcdf_field_diagnostic(rmb, NC_RBFMAX)
 #endif
 
+            call rollmean%alloc(vor_visc%roll_mean_win_size)
+            rmv = rollmean%get_next(ggmax)
+            call set_netcdf_field_diagnostic(rmv, NC_RGMAX)
+
+            vval = get_diffusion_pre_factor(vor_visc)
+
+#ifdef ENABLE_BUOYANCY
+
+            bval = get_diffusion_pre_factor(buoy_visc)
+#endif
+
+            call bstep%set_diffusion(dt, vval, bval)
+
         end subroutine adapt
+
+        !:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        function get_diffusion_pre_factor(visc) result(val)
+            type(visc_type),  intent(in) :: visc
+            double precision             :: val
+
+            select case (visc%pretype)
+                case ('constant')
+                    ! diffusion is only controlled by the viscosity: diss = -nu*(k^2+l^2)*dt/2
+                    val = one
+                case ('vorch')
+                    val = vorch
+                case ('bfmax')
+                    val = bfmax
+                case ('roll-mean-max-strain')
+                    val = rmv
+#ifdef ENABLE_BUOYANCY
+                case ('roll-mean-bfmax')
+                    val = rmb
+#endif
+                case ('max-strain')
+                    val = ggmax
+                case ('us-max-strain')
+                    val = usggmax
+                case default
+                    call mpi_stop(&
+                        "We only support 'constant', 'vorch', 'bfmax', " // &
+                        "'roll-mean-max-strain', 'roll-mean-bfmax', " // &
+                        "'max-strain' and us-max-strain")
+            end select
+
+        end function get_diffusion_pre_factor
 
 end module advance_mod

@@ -4,11 +4,10 @@
 program test_zfilter
     use unit_test
     use constants, only : zero, f12, one, pi, twopi, f14
-    use parameters, only : lower, nx, ny, nz, extent, hl &
-                         , update_parameters, center, upper
+    use parameters, only : lower, nx, ny, nz, extent &
+                         , update_parameters
     use fields
     use inversion_utils
-    use sta3dfft, only : k2l2
     use mpi_timer
     use mpi_environment
     use mpi_layout

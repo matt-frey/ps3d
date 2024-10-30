@@ -177,10 +177,13 @@ module netcdf_reader
 
             link_exists = (ncerr == nf90_noerr)
 
-            ncerr = nf90_inquire_variable(ncid, varid)
+            if (link_exists) then
+                ncerr = nf90_inquire_variable(ncid, varid)
+                link_exists = (ncerr == nf90_noerr)
+            endif
 
-            link_exists = (link_exists .and. (ncerr == nf90_noerr))
             ncerr = 0
+
         end function has_dataset
 
         subroutine read_netcdf_dataset_1d_integer(ncid, name, buffer, start, cnt)

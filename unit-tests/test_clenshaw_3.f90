@@ -19,8 +19,8 @@ program test_clenshaw
     implicit none
 
     double precision :: integral_approx, exact_integral
-    double precision :: rsum, f, error, z
-    integer          :: n, i
+    double precision :: rsum, f, error
+    integer          :: i
 
     call mpi_env_initialise
 
