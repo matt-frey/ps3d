@@ -254,7 +254,7 @@ module zops
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                       :: kx, ky
-            double precision              :: valsUnitDisc(0:2*nz)
+            double precision              :: valsUnitDisc(0:2*nz-2)
 
             ! Initialize the coefficients vector
             c = fs
@@ -265,15 +265,15 @@ module zops
                     ! String out values into values on equally spaced theta grid:
                     ! valsUnitDisc = [fvals ; flipud(fvals(2:end-1))];
                     valsUnitDisc(0:nz) = fs(0:nz, ky, kx)
-                    valsUnitDisc(nz+1:) = fs(2:nz-1, ky, kx)
-                    call flipud(valsUnitDisc(nz+1:))
 
+                    valsUnitDisc(nz+1:2*nz-2) = fs(2:nz-1, ky, kx)
+                    call flipud(valsUnitDisc(nz+1:))
 
 
 !                     c(:, ky, kx) =
 
                     ! Forward cosine transform:
-                    call dct(1, 2*nz, valsUnitDisc(0:2*nz), ztrig, zfactors)
+                    call dct(1, 2*nz-2, valsUnitDisc, ztrig, zfactors)
                     c(0:nz, ky, kx) = valsUnitDisc(0:nz)
 
                     ! Get Chebyshev coefficients:
@@ -340,17 +340,17 @@ module zops
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Flip the vertical direction
         subroutine flipud(fs)
-            double precision, intent(inout) :: fs(0:nz)
+            double precision, intent(inout) :: fs(0:)
             double precision                :: gs
-            integer                         :: iz, n
+            integer                         :: iz, n, m
 
-            n = int(nz / 2)
+            m = size(fs) - 1
+            n = int(m / 2)
             do iz = 0, n
                 gs = fs(iz)
-                fs(iz) = fs(nz - iz)
-                fs(nz - iz) = gs
+                fs(iz) = fs(m - iz)
+                fs(m - iz) = gs
             enddo
 
         end subroutine flipud
