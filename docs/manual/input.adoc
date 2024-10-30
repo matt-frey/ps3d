@@ -1,0 +1,87 @@
+== Input
+To run an PS3D simulation users must provide a <<sec_config_file>> and a field file in NetCDF format. The latter
+is listed inside the configuration file under the option `field_file`. You then simply type
+----
+$ ps3d --config input.config
+----
+in the terminal to start a simulation.
+
+
+=== Configuration File
+[#sec_config_file, reftext=Configuration file]
+A configuration file contains user-defined rutime options. Almost all parameters
+have default values that may be adapted to the number of spatial dimensions. The list of options and their
+recommended values are given in <<tab_configure_file>>.
+
+
+.PS3D input options and their default values.
+[#tab_configure_file, reftext=Table {counter:tab-cnt}]
+[cols="1,2,6"]
+|===
+|Parameter                  |Default                |Description
+
+|field_file                 |n/a                    |NetCDF input field file
+|field_step                 |-1 (last step)         |Which step to read in the `field_file`.
+
+|stepper                    |'impl-diff-rk4'        |Time integrator. Also `cn2`.
+
+|output%field_freq          |1                      |Write after these many seconds to the field NetCDF file
+|output%field_stats_freq    |1                      |Write after these many seconds to the field stats NetCDF file
+|output%write_fields        |.true.                 |Enable / disable field dump
+|output%write_field_stats   |.true.                 |Enable / disable field statistics dump
+|output%field_list          |n/a                    |Comma-separated list of gridded data to write +
+                                                     (e.g. 'x_vorticity', 'buoyancy').
+|output%overwrite           |.false.                |Replace existing NetCDF files
+|output%basename            |n/a                    |NetCDF output base name
+
+|filtering                  |'Hou & Li'             |De-aliasing filter. Also, '2/3-rule'
+|vor_visc%nnu               |n/a                    |If nnu = 1, this is molecular viscosity. +
+                                                     If nnu > 1, this is hyperviscosity.
+|vor_visc%pretype           |'roll-mean-max-strain' |Prefactor type to use: +
+                                                    - vorch / bfmax: characteristic vorticity / buoyancy frequency +
+                                                    - roll-mean-max-strain: rolling mean of gamma_max +
+                                                    - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax) +
+                                                    - constant: takes initial vorch or bfmax +
+                                                    - us-max-strain: takes the maximum upper surface strain +
+                                                    - max-strain: takes the maximum surface strain
+|vor_visc%roll_mean_win_size | 1000                 |Window size for the rolling mean approach
+
+|time%limit                 |0.0                    |Time limit (s)
+|time%alpha                 |0.1                    |Scaling factor for the strain and buoyancy gradient time step
+|time%precise_stop          |.false.                |Stop exactly at the time limit
+
+|===
+
+Note that there is also `buoy_visc` like `vor_visc` if buoyancy is enabled.
+
+=== NetCDF Field File
+The field file contains initial scalar fields and vector field components of a simulation. A list of supported
+fields is found in <<tab_supported_input_fields>>.
+
+.Supported input fields.
+[#tab_supported_input_fields, reftext=Table {counter:tab-cnt}]
+[cols="2,1,7"]
+|===
+|Field name     |Unit   |Description
+
+|x_vorticity    |1/s    |Zonal vorticity component
+|y_vorticity    |1/s    |Meridional vorticity component
+|z_vorticity    |1/s    |Vertical vorticity component
+|buoyancy       |m/s^2  |Buoyancy field (if compiled with `--enable-buoyancy`)
+|===
+
+
+=== How to run
+In the directory `examples` you can find configuration scripts. You first need to generate a field input file by
+running the Beltrami program providing a *.nml file, e.g.
+```
+$ beltrami --config beltrami32x32x32.nml
+```
+This will generate a field file in NetCDF format. The name of the file is specified in the *.nml file which is
+`beltrami_32x32x32.nc` in this example. After that you run PS3D by
+```
+$ ps3d --config beltrami_32.config
+```
+The NetCDF file is specified in the configuration file too. In order to restart a simulation from a previous
+simulation, you need to update `field_file` and add the step number input with `field_step` to the configuration
+file. Please see the file `beltrami_256_restart.config` in the `examples` directory for an example.

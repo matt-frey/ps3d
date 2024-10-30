@@ -19,11 +19,10 @@
 program test_crank_nicolson
     use unit_test
     use constants, only : zero, f12, one, two, pi, ten
-    use parameters, only : lower, nx, ny, nz, extent, hl &
-                         , update_parameters, center, upper
+    use parameters, only : lower, nx, ny, nz, extent &
+                         , update_parameters
     use fields
     use inversion_utils
-    use sta3dfft, only : k2l2
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -33,8 +32,8 @@ program test_crank_nicolson
 
     double precision, allocatable :: u(:), alpha_v(:), eye(:, :), Lm(:, :), Am(:, :), v(:)
     double precision, allocatable :: sol(:, :)
-    double precision              :: dt, k2
-    double precision              :: gavg, alpha_h, rk, fac, l1norm_initial, l1norm_final
+    double precision              :: dt, k2, alpha_h
+    double precision              :: l1norm_initial, l1norm_final
     integer                       :: iz, i, j, nt, info, nsave
     integer, allocatable          :: ipiv(:)
 
@@ -63,7 +62,7 @@ program test_crank_nicolson
     call update_parameters
 
     dt = 0.0025d0
-    nt = 1.0d0 / dt
+    nt = int(1.0d0 / dt)
 
     allocate(sol(0:int(nt/nsave), 0:nz))
 

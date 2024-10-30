@@ -8,7 +8,7 @@
 program test_diffz_1
     use unit_test
     use constants, only : zero, one, two, pi, f12
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, hl, center
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent, hl, center
     use inversion_utils
     use mpi_timer
     use mpi_environment

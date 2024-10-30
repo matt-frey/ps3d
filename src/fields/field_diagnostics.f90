@@ -311,6 +311,8 @@ module field_diagnostics
         end function get_min_richardson_number
 #endif
 
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         ! Ro = zeta / f (f is the vertical Coriolis frequency)
         function get_min_rossby_number(l_global) result(ro)
             logical, intent(in) :: l_global
@@ -324,6 +326,22 @@ module field_diagnostics
             endif
 
         end function get_min_rossby_number
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Ro = zeta / f (f is the vertical Coriolis frequency)
+        function get_max_rossby_number(l_global) result(ro)
+            logical, intent(in) :: l_global
+            double precision    :: ro
+
+            ro = maxval(vor(:, :, :, 3))
+            ro = ro / f_cor(3)
+
+            if (l_global) then
+                call mpi_blocking_reduce(ro, MPI_MAX, world)
+            endif
+
+        end function get_max_rossby_number
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

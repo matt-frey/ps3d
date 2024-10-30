@@ -23,6 +23,8 @@ module inversion_utils
                        , ytrig
     use sta2dfft, only : ptospc
     use zops
+    use options, only : filtering
+    use mpi_utils, only : mpi_print
     implicit none
 
     private
@@ -65,10 +67,6 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            integer          :: kx, ky, kz
-            double precision :: kxmaxi, kymaxi
-            double precision :: skx(box%lo(1):box%hi(1)), &
-                                sky(box%lo(2):box%hi(2))
 
             if (is_initialised) then
                 return
@@ -79,19 +77,18 @@ module inversion_utils
             call initialise_fft(extent)
 
             !----------------------------------------------------------
-            !Define Hou and Li filter in 2D:
+            !Define de-aliasing filter:
+
             allocate(filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-            kxmaxi = one / maxval(rkx)
-            skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
-            kymaxi = one/maxval(rky)
-            sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
-
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                     filt(ky, kx) = dexp(skx(kx) + sky(ky))
-               enddo
-            enddo
+            select case (filtering)
+                case ("Hou & Li")
+                    call init_hou_and_li_filter
+                case ("2/3-rule")
+                    call init_23rd_rule_filter
+                case default
+                    call init_hou_and_li_filter
+            end select
 
             !Ensure filter does not change domain mean:
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
@@ -104,7 +101,69 @@ module inversion_utils
 
         end subroutine init_inversion
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Define Hou and Li filter (2D and 3D):
+        subroutine init_hou_and_li_filter
+            integer          :: kx, ky
+            double precision :: kxmaxi, kymaxi
+            double precision :: skx(box%lo(1):box%hi(1)), &
+                                sky(box%lo(2):box%hi(2))
+
+            call mpi_print("Using Hou & Li de-aliasing filter.")
+
+            kxmaxi = one / maxval(rkx)
+            skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
+            kymaxi = one/maxval(rky)
+            sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
+
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    filt(ky, kx) = dexp(skx(kx) + sky(ky))
+                enddo
+            enddo
+
+        end subroutine init_hou_and_li_filter
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Define de-aliasing filter (2/3 rule):
+        subroutine init_23rd_rule_filter
+            integer          :: kx, ky
+            double precision :: rkxmax, rkymax
+            double precision :: skx(box%lo(1):box%hi(1)), &
+                                sky(box%lo(2):box%hi(2))
+
+            call mpi_print("Using 2/3-rule de-aliasing filter.")
+
+            rkxmax = maxval(rkx)
+            rkymax = maxval(rky)
+
+            do kx = box%lo(1), box%hi(1)
+                if (rkx(kx) <= f23 * rkxmax) then
+                    skx(kx) = one
+                else
+                    skx(kx) = zero
+                endif
+            enddo
+
+            do ky = box%lo(2), box%hi(2)
+                if (rky(ky) <= f23 * rkymax) then
+                    sky(ky) = one
+                else
+                    sky(ky) = zero
+                endif
+            enddo
+
+            ! Take product of 1d filters:
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                  filt(ky, kx) = skx(kx) * sky(ky)
+               enddo
+            enddo
+        end subroutine init_23rd_rule_filter
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine finalise_inversion
 

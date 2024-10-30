@@ -10,18 +10,10 @@ module inversion_mod
     use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, k2l2i
     use mpi_timer, only : start_timer, stop_timer
     use fields
-#ifdef ENABLE_SMAGORINSKY
-    use smagorinsky_mod, only : apply_smagorinsky
-#endif
-#if defined(ENABLE_BUOYANCY) && defined(ENABLE_SMAGORINSKY)
-    use smagorinsky_mod, only : apply_smagorinsky_buoyancy
-#endif
-!     use diffusion, only : visc
     implicit none
 
     integer :: vor2vel_timer,   &
-               vtend_timer,     &
-               pres_timer
+               vtend_timer
 
     contains
 
@@ -240,10 +232,6 @@ module inversion_mod
             ! Convert to mixed-spectral space:
             call fftxyp2s(btend, sbuoys)
 
-#ifdef ENABLE_SMAGORINSKY
-            call apply_smagorinsky_buoyancy
-#endif
-
         end subroutine buoyancy_tendency
 #endif
 
@@ -255,7 +243,7 @@ module inversion_mod
             double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
             double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-            integer          :: nc, iz
+            integer          :: nc
 
             call start_timer(vtend_timer)
 
@@ -330,121 +318,12 @@ module inversion_mod
             svorts(:, :, :, 3) = svorts(:, :, :, 3) - r
             !$omp end parallel workshare
 
-#ifdef ENABLE_SMAGORINSKY
-            !------------------------------------------------------------------
-            ! Add Smagorinsky diffusion to vorticity source (svorts):
-            call apply_smagorinsky
-#endif
-
 !             do nc = 1, 3
 !                 call apply_zfilter(svorts(:, :, :, nc))
 !             enddo
-
             call stop_timer(vtend_timer)
 
         end subroutine vorticity_tendency
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! Compute pressure with buoyancy anomaly b' (if --enable-buoyancy)
-        ! If buoyancy mode is disabled we solve:
-        ! Solves Lap(p) = R + f * zeta + b'_z with dp/dz = b' on each boundary where
-        ! R = 2[J_xy(u,v) + J_yz(v,w) + J_zx(w,u)) where J_ab(f,g) = f_a * g_b - f_b * g_a
-        ! is the Jacobian.
-        ! If buoyancy mode is enabled we solve:
-        ! Solves Lap(p) = R with dp/dz = 0 on each boundary
-        subroutine pressure(dudx, dudy, dvdy, dwdx, dwdy)
-            double precision, intent(in) :: dudx(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! du/dx in physical space
-            double precision, intent(in) :: dudy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! du/dy in physical space
-            double precision, intent(in) :: dvdy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dv/dy in physical space
-            double precision, intent(in) :: dwdx(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dw/dx in physical space
-            double precision, intent(in) :: dwdy(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dw/dy in physical space
-            double precision             :: dwdz(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1)) ! dw/dz in physical space
-            double precision             :: rs(0:nz, box%lo(2):box%hi(2),   &
-                                                     box%lo(1):box%hi(1))   ! rhs in spectral space
-#ifdef ENABLE_BUOYANCY
-            double precision             :: dbdz(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1))
-#endif
-            integer                      :: kx, ky
-
-            call start_timer(pres_timer)
-
-            !-------------------------------------------------------
-            ! Compute rhs (and store in pres) of Poisson equation to determine the pressure:
-            ! J_xy(u, v) = du/dx * dv/dy - du/dy * dv/dx
-            ! J_yz(v, w) = dv/dy * dw/dz - dv/dz * dw/dy
-            ! J_zx(w, u) = dw/dz * du/dx - dw/dx * du/dz
-            ! dv/dx = \zeta + du/dy
-            ! du/dz = \eta + dw/dx
-            ! dv/dz = dw/dy - \xi
-            ! dw/dz = - (du/dx + dv/dy)
-
-            !$omp parallel workshare
-            dwdz = - (dudx + dvdy)
-
-            pres = two * (dudx * dvdy - dudy * (vor(:, :, :, 3) + dudy)  + &
-                          dvdy * dwdz - dwdy * (dwdy - vor(:, :, :, 1))  + &
-                          dwdz * dudx - dwdx * (dwdx + vor(:, :, :, 2)))
-            !$omp end parallel workshare
-
-#ifdef ENABLE_BUOYANCY
-            call fftxys2p(sbuoy, buoy)
-            call zderiv(buoy, dbdz)
-            pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
-#endif
-
-            !-------------------------------------------------------
-            ! Transform to full spectral space:
-            call fftxyp2s(pres, rs)
-
-            !$omp parallel do collapse(2) private(kx, ky)
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    call dct(1, nz, rs(0:nz, ky, kx), ztrig, zfactors)
-                enddo
-            enddo
-            !$omp end parallel do
-
-            !-------------------------------------------------------
-            !Invert Laplacian:
-            ! FIXME
-!             !$omp parallel workshare
-!             rs = green * rs
-!             !$omp end parallel workshare
-
-            !-------------------------------------------------------
-            ! Transform to physical space:
-            !$omp parallel do collapse(2) private(kx, ky)
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    call dct(1, nz, rs(0:nz, ky, kx), ztrig, zfactors)
-                enddo
-            enddo
-            !$omp end parallel do
-
-! c #ifdef ENABLE_BUOYANCY
-! c             ! now in semi-spectral space, note k2l2i(0, 0) = 0
-! c             do kx = box%lo(1), box%hi(1)
-! c                 do ky = box%lo(2), box%hi(2)
-! c                     rs(:, ky, kx) = rs(:, ky, kx) &
-! c                                   + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
-! c                                   + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
-! c                 enddo
-! c             enddo
-! c #endif
-
-            call fftxys2p(rs, pres)
-
-            call stop_timer(pres_timer)
-
-        end subroutine pressure
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

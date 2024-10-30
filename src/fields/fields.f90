@@ -22,9 +22,6 @@ module fields
         svorts, &   ! vorticity source in mixed spectral space
         vortsm      ! used for time stepping
 
-    double precision, allocatable, dimension(:, :, :) :: &
-        pres        ! pressure field (physical space)
-
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
@@ -33,10 +30,9 @@ module fields
         bsm         ! used for time stepping
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
     double precision, allocatable, dimension(:, :) :: &
-        diss        ! dissipation operator
-#endif
+        vdiss,  &   ! dissipation operator
+        bdiss
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(3)
@@ -76,11 +72,8 @@ module fields
             allocate(bbarz(0:nz))
 #endif
 
-            allocate(pres(0:nz, lo(2):hi(2), lo(1):hi(1)))
-
-#ifndef ENABLE_SMAGORINSKY
-            allocate(diss(lo(2):hi(2), lo(1):hi(1)))
-#endif
+            allocate(vdiss(lo(2):hi(2), lo(1):hi(1)))
+            allocate(bdiss(lo(2):hi(2), lo(1):hi(1)))
 
             ! Spectral fields needed in time stepping:
             allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
@@ -106,11 +99,8 @@ module fields
             sbuoys = zero
             bsm    = zero
 #endif
-            pres   = zero
-
-#ifndef ENABLE_SMAGORINSKY
-            diss   = zero
-#endif
+            vdiss  = zero
+            bdiss  = zero
 
             ini_vor_mean = zero
         end subroutine field_default

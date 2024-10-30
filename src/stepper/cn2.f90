@@ -10,9 +10,11 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
-#ifndef ENABLE_SMAGORINSKY
-    use options, only : viscosity
-    use diffusion, only : hdis
+    use diffusion, only : vhdis
+    use options, only : vor_visc
+#ifdef ENABLE_BUOYANCY
+    use options, only : buoy_visc
+    use diffusion, only : bhdis
 #endif
     use advance_mod, only : base_stepper
     use constants, only : f12, one
@@ -25,9 +27,7 @@ module cn2_mod
 
     type, extends(base_stepper) :: cn2
         contains
-#ifndef ENABLE_SMAGORINSKY
             procedure :: set_diffusion => cn2_set_diffusion
-#endif
             procedure :: setup  => cn2_setup
             procedure :: step => cn2_step
     end type
@@ -39,15 +39,17 @@ module cn2_mod
 
     contains
 
-#ifndef ENABLE_SMAGORINSKY
-        subroutine cn2_set_diffusion(self, dt, vorch)
+        subroutine cn2_set_diffusion(self, dt, vorch, bf)
             class(cn2),       intent(inout) :: self
             double precision, intent(in)    :: dt
-            double precision, intent(in)    :: vorch
+            double precision, intent(in)    :: vorch, bf
             double precision                :: dfac
+#ifdef ENABLE_BUOYANCY
+            double precision                :: dbac
+#endif
 
             !---------------------------------------------------------------------
-            if (viscosity%nnu .eq. 1) then
+            if (vor_visc%nnu .eq. 1) then
                 !Update diffusion operator used in time stepping:
                 dfac = dt
             else
@@ -56,12 +58,27 @@ module cn2_mod
              endif
 
             !$omp parallel workshare
-            diss = one / (one + dfac * hdis)
+            vdiss = one / (one + dfac * vhdis)
             !$omp end parallel workshare
+
+#ifdef ENABLE_BUOYANCY
+
+            if (buoy_visc%nnu .eq. 1) then
+                !Update diffusion operator used in time stepping:
+                dbac = dt
+            else
+                !Update hyperdiffusion operator used in time stepping:
+                dbac = bf * dt
+             endif
+
+
+            !$omp parallel workshare
+            bdiss = one / (one + dbac * bhdis)
+            !$omp end parallel workshare
+#endif
             !(see inversion_utils.f90)
 
         end subroutine cn2_set_diffusion
-#endif
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -91,12 +108,10 @@ module cn2_mod
             !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
+            sbuoy = filt * (bsm + dt2 * sbuoys)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
-#ifndef ENABLE_SMAGORINSKY
-                sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-#endif
+                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
             enddo
             !$omp end parallel do
 #endif
@@ -108,12 +123,12 @@ module cn2_mod
 
             !$omp parallel do collapse(2) private(iz) default(shared)
             do nc = 1, 3
+                !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
                     svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
-#ifndef ENABLE_SMAGORINSKY
-                    svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-#endif
+                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                 enddo
+                !$omp end parallel do
             enddo
             !$omp end parallel do
 
@@ -132,24 +147,22 @@ module cn2_mod
 
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
+                sbuoy = filt * (bsm + dt2 * sbuoys)
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    sbuoy(iz, :, :) = filt * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
-#ifndef ENABLE_SMAGORINSKY
-                    sbuoy(iz, :, :) = diss * sbuoy(iz, :, :)
-#endif
+                    sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
                 enddo
                 !$omp end parallel do
 #endif
 
                 !$omp parallel do collapse(2) private(iz) default(shared)
                 do nc = 1, 3
+                    !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
                         svor(iz, :, :, nc) = filt * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
-#ifndef ENABLE_SMAGORINSKY
-                        svor(iz, :, :, nc) = diss * svor(iz, :, :, nc)
-#endif
+                        svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                     enddo
+                    !$omp end parallel do
                 enddo
                 !$omp end parallel do
 

@@ -1,0 +1,33 @@
+= PS3D - 3D Pseudo-spectral code
+Matthias Frey (Univ. of St Andrews); David G. Dritschel (Univ. of St Andrews);
+v@VERSION@
+:version-label: Version
+:page-layout: default
+:stem: latexmath
+:toc: left
+:sectnums:
+
+// 22 March 2022
+// https://github.com/badges/shields/issues/1104
+// https://stackoverflow.com/questions/68376464/asciidoctor-pdf-exclude-content-from-pdf-only
+ifeval::["{backend}" == "html5"]
+image:https://zenodo.org/badge/DOI/10.5281/zenodo.6979867.svg[Codeship, role="block image", link=https://doi.org/10.5281/zenodo.6979867]
+image:https://img.shields.io/github/license/matt-frey/ps3d.svg[Codeship, role="block image", link=https://github.com/matt-frey/ps3d/blob/main/LICENSE]
+endif::[]
+
+PS3D was originally developed to solve the Euler equations for an incompressible inviscid flow in a horizontally-
+periodic domain and confined between parallel free-slip (including shear) surfaces. We especially targeted the
+solution of Beltrami flows. Since version 0.0.7, PS3D is also able to simulate buoyancy-driven turbulent flows.
+
+
+include::installation.adoc[]
+
+include::conventions.adoc[]
+
+include::model.adoc[]
+
+include::input.adoc[]
+
+include::output.adoc[]
+
+include::citation.adoc[]

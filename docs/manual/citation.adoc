@@ -1,0 +1,14 @@
+== Citation
+The source code can be cited using the latest Zenodo DOI. A corresponding paper is published and can
+be cited using the BibTeX below. You can also find further information at https://doi.org/10.1017/jfm.2022.1007.
+```
+@article{Dritschel_Frey_2023,
+    title={The stability of inviscid {B}eltrami flow between parallel free-slip impermeable boundaries},
+    volume={954},
+    DOI={10.1017/jfm.2022.1007},
+    journal={Journal of Fluid Mechanics},
+    author={Dritschel, David and Frey, Matthias},
+    year={2023},
+    pages={A31}
+}
+```

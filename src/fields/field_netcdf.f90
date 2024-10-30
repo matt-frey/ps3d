@@ -5,6 +5,7 @@ module field_netcdf
     use netcdf_writer
     use netcdf_reader
     use fields
+    use fields_derived, only : pres, delta
     use config, only : package_version, cf_version
     use mpi_timer, only : start_timer, stop_timer
     use options, only : write_netcdf_options
@@ -37,17 +38,18 @@ module field_netcdf
                         , NC_X_VOR   = 4        &
                         , NC_Y_VOR   = 5        &
                         , NC_Z_VOR   = 6        &
-                        , NC_PRES    = 7
+                        , NC_PRES    = 7        &
+                        , NC_DELTA   = 8
 
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_BUOY    = 8
+    integer, parameter :: NC_BUOY    = 9
 
-    integer, parameter :: NC_BUOY_AN = 9
+    integer, parameter :: NC_BUOY_AN = 10
 
     type(netcdf_field_info) :: nc_dset(NC_BUOY_AN)
 
 #else
-    type(netcdf_field_info) :: nc_dset(NC_PRES)
+    type(netcdf_field_info) :: nc_dset(NC_DELTA)
 #endif
 
     public :: create_netcdf_field_file  &
@@ -221,7 +223,12 @@ module field_netcdf
             call write_field_double(NC_Z_VOR, vor(:, :, :, 3), start, cnt)
 
 
+            !
+            ! write derived fields
+            !
             call write_field_double(NC_PRES, pres, start, cnt)
+
+            call write_field_double(NC_DELTA, delta, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
             call fftxys2p(sbuoy, buoy)
@@ -545,6 +552,12 @@ module field_netcdf
                                            std_name='',                           &
                                            unit='m^2/s^2',                        &
                                            dtype=NF90_DOUBLE)
+
+            call nc_dset(NC_DELTA)%set_info(name='horizontal_divergence',         &
+                                            long_name='horizontal divergence',    &
+                                            std_name='',                          &
+                                            unit='1/s',                           &
+                                            dtype=NF90_DOUBLE)
 
 #ifdef ENABLE_BUOYANCY
             call nc_dset(NC_BUOY)%set_info(name='buoyancy',                       &

@@ -13,6 +13,7 @@ module utils
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : nx, ny, lower, extent, update_parameters, dx
     use fields
+    use fields_derived, only : field_derived_default
     use field_diagnostics
     use field_netcdf, only : read_netcdf_fields
     use physics, only : read_physical_quantities, print_physical_quantities
@@ -55,7 +56,6 @@ module utils
             double precision,  intent(in) :: t
 
             ! need to be called in order to set initial time step;
-            ! this is also needed for the first ls-rk4 substep
             call vor2vel
 
             call write_step(t, .true.)
@@ -136,19 +136,18 @@ module utils
         end subroutine setup_domain_and_parameters
 
         subroutine setup_fields
-            double precision :: bbdif, ke, ape, te, en
+            double precision :: ke, ape, te, en
 #ifdef ENABLE_BUOYANCY
             integer          :: iz
 #endif
 
             call field_default
+            call field_derived_default
 
             call read_netcdf_fields(trim(field_file), field_step)
 
             ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
-            bbdif = maxval(buoy) - minval(buoy)
-
             call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
 
             ! remove basic state from buoyancy
@@ -157,8 +156,6 @@ module utils
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
             call fftxyp2s(buoy, sbuoy)
-#else
-            bbdif = zero
 #endif
             call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
             call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
@@ -182,9 +179,7 @@ module utils
             en = en + get_gradb_integral(l_global=.true., l_allreduce=.true.)
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
-            call init_diffusion(bbdif, te, en)
-#endif
+            call init_diffusion(te, en)
 
         end subroutine setup_fields
 

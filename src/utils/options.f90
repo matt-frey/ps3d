@@ -4,7 +4,7 @@
 module options
     use constants, only : zero, one, two, pi, four, twopi
     use netcdf_writer
-    use mpi_utils, only : mpi_stop
+    use mpi_utils, only : mpi_stop, mpi_print
     implicit none
     !
     ! global options
@@ -21,7 +21,7 @@ module options
     character(len=512) :: filename = ''
 
     ! time integrator
-    character(len=16) :: stepper = 'impl-diff-rk4' ! 'ls-rk4', 'ls-rk3' or 'cn2'
+    character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
     !
     ! output options
     !
@@ -54,17 +54,30 @@ module options
         ! Note: nnu = 3 and prediss = 10 are recommended.
 
         ! Prefactor type to use:
-        ! - vorch: characteristic vorticity
-        ! - roll-mean-gmax: rolling mean of gamma_max
-        ! - constant: uses initial vorch
-        character(len=16) :: pretype = 'vorch'
+        ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
+        ! - roll-mean-max-strain: rolling mean of gamma_max
+        ! - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax)
+        ! - constant: takes initial vorch or bfmax
+        ! - us-max-strain: takes the maximum upper surface strain
+        ! - max-strain: takes the maximum surface strain
+        character(len=20) :: pretype = 'roll-mean-max-strain'
 
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
+        ! "Kolmogorov or "geophysical"
+        character(len=11) :: length_scale = "Kolmogorov"
+
     end type visc_type
 
-    type(visc_type) :: viscosity
+    ! 'Hou & Li' or '2/3-rule'
+    character(len=8) :: filtering = "Hou & Li"
+
+    type(visc_type) :: vor_visc
+
+#ifdef ENABLE_BUOYANCY
+    type(visc_type) :: buoy_visc
+#endif
 
     ! time limit
     type time_info_type
@@ -72,7 +85,6 @@ module options
         double precision :: limit       = zero       ! time limit
         double precision :: alpha       = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
                                                      ! gradient
-                                                     ! Note: EPIC-2D paper recommends alpha = 0.2 for ls-rk4 method
         logical          :: precise_stop = .false.   ! stop at the exact limit
     end type time_info_type
 
@@ -88,7 +100,16 @@ module options
             logical :: exists = .false.
 
             ! namelist definitions
-            namelist /PS3D/ field_file, field_step, stepper, viscosity, output, time
+            namelist /PS3D/ field_file,         &
+                            field_step,         &
+                            stepper,            &
+                            vor_visc,           &
+#ifdef ENABLE_BUOYANCY
+                            buoy_visc,          &
+#endif
+                            filtering,          &
+                            output,             &
+                            time
 
             ! check whether file exists
             inquire(file=filename, exist=exists)
@@ -126,19 +147,11 @@ module options
             call write_netcdf_attribute(ncid, "verbose", verbose)
 #endif
 
-#ifndef ENABLE_SMAGORINSKY
-            if (viscosity%nnu == 1) then
-                call write_netcdf_attribute(ncid, "viscosity", "molecular")
-            else
-                call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
-            endif
-
-            call write_netcdf_attribute(ncid, "viscosity", "hyperviscosity")
-            call write_netcdf_attribute(ncid, "nnu", viscosity%nnu)
-            call write_netcdf_attribute(ncid, "prediss", viscosity%prediss)
-            call write_netcdf_attribute(ncid, "pretype", viscosity%pretype)
-            call write_netcdf_attribute(ncid, "roll_mean_win_size", viscosity%roll_mean_win_size)
+            call write_netcdf_viscosity(ncid, vor_visc, 'vor_visc')
+#ifdef ENABLE_BUOYANCY
+            call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
 #endif
+            call write_netcdf_attribute(ncid, "filtering", filtering)
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
 
@@ -155,5 +168,26 @@ module options
             call write_netcdf_attribute(ncid, "alpha", time%alpha)
 
         end subroutine write_netcdf_options
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine write_netcdf_viscosity(ncid, visc, label)
+            integer,          intent(in) :: ncid
+            type(visc_type),  intent(in) :: visc
+            character(len=*), intent(in) :: label
+
+            if (visc%nnu == 1) then
+                call write_netcdf_attribute(ncid, label, "molecular")
+            else
+                call write_netcdf_attribute(ncid, label, "hyperviscosity")
+            endif
+
+            call write_netcdf_attribute(ncid, label // "%nnu", visc%nnu)
+            call write_netcdf_attribute(ncid, label // "%prediss", visc%prediss)
+            call write_netcdf_attribute(ncid, label // "%pretype", visc%pretype)
+            call write_netcdf_attribute(ncid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+            call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
+
+        end subroutine write_netcdf_viscosity
 
 end module options
