@@ -50,10 +50,11 @@ program test_cheb_poly
                     + 5.0d0 * get_cheb_poly(zcheb(iz), 5)
     enddo
 
-
     call cheb_poly(f, coeff)
 
-    print *, coeff(1:8, 0, 0)
+    do iz = 0, 8
+        print *, coeff(iz, 0, 0)
+    enddo
 
 !     call mpi_blocking_reduce(, MPI_MAX, world)
 

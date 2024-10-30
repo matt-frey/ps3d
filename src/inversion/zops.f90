@@ -12,7 +12,7 @@ module zops
                        , k2l2           &
                        , zfactors       &
                        , ztrig
-    use stafft, only : dct
+    use stafft, only : dct, forfft
     implicit none
 
     private
@@ -254,7 +254,7 @@ module zops
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                       :: kx, ky
-            double precision              :: valsUnitDisc(0:2*nz-2)
+            double precision              :: valsUnitDisc(0:2*nz)
 
             ! Initialize the coefficients vector
             c = fs
@@ -262,18 +262,12 @@ module zops
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
 
-                    ! String out values into values on equally spaced theta grid:
-                    ! valsUnitDisc = [fvals ; flipud(fvals(2:end-1))];
+                    ! Fill valsUnitDisc with fvals and mirrored values:
                     valsUnitDisc(0:nz) = fs(0:nz, ky, kx)
+                    valsUnitDisc(nz+1:) = fs(nz:1:-1, ky, kx)
 
-                    valsUnitDisc(nz+1:2*nz-2) = fs(2:nz-1, ky, kx)
-                    call flipud(valsUnitDisc(nz+1:))
-
-
-!                     c(:, ky, kx) =
-
-                    ! Forward cosine transform:
-                    call dct(1, 2*nz-2, valsUnitDisc, ztrig, zfactors)
+                    ! Perform the FFT:
+                    call forfft(1, size(valsUnitDisc)-1, valsUnitDisc, ztrig, zfactors)
                     c(0:nz, ky, kx) = valsUnitDisc(0:nz)
 
                     ! Get Chebyshev coefficients:
@@ -337,22 +331,5 @@ module zops
 !             enddo
 !
 !         end subroutine cheb_fun
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine flipud(fs)
-            double precision, intent(inout) :: fs(0:)
-            double precision                :: gs
-            integer                         :: iz, n, m
-
-            m = size(fs) - 1
-            n = int(m / 2)
-            do iz = 0, n
-                gs = fs(iz)
-                fs(iz) = fs(m - iz)
-                fs(m - iz) = gs
-            enddo
-
-        end subroutine flipud
 
 end module zops
