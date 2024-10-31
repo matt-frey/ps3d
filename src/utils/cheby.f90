@@ -1,6 +1,6 @@
 module cheby
     use constants, only : zero, one, two, pi, four, f12
-    use stafft, only : forfft, initfft
+    use stafft, only : initfft, forfft, revfft
     implicit none
 
     private
@@ -10,7 +10,8 @@ module cheby
 
     public :: init_cheby    &
             , clencurt      &
-            , cheb_poly
+            , cheb_poly     &
+            , cheb_fun
 
     contains
 
@@ -127,10 +128,39 @@ module cheby
             ! Note: forfft normalises with 1 / sqrt(N) where N = 2*n;
             !       we must therefore multiply the output with sqrt(2 / n)
             !       in order to get a normalisation of 1 / n
-            c = c * sqrt(2.0d0 / dble(n))
+            c = c * sqrt(two / dble(n))
             c(0) = f12 * c(0)
             c(n) = f12 * c(n)
 
         end subroutine cheb_poly
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Given n+1 coefficients of the Chebyshev series
+        ! Returns f(x) evaluated at the n+1 chebyshev nodes in [-1,1];
+        subroutine cheb_fun(n, c, f)
+            integer,          intent(in) :: n
+            double precision, intent(in)  :: c(0:n)
+            double precision, intent(out) :: f(0:n)
+            double precision              :: valsUnitDisc(0:2*n-1)
+
+            f = c
+            f(0) = two * f(0)
+            f(n) = two * f(n)
+            ! We need to undo the  1 / n scaling, but then get the 1 / sqrt(2 * n)
+            ! scaling of forfft --> multiply by sqrt(n / 2)
+!             f = f * sqrt(dble(n) / two)
+
+            ! Fill valsUnitDisc with f and mirrored values:
+            valsUnitDisc(0:n) = f(0:n)
+            valsUnitDisc(n+1:) = f(n-1:1:-1)
+
+            ! Perform the inverse FFT:
+            call revfft(1, 2*n, valsUnitDisc, trig, factors)
+
+            ! Get Chebyshev coefficients:
+            f(0:n) = valsUnitDisc(0:n)
+
+        end subroutine cheb_fun
 
 end module cheby

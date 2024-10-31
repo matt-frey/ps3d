@@ -284,36 +284,4 @@ module zops
         end subroutine cheb_eval
 
 
-!         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!         ! Given N+1 coefficients of the Chebyshev series
-!         ! Returns f(x) evaluated at the N+1 chebyshev nodes in [-1,1];
-!         subroutine cheb_fun(c, fs)
-!             double precision, intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-!             double precision, intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-!             integer                       :: kx, ky
-!
-!
-!             do kx = box%lo(1), box%hi(1)
-!                 do ky = box%lo(2), box%hi(2)
-!                     fs(0,      ky, kx) = two * c(0,      ky, kx)
-!                     fs(1:nz-1, ky, kx) =       c(1:nz-1, ky, kx)
-!                     fs(nz,     ky, kx) = two * c(nz,     ky, kx)
-!                     fs(:,      ky, kx) = nz  * fs(:,     ky, kx)
-!
-!                     !
-!                     ! FourierCoeffs = [ChebC; flipud(ChebC(2:n))];
-!                     !
-!
-!
-!                     ! Backward (i.e. inverse) cosine transform:
-!                     call dct(1, nz, fs(0:nz, ky, kx), ztrig, zfactors)
-!
-!                     ! Get Chebyshev coefficients:
-!                     ! fvals = fvals(1:n+1);
-!                 enddo
-!             enddo
-!
-!         end subroutine cheb_fun
-
 end module zops
