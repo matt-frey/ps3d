@@ -1,6 +1,16 @@
 module cheby
-    use constants, only : zero, one, two, pi, four
+    use constants, only : zero, one, two, pi, four, f12
+    use stafft, only : forfft, initfft
     implicit none
+
+    private
+
+        double precision, allocatable :: trig(:)
+        integer                       :: factors(5)
+
+    public :: init_cheby    &
+            , clencurt      &
+            , cheb_poly
 
     contains
 
@@ -51,6 +61,9 @@ module cheby
             ! Set up second-order differentiation matrix:
             d2 = matmul(d1, d1)
 
+            allocate(trig(4*N))
+            call initfft(2*n, factors, trig)
+
         end subroutine init_cheby
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -89,5 +102,35 @@ module cheby
             w(1:n-1) = two * v / dble(n)
 
         end subroutine clencurt
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! Input:
+        ! f - a vector of length n+1 containing function values at Chebyshev nodes in [-1, 1]
+        ! Output:
+        ! c - a vector of length n+1 containing the coefficients of the Chebyshev polynomials
+        subroutine cheb_poly(n, f, c)
+            integer,          intent(in)  :: n
+            double precision, intent(in)  :: f(0:n)
+            double precision, intent(out) :: c(0:n)
+            double precision              :: valsUnitDisc(0:2*n-1)
+
+            ! Fill valsUnitDisc with f and mirrored values:
+            valsUnitDisc(0:n) = f(0:n)
+            valsUnitDisc(n+1:) = f(n-1:1:-1)
+
+            ! Perform the FFT:
+            call forfft(1, 2*n, valsUnitDisc, trig, factors)
+            c(0:n) = valsUnitDisc(0:n)
+
+            ! Get Chebyshev coefficients:
+            ! Note: forfft normalises with 1 / sqrt(N) where N = 2*n;
+            !       we must therefore multiply the output with sqrt(2 / n)
+            !       in order to get a normalisation of 1 / n
+            c = c * sqrt(2.0d0 / dble(n))
+            c(0) = f12 * c(0)
+            c(n) = f12 * c(n)
+
+        end subroutine cheb_poly
 
 end module cheby

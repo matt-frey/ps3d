@@ -1,5 +1,5 @@
 module zops
-    use constants, only : f12
+    use constants, only : zero, f12, one
     use mpi_layout
     use parameters, only : nz       &
                          , extent   &
@@ -228,7 +228,7 @@ module zops
             double precision                :: fstop(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             ! get Chebyshev coefficients
-            call cheb_poly(fs, coeffs)
+            call poly(fs, coeffs)
 
             ! apply filter on coefficients
             do iz = 0, nz
@@ -250,34 +250,18 @@ module zops
         ! fs - a vector of length N+1 containing function values at Chebyshev nodes in [-1, 1]
         ! Output:
         ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
-        subroutine cheb_poly(fs, c)
+        subroutine poly(fs, c)
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                       :: kx, ky
-            double precision              :: valsUnitDisc(0:2*nz)
-
-            ! Initialize the coefficients vector
-            c = fs
 
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
-
-                    ! Fill valsUnitDisc with fvals and mirrored values:
-                    valsUnitDisc(0:nz) = fs(0:nz, ky, kx)
-                    valsUnitDisc(nz+1:) = fs(nz:1:-1, ky, kx)
-
-                    ! Perform the FFT:
-                    call forfft(1, size(valsUnitDisc)-1, valsUnitDisc, ztrig, zfactors)
-                    c(0:nz, ky, kx) = valsUnitDisc(0:nz)
-
-                    ! Get Chebyshev coefficients:
-                    c(:,  ky, kx) =       c(:,  ky, kx) / dble(nz)
-                    c(0,  ky, kx) = f12 * c(0,  ky, kx)
-                    c(nz, ky, kx) = f12 * c(nz, ky, kx)
+                    call cheb_poly(nz, fs(:, ky, kx), c(:, ky, kx))
                 enddo
             enddo
 
-        end subroutine cheb_poly
+        end subroutine poly
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

@@ -12,12 +12,18 @@ program test_cheb_poly
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use zops, only : cheb_poly
+    use stafft, only : forfft, initfft
+    use cheby, only : cheb_poly
     implicit none
 
-    double precision, allocatable :: f(:, :, :)
-    double precision, allocatable :: coeff(:, :, :)
+    double precision, allocatable :: f(:)
+    double precision, allocatable :: coeff(:)
     integer                       :: iz
+    double precision, allocatable :: trig(:)
+    integer                       :: factors(5)
+    double precision, allocatable :: sol(:)
+    double precision              :: error
+
 
     call mpi_env_initialise
 
@@ -25,15 +31,17 @@ program test_cheb_poly
 
     nx = 16
     ny = 16
-    nz = 64
+    nz = 8
 
-    lower  = (/-pi, -pi, -1.0d0/)
-    extent = (/twopi, twopi, 2.0d0/)
+    lower  = (/0.0d0, 0.0d0, -1.0d0/)
+    extent = (/1.0d0, 1.0d0, 1.0d0/)
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
-    allocate(f(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-    allocate(coeff(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(f(0:nz))
+    allocate(coeff(0:nz))
+    allocate(trig(4*nz))
+    allocate(sol(0:nz))
 
     call update_parameters
 
@@ -42,31 +50,40 @@ program test_cheb_poly
     call init_inversion
 
 
+    call initfft(2*nz, factors, trig)
+
     do iz = 0, nz
-        f(iz, :, :) =         get_cheb_poly(zcheb(iz), 1) &
-                    - 2.0d0 * get_cheb_poly(zcheb(iz), 2) &
+        f(iz)  =      8.0d0 * get_cheb_poly(zcheb(iz), 1) &
+                    - 9.0d0 * get_cheb_poly(zcheb(iz), 2) &
                     + 3.0d0 * get_cheb_poly(zcheb(iz), 3) &
                     - 4.0d0 * get_cheb_poly(zcheb(iz), 4) &
-                    + 5.0d0 * get_cheb_poly(zcheb(iz), 5)
+                    + 5.0d0 * get_cheb_poly(zcheb(iz), 5) &
+                    + 2.5d0 * get_cheb_poly(zcheb(iz), 9)
     enddo
 
-    call cheb_poly(f, coeff)
+    sol = zero
+    sol(0) =  0.0d0
+    sol(1) =  8.0d0
+    sol(2) = -9.0d0
+    sol(3) =  3.0d0
+    sol(4) = -4.0d0
+    sol(5) =  5.0d0
+    sol(6) =  0.0d0
+    sol(7) =  2.5d0
 
-    do iz = 0, 8
-        print *, coeff(iz, 0, 0)
-    enddo
+    call cheb_poly(nz, f, coeff)
 
-!     call mpi_blocking_reduce(, MPI_MAX, world)
+    error = maxval(abs(sol - coeff))
 
+    call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test cheb_poly', 0.0d0, atol=6.0e-7)
+        call print_result_dp('Test cheb_poly', error, atol=5.0d-15)
     endif
 
     call finalise_inversion
 
-    deallocate(f)
-    deallocate(coeff)
+    deallocate(f, coeff, trig, sol)
 
     call mpi_env_finalise
 

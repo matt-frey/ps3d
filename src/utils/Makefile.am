@@ -1,7 +1,8 @@
 # this line is needed such that config.h is found
 AM_FCFLAGS = -I $(top_builddir)/src/mpi         \
 	     -I $(top_builddir)/src/utils       \
-             -I $(top_builddir)/src/netcdf
+             -I $(top_builddir)/src/netcdf	\
+             -I $(top_builddir)/src/fft
 
 lib_LTLIBRARIES = libps_utils.la
 libps_utils_la_SOURCES = 	\
