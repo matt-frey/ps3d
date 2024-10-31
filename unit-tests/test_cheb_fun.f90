@@ -47,29 +47,29 @@ program test_cheb_poly
     call init_inversion
 
 
-    do iz = 0, nz
-        coeff(iz) =   8.0d0 * get_cheb_poly(zcheb(iz), 1) &
-                    - 9.0d0 * get_cheb_poly(zcheb(iz), 2) &
-                    + 3.0d0 * get_cheb_poly(zcheb(iz), 3) &
-                    - 4.0d0 * get_cheb_poly(zcheb(iz), 4) &
-                    + 5.0d0 * get_cheb_poly(zcheb(iz), 5) &
-                    + 2.5d0 * get_cheb_poly(zcheb(iz), 9)
-    enddo
+    coeff = zero
+    coeff(0) =  0.0d0
+    coeff(1) =  8.0d0
+    coeff(2) = -9.0d0
+    coeff(3) =  3.0d0
+    coeff(4) = -4.0d0
+    coeff(5) =  5.0d0
+    coeff(6) =  0.0d0
+    coeff(7) =  2.5d0
 
-    sol = zero
-    sol(0) =  0.0d0
-    sol(1) =  8.0d0
-    sol(2) = -9.0d0
-    sol(3) =  3.0d0
-    sol(4) = -4.0d0
-    sol(5) =  5.0d0
-    sol(6) =  0.0d0
-    sol(7) =  2.5d0
+    do iz = 0, nz
+        sol(iz) =   8.0d0 * get_cheb_poly(zcheb(iz), 1) &
+                  - 9.0d0 * get_cheb_poly(zcheb(iz), 2) &
+                  + 3.0d0 * get_cheb_poly(zcheb(iz), 3) &
+                  - 4.0d0 * get_cheb_poly(zcheb(iz), 4) &
+                  + 5.0d0 * get_cheb_poly(zcheb(iz), 5) &
+                  + 2.5d0 * get_cheb_poly(zcheb(iz), 9)
+    enddo
 
     call cheb_fun(nz, coeff, f)
 
     do iz = 0, nz
-        print *, iz, f(iz)
+        print *, iz, sol(iz), f(iz)
     enddo
 
     error = maxval(abs(sol - f))

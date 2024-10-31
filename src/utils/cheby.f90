@@ -142,24 +142,24 @@ module cheby
             integer,          intent(in) :: n
             double precision, intent(in)  :: c(0:n)
             double precision, intent(out) :: f(0:n)
-            double precision              :: valsUnitDisc(0:2*n-1)
+            double precision              :: coeffs(0:2*n-1)
 
             f = c
             f(0) = two * f(0)
             f(n) = two * f(n)
             ! We need to undo the  1 / n scaling, but then get the 1 / sqrt(2 * n)
             ! scaling of forfft --> multiply by sqrt(n / 2)
-!             f = f * sqrt(dble(n) / two)
+            f = f * sqrt(dble(n) / two)
 
-            ! Fill valsUnitDisc with f and mirrored values:
-            valsUnitDisc(0:n) = f(0:n)
-            valsUnitDisc(n+1:) = f(n-1:1:-1)
+            ! Fill coeffs with c and mirrored values:
+            coeffs(0:n) = f(0:n)
+            coeffs(n+1:) = f(n-1:1:-1)
 
             ! Perform the inverse FFT:
-            call revfft(1, 2*n, valsUnitDisc, trig, factors)
+            call revfft(1, 2*n, coeffs, trig, factors)
 
             ! Get Chebyshev coefficients:
-            f(0:n) = valsUnitDisc(0:n)
+            f(0:n) = coeffs(0:n)
 
         end subroutine cheb_fun
 
