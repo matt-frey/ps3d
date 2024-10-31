@@ -19,8 +19,6 @@ program test_cheb_poly
     double precision, allocatable :: f(:)
     double precision, allocatable :: coeff(:)
     integer                       :: iz
-    double precision, allocatable :: trig(:)
-    integer                       :: factors(5)
     double precision, allocatable :: sol(:)
     double precision              :: error
 
@@ -40,7 +38,6 @@ program test_cheb_poly
 
     allocate(f(0:nz))
     allocate(coeff(0:nz))
-    allocate(trig(4*nz))
     allocate(sol(0:nz))
 
     call update_parameters
@@ -49,8 +46,6 @@ program test_cheb_poly
     ! Initialise inversion module:
     call init_inversion
 
-
-    call initfft(2*nz, factors, trig)
 
     do iz = 0, nz
         f(iz)  =      8.0d0 * get_cheb_poly(zcheb(iz), 1) &
@@ -83,7 +78,7 @@ program test_cheb_poly
 
     call finalise_inversion
 
-    deallocate(f, coeff, trig, sol)
+    deallocate(f, coeff, sol)
 
     call mpi_env_finalise
 
