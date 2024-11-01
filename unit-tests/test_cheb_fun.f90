@@ -69,10 +69,6 @@ program test_cheb_poly
 
     call cheb_fun(nz, coeff, f)
 
-    do iz = 0, nz
-        print *, iz, sol(iz), f(iz)
-    enddo
-
     error = maxval(abs(sol - f))
 
     call mpi_blocking_reduce(error, MPI_MAX, world)
