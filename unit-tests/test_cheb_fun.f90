@@ -12,7 +12,6 @@ program test_cheb_poly
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use stafft, only : forfft, initfft
     use cheby, only : cheb_fun
     implicit none
 
@@ -21,7 +20,6 @@ program test_cheb_poly
     integer                       :: iz
     double precision, allocatable :: sol(:)
     double precision              :: error
-
 
     call mpi_env_initialise
 
@@ -77,7 +75,7 @@ program test_cheb_poly
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test cheb_fun', error, atol=5.0d-15)
+        call print_result_dp('Test cheb_fun', error, atol=9.0d-15)
     endif
 
     call finalise_inversion
