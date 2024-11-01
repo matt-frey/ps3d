@@ -9,10 +9,7 @@ module zops
                          , lower
     use cheby ! Import Chebyshev module to set up various matrices needed below
     use sta3dfft, only : initialise_fft &
-                       , k2l2           &
-                       , zfactors       &
-                       , ztrig
-    use stafft, only : dct, forfft
+                       , k2l2
     implicit none
 
     private
@@ -21,8 +18,7 @@ module zops
                                    , zcheb(:)             & ! Chebyshev grid points
                                    , zg(:)                & ! Chebyshev domains points
                                    , zccw(:)              & ! Clenshaw-Curtis weights
-                                   , zfilt(:)             &
-                                   , tm(:, :)
+                                   , zfilt(:)
 
     integer :: nxym1 = 0
     logical :: l_zops_initialised = .false.
@@ -37,8 +33,7 @@ module zops
             , zg                    &
             , zccw                  &
             , apply_zfilter         &
-            , d1z, d2z              &
-            , cheb_poly
+            , d1z, d2z
 
     contains
 
@@ -46,7 +41,7 @@ module zops
 
         subroutine init_zops
             double precision :: fdz1, fdz2, c, cutoff
-            integer          :: iz, p, i, j
+            integer          :: iz, p
 
             if (l_zops_initialised) then
                 return
@@ -66,7 +61,6 @@ module zops
             allocate(zcheb(0:nz))
             allocate(zg(0:nz))
             allocate(zccw(0:nz))
-            allocate(tm(0:nz, 0:nz))
             allocate(zfilt(0:nz))
 
             nxym1 = box%size(1) * box%size(2) - 1
@@ -97,13 +91,6 @@ module zops
                 zfilt(iz) = one / sqrt(one + (c / cutoff)**(2*p))
             enddo
 
-            ! Construct the T matrix using the cosine formulation
-            do i = 0, nz
-                do j = 0, nz
-                    tm(i, j) = cos(dble(j) * acos(zcheb(i)))
-                enddo
-            enddo
-
         end subroutine init_zops
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -115,7 +102,6 @@ module zops
                 deallocate(d2z)
                 deallocate(zcheb)
                 deallocate(zg)
-                deallocate(tm)
                 deallocate(zfilt)
                 l_zops_initialised = .false.
             endif
@@ -228,7 +214,7 @@ module zops
             double precision                :: fstop(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             ! get Chebyshev coefficients
-            call poly(fs, coeffs)
+            call get_cheb_poly(fs, coeffs)
 
             ! apply filter on coefficients
             do iz = 0, nz
@@ -238,7 +224,7 @@ module zops
             fsbot = fs(0,  :, :)
             fstop = fs(nz, :, :)
             ! only works on interior points: fix the endpoints afterwards
-            call cheb_eval(fs, coeffs)
+            call cheb_eval(coeffs, fs)
             fs(0,  :, :) = fsbot
             fs(nz, :, :) = fstop
 
@@ -250,7 +236,7 @@ module zops
         ! fs - a vector of length N+1 containing function values at Chebyshev nodes in [-1, 1]
         ! Output:
         ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
-        subroutine poly(fs, c)
+        subroutine get_cheb_poly(fs, c)
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                       :: kx, ky
@@ -261,27 +247,25 @@ module zops
                 enddo
             enddo
 
-        end subroutine poly
+        end subroutine get_cheb_poly
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Input:
         ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
         ! Output:
-        ! f_values - a vector of length M containing the values of f(x) at the points in y
-        subroutine cheb_eval(fs, c)
-            double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision, intent(in)    :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                         :: kx, ky
+        ! fs - a vector of length N+1 containing the values of f(x) at the points in y
+        subroutine cheb_eval(c, fs)
+            double precision, intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision, intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            integer                       :: kx, ky
 
-            ! Compute fs = tm * c using matrix multiplication
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
-                    fs(:, ky, kx) = matmul(tm, c(:, ky, kx))
+                    call cheb_fun(nz, c(:, ky, kx), fs(:, ky, kx))
                 enddo
             enddo
 
         end subroutine cheb_eval
-
 
 end module zops
