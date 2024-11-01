@@ -29,7 +29,7 @@ program test_cheb_poly
 
     nx = 16
     ny = 16
-    nz = 8
+    nz = 16
 
     lower  = (/0.0d0, 0.0d0, -1.0d0/)
     extent = (/1.0d0, 1.0d0, 1.0d0/)
@@ -46,7 +46,7 @@ program test_cheb_poly
     ! Initialise inversion module:
     call init_inversion
 
-
+    f = zero
     do iz = 0, nz
         f(iz)  =      8.0d0 * get_cheb_poly(zcheb(iz), 1) &
                     - 9.0d0 * get_cheb_poly(zcheb(iz), 2) &
@@ -64,7 +64,9 @@ program test_cheb_poly
     sol(4) = -4.0d0
     sol(5) =  5.0d0
     sol(6) =  0.0d0
-    sol(7) =  2.5d0
+    sol(7) =  0.0d0
+    sol(8) =  0.0d0
+    sol(9) =  2.5d0
 
     call cheb_poly(nz, f, coeff)
 
@@ -73,7 +75,7 @@ program test_cheb_poly
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test cheb_poly', error, atol=1.0d-14)
+        call print_result_dp('Test cheb_poly', error, atol=5.0d-15)
     endif
 
     call finalise_inversion
