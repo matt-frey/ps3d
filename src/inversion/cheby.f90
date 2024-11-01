@@ -151,7 +151,7 @@ module cheby
             ! scaling of forfft --> multiply by sqrt(n / 2)
             f = f * sqrt(dble(n) / two)
 
-            ! Fill coeffs with c and mirrored values:
+            ! Want 2N coefficients: First N+1 are the cosines we have:
             coeffs = zero
             coeffs(0:n) = f(0:n)
 
