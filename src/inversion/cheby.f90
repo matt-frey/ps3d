@@ -152,8 +152,8 @@ module cheby
             f = f * sqrt(dble(n) / two)
 
             ! Fill coeffs with c and mirrored values:
+            coeffs = zero
             coeffs(0:n) = f(0:n)
-            coeffs(n+1:) = f(n-1:1:-1)
 
             ! Perform the inverse FFT:
             call revfft(1, 2*n, coeffs, trig, factors)
