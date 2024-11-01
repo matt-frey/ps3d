@@ -80,7 +80,7 @@ module options
         double precision :: kmax = 2.0d0 / 3.0d0
     end type zfilter_t
 
-    type(zfilter) :: zfiltering
+    type(zfilter_t) :: zfiltering
 
     type(visc_type) :: vor_visc
 
