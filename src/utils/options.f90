@@ -73,6 +73,15 @@ module options
     ! 'Hou & Li' or '2/3-rule'
     character(len=8) :: filtering = "Hou & Li"
 
+    ! Parameters for the Dembenek filter
+    type zfilter_t
+        double precision :: alpha = 27.d0
+        double precision :: beta = 5.3d0
+        double precision :: kmax = 2.0d0 / 3.0d0
+    end type zfilter_t
+
+    type(zfilter) :: zfiltering
+
     type(visc_type) :: vor_visc
 
 #ifdef ENABLE_BUOYANCY
@@ -108,6 +117,7 @@ module options
                             buoy_visc,          &
 #endif
                             filtering,          &
+                            zfiltering,         &
                             output,             &
                             time
 
@@ -152,6 +162,9 @@ module options
             call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
 #endif
             call write_netcdf_attribute(ncid, "filtering", filtering)
+            call write_netcdf_attribute(ncid, "zfiltering%alpha", zfiltering%alpha)
+            call write_netcdf_attribute(ncid, "zfiltering%beta", zfiltering%beta)
+            call write_netcdf_attribute(ncid, "zfiltering%kmax", zfiltering%kmax)
 
             call write_netcdf_attribute(ncid, "stepper", stepper)
 
