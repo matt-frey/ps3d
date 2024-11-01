@@ -10,6 +10,7 @@ module zops
     use cheby ! Import Chebyshev module to set up various matrices needed below
     use sta3dfft, only : initialise_fft &
                        , k2l2
+    use options, only : zfiltering
     implicit none
 
     private
@@ -40,8 +41,8 @@ module zops
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_zops
-            double precision :: fdz1, fdz2, c, cutoff
-            integer          :: iz, p
+            double precision :: fdz1, fdz2, rkmax
+            integer          :: iz
 
             if (l_zops_initialised) then
                 return
@@ -83,15 +84,26 @@ module zops
             call clencurt(nz, zccw)
 
             !------------------------------------------------------------------
-            ! Butterworth filter:
-            cutoff = 0.9d0
-            p = 4 ! filter order
+            ! Dembenek filter:
+            rkmax = zfiltering%kmax * dble(nz)
             do iz = 0, nz
-                c = dble(iz) / dble(nz)
-                zfilt(iz) = one / sqrt(one + (c / cutoff)**(2*p))
+                zfilt(iz) = dembenek_filter(iz,                 &
+                                            rkmax,              &
+                                            zfiltering%alpha,   &
+                                            zfiltering%beta)
             enddo
 
         end subroutine init_zops
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        function dembenek_filter(k, rkmax, alpha, beta) result(res)
+            integer,          intent(in) :: k
+            double precision, intent(in) :: alpha, beta, rkmax
+            double precision             :: res, x
+
+            x = dble(k)/rkmax
+            res = dexp(-alpha*x**beta)
+        end function dembenek_filter
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -210,8 +222,6 @@ module zops
             double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision                :: coeffs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                         :: iz
-            double precision                :: fsbot(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision                :: fstop(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             ! get Chebyshev coefficients
             call get_cheb_poly(fs, coeffs)
@@ -221,12 +231,8 @@ module zops
                 coeffs(iz, :, :) = zfilt(iz) * coeffs(iz, :, :)
             enddo
 
-            fsbot = fs(0,  :, :)
-            fstop = fs(nz, :, :)
             ! only works on interior points: fix the endpoints afterwards
             call cheb_eval(coeffs, fs)
-            fs(0,  :, :) = fsbot
-            fs(nz, :, :) = fstop
 
         end subroutine apply_zfilter
 
