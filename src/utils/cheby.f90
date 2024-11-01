@@ -62,7 +62,7 @@ module cheby
             ! Set up second-order differentiation matrix:
             d2 = matmul(d1, d1)
 
-            allocate(trig(4*N))
+            allocate(trig(4*n))
             call initfft(2*n, factors, trig)
 
         end subroutine init_cheby
