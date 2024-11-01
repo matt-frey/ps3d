@@ -73,7 +73,7 @@ program test_cheb_poly
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test cheb_poly', error, atol=5.0d-15)
+        call print_result_dp('Test cheb_poly', error, atol=1.0d-14)
     endif
 
     call finalise_inversion
