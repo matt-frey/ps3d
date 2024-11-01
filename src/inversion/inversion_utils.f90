@@ -24,6 +24,9 @@ module inversion_utils
     use sta2dfft, only : ptospc
     use zops
     use options, only : filtering
+#ifdef ENABLE_VERBOSE
+    use options, only : verbose
+#endif
     use mpi_utils, only : mpi_print
     implicit none
 
@@ -110,7 +113,11 @@ module inversion_utils
             double precision :: skx(box%lo(1):box%hi(1)), &
                                 sky(box%lo(2):box%hi(2))
 
-            call mpi_print("Using Hou & Li de-aliasing filter.")
+#ifdef ENABLE_VERBOSE
+            if (verbose) then
+                call mpi_print("Using Hou & Li de-aliasing filter.")
+            endif
+#endif
 
             kxmaxi = one / maxval(rkx)
             skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
@@ -134,7 +141,11 @@ module inversion_utils
             double precision :: skx(box%lo(1):box%hi(1)), &
                                 sky(box%lo(2):box%hi(2))
 
-            call mpi_print("Using 2/3-rule de-aliasing filter.")
+#ifdef ENABLE_VERBOSE
+            if (verbose) then
+                call mpi_print("Using 2/3-rule de-aliasing filter.")
+            endif
+#endif
 
             rkxmax = maxval(rkx)
             rkymax = maxval(rky)
