@@ -221,6 +221,8 @@ module zops
         subroutine apply_zfilter(fs)
             double precision, intent(inout) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision                :: coeffs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision                :: err_e(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision                :: err_o(box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                         :: iz
 
             ! get Chebyshev coefficients
@@ -231,7 +233,23 @@ module zops
                 coeffs(iz, :, :) = zfilt(iz) * coeffs(iz, :, :)
             enddo
 
-            ! only works on interior points: fix the endpoints afterwards
+            ! Boundary-Preserving Filter:
+            err_e = coeffs(0, :, :)
+            err_o = coeffs(1, :, :)
+
+            do iz = 1, nz/2
+                err_e  = err_e +  coeffs(2*iz, :, :)
+            enddo
+
+            do iz = 1, nz/2-1
+                err_o  = err_o +  coeffs(2*iz+1, :, :)
+            enddo
+
+            ! Adjust mean value and linear slope to insure 0 BC's
+            coeffs(0, :, :) = coeffs(0, :, :) - err_e
+            coeffs(1, :, :) = coeffs(1, :, :) - err_o
+
+            ! Return filtered field with 0 bc's
             call cheb_eval(coeffs, fs)
 
         end subroutine apply_zfilter

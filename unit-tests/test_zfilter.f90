@@ -12,6 +12,7 @@ program test_zfilter
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use options, only : zfiltering
     implicit none
 
     double precision, allocatable :: f(:, :, :)
@@ -24,7 +25,7 @@ program test_zfilter
 
     nx = 16
     ny = 16
-    nz = 64
+    nz = 128
 
     lower  = (/-pi, -pi, -1.0d0/)
     extent = (/twopi, twopi, 2.0d0/)
@@ -34,6 +35,8 @@ program test_zfilter
     allocate(f(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
     allocate(g(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
+    zfiltering%kmax = 1.0d0 / 8.0d0
+
     call update_parameters
 
     !-----------------------------------------------------------------
@@ -42,14 +45,12 @@ program test_zfilter
 
 
     do iz = 0, nz
-        f(iz, :, :) = myf(zcheb(iz), 16.0d0, 0.025d0)
+        f(iz, :, :) = myf(zcheb(iz), 0.025d0)
     enddo
 
     g = f
 
     call apply_zfilter(g)
-
-
 
 
 !     call mpi_blocking_reduce(, MPI_MAX, world)
@@ -76,18 +77,16 @@ program test_zfilter
 
     contains
 
-        function myf(x, a, b) result(res)
-            double precision, intent(in) :: x     ! Input variable x
-            double precision, intent(in) :: a     ! Input variable a
-            double precision, intent(in) :: b     ! Input variable b
-            double precision             :: res   ! Result of the function
-            double precision             :: noise ! Gaussian noise
+        function myf(z, stddev) result(res)
+            double precision, intent(in) :: z      ! Input variable z
+            double precision, intent(in) :: stddev
+            double precision             :: res    ! Result of the function
+            double precision             :: noise  ! Gaussian noise
 
-            ! Generate Gaussian noise with mean 0 and standard deviation b
-            call random_gaussian(0.0d0, b, noise)
+            ! Generate Gaussian noise with mean 0 and standard deviation 'stddev'
+            call random_gaussian(0.0d0, stddev, noise)
 
-            ! Evaluate the function f(x, a, b)
-            res = 1.0d0 / (1.0d0 + a * x**2) + noise
+            res = abs(cos(8.0d0 * pi * z)) * (1.0d0 - z **2) * exp(2.0d0 * z)
 
         end function myf
 
