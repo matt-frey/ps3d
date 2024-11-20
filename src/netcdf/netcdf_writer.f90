@@ -368,68 +368,24 @@ module netcdf_writer
 
         end subroutine write_netcdf_box
 
-        subroutine write_netcdf_axis_2d(ncid, dimids, origin, dx, ngps)
-            integer,          intent(in) :: ncid
-            double precision, intent(in) :: origin(2), dx(2)
-            integer,          intent(in) :: dimids(2), ngps(2)
-            integer                      :: i
-            double precision             :: x_axis(0:ngps(1)-1), z_axis(0:ngps(2)-1)
-
-            do i = 0, ngps(1)-1
-                x_axis(i) = origin(1) + dble(i) * dx(1)
-            enddo
-
-            do i = 0, ngps(2)-1
-                z_axis(i) = origin(2) + dble(i) * dx(2)
-            enddo
-
-            call write_netcdf_dataset(ncid, dimids(1), x_axis)
-            call write_netcdf_dataset(ncid, dimids(2), z_axis)
-        end subroutine write_netcdf_axis_2d
-
-        subroutine write_netcdf_axis_3d(ncid, dimids, origin, dx, ngps, start, cnt)
+        subroutine write_netcdf_axis(ncid, dimid, origin, coords, start, cnt)
             integer,           intent(in) :: ncid
-            double precision,  intent(in) :: origin(3), dx(3)
-            integer,           intent(in) :: dimids(3), ngps(3)
-            integer, optional, intent(in) :: start(3), cnt(3)
-            integer                       :: i
-            double precision              :: x_axis(0:ngps(1)-1)
-            double precision              :: y_axis(0:ngps(2)-1)
-            double precision              :: z_axis(0:ngps(3)-1)
-
-            do i = 0, ngps(1)-1
-                x_axis(i) = origin(1) + dble(i) * dx(1)
-            enddo
-
-            do i = 0, ngps(2)-1
-                y_axis(i) = origin(2) + dble(i) * dx(2)
-            enddo
-
-            do i = 0, ngps(3)-1
-                z_axis(i) = origin(3) + dble(i) * dx(3)
-            enddo
+            integer,           intent(in) :: dimid
+            double precision,  intent(in) :: origin
+            double precision,  intent(in) :: coords(:)
+            integer, optional, intent(in) :: start, cnt
 
             if (present(start) .and. present(cnt)) then
-                call write_netcdf_dataset(ncid, dimids(1), x_axis, &
-                                          start=(/start(1)/), cnt=(/cnt(1)/))
-                call write_netcdf_dataset(ncid, dimids(2), y_axis, &
-                                          start=(/start(2)/), cnt=(/cnt(2)/))
-                call write_netcdf_dataset(ncid, dimids(3), z_axis, &
-                                          start=(/start(3)/), cnt=(/cnt(3)/))
+                call write_netcdf_dataset(ncid, dimid, coords, &
+                                          start=(/start/), cnt=(/cnt/))
             else if (present(start)) then
-                call write_netcdf_dataset(ncid, dimids(1), x_axis, &
-                                          start=(/start(1)/))
-                call write_netcdf_dataset(ncid, dimids(2), y_axis, &
-                                          start=(/start(2)/))
-                call write_netcdf_dataset(ncid, dimids(3), z_axis, &
-                                          start=(/start(3)/))
+                call write_netcdf_dataset(ncid, dimid, coords, &
+                                          start=(/start/))
             else
-                call write_netcdf_dataset(ncid, dimids(1), x_axis)
-                call write_netcdf_dataset(ncid, dimids(2), y_axis)
-                call write_netcdf_dataset(ncid, dimids(3), z_axis)
+                call write_netcdf_dataset(ncid, dimid, coords)
             endif
 
-        end subroutine write_netcdf_axis_3d
+        end subroutine write_netcdf_axis
 
         subroutine write_netcdf_info(ncid, version_tag, file_type, cf_version)
             integer,      intent(in) :: ncid

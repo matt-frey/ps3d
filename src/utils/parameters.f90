@@ -4,6 +4,7 @@
 ! =============================================================================
 module parameters
     use constants
+    use mpi_utils, only : mpi_stop
     implicit none
 
     ! mesh spacing
@@ -11,6 +12,9 @@ module parameters
 
     ! inverse mesh spacing
     double precision :: dxi(3)
+
+    ! grid type: 'uniform', 'chebyshev'
+    character(len=9) :: gridtype
 
     ! grid cell volume, really area in 2D:
     double precision :: vcell
@@ -54,7 +58,7 @@ module parameters
 
     double precision :: fnzi
 
-    contains
+contains
 
     ! Update all parameters according to the
     ! user-defined global options.
@@ -85,4 +89,48 @@ module parameters
         fnzi = one / dble(nz)
 
     end subroutine update_parameters
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_x_axis()
+        double precision :: get_x_axis(0:nx-1)
+        integer          :: i
+
+        do i = 0, nx-1
+            get_x_axis(i) = lower(1) + dble(i) * dx(1)
+        enddo
+
+    end function get_x_axis
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_y_axis()
+        double precision :: get_y_axis(0:ny-1)
+        integer          :: i
+
+        do i = 0, nz-1
+            get_y_axis(i) = lower(2) + dble(i) * dx(2)
+        enddo
+
+    end function get_y_axis
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_z_axis()
+        double precision :: get_z_axis(0:nz)
+        integer          :: i
+
+        select case (gridtype)
+            case ('regular')
+                do i = 0, nz
+                    get_z_axis(i) = lower(3) + dble(i) * dx(3)
+                enddo
+            case ('chebyshev')
+                get_z_axis = 0.0d0 !FIXME
+            case default
+                call mpi_stop('Error: invalid grid type.')
+        end select
+
+    end function get_z_axis
+
 end module parameters

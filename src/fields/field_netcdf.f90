@@ -10,7 +10,8 @@ module field_netcdf
     use mpi_timer, only : start_timer, stop_timer
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
-    use parameters, only : lower, extent, dx, nx, ny, nz
+    use parameters, only : lower, extent, dx, nx, ny, nz    &
+                         , get_x_axis, get_y_axis, get_z_axis
     use inversion_utils, only : field_combine_physical
     use sta3dfft, only : diffx, diffy, fftxys2p
     implicit none
@@ -177,10 +178,11 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
+
+#if ENABLE_BUOYANCY
             double precision             :: tbuoy(0:nz,                & ! total buoyancy
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
-#if ENABLE_BUOYANCY
             integer                      :: iz
 #endif
 
@@ -202,8 +204,14 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis_3d(ncid, dimids(1:3), box%lower, dx, &
-                                          box%size, start(1:3), cnt(1:3))
+                call write_netcdf_axis(ncid, dimids(1), box%lower(1), &
+                                       get_x_axis(), start(1), cnt(1))
+
+                call write_netcdf_axis(ncid, dimids(2), box%lower(2), &
+                                       get_y_axis(), start(2), cnt(2))
+
+                call write_netcdf_axis(ncid, dimids(3), box%lower(3), &
+                                       get_z_axis(), start(3), cnt(3))
             endif
 
             ! write time
