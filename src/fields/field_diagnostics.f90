@@ -19,29 +19,6 @@ module field_diagnostics
     use mpi_utils, only : mpi_check_for_error
     implicit none
 
-!     type, abstract :: field_diagnostics_t
-!         contains
-!             procedure (get_ape_m), deferred :: get_available_potential_energy
-!             procedure (get_ke_m),  deferred :: get_kinetic_energy
-!             procedure (get_hke_m), deferred :: get_horizontal_kinetic_energy
-!             procedure (get_vke_m), deferred :: get_vertical_kinetic_energy
-!             procedure (get_en_m),   deferred :: get_enstrophy
-!             procedure (get_hen_m),      deferred :: get_horizontal_enstrophy
-!             procedure (get_max_hen_m),  deferred :: get_max_horizontal_enstrophy
-!             procedure (get_ven_m),      deferred :: get_vertical_enstrophy
-!             procedure (get_min_ri_m),   deferred :: get_min_richardson_number
-!             procedure (get_min_ro_m),   deferred :: get_min_rossby_number
-!             procedure (get_max_ro_m),   deferred :: get_max_rossby_number
-!             procedure (get_min_ss_m),   deferred :: get_minimum_static_stability
-!             procedure (get_gradb_m),    deferred :: get_gradb_integral
-!             procedure (get_mean_m),     deferred :: get_mean
-!             procedure (get_rms_m),      deferred :: get_rms
-!             procedure (get_abs_max_m),  deferred :: get_abs_max
-!             procedure (get_vorch_m), deferred :: get_char_vorticity
-!             procedure (get_vormean_m), deferred :: get_mean_vorticity
-!             procedure (calc_vorticity_mean), deferred :: calc_vorticity_mean
-!     end type field_diagnostics_t
-
     contains
 
 #ifdef ENABLE_BUOYANCY
@@ -379,7 +356,7 @@ module field_diagnostics
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
-            call fdecomp%field_combine_semi_spectral(sbuoy)
+            call flayout%field_combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
@@ -388,7 +365,7 @@ module field_diagnostics
 
             call central_diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
-            call fdecomp%field_decompose_semi_spectral(sbuoy)
+            call flayout%field_decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)
@@ -419,100 +396,6 @@ module field_diagnostics
             endif
         end function get_gradb_integral
 #endif
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_mean(ff, l_allreduce) result(mean)
-            double precision, intent(in) :: ff(box%lo(3):box%hi(3), &
-                                               box%lo(2):box%hi(2), &
-                                               box%lo(1):box%hi(1))
-            logical,          intent(in) :: l_allreduce
-            double precision              :: mean
-
-            ! (divide by ncell since lower and upper edge weights are halved)
-            mean = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                            + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
-                        + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))) / dble(ncell)
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   mean,                    &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_mean.")
-            else
-                call mpi_blocking_reduce(mean, MPI_SUM, world)
-            endif
-
-        end function get_mean
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_rms(ff, l_allreduce) result(rms)
-            double precision, intent(in) :: ff(box%lo(3):box%hi(3), &
-                                               box%lo(2):box%hi(2), &
-                                               box%lo(1):box%hi(1))
-            logical,          intent(in) :: l_allreduce
-            double precision             :: rms
-
-            rms = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2  &
-                           + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2) &
-                       + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)) ** 2)) / dble(ncell)
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   rms,                     &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_rms.")
-            else
-                call mpi_blocking_reduce(rms, MPI_SUM, world)
-            endif
-
-            rms = dsqrt(rms)
-
-        end function get_rms
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_abs_max(ff, l_allreduce) result(abs_max)
-            double precision, intent(in) :: ff(box%lo(3):box%hi(3), &
-                                               box%lo(2):box%hi(2), &
-                                               box%lo(1):box%hi(1))
-            logical,          intent(in) :: l_allreduce
-            double precision             :: abs_max
-
-            abs_max = maxval(dabs(ff(box%lo(3):box%hi(3),   &
-                                     box%lo(2):box%hi(2),   &
-                                     box%lo(1):box%hi(1))))
-
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   abs_max,                 &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_MAX,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_abs_max.")
-            else
-                call mpi_blocking_reduce(abs_max, MPI_MAX, world)
-            endif
-
-        end function get_abs_max
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

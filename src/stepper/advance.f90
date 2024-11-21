@@ -174,10 +174,10 @@ module advance_mod
             !$omp end parallel workshare
 
             !Maximum vorticity magnitude:
-            vortmax = dsqrt(get_abs_max(xp, l_allreduce=.false.))
+            vortmax = dsqrt(flayout%get_absmax(xp, l_allreduce=.false.))
 
             !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
-            vortrms = dsqrt(get_mean(xp, l_allreduce=.true.))
+            vortrms = dsqrt(flayout%get_mean(xp, l_allreduce=.true.))
 
             !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
             vorch = get_char_vorticity(vortrms, l_allreduce=.true.)

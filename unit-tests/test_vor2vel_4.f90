@@ -65,9 +65,9 @@ program test_vor2vel_4
         vor(iz, :, :, 3) = zero
     enddo
 
-    call fdecomp%field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call fdecomp%field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call fdecomp%field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+    call flayout%field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+    call flayout%field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call flayout%field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
     call vor2vel
 
