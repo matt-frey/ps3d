@@ -135,6 +135,7 @@ module utils
 
         subroutine setup_fields
             double precision :: ke, ape, te, en
+            integer          :: nc
 #ifdef ENABLE_BUOYANCY
             integer          :: iz
             double precision :: z
@@ -162,7 +163,9 @@ module utils
             call flayout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
-            ini_vor_mean = calc_vorticity_mean()
+            do nc = 1, 2
+                ini_vor_mean(nc) = flayout%calc_decomposed_mean(svor(:, :, :, nc))
+            enddo
 
             call vor2vel
             ke = get_kinetic_energy(vel, l_global=.true., l_allreduce=.true.)

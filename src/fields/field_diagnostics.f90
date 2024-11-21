@@ -126,7 +126,7 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                ke = f12 * flayout%get_mean(fke, l_allreduce)
+                ke = f12 * flayout%get_mean(fke, l_allreduce=.false.)
             else
                 ke = f12 * flayout%get_local_sum(fke)
             endif
@@ -149,7 +149,7 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                ke = flayout%get_mean(fke, l_allreduce)
+                ke = flayout%get_mean(fke, l_allreduce=.false.)
             else
                 ke = flayout%get_local_sum(fke)
             endif
@@ -199,7 +199,7 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                en = f12 * flayout%get_mean(fen, l_allreduce)
+                en = f12 * flayout%get_mean(fen, l_allreduce=.false.)
             else
                 en = f12 * flayout%get_local_sum(fen)
             endif
@@ -237,7 +237,7 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                en = flayout%get_mean(fen, l_allreduce)
+                en = flayout%get_mean(fen, l_allreduce=.false.)
             else
                 en = flayout%get_local_sum(fen)
             endif
@@ -441,14 +441,8 @@ module field_diagnostics
             integer             :: nc
 
             do nc = 1, 3
-                !$omp parallel workshare
-                vormean(nc) =       sum(vor(1:nz-1, :, :, nc)) &
-                            + f12 * sum(vor(0,      :, :, nc)) &
-                            + f12 * sum(vor(nz,     :, :, nc))
-                !$omp end parallel workshare
+                vormean(nc) =  flayout%get_local_mean(vor(:, :, :, nc))
             enddo
-
-            vormean = vormean * ncelli
 
             if (l_allreduce) then
                 call MPI_Allreduce(MPI_IN_PLACE,            &
@@ -466,45 +460,5 @@ module field_diagnostics
             endif
 
         end function get_mean_vorticity
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! This is only calculated on the MPI rank having kx = ky = 0
-        function calc_vorticity_mean() result(savg)
-            double precision :: wk(1:nz)
-            integer          :: nc
-            double precision :: savg(2)
-
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                do nc = 1, 2
-                    ! Cast svor_S = svor - svor_L onto the z grid as wk for kx = ky = 0:
-                    wk(1:nz-1) = svor(1:nz-1, 0, 0, nc)
-                    wk(nz) = zero
-                    call dst(1, nz, wk(1:nz), ztrig, zfactors)
-                    ! Compute average (first part is the part due to svor_L):
-                    savg(nc) = f12 * (svor(0, 0, 0, nc) + svor(nz, 0, 0, nc)) + fnzi * sum(wk(1:nz-1))
-                enddo
-            endif
-        end function calc_vorticity_mean
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! This is only calculated on the MPI rank having kx = ky = 0
-        subroutine adjust_vorticity_mean
-            double precision :: savg(2)
-            integer          :: nc
-
-            savg = calc_vorticity_mean()
-
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                ! Ensure zero global mean horizontal vorticity conservation:
-                do nc = 1, 2
-                    ! Remove from boundary values (0 & nz):
-                    svor(0 , 0, 0, nc) = svor(0 , 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
-                    svor(nz, 0, 0, nc) = svor(nz, 0, 0, nc) + ini_vor_mean(nc) - savg(nc)
-                enddo
-            endif
-
-        end subroutine adjust_vorticity_mean
 
 end module field_diagnostics

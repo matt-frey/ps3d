@@ -14,7 +14,6 @@ program ps3d
                              , delta_timer
     use inversion_utils, only : init_inversion, finalise_inversion
     use advance_mod, only : advance             &
-                          , calc_vorticity_mean &
                           , advance_timer
     use utils, only : write_last_step, setup_output_files,   &
                       setup_domain_and_parameters            &

@@ -18,10 +18,13 @@ module field_cheby
             ! Field diagnostics:
             procedure :: get_local_sum
             procedure :: get_sum
+            procedure :: get_local_mean
             procedure :: get_mean
 
             ! Field operations:
             procedure :: diffz
+            procedure :: calc_decomposed_mean
+            procedure :: adjust_decomposed_mean
 
     end type field_cheby_t
 
@@ -108,9 +111,7 @@ module field_cheby
                                                     box%lo(1):box%hi(1))
             double precision                  :: res
 
-            res = f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                          + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
-                      + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            res = 0.0d0
 
         end function get_local_sum
 
@@ -145,6 +146,20 @@ module field_cheby
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        function get_local_mean(this, ff) result(res)
+            class (field_cheby_t), intent(in) :: this
+            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+            double precision                  :: res
+
+            res = 0.0d0
+
+
+        end function get_local_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         function get_mean(this, ff, l_allreduce) result(mean)
             class (field_cheby_t), intent(in) :: this
             double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
@@ -153,25 +168,7 @@ module field_cheby
             logical,               intent(in) :: l_allreduce
             double precision                  :: mean
 
-            ! (divide by ncell since lower and upper edge weights are halved)
-            mean = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                            + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
-                        + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))) / dble(ncell)
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   mean,                    &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_mean.")
-            else
-                call mpi_blocking_reduce(mean, MPI_SUM, world)
-            endif
+            mean = 0.0d0
 
         end function get_mean
 
@@ -184,5 +181,31 @@ module field_cheby
 
 
         end subroutine diffz
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        function calc_decomposed_mean(this, fs) result(savg)
+            class (field_cheby_t), intent(in) :: this
+            double precision,      intent(in) :: fs(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+            double precision                   :: savg
+
+            savg = 0.0d0
+
+        end function calc_decomposed_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        subroutine adjust_decomposed_mean(this, fs, avg)
+            class (field_cheby_t), intent(in)    :: this
+            double precision,      intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                       box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+            double precision,      intent(in)    :: avg
+
+        end subroutine adjust_decomposed_mean
 
 end module field_cheby

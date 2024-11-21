@@ -202,7 +202,9 @@ module impl_rk4_mod
                                                 pq=self%epq)
             enddo
 
-            call adjust_vorticity_mean
+            do nc = 1, 2
+                call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+            enddo
 
         end subroutine impl_rk4_step
 

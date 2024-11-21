@@ -17,13 +17,16 @@ module field_layout
 
             ! Field diagnostics:
             procedure (get_field_local_sum),  deferred :: get_local_sum
-            procedure (get_field_sum),  deferred :: get_sum
-            procedure (get_field_mean), deferred :: get_mean
+            procedure (get_field_sum),        deferred :: get_sum
+            procedure (get_field_local_mean), deferred :: get_local_mean
+            procedure (get_field_mean),       deferred :: get_mean
             procedure :: get_rms => get_field_rms
             procedure :: get_absmax => get_field_absmax
 
             ! Field operations:
             procedure (field_diffz), deferred :: diffz
+            procedure (calc_field_decomposed_mean), deferred :: calc_decomposed_mean
+            procedure (adjust_field_decomposed_mean), deferred :: adjust_decomposed_mean
 
     end type flayout_t
 
@@ -83,6 +86,16 @@ module field_layout
             double precision              :: res
         end function
 
+        function get_field_local_mean(this, ff) result(mean)
+            use mpi_layout, only : box
+            import :: flayout_t
+            class (flayout_t), intent(in) :: this
+            double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                box%lo(2):box%hi(2), &
+                                                box%lo(1):box%hi(1))
+            double precision              :: mean
+        end function
+
         function get_field_mean(this, ff, l_allreduce) result(mean)
             use mpi_layout, only : box
             import :: flayout_t
@@ -101,6 +114,26 @@ module field_layout
             class (flayout_t), intent(in)  :: this
             double precision,  intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision,  intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        end subroutine
+
+        function calc_field_decomposed_mean(this, fs) result(savg)
+            use mpi_layout, only : box
+            import :: flayout_t
+            class (flayout_t), intent(in) :: this
+            double precision,  intent(in) :: fs(box%lo(3):box%hi(3), &
+                                                box%lo(2):box%hi(2), &
+                                                box%lo(1):box%hi(1))
+            double precision              :: savg
+        end function
+
+        subroutine adjust_field_decomposed_mean(this, fs, avg)
+            use mpi_layout, only : box
+            import :: flayout_t
+            class (flayout_t), intent(in)    :: this
+            double precision,  intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                   box%lo(2):box%hi(2), &
+                                                   box%lo(1):box%hi(1))
+            double precision,  intent(in)    :: avg
         end subroutine
 
     end interface

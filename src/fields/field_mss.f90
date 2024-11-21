@@ -1,7 +1,7 @@
 module field_mss
     use constants, only : zero
     use field_layout
-    use parameters, only : nz, ncell, dxi
+    use parameters, only : nz, ncell, dxi, fnzi
     use mpi_layout, only : box
     use inversion_utils, only : phim, phip
     use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p
@@ -20,10 +20,13 @@ module field_mss
             ! Field diagnostics:
             procedure :: get_local_sum
             procedure :: get_sum
+            procedure :: get_local_mean
             procedure :: get_mean
 
             ! Field operations:
             procedure :: diffz
+            procedure :: calc_decomposed_mean
+            procedure :: adjust_decomposed_mean
 
     end type field_mss_t
 
@@ -184,6 +187,19 @@ module field_mss
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        function get_local_mean(this, ff) result(res)
+            class (field_mss_t), intent(in) :: this
+            double precision,    intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision                :: res
+
+            res = this%get_local_sum(ff) / dble(ncell)
+
+        end function get_local_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         function get_mean(this, ff, l_allreduce) result(mean)
             class (field_mss_t), intent(in) :: this
             double precision,    intent(in) :: ff(box%lo(3):box%hi(3), &
@@ -226,5 +242,48 @@ module field_mss
             !$omp end parallel do
 
         end subroutine diffz
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        function calc_decomposed_mean(this, fs) result(savg)
+            class (field_mss_t), intent(in) :: this
+            double precision,    intent(in) :: fs(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision                 :: wk(1:nz)
+            double precision                 :: savg
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ! Cast fs_S = fs - fs_L onto the z grid as wk for kx = ky = 0:
+                wk(1:nz-1) = fs(1:nz-1, 0, 0)
+                wk(nz) = zero
+                call dst(1, nz, wk(1:nz), ztrig, zfactors)
+                ! Compute average (first part is the part due to svor_L):
+                savg = f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + fnzi * sum(wk(1:nz-1))
+            endif
+        end function calc_decomposed_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        ! This is only calculated on the MPI rank having kx = ky = 0
+        subroutine adjust_decomposed_mean(this, fs, avg)
+            class (field_mss_t), intent(in)    :: this
+            double precision,    intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                     box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+            double precision,    intent(in)    :: avg
+            double precision                   :: savg
+
+            savg = this%calc_decomposed_mean(fs)
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                ! Ensure zero global mean horizontal vorticity conservation:
+                ! Remove from boundary values (0 & nz):
+                fs(0 , 0, 0) = fs(0 , 0, 0) + avg - savg
+                fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
+            endif
+
+        end subroutine adjust_decomposed_mean
 
 end module field_mss

@@ -134,7 +134,9 @@ module cn2_mod
                 call flayout%decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
-            call adjust_vorticity_mean
+            do nc = 1, 2
+                call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+            enddo
 
             !diss is related to the hyperdiffusive operator (see end of adapt)
 
@@ -172,7 +174,9 @@ module cn2_mod
                     call flayout%decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
-                call adjust_vorticity_mean
+                do nc = 1, 2
+                    call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+                enddo
 
             enddo
 
