@@ -4,11 +4,10 @@ module field_diagnostics
     use merge_sort
     use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
     use stafft, only : dst
-    use inversion_utils, only : central_diffz
     use mpi_environment
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
-    use fields, only : vor, vel, svor, svel, ini_vor_mean
+    use fields, only : vor, vel, svor, svel, ini_vor_mean, flayout
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use ape_density, only : ape_den
@@ -79,27 +78,29 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged kinetic energy
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_kinetic_energy(vv, l_global, l_allreduce) result(ke)
             double precision, intent(in) :: vv(box%lo(3):box%hi(3),      &
                                                box%lo(2):box%hi(2),      &
                                                box%lo(1):box%hi(1), 3)
             logical,          intent(in) :: l_global
             logical,          intent(in) :: l_allreduce
+            double precision             :: fke(box%lo(3):box%hi(3),      &
+                                                box%lo(2):box%hi(2),      &
+                                                box%lo(1):box%hi(1))
             double precision             :: ke
 
-            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2      &
-                         + vv(1:nz-1, :, :, 2) ** 2      &
-                         + vv(1:nz-1, :, :, 3) ** 2)     &
-               + f14 * sum(vv(0,  :, :, 1) ** 2          &
-                         + vv(0,  :, :, 2) ** 2          &
-                         + vv(0,  :, :, 3) ** 2)         &
-               + f14 * sum(vv(nz, :, :, 1) ** 2          &
-                         + vv(nz, :, :, 2) ** 2          &
-                         + vv(nz, :, :, 3) ** 2)
+            fke = vv(:, :, :, 1) ** 2   &
+                + vv(:, :, :, 2) ** 2   &
+                + vv(:, :, :, 3) ** 2
 
-            ke = ke * ncelli
+            ke = f12 * flayout%get_local_sum(fke)
 
             if (l_global) then
+
+                ke = ke * ncelli
+
                 if (l_allreduce) then
                     call MPI_Allreduce(MPI_IN_PLACE,            &
                                        ke,                      &
@@ -269,7 +270,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call central_diffz(buoy, dbdz)
+            call flayout%diffz(buoy, dbdz)
 
             ! As we use the pertubation mode, we only have b'_z, i.e. we must
             ! add N^2 because b_z = N^2 + b'_z
@@ -328,7 +329,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call central_diffz(buoy, dbdz)
+            call flayout%diffz(buoy, dbdz)
 
             mss = minval(dbdz)
 
@@ -363,7 +364,7 @@ module field_diagnostics
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call central_diffz(sbuoy, mag)
+            call flayout%diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
             call flayout%decompose_semi_spectral(sbuoy)
 

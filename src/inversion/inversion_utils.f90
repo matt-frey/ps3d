@@ -88,7 +88,6 @@ module inversion_utils
             , bhdis                 &
 #endif
             , vvisc                 &
-            , central_diffz         &
             , filt                  &
             , hdzi                  &
             , k2l2                  &
@@ -536,32 +535,6 @@ module inversion_utils
             dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
 #endif
         end subroutine set_hyperbolic_functions
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Calculates df/dz for a field f using 2nd-order differencing.
-        !Here fs = f, ds = df/dz. In physical or semi-spectral space.
-        subroutine central_diffz(fs, ds)
-            double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                       :: iz
-
-            ! Linear extrapolation at the boundaries:
-            ! iz = 0:  (fs(1) - fs(0)) / dz
-            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
-            !$omp parallel workshare
-            ds(0,  :, :) = dzi * (fs(1,    :, :) - fs(0,    :, :))
-            ds(nz, :, :) = dzi * (fs(nz,   :, :) - fs(nz-1, :, :))
-            !$omp end parallel workshare
-
-            ! central differencing for interior cells
-            !$omp parallel do private(iz) default(shared)
-            do iz = 1, nz-1
-                ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
-            enddo
-            !$omp end parallel do
-
-        end subroutine central_diffz
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

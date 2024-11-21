@@ -14,6 +14,7 @@ program test_diffz_2
     use mpi_environment
     use mpi_layout
     use mpi_collectives
+    use fields, only : flayout
     implicit none
 
     double precision              :: error
@@ -61,7 +62,7 @@ program test_diffz_2
         enddo
     enddo
 
-    call central_diffz(fp, dfdz)
+    call flayout%diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 

@@ -16,7 +16,13 @@ module field_cheby
             procedure :: combine_semi_spectral
 
             ! Field diagnostics:
+            procedure :: get_local_sum
+            procedure :: get_sum
             procedure :: get_mean
+
+            ! Field operations:
+            procedure :: diffz
+
     end type field_cheby_t
 
     contains
@@ -95,6 +101,50 @@ module field_cheby
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        function get_local_sum(this, ff) result(res)
+            class (field_cheby_t), intent(in) :: this
+            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+            double precision                  :: res
+
+            res = f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
+                          + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
+                      + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        end function get_local_sum
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        function get_sum(this, ff, l_allreduce) result(res)
+            class (field_cheby_t), intent(in) :: this
+            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+            logical,               intent(in) :: l_allreduce
+            double precision                  :: res
+
+            res = this%get_local_sum(ff)
+
+            if (l_allreduce) then
+                call MPI_Allreduce(MPI_IN_PLACE,            &
+                                   res,                     &
+                                   1,                       &
+                                   MPI_DOUBLE_PRECISION,    &
+                                   MPI_SUM,                 &
+                                   world%comm,              &
+                                   world%err)
+
+                call mpi_check_for_error(world, &
+                    "in MPI_Allreduce of field_diagnostics::get_sum.")
+            else
+                call mpi_blocking_reduce(res, MPI_SUM, world)
+            endif
+
+        end function get_sum
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         function get_mean(this, ff, l_allreduce) result(mean)
             class (field_cheby_t), intent(in) :: this
             double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
@@ -124,5 +174,15 @@ module field_cheby
             endif
 
         end function get_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine diffz(this, fs, ds)
+            class (field_cheby_t), intent(in)  :: this
+            double precision,      intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision,      intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+
+        end subroutine diffz
 
 end module field_cheby

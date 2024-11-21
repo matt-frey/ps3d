@@ -154,7 +154,7 @@ module advance_mod
             call diffy(sbuoy, ys)
             call fftxys2p(ys, yp)
 
-            call central_diffz(sbuoy, xs)
+            call flayout%diffz(sbuoy, xs)
             call fftxys2p(xs, zp)
             call decompose_semi_spectral(sbuoy)
 

@@ -1,7 +1,7 @@
 module field_mss
     use constants, only : zero
     use field_layout
-    use parameters, only : nz, ncell
+    use parameters, only : nz, ncell, dxi
     use mpi_layout, only : box
     use inversion_utils, only : phim, phip
     use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p
@@ -18,7 +18,12 @@ module field_mss
             procedure :: combine_semi_spectral
 
             ! Field diagnostics:
+            procedure :: get_local_sum
+            procedure :: get_sum
             procedure :: get_mean
+
+            ! Field operations:
+            procedure :: diffz
 
     end type field_mss_t
 
@@ -135,6 +140,50 @@ module field_mss
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+        function get_local_sum(this, ff) result(res)
+            class (field_mss_t), intent(in) :: this
+            double precision,    intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision                :: res
+
+            res = f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
+                          + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
+                      + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        end function get_local_sum
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        function get_sum(this, ff, l_allreduce) result(res)
+            class (field_mss_t), intent(in) :: this
+            double precision,    intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            logical,             intent(in) :: l_allreduce
+            double precision                :: res
+
+            res = this%get_local_sum(ff)
+
+            if (l_allreduce) then
+                call MPI_Allreduce(MPI_IN_PLACE,            &
+                                   res,                     &
+                                   1,                       &
+                                   MPI_DOUBLE_PRECISION,    &
+                                   MPI_SUM,                 &
+                                   world%comm,              &
+                                   world%err)
+
+                call mpi_check_for_error(world, &
+                    "in MPI_Allreduce of field_diagnostics::get_sum.")
+            else
+                call mpi_blocking_reduce(res, MPI_SUM, world)
+            endif
+
+        end function get_sum
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
         function get_mean(this, ff, l_allreduce) result(mean)
             class (field_mss_t), intent(in) :: this
             double precision,    intent(in) :: ff(box%lo(3):box%hi(3), &
@@ -144,25 +193,38 @@ module field_mss
             double precision                :: mean
 
             ! (divide by ncell since lower and upper edge weights are halved)
-            mean = (f12 * sum(ff(0,      box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                            + ff(nz,     box%lo(2):box%hi(2), box%lo(1):box%hi(1))) &
-                        + sum(ff(1:nz-1, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))) / dble(ncell)
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   mean,                    &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_mean.")
-            else
-                call mpi_blocking_reduce(mean, MPI_SUM, world)
-            endif
+            mean = this%get_sum(ff, l_allreduce) / dble(ncell)
 
         end function get_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        !Calculates df/dz for a field f using 2nd-order differencing.
+        !Here fs = f, ds = df/dz. In physical or semi-spectral space.
+        subroutine diffz(this, fs, ds)
+            class (field_mss_t), intent(in)  :: this
+            double precision,    intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            double precision,    intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            integer                          :: iz
+            double precision                 :: hdzi
+
+            hdzi = f12 * dxi(3)
+
+            ! Linear extrapolation at the boundaries:
+            ! iz = 0:  (fs(1) - fs(0)) / dz
+            ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+            !$omp parallel workshare
+            ds(0,  :, :) = dxi(3) * (fs(1,    :, :) - fs(0,    :, :))
+            ds(nz, :, :) = dxi(3) * (fs(nz,   :, :) - fs(nz-1, :, :))
+            !$omp end parallel workshare
+
+            ! central differencing for interior cells
+            !$omp parallel do private(iz) default(shared)
+            do iz = 1, nz-1
+                ds(iz, :, :) = (fs(iz+1, :, :) - fs(iz-1, :, :)) * hdzi
+            enddo
+            !$omp end parallel do
+
+        end subroutine diffz
 
 end module field_mss

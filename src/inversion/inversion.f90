@@ -43,7 +43,7 @@ module inversion_mod
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
             call flayout%combine_semi_spectral(cs)
-            call central_diffz(cs, es)                     ! es = E
+            call flayout%diffz(cs, es)                     ! es = E
             call flayout%decompose_semi_spectral(es)
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
@@ -339,7 +339,7 @@ module inversion_mod
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
-            call central_diffz(fp, gp)
+            call flayout%diffz(fp, gp)
             call flayout%decompose_physical(gp, p)
             !$omp parallel workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
@@ -353,7 +353,7 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
-            call central_diffz(fp, gp)
+            call flayout%diffz(fp, gp)
             call flayout%decompose_physical(gp, r)
             !$omp parallel workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
