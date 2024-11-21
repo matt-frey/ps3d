@@ -272,7 +272,7 @@ module field_diagnostics_netcdf
 #endif
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call combine_physical(sbuoy, buoy)
 
             ! get total buoyancy:
             do iz = 0, nz

@@ -106,7 +106,7 @@ module fields_derived
             !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call combine_physical(sbuoy, buoy)
             call central_diffz(buoy, dbdz)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 #endif

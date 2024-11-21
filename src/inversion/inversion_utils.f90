@@ -605,7 +605,7 @@ module inversion_utils
             ds = ds + as
             !omp end parallel workshare
 
-            call field_decompose_semi_spectral(ds)
+            call decompose_semi_spectral(ds)
 
         end subroutine diffz
 #endif

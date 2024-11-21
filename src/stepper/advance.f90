@@ -147,7 +147,7 @@ module advance_mod
 #ifdef ENABLE_BUOYANCY
             !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
             !Obtain gradient of buoyancy in physical space -> xp, yp, zp
-            call field_combine_semi_spectral(sbuoy)
+            call combine_semi_spectral(sbuoy)
             call diffx(sbuoy, xs)
             call fftxys2p(xs, xp)
 
@@ -156,7 +156,7 @@ module advance_mod
 
             call central_diffz(sbuoy, xs)
             call fftxys2p(xs, zp)
-            call field_decompose_semi_spectral(sbuoy)
+            call decompose_semi_spectral(sbuoy)
 
             !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
             !$omp parallel workshare

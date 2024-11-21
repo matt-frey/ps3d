@@ -10,10 +10,10 @@ module field_cheby
     type, extends (flayout_t) :: field_cheby_t
         contains
             ! Field decompositions:
-            procedure :: field_decompose_physical
-            procedure :: field_combine_physical
-            procedure :: field_decompose_semi_spectral
-            procedure :: field_combine_semi_spectral
+            procedure :: decompose_physical
+            procedure :: combine_physical
+            procedure :: decompose_semi_spectral
+            procedure :: combine_semi_spectral
 
             ! Field diagnostics:
             procedure :: get_mean
@@ -26,22 +26,22 @@ module field_cheby
         ! fc  - complete field (physical space)
         ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
         ! cfc - copy of complete field (physical space)
-        subroutine field_decompose_physical(this, fc, sf)
+        subroutine decompose_physical(this, fc, sf)
             class (field_cheby_t), intent(in)  :: this
             double precision,      intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision,      intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
             call fftxyp2s(fc, sf)
 
-            call this%field_decompose_semi_spectral(sf)
+            call this%decompose_semi_spectral(sf)
 
-        end subroutine field_decompose_physical
+        end subroutine decompose_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! in : complete field (semi-spectral space)
         ! out: full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-        subroutine field_decompose_semi_spectral(this, sfc)
+        subroutine decompose_semi_spectral(this, sfc)
             class (field_cheby_t), intent(in)    :: this
             double precision,      intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                              :: iz
@@ -53,14 +53,14 @@ module field_cheby
             enddo
             !$omp end parallel do
 
-        end subroutine field_decompose_semi_spectral
+        end subroutine decompose_semi_spectral
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
         ! fc  - complete field (physical space)
         ! sfc - complete field (semi-spectral space)
-        subroutine field_combine_physical(this, sf, fc)
+        subroutine combine_physical(this, sf, fc)
             class (field_cheby_t), intent(in)  :: this
             double precision,      intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision,      intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
@@ -68,18 +68,18 @@ module field_cheby
 
             sfc = sf
 
-            call this%field_combine_semi_spectral(sfc)
+            call this%combine_semi_spectral(sfc)
 
             ! transform to physical space as fc:
             call fftxys2p(sfc, fc)
 
-        end subroutine field_combine_physical
+        end subroutine combine_physical
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! in : full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
         ! out: complete field (semi-spectral space)
-        subroutine field_combine_semi_spectral(this, sf)
+        subroutine combine_semi_spectral(this, sf)
             class (field_cheby_t), intent(in)    :: this
             double precision,      intent(inout) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             integer                              :: iz
@@ -91,7 +91,7 @@ module field_cheby
             enddo
             !$omp end parallel do
 
-        end subroutine field_combine_semi_spectral
+        end subroutine combine_semi_spectral
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

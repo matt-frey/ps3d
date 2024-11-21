@@ -356,7 +356,7 @@ module field_diagnostics
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
-            call flayout%field_combine_semi_spectral(sbuoy)
+            call flayout%combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
@@ -365,7 +365,7 @@ module field_diagnostics
 
             call central_diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
-            call flayout%field_decompose_semi_spectral(sbuoy)
+            call flayout%decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

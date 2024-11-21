@@ -10,10 +10,10 @@ module field_layout
     type, abstract :: flayout_t
         contains
             ! Field decompositions:
-            procedure (decompose_physical), deferred :: field_decompose_physical
-            procedure (combine_physical),   deferred :: field_combine_physical
-            procedure (decompose_semi_spectral), deferred :: field_decompose_semi_spectral
-            procedure (combine_semi_spectral),   deferred :: field_combine_semi_spectral
+            procedure (field_decompose_physical),      deferred :: decompose_physical
+            procedure (field_combine_physical),        deferred :: combine_physical
+            procedure (field_decompose_semi_spectral), deferred :: decompose_semi_spectral
+            procedure (field_combine_semi_spectral),   deferred :: combine_semi_spectral
 
             ! Field diagnostics:
             procedure (get_field_mean), deferred :: get_mean
@@ -22,7 +22,7 @@ module field_layout
     end type flayout_t
 
     interface
-        subroutine decompose_physical(this, fc, sf)
+        subroutine field_decompose_physical(this, fc, sf)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -31,7 +31,7 @@ module field_layout
             double precision,  intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine combine_physical(this, sf, fc)
+        subroutine field_combine_physical(this, sf, fc)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -40,7 +40,7 @@ module field_layout
             double precision,  intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine decompose_semi_spectral(this, sfc)
+        subroutine field_decompose_semi_spectral(this, sfc)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -48,7 +48,7 @@ module field_layout
             double precision,  intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine combine_semi_spectral(this, sf)
+        subroutine field_combine_semi_spectral(this, sf)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t

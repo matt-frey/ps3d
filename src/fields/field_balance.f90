@@ -3,8 +3,8 @@ module field_balance
     use parameters, only : nz, extent, dx, lower
     use physics, only : bfsq, f_cor
     use inversion_utils, only : k2l2                            &
-                              , field_decompose_semi_spectral   &
-                              , field_combine_semi_spectral
+                              , decompose_semi_spectral   &
+                              , combine_semi_spectral
     use sta3dfft, only : diffx, diffy, fftxys2p
     use fields, only : vel, sbuoy, buoy
     use mpi_layout
@@ -159,12 +159,12 @@ module field_balance
 
             !------------------------------------------------------------------
             ! Define streamfunction and obtain balanced buoyancy anomaly:
-            call field_combine_semi_spectral(sbuoy)
+            call combine_semi_spectral(sbuoy)
             do iz = 0, nz
                 psi(iz, :, :) = pq(iz, :, :) * sbuoy(nz, :, :)
                 ds(iz, :, :)  = bq(iz, :, :) * sbuoy(nz, :, :)
             enddo
-            call field_decompose_semi_spectral(sbuoy)
+            call decompose_semi_spectral(sbuoy)
             call fftxys2p(ds, bbal)
 
             !------------------------------------------------------------------
