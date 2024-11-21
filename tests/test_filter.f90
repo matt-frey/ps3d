@@ -8,6 +8,7 @@ program test_filter
     use stafft, only : initfft, dst, dct
     use deriv1d, only : init_deriv
     use constants, only : zero, one, two, pi
+    use cheby, only : cheb_fun, cheb_poly, init_cheby
     implicit none
 
     ! Resolution in z:
@@ -23,18 +24,19 @@ program test_filter
     ! Domain height and grid length:
     double precision, parameter :: Lz = pi
     double precision, parameter :: zmin = -Lz/two, zmax = zmin + Lz
-    double precision            :: dz
+    double precision            :: dz, alpha, beta, rkmax, kmax, x
 
     ! Arrays:
-    double precision, allocatable :: z(:), q(:), qs(:), filt(:)
+    double precision, allocatable :: z(:), q(:), qs(:), filt(:), coeff(:)
     double precision, allocatable :: dq(:), dqs(:)
+    double precision, allocatable :: d1z(:, :), d2z(:, :), zcheb(:) ! Chebyshev grid points
 
     ! FFT arrays:
     integer :: zfactors(5)
     double precision, allocatable :: ztrig(:), rkz(:)
 
     ! Others:
-    double precision:: eps, fac
+    double precision:: eps, fac, err_e, err_o
     integer:: iz, kz, iopt
 
     write(*,*) ' Enter number of cells:'
@@ -48,6 +50,12 @@ program test_filter
     allocate(dqs(0:nz))
     allocate(ztrig(2*nz))
     allocate(rkz(nz))
+    allocate(coeff(0:nz))
+    allocate(d1z(0:nz, 0:nz))
+    allocate(d2z(0:nz, 0:nz))
+    allocate(zcheb(0:nz))
+
+    call init_cheby(nz, zcheb, d1z, d2z)
 
     dz = Lz / dble(nz)
 
@@ -75,7 +83,7 @@ program test_filter
     dq(nz) = zero
     call dct(1, nz, dq, ztrig, zfactors)
 
-    write(*,*) ' Choose (1) 2/3 rule or (2) Hou & Li filter:'
+    write(*,*) ' Choose (1) 2/3 rule, (2) Hou & Li filter or (3) Dembenek filter:'
     read(*,*) iopt
 
     if (iopt == 1) then
@@ -87,29 +95,58 @@ program test_filter
                 filt(kz) = zero
             endif
         enddo
-    else
+    else if (iopt == 2) then
         fac = one/rkz(nz)
         filt(0) = one
         do kz = 1, nz
             filt(kz) = exp(-36.d0*(fac*rkz(kz))**36.d0)
         enddo
+    else
+        alpha = 27.0d0
+        beta = 5.3d0
+        kmax = 2.0d0 / 3.0d0
+        rkmax = kmax * dble(nz)
+        do kz = 0, nz
+            x = dble(kz) / rkmax
+            filt(kz) = dexp(-alpha * x**beta)
+        enddo
     endif
 
-    ! Transform to spectral space:
     qs = q
-    call dst(1, nz, qs(1:nz), ztrig, zfactors)
 
-    ! Apply filter:
-    qs = filt*qs
+    if (iopt == 3) then
+        call cheb_poly(nz, qs, coeff)
+        coeff = filt * coeff
+        err_e = coeff(0)
+        err_o = coeff(1)
+        do iz = 1, nz/2
+            err_e  = err_e +  coeff(2*iz)
+        enddo
 
-    ! Differentiate:
-    dqs(0) = zero
-    dqs(1:nz-1) = rkz(1:nz-1)*qs(1:nz-1)
-    dqs(nz) = zero
+        do iz = 1, nz/2-1
+            err_o  = err_o +  coeff(2*iz+1)
+        enddo
+        coeff(0) = coeff(0) - err_e
+        coeff(1) = coeff(1) - err_o
+        call cheb_fun(nz, coeff, qs)
 
-    ! Transform back to physical space:
-    call dst(1, nz, qs(1:nz), ztrig, zfactors)
-    call dct(1, nz, dqs, ztrig, zfactors)
+        dqs = matmul(d1z, qs)
+    else
+        ! Transform to spectral space:
+        call dst(1, nz, qs(1:nz), ztrig, zfactors)
+
+        ! Apply filter:
+        qs = filt * qs
+
+        ! Differentiate:
+        dqs(0) = zero
+        dqs(1:nz-1) = rkz(1:nz-1)*qs(1:nz-1)
+        dqs(nz) = zero
+
+        ! Transform back to physical space:
+        call dst(1, nz, qs(1:nz), ztrig, zfactors)
+        call dct(1, nz, dqs, ztrig, zfactors)
+    endif
 
     write (fname, "(a17,i1,a4)") 'q_profile_filter_', file_num, '.asc'
     do while (l_exist)
@@ -120,8 +157,10 @@ program test_filter
     open(80, file = fname, status = 'replace')
     if (iopt == 1) then
         write(80,*) '#', nz, eps, '2/3 rule filter'
-    else
+    else if (iopt == 2) then
         write(80,*) '#', nz, eps, 'Hou and Li filter'
+    else
+        write(80,*) '#', nz, eps, 'Dembenek filter'
     endif
     do iz = 0, nz
         write(80,*) z(iz), qs(iz), q(iz), qs(iz) - q(iz)
@@ -132,8 +171,10 @@ program test_filter
     open(80, file = fname, status = 'replace')
     if (iopt == 1) then
         write(80,*) '#', nz, eps, '2/3 rule filter'
-    else
+    else if (iopt == 2) then
         write(80,*) '#', nz, eps, 'Hou and Li filter'
+    else
+        write(80,*) '#', nz, eps, 'Dembenek filter'
     endif
     do iz = 0, nz
         write(80,*) z(iz), dqs(iz), dq(iz), dqs(iz) - dq(iz)
@@ -148,4 +189,6 @@ program test_filter
     deallocate(dqs)
     deallocate(ztrig)
     deallocate(rkz)
+    deallocate(coeff)
+    deallocate(d1z, d2z, zcheb)
 end program test_filter

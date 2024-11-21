@@ -66,7 +66,7 @@ program test_omp_collapse
 
 
     do nc = 1, 3
-        call field_decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
+        call fdecomp%field_decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
     enddo
 
     svor = svel

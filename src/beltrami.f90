@@ -17,7 +17,8 @@
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
-    use parameters, only : nx, ny, nz, dx, lower, extent
+    use parameters, only : nx, ny, nz, dx, lower, extent    &
+                         , get_x_axis, get_y_axis, get_z_axis
     use netcdf_utils
     use netcdf_writer
     use config, only : package_version, cf_version
@@ -95,7 +96,9 @@ program beltrami
 
             call beltrami_init
 
-            call write_netcdf_axis_3d(ncid, dimids, lower, dx, box%ncells)
+            call write_netcdf_axis(ncid, dimids(1), lower(1), get_x_axis())
+            call write_netcdf_axis(ncid, dimids(2), lower(2), get_y_axis())
+            call write_netcdf_axis(ncid, dimids(3), lower(3), get_z_axis())
 
             ! write time
             call write_netcdf_scalar(ncid, axids(4), zero, 1)

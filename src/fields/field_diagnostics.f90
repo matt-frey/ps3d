@@ -4,10 +4,7 @@ module field_diagnostics
     use merge_sort
     use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
     use stafft, only : dst
-    use inversion_utils, only : central_diffz                           &
-                              , field_combine_semi_spectral             &
-                              , field_decompose_semi_spectral           &
-                              , field_combine_physical
+    use inversion_utils, only : central_diffz
     use mpi_environment
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
@@ -21,6 +18,29 @@ module field_diagnostics
 #endif
     use mpi_utils, only : mpi_check_for_error
     implicit none
+
+!     type, abstract :: field_diagnostics_t
+!         contains
+!             procedure (get_ape_m), deferred :: get_available_potential_energy
+!             procedure (get_ke_m),  deferred :: get_kinetic_energy
+!             procedure (get_hke_m), deferred :: get_horizontal_kinetic_energy
+!             procedure (get_vke_m), deferred :: get_vertical_kinetic_energy
+!             procedure (get_en_m),   deferred :: get_enstrophy
+!             procedure (get_hen_m),      deferred :: get_horizontal_enstrophy
+!             procedure (get_max_hen_m),  deferred :: get_max_horizontal_enstrophy
+!             procedure (get_ven_m),      deferred :: get_vertical_enstrophy
+!             procedure (get_min_ri_m),   deferred :: get_min_richardson_number
+!             procedure (get_min_ro_m),   deferred :: get_min_rossby_number
+!             procedure (get_max_ro_m),   deferred :: get_max_rossby_number
+!             procedure (get_min_ss_m),   deferred :: get_minimum_static_stability
+!             procedure (get_gradb_m),    deferred :: get_gradb_integral
+!             procedure (get_mean_m),     deferred :: get_mean
+!             procedure (get_rms_m),      deferred :: get_rms
+!             procedure (get_abs_max_m),  deferred :: get_abs_max
+!             procedure (get_vorch_m), deferred :: get_char_vorticity
+!             procedure (get_vormean_m), deferred :: get_mean_vorticity
+!             procedure (calc_vorticity_mean), deferred :: calc_vorticity_mean
+!     end type field_diagnostics_t
 
     contains
 
@@ -359,7 +379,7 @@ module field_diagnostics
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
-            call field_combine_semi_spectral(sbuoy)
+            call fdecomp%field_combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
@@ -368,7 +388,7 @@ module field_diagnostics
 
             call central_diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
-            call field_decompose_semi_spectral(sbuoy)
+            call fdecomp%field_decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

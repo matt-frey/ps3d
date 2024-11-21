@@ -12,7 +12,6 @@ module field_netcdf
     use physics, only : write_physical_quantities
     use parameters, only : lower, extent, dx, nx, ny, nz    &
                          , get_x_axis, get_y_axis, get_z_axis
-    use inversion_utils, only : field_combine_physical
     use sta3dfft, only : diffx, diffy, fftxys2p
     implicit none
 
@@ -238,7 +237,7 @@ module field_netcdf
             call write_field_double(NC_DELTA, delta, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
-            call field_combine_physical(sbuoy, buoy)
+            call fdecomp%field_combine_physical(sbuoy, buoy)
 
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
 

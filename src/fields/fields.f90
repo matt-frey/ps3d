@@ -6,6 +6,9 @@ module fields
     use parameters, only : nz
     use constants, only : zero
     use mpi_layout, only : box, l_mpi_layout_initialised
+    use field_chebyshev
+    use field_mixed_spectral, only : field_decomp_mss_t
+    use field_decomposition, only : field_decomp_t
     use mpi_utils, only : mpi_exit_on_error
     implicit none
 
@@ -39,6 +42,8 @@ module fields
 
     double precision, allocatable :: bbarz(:) ! N**2 * z
 
+    class(field_decomp_t), allocatable :: fdecomp
+
     contains
 
         ! Allocate all fields
@@ -52,6 +57,8 @@ module fields
             if (allocated(vel)) then
                 return
             endif
+
+            allocate(field_decomp_mss_t :: fdecomp)
 
             lo = box%lo
             hi = box%hi

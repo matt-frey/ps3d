@@ -8,7 +8,7 @@ module utils
     use netcdf_utils
     use field_netcdf
     use field_diagnostics_netcdf
-    use inversion_utils, only : init_diffusion, field_decompose_physical
+    use inversion_utils, only : init_diffusion
     use inversion_mod, only : vor2vel
     use netcdf_reader, only : get_file_type, get_num_steps, get_time_at_step, get_time, get_netcdf_box
     use parameters, only : nx, ny, lower, extent, update_parameters, dx
@@ -155,11 +155,11 @@ module utils
                 bbarz(iz) = bfsq * z
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
-            call field_decompose_physical(buoy, sbuoy)
+            call fdecomp%field_decompose_physical(buoy, sbuoy)
 #endif
-            call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-            call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+            call fdecomp%field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+            call fdecomp%field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+            call fdecomp%field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             ini_vor_mean = calc_vorticity_mean()
