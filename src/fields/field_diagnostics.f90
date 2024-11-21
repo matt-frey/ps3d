@@ -95,26 +95,12 @@ module field_diagnostics
                 + vv(:, :, :, 2) ** 2   &
                 + vv(:, :, :, 3) ** 2
 
-            ke = f12 * flayout%get_local_sum(fke)
 
             if (l_global) then
-
-                ke = ke * ncelli
-
-                if (l_allreduce) then
-                    call MPI_Allreduce(MPI_IN_PLACE,            &
-                                       ke,                      &
-                                       1,                       &
-                                       MPI_DOUBLE_PRECISION,    &
-                                       MPI_SUM,                 &
-                                       world%comm,              &
-                                       world%err)
-
-                    call mpi_check_for_error(world, &
-                        "in MPI_Allreduce of field_diagnostics::get_kinetic_energy.")
-                else
-                    call mpi_blocking_reduce(ke, MPI_SUM, world)
-                endif
+                ! already includes normalisation with "ncell"
+                ke = f12 * flayout%get_mean(fke, l_allreduce)
+            else
+                ke = f12 * flayout%get_local_sum(fke)
             endif
 
         end function get_kinetic_energy
@@ -123,24 +109,26 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged horizontal kinetic energy, i.e. (u^2 + v^2) / 2
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_horizontal_kinetic_energy(vv, l_global) result(ke)
             double precision, intent(in) :: vv(box%lo(3):box%hi(3),      &
                                                box%lo(2):box%hi(2),      &
                                                box%lo(1):box%hi(1), 3)
             logical,          intent(in) :: l_global
+            double precision             :: fke(box%lo(3):box%hi(3),      &
+                                                box%lo(2):box%hi(2),      &
+                                                box%lo(1):box%hi(1))
             double precision             :: ke
 
-            ke = f12 * sum(vv(1:nz-1, :, :, 1) ** 2    &
-                         + vv(1:nz-1, :, :, 2) ** 2)   &
-               + f14 * sum(vv(0,      :, :, 1) ** 2    &
-                         + vv(0,      :, :, 2) ** 2)   &
-               + f14 * sum(vv(nz,     :, :, 1) ** 2    &
-                         + vv(nz,     :, :, 2) ** 2)
-
-            ke = ke * ncelli
+            fke = vv(:, :, :, 1) ** 2   &
+                + vv(:, :, :, 2) ** 2
 
             if (l_global) then
-                call mpi_blocking_reduce(ke, MPI_SUM, world)
+                ! already includes normalisation with "ncell"
+                ke = f12 * flayout%get_mean(fke, l_allreduce)
+            else
+                ke = f12 * flayout%get_local_sum(fke)
             endif
 
         end function get_horizontal_kinetic_energy
@@ -148,18 +136,22 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged vertical kinetic energy, i.e. w^2 / 2
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_vertical_kinetic_energy(l_global) result(ke)
-            logical, intent(in) :: l_global
-            double precision    :: ke
+            logical,         intent(in) :: l_global
+            double precision            :: ke
+            double precision            :: fke(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1))
 
-            ke = f12 * sum(vel(1:nz-1, :, :, 3) ** 2)   &
-               + f14 * sum(vel(0,      :, :, 3) ** 2)   &
-               + f14 * sum(vel(nz,     :, :, 3) ** 2)
-
-            ke = ke * ncelli
+            fke = f12 * vel(:, :, :, 3) ** 2
 
             if (l_global) then
-                call mpi_blocking_reduce(ke, MPI_SUM, world)
+                ! already includes normalisation with "ncell"
+                ke = flayout%get_mean(fke, l_allreduce)
+            else
+                ke = flayout%get_local_sum(fke)
             endif
 
         end function get_vertical_kinetic_energy
@@ -167,38 +159,25 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_enstrophy(l_global, l_allreduce) result(en)
-            logical, intent(in) :: l_global
-            logical, intent(in) :: l_allreduce
-            double precision    :: en
+            logical,         intent(in) :: l_global
+            logical,         intent(in) :: l_allreduce
+            double precision            :: fen(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1))
+            double precision            :: en
 
-            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
-                         + vor(1:nz-1, :, :, 2) ** 2    &
-                         + vor(1:nz-1, :, :, 3) ** 2)   &
-               + f14 * sum(vor(0,      :, :, 1) ** 2    &
-                         + vor(0,      :, :, 2) ** 2    &
-                         + vor(0,      :, :, 3) ** 2)   &
-               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
-                         + vor(nz,     :, :, 2) ** 2    &
-                         + vor(nz,     :, :, 3) ** 2)
-
-            en = en * ncelli
+            fen = vor(:, :, :, 1) ** 2  &
+                + vor(:, :, :, 2) ** 2  &
+                + vor(:, :, :, 3) ** 2
 
             if (l_global) then
-                if (l_allreduce) then
-                    call MPI_Allreduce(MPI_IN_PLACE,            &
-                                       en,                      &
-                                       1,                       &
-                                       MPI_DOUBLE_PRECISION,    &
-                                       MPI_SUM,                 &
-                                       world%comm,              &
-                                       world%err)
-
-                    call mpi_check_for_error(world, &
-                        "in MPI_Allreduce of field_diagnostics::get_enstrophy.")
-                else
-                    call mpi_blocking_reduce(en, MPI_SUM, world)
-                endif
+                ! already includes normalisation with "ncell"
+                en = f12 * flayout%get_mean(fen, l_allreduce)
+            else
+                en = f12 * flayout%get_local_sum(fen)
             endif
 
         end function get_enstrophy
@@ -206,21 +185,23 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy, i.e. (xi^2 + eta^2) / 2
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_horizontal_enstrophy(l_global) result(en)
-            logical, intent(in) :: l_global
-            double precision    :: en
+            logical,         intent(in) :: l_global
+            double precision            :: fen(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1))
+            double precision            :: en
 
-            en = f12 * sum(vor(1:nz-1, :, :, 1) ** 2    &
-                         + vor(1:nz-1, :, :, 2) ** 2)   &
-               + f14 * sum(vor(0,      :, :, 1) ** 2    &
-                         + vor(0,      :, :, 2) ** 2)   &
-               + f14 * sum(vor(nz,     :, :, 1) ** 2    &
-                         + vor(nz,     :, :, 2) ** 2)
-
-            en = en * ncelli
+            fen = vor(:, :, :, 1) ** 2  &
+                + vor(:, :, :, 2) ** 2
 
             if (l_global) then
-                call mpi_blocking_reduce(en, MPI_SUM, world)
+                ! already includes normalisation with "ncell"
+                en = f12 * flayout%get_mean(fen, l_allreduce)
+            else
+                en = f12 * flayout%get_local_sum(fen)
             endif
 
         end function get_horizontal_enstrophy
@@ -232,7 +213,7 @@ module field_diagnostics
             logical, intent(in) :: l_global
             double precision    :: hemax
 
-            hemax = maxval(dsqrt(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
+            hemax = maxval(sqrt(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2))
 
             if (l_global) then
                 call mpi_blocking_reduce(hemax, MPI_MAX, world)
@@ -243,18 +224,22 @@ module field_diagnostics
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! domain-averaged enstrophy, i.e. zeta^2 / 2
+        ! Note: If called with l_global = .false., the result must be normalised with "ncell"
+        !       after a global reduction by the user.
         function get_vertical_enstrophy(l_global) result(en)
-            logical, intent(in) :: l_global
-            double precision    :: en
+            logical,         intent(in) :: l_global
+            double precision            :: fen(box%lo(3):box%hi(3),      &
+                                               box%lo(2):box%hi(2),      &
+                                               box%lo(1):box%hi(1))
+            double precision             :: en
 
-            en = f12 * sum(vor(1:nz-1, :, :, 3) ** 2)  &
-               + f14 * sum(vor(0,      :, :, 3) ** 2)  &
-               + f14 * sum(vor(nz,     :, :, 3) ** 2)
-
-            en = en * ncelli
+            fen = f12 * vor(:, :, :, 3) ** 2
 
             if (l_global) then
-                call mpi_blocking_reduce(en, MPI_SUM, world)
+                ! already includes normalisation with "ncell"
+                en = flayout%get_mean(fen, l_allreduce)
+            else
+                en = flayout%get_local_sum(fen)
             endif
 
         end function get_vertical_enstrophy
