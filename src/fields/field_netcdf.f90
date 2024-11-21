@@ -177,7 +177,6 @@ module field_netcdf
         subroutine write_netcdf_fields(t)
             double precision, intent(in) :: t
             integer                      :: cnt(4), start(4)
-
 #if ENABLE_BUOYANCY
             double precision             :: tbuoy(0:nz,                & ! total buoyancy
                                                   box%lo(2):box%hi(2), &
@@ -203,14 +202,9 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis(ncid, dimids(1), box%lower(1), &
-                                       get_x_axis(), start(1), cnt(1))
-
-                call write_netcdf_axis(ncid, dimids(2), box%lower(2), &
-                                       get_y_axis(), start(2), cnt(2))
-
-                call write_netcdf_axis(ncid, dimids(3), box%lower(3), &
-                                       get_z_axis(), start(3), cnt(3))
+                call write_netcdf_axis(ncid, dimids(1), get_x_axis())
+                call write_netcdf_axis(ncid, dimids(2), get_y_axis())
+                call write_netcdf_axis(ncid, dimids(3), get_z_axis())
             endif
 
             ! write time

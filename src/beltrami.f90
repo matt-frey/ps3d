@@ -96,9 +96,9 @@ program beltrami
 
             call beltrami_init
 
-            call write_netcdf_axis(ncid, dimids(1), lower(1), get_x_axis())
-            call write_netcdf_axis(ncid, dimids(2), lower(2), get_y_axis())
-            call write_netcdf_axis(ncid, dimids(3), lower(3), get_z_axis())
+            call write_netcdf_axis(ncid, dimids(1), get_x_axis())
+            call write_netcdf_axis(ncid, dimids(2), get_y_axis())
+            call write_netcdf_axis(ncid, dimids(3), get_z_axis())
 
             ! write time
             call write_netcdf_scalar(ncid, axids(4), zero, 1)

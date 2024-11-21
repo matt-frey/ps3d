@@ -368,20 +368,13 @@ module netcdf_writer
 
         end subroutine write_netcdf_box
 
-        subroutine write_netcdf_axis(ncid, dimid, origin, coords, start, cnt)
+        subroutine write_netcdf_axis(ncid, dimid, coords)
             integer,           intent(in) :: ncid
             integer,           intent(in) :: dimid
-            double precision,  intent(in) :: origin
             double precision,  intent(in) :: coords(:)
             integer, optional, intent(in) :: start, cnt
 
-            if (present(start) .and. present(cnt)) then
-                call write_netcdf_dataset(ncid, dimid, coords, &
-                                          start=(/start/), cnt=(/cnt/))
-            else if (present(start)) then
-                call write_netcdf_dataset(ncid, dimid, coords, &
-                                          start=(/start/))
-            else
+            if (world%rank == world%root) then
                 call write_netcdf_dataset(ncid, dimid, coords)
             endif
 
