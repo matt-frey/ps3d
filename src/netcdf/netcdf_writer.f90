@@ -372,7 +372,6 @@ module netcdf_writer
             integer,           intent(in) :: ncid
             integer,           intent(in) :: dimid
             double precision,  intent(in) :: coords(:)
-            integer, optional, intent(in) :: start, cnt
 
             if (world%rank == world%root) then
                 call write_netcdf_dataset(ncid, dimid, coords)
