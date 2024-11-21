@@ -275,6 +275,11 @@ module field_diagnostics
             logical, intent(in) :: l_global
             double precision    :: ro
 
+            if (f_cor(3) == zero) then
+                ro = huge(zero)
+                return
+            endif
+
             ro = minval(vor(:, :, :, 3))
             ro = ro / f_cor(3)
 
@@ -290,6 +295,11 @@ module field_diagnostics
         function get_max_rossby_number(l_global) result(ro)
             logical, intent(in) :: l_global
             double precision    :: ro
+
+            if (f_cor(3) == zero) then
+                ro = huge(zero)
+                return
+            endif
 
             ro = maxval(vor(:, :, :, 3))
             ro = ro / f_cor(3)
@@ -352,7 +362,7 @@ module field_diagnostics
             call flayout%decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
-            mag = dsqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)
+            mag = sqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)
 
             !------------------------------------
             ! Calculate domain integral of |gradb|

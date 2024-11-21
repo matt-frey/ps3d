@@ -325,14 +325,14 @@ module field_diagnostics_netcdf
 
             call mpi_blocking_reduce(buf, MPI_SUM, world)
 
-            nc_dset(NC_KE)%val       = buf(1)
-            nc_dset(NC_EN)%val       = buf(2)
-            nc_dset(NC_KEXY)%val     = buf(3)
-            nc_dset(NC_KEZ)%val      = buf(4)
-            nc_dset(NC_ENXY)%val     = buf(5)
-            nc_dset(NC_ENZ)%val      = buf(6)
-            nc_dset(NC_USZRMS)%val   = dsqrt(buf(7))
-            nc_dset(NC_USDELRMS)%val = dsqrt(buf(8))
+            nc_dset(NC_KE)%val       = buf(1) * ncelli
+            nc_dset(NC_EN)%val       = buf(2) * ncelli
+            nc_dset(NC_KEXY)%val     = buf(3) * ncelli
+            nc_dset(NC_KEZ)%val      = buf(4) * ncelli
+            nc_dset(NC_ENXY)%val     = buf(5) * ncelli
+            nc_dset(NC_ENZ)%val      = buf(6) * ncelli
+            nc_dset(NC_USZRMS)%val   = sqrt(buf(7))
+            nc_dset(NC_USDELRMS)%val = sqrt(buf(8))
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_APE)%val    = buf(9)
 
