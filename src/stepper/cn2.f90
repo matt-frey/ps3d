@@ -106,14 +106,11 @@ module cn2_mod
             !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
-            sbuoy = filt * (bsm + dt2 * sbuoys)
-            call flayout%combine_semi_spectral(sbuoy)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
+                sbuoy(iz, :, :) = bdiss * filt(iz, :, :) * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(sbuoy)
 #endif
 
             ! Advance interior and boundary values of vorticity
@@ -122,16 +119,12 @@ module cn2_mod
             !$omp end parallel workshare
 
             do nc = 1, 3
-                !$omp parallel workshare
-                svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                !$omp end parallel workshare
-                call flayout%combine_semi_spectral(svor(:, :, :, nc))
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
+                    svor(iz, :, :, nc) = vdiss * filt(iz, :, :) &
+                                       * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
                 enddo
                 !$omp end parallel do
-                call flayout%decompose_semi_spectral(svor(:, :, :, nc))
             enddo
 
             do nc = 1, 2
@@ -151,27 +144,20 @@ module cn2_mod
 
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
-                sbuoy = filt * (bsm + dt2 * sbuoys)
-                call flayout%combine_semi_spectral(sbuoy)
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
+                    sbuoy(iz, :, :) = bdiss * filt(iz, :, :) * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
                 enddo
                 !$omp end parallel do
-                call flayout%decompose_semi_spectral(sbuoy)
 #endif
 
                 do nc = 1, 3
-                    !$omp parallel workshare
-                    svor(:, :, :, nc) = filt * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
-                    !$omp end parallel workshare
-                    call flayout%combine_semi_spectral(svor(:, :, :, nc))
                     !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
-                        svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
+                        svor(iz, :, :, nc) = vdiss * filt(iz, :, :) &
+                                           * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
                     enddo
                     !$omp end parallel do
-                    call flayout%decompose_semi_spectral(svor(:, :, :, nc))
                 enddo
 
                 do nc = 1, 2

@@ -231,13 +231,11 @@ module impl_rk4_mod
             enddo
             qdi = q
             q = (qdi + dt2 * sqs)
-            call flayout%combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 q(iz, :, :) = q(iz, :, :) * mq
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(q)
 
             qdf = qdi + dt6 * sqs
 
@@ -263,23 +261,19 @@ module impl_rk4_mod
             integer                         :: iz
 
             ! apply integrating factors to source
-            call flayout%combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(sqs)
 
             q = qdi + dt2 * sqs
 
-            call flayout%combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(q)
 
             qdf = qdf + dt3 * sqs
 
@@ -306,23 +300,19 @@ module impl_rk4_mod
             integer                         :: iz
 
             ! apply integrating factors to source
-            call flayout%combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(sqs)
 
             q = qdi + dt * sqs
 
-            call flayout%combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(q)
 
             qdf = qdf + dt3 * sqs
         end subroutine impl_rk4_substep_three
@@ -345,23 +335,19 @@ module impl_rk4_mod
             integer                         :: iz
 
             ! apply integrating factors to source
-            call flayout%combine_semi_spectral(sqs)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sqs(iz, :, :) = pq * sqs(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(sqs)
 
             q = qdf + dt6 * sqs
 
-            call flayout%combine_semi_spectral(q)
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 q(iz, :, :) = mq * q(iz, :, :)
             enddo
             !$omp end parallel do
-            call flayout%decompose_semi_spectral(q)
 
         end subroutine impl_rk4_substep_four
 
