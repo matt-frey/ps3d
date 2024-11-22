@@ -3,7 +3,7 @@ module field_mss
     use field_layout
     use parameters, only : nz, ncell, dxi, fnzi
     use mpi_layout, only : box
-    use inversion_utils, only : phim, phip
+    use inversion_utils, only : phim, phip, filt
     use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p
     use stafft, only : dst
     use mpi_utils, only : mpi_check_for_error
@@ -24,6 +24,7 @@ module field_mss
             procedure :: diffz
             procedure :: calc_decomposed_mean
             procedure :: adjust_decomposed_mean
+            procedure :: apply_filter
 
     end type field_mss_t
 
@@ -225,5 +226,17 @@ module field_mss
             endif
 
         end subroutine adjust_decomposed_mean
+
+        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+        subroutine apply_filter(this, fs)
+            class (field_mss_t), intent(in)    :: this
+            double precision,    intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                     box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+
+            fs = filt * fs
+
+        end subroutine apply_filter
 
 end module field_mss

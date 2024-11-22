@@ -27,6 +27,7 @@ module field_layout
             procedure (field_diffz), deferred :: diffz
             procedure (calc_field_decomposed_mean), deferred :: calc_decomposed_mean
             procedure (adjust_field_decomposed_mean), deferred :: adjust_decomposed_mean
+            procedure (apply_field_filter), deferred :: apply_filter
 
     end type flayout_t
 
@@ -102,6 +103,15 @@ module field_layout
                                                    box%lo(2):box%hi(2), &
                                                    box%lo(1):box%hi(1))
             double precision,  intent(in)    :: avg
+        end subroutine
+
+        subroutine apply_field_filter(this, fs)
+            use mpi_layout, only : box
+            import :: flayout_t
+            class (flayout_t), intent(in)    :: this
+            double precision,  intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                   box%lo(2):box%hi(2), &
+                                                   box%lo(1):box%hi(1))
         end subroutine
 
     end interface
