@@ -15,7 +15,6 @@ ps3d_SOURCES = 					\
 	utils/merge_sort.f90			\
 	inversion/cheby.f90			\
 	inversion/inversion_utils.f90		\
-	inversion/zops.f90			\
 	fields/field_layout.f90			\
 	fields/field_mss.f90			\
 	fields/field_cheby.f90			\
@@ -85,7 +84,6 @@ beltrami_SOURCES = 				\
 	utils/parameters.f90			\
 	inversion/cheby.f90			\
 	inversion/inversion_utils.f90   	\
-	inversion/zops.f90			\
 	fields/field_layout.f90			\
 	fields/field_mss.f90			\
 	fields/field_cheby.f90			\

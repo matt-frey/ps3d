@@ -8,31 +8,48 @@ module field_layout
     implicit none
 
     type, abstract :: flayout_t
-        contains
-            ! Field decompositions:
-            procedure (field_decompose_physical),      deferred :: decompose_physical
-            procedure (field_combine_physical),        deferred :: combine_physical
-            procedure (field_decompose_semi_spectral), deferred :: decompose_semi_spectral
-            procedure (field_combine_semi_spectral),   deferred :: combine_semi_spectral
 
-            ! Field diagnostics:
-            procedure (get_field_local_sum),  deferred :: get_local_sum
-            procedure :: get_sum => get_field_sum
-            procedure :: get_local_mean => get_field_local_mean
-            procedure :: get_mean => get_field_mean
-            procedure :: get_rms => get_field_rms
-            procedure :: get_absmax => get_field_absmax
+    contains
+        procedure (m_initialise), deferred :: initialise
+        procedure (m_finalise), deferred :: finalise
 
-            ! Field operations:
-            procedure (field_diffz), deferred :: diffz
-            procedure (calc_field_decomposed_mean), deferred :: calc_decomposed_mean
-            procedure (adjust_field_decomposed_mean), deferred :: adjust_decomposed_mean
-            procedure (apply_field_filter), deferred :: apply_filter
+        ! Field decompositions:
+        procedure (m_decompose_physical),      deferred :: decompose_physical
+        procedure (m_combine_physical),        deferred :: combine_physical
+        procedure (m_decompose_semi_spectral), deferred :: decompose_semi_spectral
+        procedure (m_combine_semi_spectral),   deferred :: combine_semi_spectral
+
+        ! Field diagnostics:
+        procedure (get_field_local_sum),  deferred :: get_local_sum
+        procedure :: get_sum => get_field_sum
+        procedure :: get_local_mean => get_field_local_mean
+        procedure :: get_mean => get_field_mean
+        procedure :: get_rms => get_field_rms
+        procedure :: get_absmax => get_field_absmax
+
+        ! Field operations:
+        procedure (m_diffz), deferred :: diffz
+        procedure (m_calc_decomposed_mean), deferred :: calc_decomposed_mean
+        procedure (m_adjust_decomposed_mean), deferred :: adjust_decomposed_mean
+        procedure (m_apply_filter), deferred :: apply_filter
+
+        ! Specific routines:
+        procedure (vertvel_m), deferred :: vertvel
 
     end type flayout_t
 
     interface
-        subroutine field_decompose_physical(this, fc, sf)
+        subroutine m_initialise(this)
+            import :: flayout_t
+            class (flayout_t), intent(inout)  :: this
+        end subroutine
+
+        subroutine m_finalise(this)
+            import :: flayout_t
+            class (flayout_t), intent(inout)  :: this
+        end subroutine
+
+        subroutine m_decompose_physical(this, fc, sf)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -41,7 +58,7 @@ module field_layout
             double precision,  intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine field_combine_physical(this, sf, fc)
+        subroutine m_combine_physical(this, sf, fc)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -50,7 +67,7 @@ module field_layout
             double precision,  intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine field_decompose_semi_spectral(this, sfc)
+        subroutine m_decompose_semi_spectral(this, sfc)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -58,7 +75,7 @@ module field_layout
             double precision,  intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine field_combine_semi_spectral(this, sf)
+        subroutine m_combine_semi_spectral(this, sf)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -76,7 +93,7 @@ module field_layout
             double precision              :: res
         end function
 
-        subroutine field_diffz(this, fs, ds)
+        subroutine m_diffz(this, fs, ds)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: flayout_t
@@ -85,7 +102,7 @@ module field_layout
             double precision,  intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         end subroutine
 
-        function calc_field_decomposed_mean(this, fs) result(savg)
+        function m_calc_decomposed_mean(this, fs) result(savg)
             use mpi_layout, only : box
             import :: flayout_t
             class (flayout_t), intent(in) :: this
@@ -95,7 +112,7 @@ module field_layout
             double precision              :: savg
         end function
 
-        subroutine adjust_field_decomposed_mean(this, fs, avg)
+        subroutine m_adjust_decomposed_mean(this, fs, avg)
             use mpi_layout, only : box
             import :: flayout_t
             class (flayout_t), intent(in)    :: this
@@ -105,11 +122,20 @@ module field_layout
             double precision,  intent(in)    :: avg
         end subroutine
 
-        subroutine apply_field_filter(this, fs)
+        subroutine m_apply_filter(this, fs)
             use mpi_layout, only : box
             import :: flayout_t
             class (flayout_t), intent(in)    :: this
             double precision,  intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                   box%lo(2):box%hi(2), &
+                                                   box%lo(1):box%hi(1))
+        end subroutine
+
+        subroutine vertvel_m(this, ws)
+            use mpi_layout, only : box
+            import :: flayout_t
+            class (flayout_t), intent(in)    :: this
+            double precision,  intent(inout) :: ws(box%lo(3):box%hi(3), &
                                                    box%lo(2):box%hi(2), &
                                                    box%lo(1):box%hi(1))
         end subroutine
