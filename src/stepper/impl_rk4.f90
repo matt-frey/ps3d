@@ -202,6 +202,7 @@ module impl_rk4_mod
                                                 pq=self%epq)
             enddo
 
+            ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
                 call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo

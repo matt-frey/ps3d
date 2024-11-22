@@ -127,6 +127,7 @@ module cn2_mod
                 !$omp end parallel do
             enddo
 
+            ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
                 call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo
@@ -160,6 +161,7 @@ module cn2_mod
                     !$omp end parallel do
                 enddo
 
+                ! Ensure zero global mean horizontal vorticity conservation:
                 do nc = 1, 2
                     call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
                 enddo

@@ -1,6 +1,8 @@
 module field_cheby
+    use constants, only : zero
     use field_layout
-    use parameters, only : nz
+    use parameters, only : nz, extent, dx
+    use zops, only : zccw
     use mpi_layout, only : box
     use inversion_utils, only : phim, phip
     use sta3dfft, only : fftxyp2s, fftxys2p
@@ -17,9 +19,6 @@ module field_cheby
 
             ! Field diagnostics:
             procedure :: get_local_sum
-            procedure :: get_sum
-            procedure :: get_local_mean
-            procedure :: get_mean
 
             ! Field operations:
             procedure :: diffz
@@ -110,67 +109,16 @@ module field_cheby
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
             double precision                  :: res
+            integer                           :: iz
 
-            res = 0.0d0
+            res = zero
+            do iz = box%lo(3), box%hi(3)
+                res = res + zccw(iz) * sum(ff(iz, :, :))
+            enddo
+
+            res = res * f12 * dble(nz)
 
         end function get_local_sum
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_sum(this, ff, l_allreduce) result(res)
-            class (field_cheby_t), intent(in) :: this
-            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                    box%lo(2):box%hi(2), &
-                                                    box%lo(1):box%hi(1))
-            logical,               intent(in) :: l_allreduce
-            double precision                  :: res
-
-            res = this%get_local_sum(ff)
-
-            if (l_allreduce) then
-                call MPI_Allreduce(MPI_IN_PLACE,            &
-                                   res,                     &
-                                   1,                       &
-                                   MPI_DOUBLE_PRECISION,    &
-                                   MPI_SUM,                 &
-                                   world%comm,              &
-                                   world%err)
-
-                call mpi_check_for_error(world, &
-                    "in MPI_Allreduce of field_diagnostics::get_sum.")
-            else
-                call mpi_blocking_reduce(res, MPI_SUM, world)
-            endif
-
-        end function get_sum
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_local_mean(this, ff) result(res)
-            class (field_cheby_t), intent(in) :: this
-            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                    box%lo(2):box%hi(2), &
-                                                    box%lo(1):box%hi(1))
-            double precision                  :: res
-
-            res = 0.0d0
-
-
-        end function get_local_mean
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        function get_mean(this, ff, l_allreduce) result(mean)
-            class (field_cheby_t), intent(in) :: this
-            double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                    box%lo(2):box%hi(2), &
-                                                    box%lo(1):box%hi(1))
-            logical,               intent(in) :: l_allreduce
-            double precision                  :: mean
-
-            mean = 0.0d0
-
-        end function get_mean
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -191,8 +139,20 @@ module field_cheby
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
             double precision                   :: savg
+            integer                            :: iz
 
-            savg = 0.0d0
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                savg = zero
+                do iz = box%lo(3), box%hi(3)
+                    savg = savg + zccw(iz) * fs(iz, 0, 0)
+                enddo
+                ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
+                ! where the Chebyshev points are given in [-1, 1]
+                ! z = (b-a) / 2 * t + (a+b)/2 for [a, b] --> dz = (b-a) / 2 * dt
+                ! However, we must divide by extent(3) again in order to get the vertical domain-average.
+                ! Hence, we only scale by f12.
+                savg = savg * f12
+            endif
 
         end function calc_decomposed_mean
 
@@ -205,6 +165,13 @@ module field_cheby
                                                        box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
             double precision,      intent(in)    :: avg
+            double precision                     :: savg
+
+            savg = this%calc_decomposed_mean(fs)
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                fs(: , 0, 0) = fs(:, 0, 0) + avg - savg
+            endif
 
         end subroutine adjust_decomposed_mean
 

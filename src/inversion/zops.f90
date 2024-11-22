@@ -8,9 +8,9 @@ module zops
                          , upper    &
                          , lower
     use cheby ! Import Chebyshev module to set up various matrices needed below
-    use sta3dfft, only : initialise_fft &
-                       , k2l2
-    use options, only : zfiltering
+    use sta3dfft, only : initialise_fft
+    use inversion_utils, only : k2l2
+!     use options, only : zfiltering
     implicit none
 
     private
@@ -83,15 +83,15 @@ module zops
             ! Get Clenshaw-Curtis weights:
             call clencurt(nz, zccw)
 
-            !------------------------------------------------------------------
-            ! Dembenek filter:
-            rkmax = zfiltering%kmax * dble(nz)
-            do iz = 0, nz
-                zfilt(iz) = dembenek_filter(iz,                 &
-                                            rkmax,              &
-                                            zfiltering%alpha,   &
-                                            zfiltering%beta)
-            enddo
+!             !------------------------------------------------------------------
+!             ! Dembenek filter:
+!             rkmax = zfiltering%kmax * dble(nz)
+!             do iz = 0, nz
+!                 zfilt(iz) = dembenek_filter(iz,                 &
+!                                             rkmax,              &
+!                                             zfiltering%alpha,   &
+!                                             zfiltering%beta)
+!             enddo
 
         end subroutine init_zops
 

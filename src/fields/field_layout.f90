@@ -17,9 +17,9 @@ module field_layout
 
             ! Field diagnostics:
             procedure (get_field_local_sum),  deferred :: get_local_sum
-            procedure (get_field_sum),        deferred :: get_sum
-            procedure (get_field_local_mean), deferred :: get_local_mean
-            procedure (get_field_mean),       deferred :: get_mean
+            procedure :: get_sum => get_field_sum
+            procedure :: get_local_mean => get_field_local_mean
+            procedure :: get_mean => get_field_mean
             procedure :: get_rms => get_field_rms
             procedure :: get_absmax => get_field_absmax
 
@@ -75,38 +75,6 @@ module field_layout
             double precision              :: res
         end function
 
-        function get_field_sum(this, ff, l_allreduce) result(res)
-            use mpi_layout, only : box
-            import :: flayout_t
-            class (flayout_t), intent(in) :: this
-            double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
-            logical,           intent(in) :: l_allreduce
-            double precision              :: res
-        end function
-
-        function get_field_local_mean(this, ff) result(mean)
-            use mpi_layout, only : box
-            import :: flayout_t
-            class (flayout_t), intent(in) :: this
-            double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
-            double precision              :: mean
-        end function
-
-        function get_field_mean(this, ff, l_allreduce) result(mean)
-            use mpi_layout, only : box
-            import :: flayout_t
-            class (flayout_t), intent(in) :: this
-            double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
-            logical,           intent(in) :: l_allreduce
-            double precision              :: mean
-        end function
-
         subroutine field_diffz(this, fs, ds)
             use parameters, only : nz
             use mpi_layout, only : box
@@ -139,6 +107,65 @@ module field_layout
     end interface
 
 contains
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_field_sum(this, ff, l_allreduce) result(res)
+        class (flayout_t), intent(in) :: this
+        double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
+                                            box%lo(2):box%hi(2), &
+                                            box%lo(1):box%hi(1))
+        logical,           intent(in) :: l_allreduce
+        double precision              :: res
+
+        res = this%get_local_sum(ff)
+
+        if (l_allreduce) then
+            call MPI_Allreduce(MPI_IN_PLACE,            &
+                                res,                     &
+                                1,                       &
+                                MPI_DOUBLE_PRECISION,    &
+                                MPI_SUM,                 &
+                                world%comm,              &
+                                world%err)
+
+            call mpi_check_for_error(world, &
+                "in MPI_Allreduce of field_layout::get_field_sum.")
+        else
+            call mpi_blocking_reduce(res, MPI_SUM, world)
+        endif
+
+    end function get_field_sum
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_field_local_mean(this, ff) result(res)
+        class (flayout_t), intent(in) :: this
+        double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
+                                            box%lo(2):box%hi(2), &
+                                            box%lo(1):box%hi(1))
+        double precision              :: res
+
+        res = this%get_local_sum(ff) / dble(ncell)
+
+    end function get_field_local_mean
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_field_mean(this, ff, l_allreduce) result(mean)
+        class (flayout_t), intent(in) :: this
+        double precision,  intent(in) :: ff(box%lo(3):box%hi(3), &
+                                            box%lo(2):box%hi(2), &
+                                            box%lo(1):box%hi(1))
+        logical,           intent(in) :: l_allreduce
+        double precision              :: mean
+
+        ! (divide by ncell since lower and upper edge weights are halved)
+        mean = this%get_sum(ff, l_allreduce) / dble(ncell)
+
+        end function get_field_mean
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_field_rms(this, ff, l_allreduce) result(rms)
         class (flayout_t), intent(in) :: this
