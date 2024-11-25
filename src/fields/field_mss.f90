@@ -3,15 +3,26 @@ module field_mss
     use field_layout
     use parameters, only : nz, ncell, dxi, fnzi
     use mpi_layout, only : box
-    use inversion_utils, only : phim, phip, filt
-    use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p
-    use stafft, only : dst
+    use inversion_utils, only : phim, phip          &
+                              , filt                &
+                              , thetam, thetap      &
+                              , dthetam, dthetap    &
+                              , gambot, gamtop      &
+                              , green
+    use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p, rkzi, rkz
+    use stafft, only : dst, dct
     use mpi_utils, only : mpi_check_for_error
     implicit none
 
     type, extends (flayout_t) :: field_mss_t
 
     contains
+
+        procedure :: initialise
+        procedure :: finalise
+
+        procedure :: get_z_axis
+
         ! Field decompositions:
         procedure :: decompose_physical
         procedure :: combine_physical
@@ -27,9 +38,47 @@ module field_mss
         procedure :: adjust_decomposed_mean
         procedure :: apply_filter
 
+        ! Specific routines:
+        procedure :: vertvel
+        procedure :: zinteg
+
     end type field_mss_t
 
 contains
+
+    subroutine initialise(this)
+        class (field_mss_t), intent(inout)  :: this
+    end subroutine initialise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine finalise(this)
+        class (field_mss_t), intent(inout)  :: this
+    end subroutine finalise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_z_axis(this)
+        class (field_mss_t), intent(in)  :: this
+        double precision :: get_z_axis(0:nz)
+        integer          :: i
+
+        do i = 0, nz
+            get_z_axis(i) = lower(3) + dble(i) * dx(3)
+        enddo
+
+!         select case (gridtype)
+!             case ('regular')
+!                 do i = 0, nz
+!                     get_z_axis(i) = lower(3) + dble(i) * dx(3)
+!                 enddo
+!             case ('chebyshev')
+!                 get_z_axis = 0.0d0 !FIXME
+!             case default
+!                 call mpi_stop('Error: invalid grid type.')
+!         end select
+
+    end function get_z_axis
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -239,5 +288,93 @@ contains
         fs = filt * fs
 
     end subroutine apply_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine zinteg(this, f, g, noavg)
+        class (field_mss_t), intent(in)  :: this
+        double precision,    intent(in)  :: f(0:nz)
+        double precision,    intent(out) :: g(0:nz)
+        logical,             intent(in)  :: noavg
+
+        !First integrate the sine series in f(1:nz-1):
+        g(0) = zero
+        g(1:nz-1) = -rkzi * f(1:nz-1)
+        g(nz) = zero
+
+        !Transform to semi-spectral space as a cosine series:
+        call dct(1, nz, g, ztrig, zfactors)
+
+        !Add contribution from the linear function connecting the boundary values:
+        g = g + f(nz) * gamtop - f(0) * gambot
+
+    end subroutine zinteg
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine vertvel(this, ds, es)
+        class (field_mss_t), intent(in)    :: this
+        double precision,    intent(inout) :: ds(box%lo(3):box%hi(3), &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+        double precision,    intent(out)   :: es(0:nz,                  &
+                                                 box%lo(2):box%hi(2),   &
+                                                 box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: bs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        integer          :: iz, kx, ky, kz
+
+
+        !Calculate the boundary contributions of the source to the vertical velocity (bs)
+        !and its derivative (es) in semi-spectral space:
+        !$omp parallel do private(iz)  default(shared)
+        do iz = 1, nz-1
+            bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
+        enddo
+        !$omp end parallel do
+
+        !$omp parallel do private(iz)  default(shared)
+        do iz = 0, nz
+            es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
+        enddo
+        !$omp end parallel do
+
+        !Invert Laplacian to find the part of w expressible as a sine series:
+        !$omp parallel workshare
+        ds(1:nz-1, :, :) = green(1:nz-1, :, :) * ds(1:nz-1, :, :)
+        !$omp end parallel workshare
+
+        ! Calculate d/dz of this sine series:
+        !$omp parallel workshare
+        as(0, :, :) = zero
+        !$omp end parallel workshare
+        !$omp parallel do private(iz)  default(shared)
+        do kz = 1, nz-1
+            as(kz, :, :) = rkz(kz) * ds(kz, :, :)
+        enddo
+        !$omp end parallel do
+        !$omp parallel workshare
+        as(nz, :, :) = zero
+        !$omp end parallel workshare
+
+        !FFT these quantities back to semi-spectral space:
+        !$omp parallel do collapse(2) private(kx, ky)
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                call dct(1, nz, as(0:nz, ky, kx), ztrig, zfactors)
+                call dst(1, nz, ds(1:nz, ky, kx), ztrig, zfactors)
+            enddo
+        enddo
+        !$omp end parallel do
+
+        !Combine vertical velocity (ds) and its derivative (es) given the sine and linear parts:
+        !$omp parallel workshare
+        ds(0     , :, :) = zero
+        ds(1:nz-1, :, :) = ds(1:nz-1, :, :) + bs(1:nz-1, :, :)
+        ds(nz    , :, :) = zero
+        es = es + as
+        !$omp end parallel workshare
+
+    end subroutine vertvel
 
 end module field_mss

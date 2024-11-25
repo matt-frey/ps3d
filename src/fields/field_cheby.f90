@@ -24,13 +24,14 @@ module field_cheby
 
         double precision, allocatable :: d1z(:, :), d2z(:, :) &
                                        , zcheb(:)             & ! Chebyshev grid points
-                                       , zg(:)                & ! Chebyshev domains points
                                        , zccw(:)              & ! Clenshaw-Curtis weights
                                        , zfilt(:)
 
     contains
         procedure :: initialise
         procedure :: finalise
+
+        procedure :: get_z_axis
 
         ! Field decompositions:
         procedure :: decompose_physical
@@ -51,6 +52,10 @@ module field_cheby
         procedure, private :: get_cheb_poly
         procedure, private :: cheb_eval
 
+        procedure :: vertvel
+        procedure :: zderiv
+        procedure :: zinteg
+
     end type field_cheby_t
 
 contains
@@ -62,11 +67,11 @@ contains
         double precision :: fdz1, fdz2, rkmax
         integer          :: iz
 
-        if (this%l_intialised) then
+        if (this%l_initialised) then
             return
         endif
 
-        this%l_intialised = .true.
+        this%l_initialised = .true.
 
         !------------------------------------------------------------------
         ! Ensure FFT module is initialised:
@@ -78,11 +83,10 @@ contains
         allocate(this%d1z(0:nz, 0:nz))
         allocate(this%d2z(0:nz, 0:nz))
         allocate(this%zcheb(0:nz))
-        allocate(this%zg(0:nz))
         allocate(this%zccw(0:nz))
-        allocate(zfilt(0:nz))
+        allocate(this%zfilt(0:nz))
 
-        nxym1 = box%size(1) * box%size(2) - 1
+        this%nxym1 = box%size(1) * box%size(2) - 1
 
         ! Note: hli = two / extent
         fdz1 = - hli(3)
@@ -90,16 +94,14 @@ contains
 
         !-----------------------------------------------------------------
         ! Get Chebyshev points & 1st & 2nd order differentiation matrices:
-        call init_cheby(nz, zcheb, d1z, d2z)
-
-        zg = center(3) - hl(3) * zcheb
+        call init_cheby(nz, this%zcheb, this%d1z, this%d2z)
 
         ! Scale d1z & d2z for the actual z limits:
-        d1z = fdz1 * d1z
-        d2z = fdz2 * d2z
+        this%d1z = fdz1 * this%d1z
+        this%d2z = fdz2 * this%d2z
 
         ! Get Clenshaw-Curtis weights:
-        call clencurt(nz, zccw)
+        call clencurt(nz, this%zccw)
 
 !             !------------------------------------------------------------------
 !             ! Dembenek filter:
@@ -119,16 +121,25 @@ contains
     subroutine finalise(this)
         class (field_cheby_t), intent(inout)  :: this
 
-        if (this%l_intialised) then
-            deallocate(d1z)
-            deallocate(d2z)
-            deallocate(zcheb)
-            deallocate(zg)
-            deallocate(zfilt)
-            this%l_intialised = .false.
+        if (this%l_initialised) then
+            deallocate(this%d1z)
+            deallocate(this%d2z)
+            deallocate(this%zcheb)
+            deallocate(this%zfilt)
+            this%l_initialised = .false.
         endif
 
-    end subroutine finalise_zops
+    end subroutine finalise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_z_axis(this)
+        class (field_cheby_t), intent(in)  :: this
+        double precision :: get_z_axis(0:nz)
+
+        get_z_axis = center(3) - hl(3) * this%zcheb
+
+    end function get_z_axis
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -214,7 +225,7 @@ contains
 
         res = zero
         do iz = box%lo(3), box%hi(3)
-            res = res + zccw(iz) * sum(ff(iz, :, :))
+            res = res + this%zccw(iz) * sum(ff(iz, :, :))
         enddo
 
         res = res * f12 * dble(nz)
@@ -228,6 +239,7 @@ contains
         double precision,      intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         double precision,      intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
+        call this%zderiv(fs, ds)
 
     end subroutine diffz
 
@@ -245,7 +257,7 @@ contains
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             savg = zero
             do iz = box%lo(3), box%hi(3)
-                savg = savg + zccw(iz) * fs(iz, 0, 0)
+                savg = savg + this%zccw(iz) * fs(iz, 0, 0)
             enddo
             ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
             ! where the Chebyshev points are given in [-1, 1]
@@ -384,7 +396,8 @@ contains
     ! when noavg = .true.
     ! f & g are 1D arrays over z,
     ! *** Uses dgesv from LAPACK/BLAS ***
-    subroutine zinteg(f, g, noavg)
+    subroutine zinteg(this, f, g, noavg)
+        class (field_cheby_t), intent(in)  :: this
         double precision, intent(in)  :: f(0:nz)
         double precision, intent(out) :: g(0:nz)
         logical,          intent(in)  :: noavg
@@ -394,7 +407,7 @@ contains
         !-----------------------------------------------------
         ! Integrate starting from g = 0 at z = zmin:
         g = f
-        dmat = d1z(0:nz-1, 0:nz-1)
+        dmat = this%d1z(0:nz-1, 0:nz-1)
         call dgesv(nz, 1, dmat, nz, ipiv, g(0:nz-1), nz, info)
         g(nz) = zero
 
@@ -405,7 +418,7 @@ contains
         !-----------------------------------------------------
         ! Remove average of g:
         h = g
-        dmat = d1z(0:nz-1, 0:nz-1)
+        dmat = this%d1z(0:nz-1, 0:nz-1)
         call dgesv(nz, 1, dmat, nz, ipiv, h(0:nz-1), nz, info)
         gavg = h(0) / extent(3)
 
@@ -415,13 +428,15 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    ! Solves (d^2/dz^2 - K^2)[ws] = S in semi-spectral space where
+    ! Solves (d^2/dz^2 - K^2)[ds] = S in semi-spectral space where
     ! K^2 = k^2 + l^2 is the squared horizontal wavenumber and
-    ! where ws initially contains the source S (this is overwritten
+    ! where ds initially contains the source S (this is overwritten
     ! by the solution).
     ! *** Uses dgesv from LAPACK/BLAS ***
-    subroutine vertvel(ws)
-        double precision, intent(inout) :: ws(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+    subroutine vertvel(this, ds, es)
+        class (field_cheby_t), intent(in)  :: this
+        double precision, intent(inout) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision, intent(out)   :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         double precision                :: dmat(nz-1, nz-1), sol(nz-1)
         integer                         :: ipiv(nz-1), info
         integer                         :: kx, ky, iz
@@ -431,7 +446,7 @@ contains
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
                 ! Inner part of d^2/dz^2 matrix:
-                dmat = d2z(1:nz-1, 1:nz-1)
+                dmat = this%d2z(1:nz-1, 1:nz-1)
 
                 ! Remove K^2 down the diagonal:
                 do iz = 1, nz-1
@@ -439,15 +454,18 @@ contains
                 enddo
 
                 ! Linear solve with LAPACK:
-                sol = ws(1:nz-1, ky, kx)
+                sol = ds(1:nz-1, ky, kx)
                 call dgesv(nz-1, 1, dmat, nz-1, ipiv, sol, nz-1, info)
-                ws(1:nz-1, ky, kx) = sol
+                ds(1:nz-1, ky, kx) = sol
 
                 ! Add zero boundary values:
-                ws(0,  ky, kx) = zero
-                ws(nz, ky, kx) = zero
+                ds(0,  ky, kx) = zero
+                ds(nz, ky, kx) = zero
             enddo
         enddo
+
+        ! Calculate z-derivative of vertical velocity:
+        call this%diffz(ds, es)
 
     end subroutine vertvel
 
@@ -464,22 +482,24 @@ contains
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Calculates g = df/dz
-        subroutine zderiv(f, g)
-            double precision, intent(in)  :: f(0:nz, 0:nxym1)
-            double precision, intent(out) :: g(0:nz, 0:nxym1)
+        subroutine zderiv(this, f, g)
+            class (field_cheby_t), intent(in)  :: this
+            double precision, intent(in)  :: f(0:nz, 0:this%nxym1)
+            double precision, intent(out) :: g(0:nz, 0:this%nxym1)
 
-            g = matmul(d1z, f)
+            g = matmul(this%d1z, f)
 
         end subroutine zderiv
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         ! Calculates g = d^2f/dz^2
-        subroutine zzderiv(f, g)
-            double precision, intent(in)  :: f(0:nz, 0:nxym1)
-            double precision, intent(out) :: g(0:nz, 0:nxym1)
+        subroutine zzderiv(this, f, g)
+            class (field_cheby_t), intent(in)  :: this
+            double precision, intent(in)  :: f(0:nz, 0:this%nxym1)
+            double precision, intent(out) :: g(0:nz, 0:this%nxym1)
 
-            g = matmul(d2z, f)
+            g = matmul(this%d2z, f)
 
         end subroutine zzderiv
 

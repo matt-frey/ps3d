@@ -190,6 +190,129 @@ if test "x$mpi_found" = "xno"; then
     AC_MSG_ERROR([Cannot find MPI Fortran library])
 fi
 
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# BLAS
+
+AC_ARG_WITH([blas],
+            [AS_HELP_STRING([--with-blas=<path>], [path to BLAS library @<:@default=$BLAS_DIR@:>@])],
+            [BLAS_DIR=$withval],
+            [])
+
+
+for lib in NONE openblas blas refblas; do
+    save_LIBS=$LIBS
+    if test x"$lib" = xNONE; then
+    AC_MSG_CHECKING([for function saxpy])
+    else
+    AC_MSG_CHECKING([for function saxpy in -l$lib])
+    LIBS="-l$lib $LIBS"
+    fi
+
+    if test x"$lib" = xopenblas; then
+    LIBS="-lpthread $LIBS"
+    fi
+
+    AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([], [
+            implicit none
+            call saxpy])],
+        [blas_found=yes],
+        [blas_found=no])
+    AC_MSG_RESULT($blas_found)
+
+    if test "x$blas_found" = "xyes"; then
+    break;
+    fi
+    LIBS=$save_LIBS
+done
+
+if test "x$blas_found" = "xno"; then
+    if test -n "${BLAS_DIR}"; then
+        # mod file may also be in $BLAS_DIR/lib
+        FCFLAGS="$FCFLAGS -I$BLAS_DIR/include -I$BLAS_DIR/lib"
+        LDFLAGS="$LDFLAGS -L$BLAS_DIR/lib"
+        LIBS="-lblas $LIBS"
+    elif test -n "${LAPACK_DIR}"; then
+        FCFLAGS="$FCFLAGS -I$LAPACK_DIR/include -I$LAPACK_DIR/lib"
+        LDFLAGS="$LDFLAGS -L$LAPACK_DIR/lib"
+        LIBS="-lblas $LIBS"
+    else
+        AC_MSG_ERROR([No BLAS_DIR environment variable.])
+    fi
+fi
+
+AC_MSG_CHECKING([whether we can compile a BLAS Fortran program])
+AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([], [
+        implicit none
+        call saxpy])],
+    [blas_found=yes],
+    [blas_found=no])
+AC_MSG_RESULT([$blas_found])
+
+if test "x$blas_found" = "xno"; then
+    AC_MSG_ERROR([Cannot compile a BLAS Fortran program])
+fi
+
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+# LAPACK
+
+AC_ARG_WITH([lapack],
+            [AS_HELP_STRING([--with-lapack=<path>], [path to LAPACK library @<:@default=$LAPACK_DIR@:>@])],
+            [LAPACK_DIR=$withval],
+            [])
+
+for lib in NONE openblas lapack; do
+    save_LIBS=$LIBS
+    if test x"$lib" = xNONE; then
+    AC_MSG_CHECKING([for function cgesv])
+    else
+    AC_MSG_CHECKING([for function cgesv in -l$lib])
+    LIBS="-l$lib $LIBS"
+    fi
+
+    if test x"$lib" = xopenblas; then
+    LIBS="-lpthread $LIBS"
+    fi
+
+    AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([], [
+            implicit none
+            call cgesv])],
+        [lapack_found=yes],
+        [lapack_found=no])
+    AC_MSG_RESULT($lapack_found)
+
+    if test "x$lapack_found" = "xyes"; then
+    break;
+    fi
+    LIBS=$save_LIBS
+done
+
+if test "x$lapack_found" = "xno"; then
+    if test -n "${LAPACK_DIR}"; then
+        # mod file may also be in $LAPACK_DIR/lib
+        FCFLAGS="$FCFLAGS -I$LAPACK_DIR/include -I$LAPACK_DIR/lib"
+        LDFLAGS="$LDFLAGS -L$LAPACK_DIR/lib"
+        LIBS="-llapack $LIBS"
+    else
+        AC_MSG_ERROR([No LAPACK_DIR environment variable.])
+    fi
+fi
+
+AC_MSG_CHECKING([whether we can compile a LAPACK Fortran program])
+AC_LINK_IFELSE(
+    [AC_LANG_PROGRAM([], [
+        implicit none
+        call cgesv])],
+    [lapack_found=yes],
+    [lapack_found=no])
+AC_MSG_RESULT([$lapack_found])
+
+if test "x$lapack_found" = "xno"; then
+    AC_MSG_ERROR([Cannot compile a LAPACK Fortran program])
+fi
+
 #######################################################################################
 ##
 ## "--enable" flags

@@ -10,8 +10,7 @@ module field_netcdf
     use mpi_timer, only : start_timer, stop_timer
     use options, only : write_netcdf_options
     use physics, only : write_physical_quantities
-    use parameters, only : lower, extent, dx, nx, ny, nz    &
-                         , get_x_axis, get_y_axis, get_z_axis
+    use parameters, only : lower, extent, dx, nx, ny, nz
     use sta3dfft, only : diffx, diffy, fftxys2p
     implicit none
 
@@ -202,9 +201,9 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis(ncid, dimids(1), get_x_axis())
-                call write_netcdf_axis(ncid, dimids(2), get_y_axis())
-                call write_netcdf_axis(ncid, dimids(3), get_z_axis())
+                call write_netcdf_axis(ncid, dimids(1), flayout%get_x_axis())
+                call write_netcdf_axis(ncid, dimids(2), flayout%get_y_axis())
+                call write_netcdf_axis(ncid, dimids(3), flayout%get_z_axis())
             endif
 
             ! write time

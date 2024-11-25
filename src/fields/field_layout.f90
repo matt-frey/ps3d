@@ -1,6 +1,6 @@
 module field_layout
     use constants, only : f12
-    use parameters, only : ncell
+    use parameters, only : ncell, nx, ny, nz, dx, lower
     use mpi_layout, only : box
     use mpi_environment
     use mpi_collectives, only : mpi_blocking_reduce
@@ -12,6 +12,11 @@ module field_layout
     contains
         procedure (m_initialise), deferred :: initialise
         procedure (m_finalise), deferred :: finalise
+
+        ! Axes
+        procedure :: get_x_axis => m_get_x_axis
+        procedure :: get_y_axis => m_get_y_axis
+        procedure (m_get_z_axis), deferred :: get_z_axis
 
         ! Field decompositions:
         procedure (m_decompose_physical),      deferred :: decompose_physical
@@ -34,7 +39,8 @@ module field_layout
         procedure (m_apply_filter), deferred :: apply_filter
 
         ! Specific routines:
-        procedure (vertvel_m), deferred :: vertvel
+        procedure (m_vertvel), deferred :: vertvel
+        procedure (m_zinteg),  deferred :: zinteg
 
     end type flayout_t
 
@@ -48,6 +54,13 @@ module field_layout
             import :: flayout_t
             class (flayout_t), intent(inout)  :: this
         end subroutine
+
+        function m_get_z_axis(this) result(get_z_axis)
+            use parameters, only : nz
+            import :: flayout_t
+            class (flayout_t), intent(in)  :: this
+            double precision :: get_z_axis(0:nz)
+        end function
 
         subroutine m_decompose_physical(this, fc, sf)
             use parameters, only : nz
@@ -131,18 +144,56 @@ module field_layout
                                                    box%lo(1):box%hi(1))
         end subroutine
 
-        subroutine vertvel_m(this, ws)
+        subroutine m_vertvel(this, ds, es)
             use mpi_layout, only : box
             import :: flayout_t
             class (flayout_t), intent(in)    :: this
-            double precision,  intent(inout) :: ws(box%lo(3):box%hi(3), &
+            double precision,  intent(inout) :: ds(box%lo(3):box%hi(3), &
                                                    box%lo(2):box%hi(2), &
                                                    box%lo(1):box%hi(1))
+            double precision,  intent(out) :: es(box%lo(3):box%hi(3), &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+        end subroutine
+
+        subroutine m_zinteg(this, f, g, noavg)
+            use parameters, only : nz
+            import :: flayout_t
+            class (flayout_t), intent(in)  :: this
+            double precision,  intent(in)  :: f(0:nz)
+            double precision,  intent(out) :: g(0:nz)
+            logical,           intent(in)  :: noavg
         end subroutine
 
     end interface
 
 contains
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function m_get_x_axis(this)
+        class (flayout_t), intent(in) :: this
+        double precision              :: m_get_x_axis(0:nx-1)
+        integer                       :: i
+
+        do i = 0, nx-1
+            m_get_x_axis(i) = lower(1) + dble(i) * dx(1)
+        enddo
+
+    end function m_get_x_axis
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function m_get_y_axis(this)
+        class (flayout_t), intent(in) :: this
+        double precision              :: m_get_y_axis(0:ny-1)
+        integer                       :: i
+
+        do i = 0, nz-1
+            m_get_y_axis(i) = lower(2) + dble(i) * dx(2)
+        enddo
+
+    end function m_get_y_axis
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

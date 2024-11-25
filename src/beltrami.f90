@@ -17,12 +17,12 @@
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
-    use parameters, only : nx, ny, nz, dx, lower, extent    &
-                         , get_x_axis, get_y_axis, get_z_axis
+    use parameters, only : nx, ny, nz, dx, lower, extent
     use netcdf_utils
     use netcdf_writer
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist
+    use fields, only : flayout
     implicit none
 
     logical                     :: verbose = .false.
@@ -96,9 +96,9 @@ program beltrami
 
             call beltrami_init
 
-            call write_netcdf_axis(ncid, dimids(1), get_x_axis())
-            call write_netcdf_axis(ncid, dimids(2), get_y_axis())
-            call write_netcdf_axis(ncid, dimids(3), get_z_axis())
+            call write_netcdf_axis(ncid, dimids(1), flayout%get_x_axis())
+            call write_netcdf_axis(ncid, dimids(2), flayout%get_y_axis())
+            call write_netcdf_axis(ncid, dimids(3), flayout%get_z_axis())
 
             ! write time
             call write_netcdf_scalar(ncid, axids(4), zero, 1)

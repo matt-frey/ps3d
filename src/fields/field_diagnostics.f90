@@ -1,6 +1,6 @@
 module field_diagnostics
     use parameters, only : nz, ncelli, dx, lower, extent   &
-                         , fnzi, ncell, get_z_axis
+                         , fnzi, ncell
     use constants, only : zero, f12, f14, one, small
     use merge_sort
     use sta3dfft, only : fftxys2p, diffx, diffy, ztrig, zfactors
@@ -36,7 +36,7 @@ module field_diagnostics
             integer                      :: i, j
             double precision             :: z(0:nz)
 
-            z = get_z_axis()
+            z = flayout%get_z_axis()
 
             ape = zero
             do i = box%lo(1), box%hi(1)
