@@ -1,5 +1,5 @@
 module impl_rk4_mod
-    use advance_mod, only : base_stepper
+    use advance_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz
     use fields
@@ -10,7 +10,7 @@ module impl_rk4_mod
 
     double precision :: dt2, dt3, dt6
 
-    type, extends(base_stepper) :: impl_rk4
+    type, extends(stepper_t) :: impl_rk4
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
         double precision, allocatable :: epq(:, :), emq(:, :)

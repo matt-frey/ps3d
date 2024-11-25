@@ -35,6 +35,8 @@ ps3d_SOURCES +=					\
 	stepper/advance.f90			\
 	stepper/cn2.f90				\
 	stepper/impl_rk4.f90			\
+	model_factory.f90			\
+	model_manager.f90			\
 	ps3d.f90
 
 ps3d_LDADD = 						\

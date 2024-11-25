@@ -21,7 +21,7 @@ module options
     character(len=512) :: filename = ''
 
     ! time integrator
-    character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
+    character(len=16) :: time_stepper = 'impl-diff-rk4' ! or 'cn2'
     !
     ! output options
     !
@@ -102,7 +102,7 @@ module options
             ! namelist definitions
             namelist /PS3D/ field_file,         &
                             field_step,         &
-                            stepper,            &
+                            time_stepper,       &
                             vor_visc,           &
 #ifdef ENABLE_BUOYANCY
                             buoy_visc,          &
@@ -153,7 +153,7 @@ module options
 #endif
             call write_netcdf_attribute(ncid, "filtering", filtering)
 
-            call write_netcdf_attribute(ncid, "stepper", stepper)
+            call write_netcdf_attribute(ncid, "time_stepper", time_stepper)
 
             call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
             call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
