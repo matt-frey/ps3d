@@ -14,7 +14,7 @@ module cn2_mod
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
 #endif
-    use advance_mod, only : base_stepper
+    use advance_mod, only : stepper_t
     use constants, only : f12, one
     use parameters, only : nz
     use fields
@@ -23,7 +23,7 @@ module cn2_mod
     use field_diagnostics
     implicit none
 
-    type, extends(base_stepper) :: cn2
+    type, extends(stepper_t) :: cn2
         contains
             procedure :: set_diffusion => cn2_set_diffusion
             procedure :: setup  => cn2_setup
