@@ -54,8 +54,8 @@ program test_zeta
         enddo
     enddo
 
-    call flayout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call flayout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+    call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
     vor(0, :, :, 3) = zeta(0, :, :)
     call surf_fftxyp2s(vor(0, :, :, 3), szeta(0, :, :))
 

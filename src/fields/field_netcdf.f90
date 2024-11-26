@@ -1,4 +1,5 @@
 module field_netcdf
+    use model_factory, only : ops
     use options, only : output, verbose
     use constants, only : one
     use netcdf_utils
@@ -201,9 +202,9 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis(ncid, dimids(1), flayout%get_x_axis())
-                call write_netcdf_axis(ncid, dimids(2), flayout%get_y_axis())
-                call write_netcdf_axis(ncid, dimids(3), flayout%get_z_axis())
+                call write_netcdf_axis(ncid, dimids(1), ops%get_x_axis())
+                call write_netcdf_axis(ncid, dimids(2), ops%get_y_axis())
+                call write_netcdf_axis(ncid, dimids(3), ops%get_z_axis())
             endif
 
             ! write time

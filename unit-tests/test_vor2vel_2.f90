@@ -26,6 +26,7 @@ program test_vor2vel_2
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use model_factory, only : layout
     implicit none
 
     double precision              :: error
@@ -90,9 +91,9 @@ program test_vor2vel_2
         enddo
     enddo
 
-    call flayout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call flayout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call flayout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+    call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+    call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
     call vor2vel
 

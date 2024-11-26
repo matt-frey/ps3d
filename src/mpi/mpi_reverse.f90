@@ -123,10 +123,10 @@ module mpi_reverse
             !--------------------------------------------------------------
             ! Obtain 'reverted' bounds of all MPI ranks
 
-            allocate(rlos(0:layout%size(dir)-1))
-            allocate(rhis(0:layout%size(dir)-1))
-            do i = 0, layout%size(dir)-1
-                call get_local_bounds(box%global_size(dir), i, layout%size(dir), lo, hi)
+            allocate(rlos(0:playout%size(dir)-1))
+            allocate(rhis(0:playout%size(dir)-1))
+            do i = 0, playout%size(dir)-1
+                call get_local_bounds(box%global_size(dir), i, playout%size(dir), lo, hi)
                 rhis(i) = box%global_size(dir) - lo - 1
                 rlos(i) = box%global_size(dir) - hi - 1
             enddo
@@ -137,7 +137,7 @@ module mpi_reverse
             ! Determine destination rank and number of elements to send in x
             do i = box%lo(dir), box%hi(dir)
                 reo%dest(i) = sub_comm%rank
-                do j = 0, layout%size(dir)-1
+                do j = 0, playout%size(dir)-1
                     if (i >= rlos(j) .and. i <= rhis(j)) then
                         call MPI_Cart_rank(sub_comm%comm, (/j/), rank, sub_comm%err)
                         reo%dest(i) = rank

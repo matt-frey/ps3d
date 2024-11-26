@@ -33,7 +33,7 @@ module mpi_layout
 
     type(box_type)        :: box
     type(neighbour_type)  :: neighbours(8)
-    type(parallel_layout) :: layout
+    type(parallel_layout) :: playout
 
     logical, protected :: l_mpi_layout_initialised = .false.
 
@@ -67,9 +67,9 @@ module mpi_layout
             dims = (/0, 0/)
             call MPI_Dims_create(world%size, 2, dims, world%err)
 
-            layout%size(1) = dims(1)
-            layout%size(2) = dims(2)
-            layout%size(3) = 1
+            playout%size(1) = dims(1)
+            playout%size(2) = dims(2)
+            playout%size(3) = 1
 
             periods = (/.true., .true./)
 
@@ -104,9 +104,9 @@ module mpi_layout
             !   coords  -- containing the Cartesian coordinates of the specified process
             call MPI_Cart_coords(cart%comm, cart%rank, 2, coords)
 
-            layout%coords(1) = coords(1)
-            layout%coords(2) = coords(2)
-            layout%coords(3) = 0
+            playout%coords(1) = coords(1)
+            playout%coords(2) = coords(2)
+            playout%coords(3) = 0
 
             call get_local_bounds(nx, coords(1), dims(1), box%lo(1), box%hi(1))
             call get_local_bounds(ny, coords(2), dims(2), box%lo(2), box%hi(2))
@@ -120,7 +120,7 @@ module mpi_layout
             box%hlo(3) = 0 !-1
             box%hhi(3) = nz! + 1
 
-            layout%l_parallel = (box%hi - box%lo < (/nx-1, ny-1, nz/))
+            playout%l_parallel = (box%hi - box%lo < (/nx-1, ny-1, nz/))
             box%size = box%hi - box%lo + 1
             box%halo_size = box%hhi - box%hlo + 1
             box%ncell = box%size(1) * box%size(2) * (box%size(3) - 1)

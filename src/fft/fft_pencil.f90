@@ -56,8 +56,8 @@ contains
     !! @returns Size of local dimensions in fourier space for this process
     subroutine initialise_pencil_fft(nx, ny, nz)
         integer, intent(in) :: nx, ny, nz
-        integer :: x_distinct_sizes(layout%size(I_X)), &
-                   y_distinct_sizes(layout%size(I_Y))
+        integer :: x_distinct_sizes(playout%size(I_X)), &
+                   y_distinct_sizes(playout%size(I_Y))
 
 
         if (l_initialised) then
@@ -66,7 +66,7 @@ contains
 
         ngrid = (/nz+1, ny, nx/)
 
-        if (layout%l_parallel(I_X) .and. layout%l_parallel(I_Y)) then
+        if (playout%l_parallel(I_X) .and. playout%l_parallel(I_Y)) then
             ! Info from https://www.open-mpi.org
             ! Partitions a communicator into subgroups, which form lower-dimensional Cartesian subgrids.
             ! MPI_Cart_sub(comm, remain_dims, newcomm, ierror)
@@ -91,7 +91,7 @@ contains
                                MPI_INTEGER,         &
                                fft_x_comm%comm,     &
                                fft_x_comm%err)
-        else if (layout%l_parallel(I_Y)) then
+        else if (playout%l_parallel(I_Y)) then
             fft_y_comm%comm = cart%comm
             fft_x_comm%comm = MPI_COMM_SELF
             call MPI_Allgather(box%size(I_Y),       &
@@ -103,7 +103,7 @@ contains
                                fft_y_comm%comm,     &
                                fft_y_comm%err)
             x_distinct_sizes = box%size(I_X)
-        else if (layout%l_parallel(I_X)) then
+        else if (playout%l_parallel(I_X)) then
             fft_y_comm%comm = MPI_COMM_SELF
             fft_x_comm%comm = cart%comm
             y_distinct_sizes = box%size(I_Y)
@@ -532,12 +532,12 @@ contains
     !! fed into the create transposition procedure which will generate transpositions to other pencils
     type(pencil_layout) function create_initial_transposition_description()
         create_initial_transposition_description%dim = Z_INDEX
-        create_initial_transposition_description%size(X_INDEX) = layout%size(I_X)
-        create_initial_transposition_description%size(Y_INDEX) = layout%size(I_Y)
-        create_initial_transposition_description%size(Z_INDEX) = layout%size(I_Z)
-        create_initial_transposition_description%coords(X_INDEX) = layout%coords(I_X)
-        create_initial_transposition_description%coords(Y_INDEX) = layout%coords(I_Y)
-        create_initial_transposition_description%coords(Z_INDEX) = layout%coords(I_Z)
+        create_initial_transposition_description%size(X_INDEX) = playout%size(I_X)
+        create_initial_transposition_description%size(Y_INDEX) = playout%size(I_Y)
+        create_initial_transposition_description%size(Z_INDEX) = playout%size(I_Z)
+        create_initial_transposition_description%coords(X_INDEX) = playout%coords(I_X)
+        create_initial_transposition_description%coords(Y_INDEX) = playout%coords(I_Y)
+        create_initial_transposition_description%coords(Z_INDEX) = playout%coords(I_Z)
         create_initial_transposition_description%pencil_size(X_INDEX) = box%size(I_X)
         create_initial_transposition_description%pencil_size(Y_INDEX) = box%size(I_Y)
         create_initial_transposition_description%pencil_size(Z_INDEX) = box%size(I_Z)

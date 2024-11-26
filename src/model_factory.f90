@@ -1,69 +1,39 @@
 module model_factory
-    use cn2_mod, only : cn2
-    use impl_rk4_mod, only : impl_rk4
-    use field_layout, only : flayout_t
-    use field_cheby, only : field_cheby_t
-    use field_mss, only : field_mss_t
-    use advance_mod, only : stepper_t
-    use mpi_utils, only : mpi_print, mpi_stop
+    use field_layout, only : layout_t
+    use cheby_layout, only : cheby_layout_t
+    use mss_layout, only : mss_layout_t
+    use mss_ops, only : mss_ops_t
+    use cheby_ops, only : cheby_ops_t
+    use field_ops, only : ops_t
     implicit none
 
     private
 
+
     type :: model_info_t
         character(len=16) :: grid
-        character(len=16) :: stepper
     end type
 
-    type :: model_t
-        class(flayout_t),  allocatable :: layout
-        class(stepper_t),  allocatable :: stepper
-!         class(ops_t),      allocatable :: ops
-    end type
+    class(layout_t),  allocatable :: layout
+    class(ops_t),     allocatable :: ops
 
-    public :: model_info_t, model_t, create_model
+    public :: model_info_t, create_model, layout, ops
 
 contains
 
-    function create_model(model_info) result(model)
+    subroutine create_model(model_info)
         type(model_info_t), intent(in) :: model_info
-        type(model_t)                  :: model
 
         select case(model_info%grid)
             case('Chebyshev')
-                allocate(field_cheby_t :: model%layout)
-!                 allocate(ops_cheby_t :: model%ops)
+                allocate(cheby_layout_t :: layout)
+                allocate(cheby_ops_t :: ops)
             case('Uniform')
-                allocate(field_mss_t :: model%layout)
-!                 allocate(ops_mss_t :: model%ops)
+                allocate(mss_layout_t :: layout)
+                allocate(mss_ops_t :: ops)
             case default
         end select
 
-        model%stepper = create_stepper(model_info%stepper)
-
-    end function create_model
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    function create_stepper(stepper_type) result(stepper)
-        character(len=9),  intent(in) :: stepper_type
-        class(stepper_t), allocatable :: stepper
-
-        ! 27 March 2024
-        ! https://stackoverflow.com/a/72958237
-        select case (stepper_type)
-            case ('cn2')
-                call mpi_print('Using Crank-Nicholson 2nd order stepper.')
-                stepper = cn2()
-            case ('impl-diff-rk4')
-                call mpi_print('Using implicit diffusion Runge-Kutta 4th order stepper.')
-                stepper = impl_rk4()
-            case default
-                call mpi_stop("No stepper called '" // stepper_type // "' available.")
-        end select
-
-        call stepper%setup
-
-    end function create_stepper
+    end subroutine create_model
 
 end module model_factory

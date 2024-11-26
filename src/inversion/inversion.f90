@@ -1,4 +1,5 @@
 module inversion_mod
+    use model_factory, only : layout, ops
     use inversion_utils
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
@@ -27,7 +28,7 @@ module inversion_mod
             double precision :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
             double precision :: cs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
             double precision :: ubar(0:nz), vbar(0:nz)
-            integer          :: iz, nc, kx, ky, kz
+            integer          :: iz, nc
 
             call start_timer(vor2vel_timer)
 
@@ -42,9 +43,9 @@ module inversion_mod
             ds = as - bs                     ! ds = D
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
-            call flayout%combine_semi_spectral(cs)
-            call flayout%diffz(cs, es)                     ! es = E
-            call flayout%decompose_semi_spectral(es)
+            call layout%combine_semi_spectral(cs)
+            call ops%diffz(cs, es)                     ! es = E
+            call layout%decompose_semi_spectral(es)
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
@@ -78,7 +79,7 @@ module inversion_mod
             !----------------------------------------------------------
             !Combine vorticity in physical space:
             do nc = 1, 3
-                call flayout%combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+                call layout%combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
             enddo
 
             !----------------------------------------------------------
@@ -89,13 +90,13 @@ module inversion_mod
             ds = ds - es
             !$omp end parallel workshare
 
-            call flayout%vertvel(ds, es)
+            call ops%vertvel(ds, es)
 
             ! Get complete zeta field in semi-spectral space
             !$omp parallel workshare
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
-            call flayout%combine_semi_spectral(cs)
+            call layout%combine_semi_spectral(cs)
 
             !----------------------------------------------------------------------
             !Define horizontally-averaged flow by integrating the horizontal vorticity:
@@ -103,10 +104,10 @@ module inversion_mod
 
                 ! <xi>_{x,y} = <w_y>_{x,y} - <v_z>_{x,y} = - <v_z>_{x,y}
                 ubar = - svor(:, 0, 0, 1)
-                call flayout%zinteg(ubar, vbar, .true.)
+                call ops%zinteg(ubar, vbar, .true.)
 
                 ! <eta>_{x,y} = <u_z>_{x,y} - <w_x>_{x,y} = <u_z>_{x,y}
-                call flayout%zinteg(svor(:, 0, 0, 2), ubar, .true.)
+                call ops%zinteg(svor(:, 0, 0, 2), ubar, .true.)
             endif
 
             !-------------------------------------------------------
@@ -186,22 +187,22 @@ module inversion_mod
             ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
             ! but u_x + v_y + w_z = 0 as we assume incompressibility.
 
-            call flayout%combine_physical(sbuoy, buoy)
+            call layout%combine_physical(sbuoy, buoy)
 
             ! Define the x-component of the flux
             fp = vel(:, :, :, 1) * buoy
 
             ! Differentiate
-            call flayout%decompose_physical(fp, fs)
+            call layout%decompose_physical(fp, fs)
             call diffx(fs, ds)
-            call flayout%combine_physical(ds, btend)
+            call layout%combine_physical(ds, btend)
 
             ! Define the y-component of the flux
             fp = vel(:, :, :, 2) * buoy
 
-            call flayout%decompose_physical(fp, fs)
+            call layout%decompose_physical(fp, fs)
             call diffy(fs, ds)
-            call flayout%combine_physical(ds, fp)
+            call layout%combine_physical(ds, fp)
 
             btend = - btend - fp
 
@@ -209,9 +210,9 @@ module inversion_mod
             fp = vel(:, :, :, 3) * buoy
 
             ! Differentiate
-            call flayout%decompose_physical(fp, fs)
+            call layout%decompose_physical(fp, fs)
             call diffz(fs, ds)
-            call flayout%combine_physical(ds, fp)
+            call layout%combine_physical(ds, fp)
 
             ! b = N^2 * z + b'
             ! db/dt = db/dz * dz/dt + db'/dt
@@ -232,7 +233,7 @@ module inversion_mod
             btend = btend - bfsq * vel(:, :, :, 3) - fp
 
             ! Convert to mixed-spectral space:
-            call flayout%decompose_physical(btend, sbuoys)
+            call layout%decompose_physical(btend, sbuoys)
 
         end subroutine buoyancy_tendency
 #endif
@@ -259,7 +260,7 @@ module inversion_mod
             enddo
 
 #ifdef ENABLE_BUOYANCY
-            call flayout%combine_physical(sbuoy, buoy)
+            call layout%combine_physical(sbuoy, buoy)
 #endif
             !-------------------------------------------------------
             ! Tendency in flux form:
@@ -274,18 +275,18 @@ module inversion_mod
             fp = fp + buoy
 #endif
             !$omp end parallel workshare
-            call flayout%decompose_physical(fp, r)
+            call layout%decompose_physical(fp, r)
 
             ! q = w * xi - u * zeta
             !$omp parallel workshare
             fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
             !$omp end parallel workshare
-            call flayout%decompose_physical(fp, q)
+            call layout%decompose_physical(fp, q)
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
-            call flayout%diffz(fp, gp)
-            call flayout%decompose_physical(gp, p)
+            call ops%diffz(fp, gp)
+            call layout%decompose_physical(gp, p)
             !$omp parallel workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
             !$omp end parallel workshare
@@ -294,12 +295,12 @@ module inversion_mod
             !$omp parallel workshare
             fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
             !$omp end parallel workshare
-            call flayout%decompose_physical(fp, p)
+            call layout%decompose_physical(fp, p)
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
-            call flayout%diffz(fp, gp)
-            call flayout%decompose_physical(gp, r)
+            call ops%diffz(fp, gp)
+            call layout%decompose_physical(gp, r)
             !$omp parallel workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
             !$omp end parallel workshare

@@ -9,6 +9,7 @@ AM_FCFLAGS =                            \
         -I $(top_builddir)/src/netcdf
 
 AM_LDFLAGS =                                   	\
+	$(top_builddir)/src/model_factory.o     \
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fft/*.o          	\
         $(top_builddir)/src/fields/*.o          \
@@ -39,6 +40,7 @@ unittests_PROGRAMS =   		\
         test_omp_collapse	\
 	test_implicit_rk	\
 	test_diss
+# 	test_diagnostics
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -84,3 +86,6 @@ test_implicit_rk_LDADD = libcombi.la
 
 test_diss_SOURCES = unit_test.f90 test_diss.f90
 test_diss_LDADD = libcombi.la
+
+# test_diagnostics_SOURCES = unit_test.f90 test_diagnostics.f90
+# test_diagnostics_LDADD = libcombi.la

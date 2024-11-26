@@ -22,6 +22,7 @@ module utils
 #endif
     use mpi_layout, only : mpi_layout_init
     use mpi_utils, only : mpi_exit_on_error
+    use model_factory, only : layout, ops
     implicit none
 
     integer :: nfw  = 0    ! number of field writes
@@ -156,15 +157,15 @@ module utils
                 bbarz(iz) = bfsq * z
                 buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
             enddo
-            call flayout%decompose_physical(buoy, sbuoy)
+            call layout%decompose_physical(buoy, sbuoy)
 #endif
-            call flayout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-            call flayout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call flayout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+            call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+            call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+            call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
             ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
             do nc = 1, 2
-                ini_vor_mean(nc) = flayout%calc_decomposed_mean(svor(:, :, :, nc))
+                ini_vor_mean(nc) = ops%calc_decomposed_mean(svor(:, :, :, nc))
             enddo
 
             call vor2vel

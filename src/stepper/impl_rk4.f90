@@ -1,5 +1,6 @@
 module impl_rk4_mod
-    use advance_mod, only : stepper_t
+    use model_factory, only : ops
+    use stepper_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz
     use fields
@@ -204,7 +205,7 @@ module impl_rk4_mod
 
             ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
-                call flayout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+                call ops%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo
 
         end subroutine impl_rk4_step

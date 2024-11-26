@@ -13,6 +13,7 @@ program test_omp_collapse
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use model_factory, only : layout
     implicit none
 
     double precision               :: error
@@ -66,7 +67,7 @@ program test_omp_collapse
 
 
     do nc = 1, 3
-        call flayout%decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
+        call layout%decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
     enddo
 
     svor = svel

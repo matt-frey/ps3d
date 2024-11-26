@@ -1,4 +1,6 @@
-module field_cheby
+module cheby_ops
+    use cheby ! Import Chebyshev module to set up various matrices needed below
+    use field_ops, only : ops_t
     use constants, only : zero, f12, one
     use parameters, only : nz       &
                          , extent   &
@@ -7,17 +9,13 @@ module field_cheby
                          , upper    &
                          , lower    &
                          , dx
-    use cheby ! Import Chebyshev module to set up various matrices needed below
-    use field_layout
+    use inversion_utils, only : filt, k2l2
     use mpi_layout, only : box
-    use inversion_utils, only : phim, phip, filt, k2l2
-    use sta3dfft, only : fftxyp2s, fftxys2p, initialise_fft
     use mpi_collectives, only : mpi_blocking_reduce
+    use sta3dfft, only : initialise_fft
     implicit none
 
-    type, extends (flayout_t) :: field_cheby_t
-
-        private
+    type, extends(ops_t) :: cheby_ops_t
 
         integer :: nxym1 = 0
         logical :: l_initialised = .false.
@@ -28,16 +26,11 @@ module field_cheby
                                        , zfilt(:)
 
     contains
+
         procedure :: initialise
         procedure :: finalise
 
         procedure :: get_z_axis
-
-        ! Field decompositions:
-        procedure :: decompose_physical
-        procedure :: combine_physical
-        procedure :: decompose_semi_spectral
-        procedure :: combine_semi_spectral
 
         ! Field diagnostics:
         procedure :: get_local_sum
@@ -56,16 +49,15 @@ module field_cheby
         procedure :: zderiv
         procedure :: zinteg
 
-    end type field_cheby_t
+    end type
 
 contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine initialise(this)
-        class (field_cheby_t), intent(inout)  :: this
-        double precision :: fdz1, fdz2, rkmax
-        integer          :: iz
+        class (cheby_ops_t), intent(inout) :: this
+        double precision                      :: fdz1, fdz2!, rkmax
 
         if (this%l_initialised) then
             return
@@ -119,7 +111,7 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine finalise(this)
-        class (field_cheby_t), intent(inout)  :: this
+        class (cheby_ops_t), intent(inout) :: this
 
         if (this%l_initialised) then
             deallocate(this%d1z)
@@ -134,94 +126,22 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_z_axis(this)
-        class (field_cheby_t), intent(in)  :: this
-        double precision :: get_z_axis(0:nz)
+        class (cheby_ops_t), intent(in)  :: this
+        double precision                    :: get_z_axis(0:nz)
 
         get_z_axis = center(3) - hl(3) * this%zcheb
 
     end function get_z_axis
 
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! fc  - complete field (physical space)
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! cfc - copy of complete field (physical space)
-    subroutine decompose_physical(this, fc, sf)
-        class (field_cheby_t), intent(in)  :: this
-        double precision,      intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,      intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        call fftxyp2s(fc, sf)
-
-        call this%decompose_semi_spectral(sf)
-
-    end subroutine decompose_physical
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! in : complete field (semi-spectral space)
-    ! out: full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    subroutine decompose_semi_spectral(this, sfc)
-        class (field_cheby_t), intent(in)    :: this
-        double precision,      intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                              :: iz
-
-        ! subtract harmonic part
-        !$omp parallel do
-        do iz = 1, nz-1
-            sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phim(iz, :, :) + sfc(nz, :, :) * phip(iz, :, :))
-        enddo
-        !$omp end parallel do
-
-    end subroutine decompose_semi_spectral
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! fc  - complete field (physical space)
-    ! sfc - complete field (semi-spectral space)
-    subroutine combine_physical(this, sf, fc)
-        class (field_cheby_t), intent(in)  :: this
-        double precision,      intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,      intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                   :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        sfc = sf
-
-        call this%combine_semi_spectral(sfc)
-
-        ! transform to physical space as fc:
-        call fftxys2p(sfc, fc)
-
-    end subroutine combine_physical
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! in : full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! out: complete field (semi-spectral space)
-    subroutine combine_semi_spectral(this, sf)
-        class (field_cheby_t), intent(in)    :: this
-        double precision,      intent(inout) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                              :: iz
-
-        ! add harmonic part to sfc:
-        !$omp parallel do
-        do iz = 1, nz-1
-            sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phim(iz, :, :) + sf(nz, :, :) * phip(iz, :, :)
-        enddo
-        !$omp end parallel do
-
-    end subroutine combine_semi_spectral
-
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_local_sum(this, ff) result(res)
-        class (field_cheby_t), intent(in) :: this
-        double precision,      intent(in) :: ff(box%lo(3):box%hi(3), &
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
-        double precision                  :: res
-        integer                           :: iz
+        class (cheby_ops_t), intent(in) :: this
+        double precision,       intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+        double precision                   :: res
+        integer                            :: iz
 
         res = zero
         do iz = box%lo(3), box%hi(3)
@@ -235,9 +155,9 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine diffz(this, fs, ds)
-        class (field_cheby_t), intent(in)  :: this
-        double precision,      intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,      intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
         call this%zderiv(fs, ds)
 
@@ -247,10 +167,10 @@ contains
 
     ! This is only calculated on the MPI rank having kx = ky = 0
     function calc_decomposed_mean(this, fs) result(savg)
-        class (field_cheby_t), intent(in) :: this
-        double precision,      intent(in) :: fs(box%lo(3):box%hi(3), &
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
+        class (cheby_ops_t), intent(in) :: this
+        double precision,       intent(in) :: fs(box%lo(3):box%hi(3), &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
         double precision                   :: savg
         integer                            :: iz
 
@@ -273,12 +193,12 @@ contains
 
     ! This is only calculated on the MPI rank having kx = ky = 0
     subroutine adjust_decomposed_mean(this, fs, avg)
-        class (field_cheby_t), intent(in)    :: this
-        double precision,      intent(inout) :: fs(box%lo(3):box%hi(3), &
+        class (cheby_ops_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
-        double precision,      intent(in)    :: avg
-        double precision                     :: savg
+        double precision,       intent(in)    :: avg
+        double precision                      :: savg
 
         savg = this%calc_decomposed_mean(fs)
 
@@ -291,22 +211,22 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine apply_filter(this, fs)
-        class (field_cheby_t), intent(in)    :: this
-        double precision,      intent(inout) :: fs(box%lo(3):box%hi(3), &
+        class (cheby_ops_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
-        double precision                     :: coeffs(0:nz,                &
+        double precision                      :: coeffs(0:nz,                &
                                                         box%lo(2):box%hi(2), &
                                                         box%lo(1):box%hi(1))
-        double precision                     :: err_e(box%lo(2):box%hi(2),  &
-                                                        box%lo(1):box%hi(1))
-        double precision                     :: err_o(box%lo(2):box%hi(2),  &
-                                                        box%lo(1):box%hi(1))
-        integer                              :: iz
-        double precision                     :: fstop(box%lo(2):box%hi(2), &
-                                                        box%lo(1):box%hi(1))
-        double precision                     :: fsbot(box%lo(2):box%hi(2), &
-                                                        box%lo(1):box%hi(1))
+        double precision                      :: err_e(box%lo(2):box%hi(2),  &
+                                                       box%lo(1):box%hi(1))
+        double precision                      :: err_o(box%lo(2):box%hi(2),  &
+                                                       box%lo(1):box%hi(1))
+        integer                               :: iz
+        double precision                      :: fstop(box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+        double precision                      :: fsbot(box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
 
         ! Temporarily store the surfaces
         fsbot = fs(0,  :, :)
@@ -356,10 +276,10 @@ contains
     ! Output:
     ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
     subroutine get_cheb_poly(this, fs, c)
-        class (field_cheby_t), intent(in)  :: this
-        double precision,      intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,      intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                            :: kx, ky
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                             :: kx, ky
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
@@ -376,10 +296,10 @@ contains
     ! Output:
     ! fs - a vector of length N+1 containing the values of f(x) at the points in y
     subroutine cheb_eval(this, c, fs)
-        class (field_cheby_t), intent(in)  :: this
-        double precision,      intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,      intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                            :: kx, ky
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                             :: kx, ky
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
@@ -397,12 +317,12 @@ contains
     ! f & g are 1D arrays over z,
     ! *** Uses dgesv from LAPACK/BLAS ***
     subroutine zinteg(this, f, g, noavg)
-        class (field_cheby_t), intent(in)  :: this
-        double precision, intent(in)  :: f(0:nz)
-        double precision, intent(out) :: g(0:nz)
-        logical,          intent(in)  :: noavg
-        double precision              :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
-        integer                       :: ipiv(0:nz-1), info
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz)
+        double precision,       intent(out) :: g(0:nz)
+        logical,                intent(in)  :: noavg
+        double precision                    :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
+        integer                             :: ipiv(0:nz-1), info
 
         !-----------------------------------------------------
         ! Integrate starting from g = 0 at z = zmin:
@@ -434,12 +354,12 @@ contains
     ! by the solution).
     ! *** Uses dgesv from LAPACK/BLAS ***
     subroutine vertvel(this, ds, es)
-        class (field_cheby_t), intent(in)  :: this
-        double precision, intent(inout) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision, intent(out)   :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                :: dmat(nz-1, nz-1), sol(nz-1)
-        integer                         :: ipiv(nz-1), info
-        integer                         :: kx, ky, iz
+        class (cheby_ops_t), intent(in)    :: this
+        double precision,       intent(inout) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out)   :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                      :: dmat(nz-1, nz-1), sol(nz-1)
+        integer                               :: ipiv(nz-1), info
+        integer                               :: kx, ky, iz
 
         !-----------------------------------------------------------------
         ! Loop over horizontal wavenumbers and solve linear system:
@@ -470,37 +390,37 @@ contains
     end subroutine vertvel
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-        function dembenek_filter(k, rkmax, alpha, beta) result(res)
-            integer,          intent(in) :: k
-            double precision, intent(in) :: alpha, beta, rkmax
-            double precision             :: res, x
+    function dembenek_filter(k, rkmax, alpha, beta) result(res)
+        integer,          intent(in) :: k
+        double precision, intent(in) :: alpha, beta, rkmax
+        double precision             :: res, x
 
-            x = dble(k)/rkmax
-            res = dexp(-alpha*x**beta)
-        end function dembenek_filter
+        x = dble(k)/rkmax
+        res = dexp(-alpha*x**beta)
+    end function dembenek_filter
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Calculates g = df/dz
-        subroutine zderiv(this, f, g)
-            class (field_cheby_t), intent(in)  :: this
-            double precision, intent(in)  :: f(0:nz, 0:this%nxym1)
-            double precision, intent(out) :: g(0:nz, 0:this%nxym1)
+    ! Calculates g = df/dz
+    subroutine zderiv(this, f, g)
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz, 0:this%nxym1)
+        double precision,       intent(out) :: g(0:nz, 0:this%nxym1)
 
-            g = matmul(this%d1z, f)
+        g = matmul(this%d1z, f)
 
-        end subroutine zderiv
+    end subroutine zderiv
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        ! Calculates g = d^2f/dz^2
-        subroutine zzderiv(this, f, g)
-            class (field_cheby_t), intent(in)  :: this
-            double precision, intent(in)  :: f(0:nz, 0:this%nxym1)
-            double precision, intent(out) :: g(0:nz, 0:this%nxym1)
+    ! Calculates g = d^2f/dz^2
+    subroutine zzderiv(this, f, g)
+        class (cheby_ops_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz, 0:this%nxym1)
+        double precision,       intent(out) :: g(0:nz, 0:this%nxym1)
 
-            g = matmul(this%d2z, f)
+        g = matmul(this%d2z, f)
 
-        end subroutine zzderiv
+    end subroutine zzderiv
 
-end module field_cheby
+end module cheby_ops

@@ -6,8 +6,8 @@ module fields
     use parameters, only : nz
     use constants, only : zero
     use mpi_layout, only : box, l_mpi_layout_initialised
-    use field_cheby
-    use field_mss
+    use cheby_layout
+    use mss_layout
     use mpi_utils, only : mpi_exit_on_error
     implicit none
 
@@ -41,7 +41,7 @@ module fields
 
     double precision, allocatable :: bbarz(:) ! N**2 * z
 
-    class(flayout_t), allocatable :: flayout
+    class(layout_t), allocatable :: flayout
 
     contains
 
@@ -57,7 +57,7 @@ module fields
                 return
             endif
 
-            allocate(field_mss_t :: flayout)
+            allocate(mss_layout_t :: flayout)
 
             lo = box%lo
             hi = box%hi
