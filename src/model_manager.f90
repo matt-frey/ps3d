@@ -1,24 +1,28 @@
 module model_manager
-    use options, only : time, visc_type, vor_visc, time_stepper
-#ifdef ENABLE_VERBOSE
-    use options, only : output
-#endif
+    use options, only : time                &
+                      , visc_type           &
+                      , vor_visc            &
+                      , time_stepper        &
+                      , read_config_file    &
+                      , output              &
+                      , verbose             &
+                      , field_file          &
+                      , field_step
     use constants
-    use parameters, only : nx, ny, nz, ncelli
-    use inversion_mod, only : vor2vel, source
-    use fields_derived, only : pressure, horizontal_divergence
+    use parameters, only : nx, ny, nz, ncelli   &
+                         , update_parameters
+    use physics, only : read_physical_quantities    &
+                      , print_physical_quantities
 #ifdef ENABLE_BUOYANCY
-    use physics, only : bfsq
+    use physics, only : bfsq, calculate_basic_reference_state
     use options, only : buoy_visc
 #endif
-    use inversion_utils
-    use utils, only : write_step
-    use sta2dfft, only : dst
-    use fields
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
     use mpi_environment, only : world
-    use mpi_utils, only : mpi_stop
+    use mpi_utils, only : mpi_stop  &
+                        , mpi_exit_on_error
+    use mpi_layout, only : mpi_layout_init
     use field_diagnostics_netcdf, only : set_netcdf_field_diagnostic        &
                                        , NC_OMAX, NC_ORMS, NC_OCHAR         &
                                        , NC_OXMEAN, NC_OYMEAN, NC_OZMEAN    &
@@ -26,31 +30,45 @@ module model_manager
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
                                        , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
-    use options, only : output              &
-                      , read_config_file
-    use model_factory, only : create_model, model_info_t
+    use model_factory, only : create_model, layout
     use constants, only : zero
     use mpi_timer
     use fields
-    use field_netcdf, only : field_io_timer
-    use field_diagnostics_netcdf, only : field_stats_io_timer
+    use field_netcdf, only : field_io_timer             &
+                           , read_netcdf_fields         &
+                           , write_netcdf_fields        &
+                           , create_netcdf_field_file
+    use field_diagnostics_netcdf, only : field_stats_io_timer           &
+                                       , write_netcdf_field_stats       &
+                                       , create_netcdf_field_stats_file
     use inversion_mod, only : vor2vel_timer &
                             , vtend_timer   &
-                            , vor2vel
-    use fields_derived, only : pres_timer   &
-                             , delta_timer
-    use inversion_utils, only : init_inversion, finalise_inversion
-    use utils, only : write_last_step, setup_output_files,   &
-                      setup_domain_and_parameters            &
-                    , setup_fields
+                            , vor2vel       &
+                            , source
+    use fields_derived, only : pres_timer               &
+                             , delta_timer              &
+                             , field_derived_default    &
+                             , pressure                 &
+                             , horizontal_divergence
+    use inversion_utils, only : init_inversion          &
+                              , finalise_inversion      &
+                              , init_diffusion
 #ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
 #endif
     use stepper_factory, only : stepper_t, create_stepper
+    use netcdf_utils
+    use netcdf_reader, only : get_file_type     &
+                            , get_num_steps     &
+                            , get_time_at_step  &
+                            , get_time          &
+                            , get_netcdf_box
     implicit none
 
     private
 
+    integer              :: nfw  = 0    ! number of field writes
+    integer              :: nsfw = 0    ! number of field diagnostics writes
     integer              :: ps_timer
     integer              :: advance_timer
     type(rolling_mean_t) :: rollmean
@@ -73,8 +91,6 @@ module model_manager
 contains
 
     subroutine pre_run
-        type(model_info_t) :: model_info
-
         call register_timer('ps', ps_timer)
         call register_timer('field I/O', field_io_timer)
         call register_timer('field diagnostics I/O', field_stats_io_timer)
@@ -90,7 +106,7 @@ contains
         call read_config_file
 
         ! read domain dimensions
-        call setup_domain_and_parameters
+        call setup_domain_and_parameters(trim(field_file), field_step)
 
         call init_inversion
 
@@ -100,20 +116,19 @@ contains
         endif
 #endif
 
-        call setup_fields
+        call setup_fields(trim(field_file), field_step)
 
         call setup_output_files
 
-        call create_model(model_info)
+        call create_model(trim(field_file))
 
-        stepper = create_stepper('cn2      ')
+        stepper = create_stepper(time_stepper)
 
     end subroutine
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine run
-        use options, only : time
         double precision :: t = zero    ! current time
 
         t = time%initial
@@ -134,8 +149,6 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine post_run
-        use options, only : output
-
         call finalise_inversion
 
 #ifdef ENABLE_BALANCE
@@ -484,5 +497,173 @@ contains
         end select
 
     end function get_diffusion_pre_factor
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Create NetCDF files and set the step number
+    subroutine setup_output_files
+
+        if (output%write_fields) then
+            call create_netcdf_field_file(trim(output%basename), &
+                                          output%overwrite)
+        endif
+
+        if (output%write_field_stats) then
+            call create_netcdf_field_stats_file(trim(output%basename),   &
+                                                output%overwrite)
+        endif
+
+    end subroutine setup_output_files
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Write last step to the NetCDF files. For the time step dt, it
+    ! writes zero.
+    ! @param[in] t is the time
+    subroutine write_last_step(t)
+        double precision,  intent(in) :: t
+
+        ! need to be called in order to set initial time step;
+        call vor2vel
+
+        call write_step(t, .true.)
+    end subroutine write_last_step
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Write step to the NetCDF files.
+    ! @param[in] t is the time
+    ! @param[in] l_force a logical to force a write (optional)
+    subroutine write_step(t, l_force)
+        double precision,  intent(in) :: t
+        logical, optional, intent(in) :: l_force
+        double precision              :: neg = one
+
+        if (present(l_force)) then
+            if (l_force) then
+                neg = -one
+            endif
+        endif
+
+        ! make sure we always write initial setup
+        if (output%write_fields .and. &
+            (t + epsilon(zero) >= neg * dble(nfw) * output%field_freq)) then
+            call write_netcdf_fields(t)
+            nfw = nfw + 1
+        endif
+
+        if (output%write_field_stats .and. &
+            (t + epsilon(zero) >= neg * dble(nsfw) * output%field_stats_freq)) then
+            call write_netcdf_field_stats(t)
+            nsfw = nsfw + 1
+        endif
+
+    end subroutine write_step
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine setup_domain_and_parameters(fname, step)
+        character(*), intent(in) :: fname
+        integer,      intent(in) :: step
+        integer                  :: ncid
+        integer                  :: ncells(3)
+        double precision         :: ini_time = zero
+
+        time%initial = zero ! make sure user cannot start at arbitrary time
+
+        ! set axis and dimension names for the NetCDF output
+        call set_netcdf_dimensions((/'x', 'y', 'z', 't'/))
+        call set_netcdf_axes((/'X', 'Y', 'Z', 'T'/))
+
+        call open_netcdf_file(fname, NF90_NOWRITE, ncid)
+
+        call get_netcdf_box(ncid, lower, extent, ncells)
+        call read_physical_quantities(ncid)
+        if (step < 1) then
+            call get_time(ncid, ini_time)
+        else
+            call get_time_at_step(ncid, step, ini_time)
+        endif
+        time%initial = ini_time
+
+
+        if (time%initial > zero) then
+            nfw = int(time%initial / output%field_freq)
+        endif
+
+        call close_netcdf_file(ncid)
+
+        nx = ncells(1)
+        ny = ncells(2)
+        nz = ncells(3)
+
+        call mpi_layout_init(lower, extent, nx, ny, nz)
+
+        ! update global parameters
+        call update_parameters
+
+#ifdef ENABLE_VERBOSE
+        if (verbose) then
+            call print_physical_quantities
+        endif
+#endif
+    end subroutine setup_domain_and_parameters
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine setup_fields(fname, step)
+        character(*), intent(in) :: fname
+        integer,      intent(in) :: step
+        double precision         :: ke, ape, te, en
+        integer                  :: nc
+#ifdef ENABLE_BUOYANCY
+        integer                  :: iz
+        double precision         :: z
+#endif
+
+        call field_default
+        call field_derived_default
+
+        call read_netcdf_fields(fname, step)
+
+        ! decompose initial fields
+#ifdef ENABLE_BUOYANCY
+        call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
+
+        ! remove basic state from buoyancy
+        do iz = 0, nz
+            z = lower(3) + dble(iz) * dx(3)
+            bbarz(iz) = bfsq * z
+            buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+        enddo
+        call layout%decompose_physical(buoy, sbuoy)
+#endif
+        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+
+        ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
+        do nc = 1, 2
+            ini_vor_mean(nc) = ops%calc_decomposed_mean(svor(:, :, :, nc))
+        enddo
+
+        call vor2vel
+        ke = get_kinetic_energy(vel, l_global=.true., l_allreduce=.true.)
+#ifdef ENABLE_BUOYANCY
+        ape = get_available_potential_energy(buoy, l_global=.true., l_allreduce=.true.)
+#else
+        ape = zero
+#endif
+        te = ke + ape
+        en = get_enstrophy(l_global=.true., l_allreduce=.true.)
+
+#ifdef ENABLE_BUOYANCY
+        ! add buoyancy term to enstrophy
+        en = en + get_gradb_integral(l_global=.true., l_allreduce=.true.)
+#endif
+
+        call init_diffusion(te, en)
+
+    end subroutine setup_fields
 
 end module model_manager

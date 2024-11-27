@@ -5,26 +5,30 @@ module model_factory
     use mss_ops, only : mss_ops_t
     use cheby_ops, only : cheby_ops_t
     use field_ops, only : ops_t
+    use netcdf_reader
     implicit none
 
     private
 
-
-    type :: model_info_t
-        character(len=16) :: grid
-    end type
-
     class(layout_t),  allocatable :: layout
     class(ops_t),     allocatable :: ops
 
-    public :: model_info_t, create_model, layout, ops
+    public :: create_model, layout, ops
 
 contains
 
-    subroutine create_model(model_info)
-        type(model_info_t), intent(in) :: model_info
+    subroutine create_model(fname)
+        character(len=*), intent(in) :: fname
+        integer                      :: ncid
+        character(len=16)            :: grid_type
 
-        select case(model_info%grid)
+        call open_netcdf_file(fname, NF90_NOWRITE, ncid)
+
+        call read_netcdf_attribute(ncid, 'grid_type', grid_type)
+
+        call close_netcdf_file(ncid)
+
+        select case(grid_type)
             case('Chebyshev')
                 allocate(cheby_layout_t :: layout)
                 allocate(cheby_ops_t :: ops)

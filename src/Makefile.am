@@ -38,7 +38,6 @@ ps3d_SOURCES +=					\
 	stepper/impl_rk4.f90			\
 	stepper/stepper_factory.f90		\
 	fields/field_diagnostics_netcdf.f90	\
-	utils/utils.f90				\
 	utils/rolling_mean.f90			\
 	model_manager.f90			\
 	ps3d.f90
@@ -58,7 +57,6 @@ ps3d_LDADD = 						\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
-	utils/utils.f90				\
 	genspec.f90
 
 #genspec_LDADD = 					\
@@ -76,7 +74,6 @@ ps3d_LDADD = 						\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
-	utils/utils.f90				\
 	genspec2d.f90
 
 #genspec2d_LDADD = 					\
@@ -109,7 +106,6 @@ endif
 beltrami_SOURCES += 				\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
-	utils/utils.f90				\
 	beltrami.f90
 
 beltrami_LDADD = 					\
@@ -127,7 +123,6 @@ beltrami_LDADD = 					\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
-	utils/utils.f90				\
 	production.f90
 
 #production_LDADD = 					\

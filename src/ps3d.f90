@@ -2,7 +2,6 @@
 !                       PS3D - Pseudo-Spectral code in 3D
 ! =============================================================================
 program ps3d
-    use model_factory
     use model_manager, only : pre_run   &
                             , run       &
                             , post_run
@@ -37,8 +36,8 @@ contains
 #ifdef ENABLE_VERBOSE
         use options, only : verbose
 #endif
-        integer                          :: i
-        character(len=512)               :: arg
+        integer            :: i
+        character(len=512) :: arg
 
         filename = ''
         i = 0
