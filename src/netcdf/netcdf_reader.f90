@@ -306,12 +306,16 @@ module netcdf_reader
 
         subroutine read_netcdf_domain(ncfname, origin, extent, ncells)
             character(*), intent(in)      :: ncfname
-            integer                       :: ncid
+            integer                       :: ncid, gid
             double precision, intent(out) :: extent(:), origin(:)
             integer,          intent(out) :: ncells(:)
 
             call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
-            call get_netcdf_box(ncid, origin, extent, ncells)
+
+            ncerr = nf90_inq_ncid(ncid, 'parameters', gid)
+            call check_netcdf_error("No group 'parameters'.")
+
+            call get_netcdf_box(gid, origin, extent, ncells)
             call close_netcdf_file(ncid)
 
         end subroutine read_netcdf_domain

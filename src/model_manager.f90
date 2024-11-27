@@ -58,11 +58,12 @@ module model_manager
 #endif
     use stepper_factory, only : stepper_t, create_stepper
     use netcdf_utils
-    use netcdf_reader, only : get_file_type     &
-                            , get_num_steps     &
-                            , get_time_at_step  &
-                            , get_time          &
-                            , get_netcdf_box
+    use netcdf_reader, only : get_file_type         &
+                            , get_num_steps         &
+                            , get_time_at_step      &
+                            , get_time              &
+                            , get_netcdf_box        &
+                            , read_netcdf_attribute
     implicit none
 
     private
@@ -119,8 +120,6 @@ contains
         call setup_fields(trim(field_file), field_step)
 
         call setup_output_files
-
-        call create_model(trim(field_file))
 
         stepper = create_stepper(time_stepper)
 
@@ -565,9 +564,10 @@ contains
     subroutine setup_domain_and_parameters(fname, step)
         character(*), intent(in) :: fname
         integer,      intent(in) :: step
-        integer                  :: ncid
+        integer                  :: ncid, gid
         integer                  :: ncells(3)
         double precision         :: ini_time = zero
+        character(len=16)        :: grid_type
 
         time%initial = zero ! make sure user cannot start at arbitrary time
 
@@ -577,8 +577,8 @@ contains
 
         call open_netcdf_file(fname, NF90_NOWRITE, ncid)
 
-        call get_netcdf_box(ncid, lower, extent, ncells)
         call read_physical_quantities(ncid)
+
         if (step < 1) then
             call get_time(ncid, ini_time)
         else
@@ -586,12 +586,16 @@ contains
         endif
         time%initial = ini_time
 
-
         if (time%initial > zero) then
             nfw = int(time%initial / output%field_freq)
+
         endif
 
-        call close_netcdf_file(ncid)
+        ncerr = nf90_inq_ncid(ncid, 'parameters', gid)
+
+        call check_netcdf_error("No group 'parameters'.")
+
+        call get_netcdf_box(gid, lower, extent, ncells)
 
         nx = ncells(1)
         ny = ncells(2)
@@ -607,6 +611,14 @@ contains
             call print_physical_quantities
         endif
 #endif
+
+
+        call read_netcdf_attribute(gid, 'grid_type', grid_type)
+
+        call create_model(grid_type)
+
+        call close_netcdf_file(ncid)
+
     end subroutine setup_domain_and_parameters
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

@@ -5,7 +5,7 @@ module model_factory
     use mss_ops, only : mss_ops_t
     use cheby_ops, only : cheby_ops_t
     use field_ops, only : ops_t
-    use netcdf_reader
+    use mpi_utils, only : mpi_stop
     implicit none
 
     private
@@ -17,25 +17,19 @@ module model_factory
 
 contains
 
-    subroutine create_model(fname)
-        character(len=*), intent(in) :: fname
-        integer                      :: ncid
-        character(len=16)            :: grid_type
-
-        call open_netcdf_file(fname, NF90_NOWRITE, ncid)
-
-        call read_netcdf_attribute(ncid, 'grid_type', grid_type)
-
-        call close_netcdf_file(ncid)
+    subroutine create_model(grid_type)
+        character(len=*), intent(in) :: grid_type
 
         select case(grid_type)
             case('Chebyshev')
                 allocate(cheby_layout_t :: layout)
                 allocate(cheby_ops_t :: ops)
-            case('Uniform')
+            case('uniform')
                 allocate(mss_layout_t :: layout)
                 allocate(mss_ops_t :: ops)
             case default
+                call mpi_stop(&
+                    "Error in model creation. No grid type '" // grid_type // "'.")
         end select
 
     end subroutine create_model

@@ -254,10 +254,8 @@ module netcdf_utils
 
         subroutine check_netcdf_error(msg)
             character(*), intent(in) :: msg
-#ifndef NDEBUG
             if (ncerr /= nf90_noerr) then
                 call mpi_exit_on_error(msg // " " // trim(nf90_strerror(ncerr)))
             endif
-#endif
         end subroutine check_netcdf_error
 end module netcdf_utils

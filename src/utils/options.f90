@@ -142,51 +142,58 @@ module options
 
         subroutine write_netcdf_options(ncid)
             integer, intent(in) :: ncid
+            integer             :: gid
+
+            ncerr = nf90_inq_ncid(ncid, 'options', gid)
+            if (ncerr /= 0) then
+                ncerr = nf90_def_grp(ncid, 'options', gid)
+                call check_netcdf_error("Failed to define or group 'options'.")
+            endif
 
 #ifdef ENABLE_VERBOSE
-            call write_netcdf_attribute(ncid, "verbose", verbose)
+            call write_netcdf_attribute(gid, "verbose", verbose)
 #endif
 
-            call write_netcdf_viscosity(ncid, vor_visc, 'vor_visc')
+            call write_netcdf_viscosity(gid, vor_visc, 'vor_visc')
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
+            call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
 #endif
-            call write_netcdf_attribute(ncid, "filtering", filtering)
+            call write_netcdf_attribute(gid, "filtering", filtering)
 
-            call write_netcdf_attribute(ncid, "time_stepper", time_stepper)
+            call write_netcdf_attribute(gid, "time_stepper", time_stepper)
 
-            call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
-            call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
-            call write_netcdf_attribute(ncid, "field_stats_freq", output%field_stats_freq)
-            call write_netcdf_attribute(ncid, "write_field_stats", output%write_field_stats)
-            call write_netcdf_attribute(ncid, "overwrite", output%overwrite)
-            call write_netcdf_attribute(ncid, "basename", trim(output%basename))
+            call write_netcdf_attribute(gid, "field_freq", output%field_freq)
+            call write_netcdf_attribute(gid, "write_fields", output%write_fields)
+            call write_netcdf_attribute(gid, "field_stats_freq", output%field_stats_freq)
+            call write_netcdf_attribute(gid, "write_field_stats", output%write_field_stats)
+            call write_netcdf_attribute(gid, "overwrite", output%overwrite)
+            call write_netcdf_attribute(gid, "basename", trim(output%basename))
 
-            call write_netcdf_attribute(ncid, "limit", time%limit)
-            call write_netcdf_attribute(ncid, "initial", time%initial)
-            call write_netcdf_attribute(ncid, "precise_stop", time%precise_stop)
-            call write_netcdf_attribute(ncid, "alpha", time%alpha)
+            call write_netcdf_attribute(gid, "limit", time%limit)
+            call write_netcdf_attribute(gid, "initial", time%initial)
+            call write_netcdf_attribute(gid, "precise_stop", time%precise_stop)
+            call write_netcdf_attribute(gid, "alpha", time%alpha)
 
         end subroutine write_netcdf_options
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine write_netcdf_viscosity(ncid, visc, label)
-            integer,          intent(in) :: ncid
+        subroutine write_netcdf_viscosity(gid, visc, label)
+            integer,          intent(in) :: gid
             type(visc_type),  intent(in) :: visc
             character(len=*), intent(in) :: label
 
             if (visc%nnu == 1) then
-                call write_netcdf_attribute(ncid, label, "molecular")
+                call write_netcdf_attribute(gid, label, "molecular")
             else
-                call write_netcdf_attribute(ncid, label, "hyperviscosity")
+                call write_netcdf_attribute(gid, label, "hyperviscosity")
             endif
 
-            call write_netcdf_attribute(ncid, label // "%nnu", visc%nnu)
-            call write_netcdf_attribute(ncid, label // "%prediss", visc%prediss)
-            call write_netcdf_attribute(ncid, label // "%pretype", visc%pretype)
-            call write_netcdf_attribute(ncid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
-            call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
+            call write_netcdf_attribute(gid, label // "%nnu", visc%nnu)
+            call write_netcdf_attribute(gid, label // "%prediss", visc%prediss)
+            call write_netcdf_attribute(gid, label // "%pretype", visc%pretype)
+            call write_netcdf_attribute(gid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+            call write_netcdf_attribute(gid, label // "%length_scale", visc%length_scale)
 
         end subroutine write_netcdf_viscosity
 
