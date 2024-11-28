@@ -9,10 +9,10 @@ module cheby_ops
                          , upper    &
                          , lower    &
                          , dx
-    use inversion_utils, only : filt, k2l2
+    use inversion_utils, only : filt
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
-    use sta3dfft, only : initialise_fft
+    use sta3dfft, only : k2l2
     implicit none
 
     type, extends(ops_t) :: cheby_ops_t
@@ -64,11 +64,6 @@ contains
         endif
 
         this%l_initialised = .true.
-
-        !------------------------------------------------------------------
-        ! Ensure FFT module is initialised:
-        ! (this call does nothing if already initialised)
-        call initialise_fft(extent)
 
         !------------------------------------------------------------------
         ! Allocate arrays:

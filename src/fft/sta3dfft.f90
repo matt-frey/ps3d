@@ -21,6 +21,14 @@ module sta3dfft
     double precision, protected, allocatable :: xtrig(:), ytrig(:), ztrig(:)
     integer,          protected              :: xfactors(5), yfactors(5), zfactors(5)
 
+    double precision, allocatable :: green(:, :, :)
+
+    ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
+    double precision, allocatable :: k2l2i(:, :)
+
+    ! Note k2l2 = k^2+l^2
+    double precision, allocatable :: k2l2(:, :)
+
     integer :: nwx, nwy
 
     integer :: nx, ny, nz
@@ -44,7 +52,10 @@ module sta3dfft
             , xfactors       &
             , xtrig          &
             , yfactors       &
-            , ytrig
+            , ytrig          &
+            , green          &
+            , k2l2           &
+            , k2l2i
 
     contains
 
@@ -52,7 +63,7 @@ module sta3dfft
 
         subroutine initialise_fft(extent)
             double precision, intent(in) :: extent(3)
-            integer                      :: kx, ky!, kz
+            integer                      :: kx, ky, kz
 
             if (is_fft_initialised) then
                 return
@@ -107,6 +118,39 @@ module sta3dfft
             call init_deriv(nz, extent(3), rkz(1:nz))
             rkzi(1:nz-1) = one / rkz(1:nz-1)
 
+            !----------------------------------------------------------
+            !Squared wavenumber array:
+            allocate(k2l2i(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+            allocate(k2l2(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            do kx = box%lo(1), box%hi(1)
+                do ky = box%lo(2), box%hi(2)
+                    k2l2(ky, kx) = rkx(kx) ** 2 + rky(ky) ** 2
+                enddo
+            enddo
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                k2l2(0, 0) = one
+            endif
+
+            k2l2i = one / k2l2
+
+            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+                k2l2(0, 0) = zero
+                k2l2i(0, 0) = zero
+            endif
+
+            !---------------------------------------------------------------------
+            !Define Green function:
+            allocate(green(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+            !$omp parallel do
+            do kz = 1, nz
+                green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
+            enddo
+            !$omp end parallel do
+            green(0, :, :) = - k2l2i
+
         end subroutine initialise_fft
 
         subroutine finalise_fft
@@ -120,6 +164,9 @@ module sta3dfft
                 deallocate(xtrig)
                 deallocate(ytrig)
                 deallocate(ztrig)
+                deallocate(green)
+                deallocate(k2l2i)
+                deallocate(k2l2)
             endif
 
             call finalise_pencil_fft

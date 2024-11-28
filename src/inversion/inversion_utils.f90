@@ -17,7 +17,8 @@ module inversion_utils
                        , yfactors       &
                        , ytrig          &
                        , zfactors       &
-                       , ztrig
+                       , ztrig          &
+                       , k2l2
     use stafft, only : dst
     use sta2dfft, only : ptospc
     use deriv1d, only : init_deriv
@@ -33,14 +34,6 @@ module inversion_utils
     ! Ordering in physical space: z, y, x
     ! Ordering in spectral space: z, y, x
 
-    ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
-    double precision, allocatable :: k2l2i(:, :)
-
-    ! Note k2l2 = k^2+l^2
-    double precision, allocatable :: k2l2(:, :)
-
-    double precision, allocatable :: green(:, :, :)
-
     ! Spectral dissipation operator for vorticity
     double precision, allocatable :: vhdis(:, :)
 
@@ -51,22 +44,6 @@ module inversion_utils
 
     ! Spectral filter:
     double precision, allocatable :: filt(:, :, :)
-
-    double precision, allocatable :: gamtop(:), gambot(:)
-
-    ! See for definitions in
-    ! Dritschel D, Frey M. The stability of inviscid Beltrami flow between parallel free-slip impermeable
-    ! boundaries. Journal of Fluid Mechanics. 2023;954:A31. doi:10.1017/jfm.2022.1007
-    double precision, allocatable :: thetam(:, :, :)    ! theta_{-}         (eq. 3.10)
-    double precision, allocatable :: thetap(:, :, :)    ! theta_{+}         (eq. 3.11)
-    double precision, allocatable :: dthetam(:, :, :)   ! dtheta_{-}/dz
-    double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
-    double precision, allocatable :: phim(:, :, :)      ! phi_{-}           (eq. 3.4a)
-    double precision, allocatable :: phip(:, :, :)      ! phi_{+}           (eq. 3.4b)
-#ifdef ENABLE_BUOYANCY
-    double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
-    double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
-#endif
 
     double precision :: dzi, hdzi
 
@@ -81,27 +58,14 @@ module inversion_utils
             , finalise_inversion    &
             , init_diffusion        &
 #ifdef ENABLE_BUOYANCY
-            , diffz                 &
-            , dphim                 &
-            , dphip                 &
             , bvisc                 &
             , bhdis                 &
 #endif
             , vvisc                 &
             , filt                  &
             , hdzi                  &
-            , k2l2                  &
-            , k2l2i                 &
             , vhdis                 &
-            , green                 &
-            , thetap                &
-            , thetam                &
-            , dthetap               &
-            , dthetam               &
-            , gambot                &
-            , gamtop                &
-            , call_ptospc           &
-            , phim, phip
+            , call_ptospc
 
     contains
 
@@ -215,9 +179,7 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine init_inversion
-            integer          :: kx, ky, iz, kz
-            double precision :: z, zm(0:nz), zp(0:nz)
-            double precision :: phip00(0:nz)
+            integer          :: kx, ky, kz
 
             if (is_initialised) then
                 return
@@ -229,28 +191,6 @@ module inversion_utils
             hdzi = f12 * dxi(3)
 
             call initialise_fft(extent)
-
-            !----------------------------------------------------------
-            !Squared wavenumber array:
-            allocate(k2l2i(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(k2l2(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    k2l2(ky, kx) = rkx(kx) ** 2 + rky(ky) ** 2
-                enddo
-            enddo
-
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                k2l2(0, 0) = one
-            endif
-
-            k2l2i = one / k2l2
-
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                k2l2(0, 0) = zero
-                k2l2i(0, 0) = zero
-            endif
 
             !----------------------------------------------------------
             !Define de-aliasing filter:
@@ -270,99 +210,6 @@ module inversion_utils
             if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
                 filt(:, 0, 0) = one
             endif
-
-            !---------------------------------------------------------------------
-            !Define Green function:
-            allocate(green(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            !$omp parallel do
-            do kz = 1, nz
-                green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
-            enddo
-            !$omp end parallel do
-            green(0, :, :) = - k2l2i
-
-            !---------------------------------------------------------------------
-            !Define zm = zmax - z, zp = z - zmin
-            !$omp parallel do private(z)
-            do iz = 0, nz
-                z = lower(3) + dx(3) * dble(iz)
-                zm(iz) = upper(3) - z
-                zp(iz) = z - lower(3)
-            enddo
-            !$omp end parallel do
-
-            !---------------------------------------------------------------------
-            !Hyperbolic functions used for solutions of Laplace's equation:
-            allocate(phim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(phip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-#ifdef ENABLE_BUOYANCY
-            allocate(dphim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(dphip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-#endif
-            allocate(thetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(thetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(dthetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(dthetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            do kx = box%lo(1), box%hi(1)
-                do ky = max(1, box%lo(2)), box%hi(2)
-                    call set_hyperbolic_functions(kx, ky, zm, zp)
-                enddo
-            enddo
-
-            ! ky = 0
-            if (box%lo(2) == 0) then
-                do kx = max(1, box%lo(1)), box%hi(1)
-                    call set_hyperbolic_functions(kx, 0, zm, zp)
-                enddo
-            endif
-
-            phip00 = zero
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                !$omp parallel workshare
-                ! kx = ky = 0
-                phim(:, 0, 0) = zm / extent(3)
-                phip(:, 0, 0) = zp / extent(3)
-
-#ifdef ENABLE_BUOYANCY
-                dphim(:, 0, 0) = - one / extent(3)
-                dphip(:, 0, 0) =   one / extent(3)
-#endif
-
-                thetam(:, 0, 0) = zero
-                thetap(:, 0, 0) = zero
-
-                dthetam(:, 0, 0) = zero
-                dthetap(:, 0, 0) = zero
-
-                phip00 = phip(:, 0, 0)
-                !$omp end parallel workshare
-            endif
-
-            !---------------------------------------------------------------------
-            !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
-            allocate(gamtop(0:nz))
-            allocate(gambot(0:nz))
-
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               phip00(0:nz),            &
-                               nz+1,                    &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            !$omp parallel workshare
-            gamtop = f12 * extent(3) * (phip00 ** 2 - f13)
-            !$omp end parallel workshare
-
-            !$omp parallel do
-            do iz = 0, nz
-                gambot(iz) = gamtop(nz-iz)
-            enddo
-            !$omp end parallel do
-            !Here gambot is the complement of gamtop.
 
         end subroutine init_inversion
 
@@ -452,135 +299,10 @@ module inversion_utils
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine finalise_inversion
-            deallocate(green)
-            deallocate(gamtop)
-            deallocate(gambot)
-            deallocate(phim)
-            deallocate(phip)
-#ifdef ENABLE_BUOYANCY
-            deallocate(dphim)
-            deallocate(dphip)
-#endif
-            deallocate(thetam)
-            deallocate(thetap)
-            deallocate(dthetam)
-            deallocate(dthetap)
-            deallocate(k2l2i)
-            deallocate(k2l2)
             deallocate(filt)
 
             call finalise_fft
 
         end subroutine finalise_inversion
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! for kx > 0 and ky >= 0 or kx >= 0 and ky > 0
-        subroutine set_hyperbolic_functions(kx, ky, zm, zp)
-            integer,          intent(in) :: kx, ky
-            double precision, intent(in) :: zm(0:nz), zp(0:nz)
-            double precision             :: R(0:nz), Q(0:nz), k2ifac
-#ifndef ENABLE_BUOYANCY
-            double precision             :: dphim(0:nz), dphip(0:nz)
-#endif
-            double precision             :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
-            double precision             :: fac, div, kl
-
-            kl = dsqrt(k2l2(ky, kx))
-            fac = kl * extent(3)
-            ef = dexp(- fac)
-#ifndef NDEBUG
-            ! To avoid "Floating-point exception - erroneous arithmetic operation"
-            ! when ef is really small.
-            ef = max(ef, dsqrt(tiny(ef)))
-#endif
-            div = one / (one - ef**2)
-            k2ifac = f12 * k2l2i(ky, kx)
-
-            Lm = kl * zm
-            Lp = kl * zp
-
-            ep = dexp(- Lp)
-            em = dexp(- Lm)
-
-#ifndef NDEBUG
-            ! To avoid "Floating-point exception - erroneous arithmetic operation"
-            ! when ep and em are really small.
-            ep = max(ep, dsqrt(tiny(ep)))
-            em = max(em, dsqrt(tiny(em)))
-#endif
-
-            phim(:, ky, kx) = div * (ep - ef * em)
-            phip(:, ky, kx) = div * (em - ef * ep)
-
-#ifdef ENABLE_BUOYANCY
-            dphim(:, ky, kx) = - kl * div * (ep + ef * em)
-            dphip(:, ky, kx) =   kl * div * (em + ef * ep)
-#else
-            dphim = - kl * div * (ep + ef * em)
-            dphip =   kl * div * (em + ef * ep)
-#endif
-
-            Q = div * (one + ef**2)
-            R = div * two * ef
-
-            thetam(:, ky, kx) = k2ifac * (R * Lm * phip(:, ky, kx) - Q * Lp * phim(:, ky, kx))
-            thetap(:, ky, kx) = k2ifac * (R * Lp * phim(:, ky, kx) - Q * Lm * phip(:, ky, kx))
-
-#ifdef ENABLE_BUOYANCY
-            dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * dphim(:, ky, kx) - R * Lm * dphip(:, ky, kx))
-            dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * dphip(:, ky, kx) - R * Lp * dphim(:, ky, kx))
-#else
-            dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
-            dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
-#endif
-        end subroutine set_hyperbolic_functions
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-#ifdef ENABLE_BUOYANCY
-        !Calculates df/dz for a field f in mixed-spectral space
-        !Here fs = f, ds = df/dz. Both fields are in mixed-spectral space.
-        ! fs - mixed-spectral space
-        ! ds - derivative linear part
-        ! as - derivative sine part
-        subroutine diffz(fs, ds)
-            double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision              :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            integer                       :: kz, iz
-
-            !Calculate the derivative of the linear part (ds) in semi-spectral space:
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                ds(iz, :, :) = fs(0, :, :) * dphim(iz, :, :) + fs(nz, :, :) * dphip(iz, :, :)
-            enddo
-            !$omp end parallel do
-
-            ! Calculate d/dz of this sine series:
-            !$omp parallel workshare
-            as(0, :, :) = zero
-            !$omp end parallel workshare
-            !$omp parallel do private(kz)  default(shared)
-            do kz = 1, nz-1
-                as(kz, :, :) = rkz(kz) * fs(kz, :, :)
-            enddo
-            !$omp end parallel do
-            !$omp parallel workshare
-            as(nz, :, :) = zero
-            !$omp end parallel workshare
-
-            !FFT these quantities back to semi-spectral space:
-            call fftcosine(as)
-
-            ! Combine vertical derivative given the sine (as) and linear (ds) parts:
-            !omp parallel workshare
-            ds = ds + as
-            !omp end parallel workshare
-
-            call decompose_semi_spectral(ds)
-
-        end subroutine diffz
-#endif
 
 end module inversion_utils

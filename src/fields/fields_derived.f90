@@ -10,7 +10,7 @@ module fields_derived
     use fields, only : sbuoy, buoy
 #endif
     use sta2dfft, only : dct
-    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p
+    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, green
     use physics, only : f_cor
     implicit none
 

@@ -3,7 +3,6 @@ module mss_layout
     use field_layout
     use parameters, only : nz
     use mpi_layout, only : box
-    use inversion_utils, only : phim, phip
     use sta3dfft, only : ztrig, zfactors, fftxyp2s, fftxys2p
     use stafft, only : dst
     implicit none
@@ -48,7 +47,8 @@ contains
         ! subtract harmonic part
         !$omp parallel do
         do iz = 1, nz-1
-            sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0, :, :) * phim(iz, :, :) + sfc(nz, :, :) * phip(iz, :, :))
+            sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0,  :, :) * this%phim(iz, :, :) + &
+                                             sfc(nz, :, :) * this%phip(iz, :, :))
         enddo
         !$omp end parallel do
 
@@ -122,7 +122,8 @@ contains
         ! add harmonic part to sfc:
         !$omp parallel do
         do iz = 1, nz-1
-            sf(iz, :, :) = sf(iz, :, :) + sf(0, :, :) * phim(iz, :, :) + sf(nz, :, :) * phip(iz, :, :)
+            sf(iz, :, :) = sf(iz, :, :) + sf(0,  :, :) * this%phim(iz, :, :) &
+                                        + sf(nz, :, :) * this%phip(iz, :, :)
         enddo
         !$omp end parallel do
 

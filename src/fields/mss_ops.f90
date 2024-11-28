@@ -1,18 +1,17 @@
 module mss_ops
     use field_ops
+    use mss_layout, only : mss_layout_t
     use constants, only : zero, f12
     use parameters, only : nz, ncell, dxi, fnzi
-    use inversion_utils, only : filt                &
-                              , thetam, thetap      &
-                              , dthetam, dthetap    &
-                              , gambot, gamtop      &
-                              , green
-    use sta3dfft, only : ztrig, zfactors, rkzi, rkz
+    use inversion_utils, only : filt
+    use sta3dfft, only : ztrig, zfactors, rkzi, rkz, green
     use mpi_utils, only : mpi_check_for_error
     use stafft, only : dst, dct
     implicit none
 
     type, extends (ops_t) :: mss_ops_t
+
+        class(mss_layout_t), pointer :: layout
 
     contains
         procedure :: get_z_axis
@@ -163,7 +162,7 @@ contains
         call dct(1, nz, g, ztrig, zfactors)
 
         !Add contribution from the linear function connecting the boundary values:
-        g = g + f(nz) * gamtop - f(0) * gambot
+        g = g + f(nz) * this%layout%gamtop - f(0) * this%layout%gambot
 
     end subroutine zinteg
 
@@ -186,13 +185,15 @@ contains
         !and its derivative (es) in semi-spectral space:
         !$omp parallel do private(iz)  default(shared)
         do iz = 1, nz-1
-            bs(iz, :, :) = ds(0, :, :) *  thetam(iz, :, :) + ds(nz, :, :) *  thetap(iz, :, :)
+            bs(iz, :, :) = ds(0,  :, :) * this%layout%thetam(iz, :, :) &
+                         + ds(nz, :, :) * this%layout%thetap(iz, :, :)
         enddo
         !$omp end parallel do
 
         !$omp parallel do private(iz)  default(shared)
         do iz = 0, nz
-            es(iz, :, :) = ds(0, :, :) * dthetam(iz, :, :) + ds(nz, :, :) * dthetap(iz, :, :)
+            es(iz, :, :) = ds(0,  :, :) * this%layout%dthetam(iz, :, :) &
+                         + ds(nz, :, :) * this%layout%dthetap(iz, :, :)
         enddo
         !$omp end parallel do
 
