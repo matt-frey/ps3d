@@ -4,7 +4,6 @@
 ! =============================================================================
 module parameters
     use constants
-    use mpi_utils, only : mpi_stop
     implicit none
 
     ! mesh spacing
@@ -13,8 +12,8 @@ module parameters
     ! inverse mesh spacing
     double precision :: dxi(3)
 
-    ! grid type: 'uniform', 'chebyshev'
-    character(len=9) :: gridtype = 'regular'
+    ! grid type: uniform or chebyshev
+    character(len=16) :: grid_type
 
     ! grid cell volume, really area in 2D:
     double precision :: vcell

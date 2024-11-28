@@ -17,8 +17,8 @@ AC_CONFIG_FILES([
     Makefile
     src/Makefile
     src/mpi/Makefile
-    src/utils/Makefile
     src/netcdf/Makefile
+    src/utils/Makefile
     src/fft/Makefile
     unit-tests/Makefile
     tests/Makefile

@@ -11,8 +11,6 @@ bin_PROGRAMS = ps3d beltrami
 
 ps3d_SOURCES = 					\
 	utils/options.f90			\
-	utils/parameters.f90			\
-	utils/merge_sort.f90			\
 	inversion/inversion_utils.f90		\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
@@ -38,7 +36,6 @@ ps3d_SOURCES +=					\
 	stepper/impl_rk4.f90			\
 	stepper/stepper_factory.f90		\
 	fields/field_diagnostics_netcdf.f90	\
-	utils/rolling_mean.f90			\
 	model_manager.f90			\
 	ps3d.f90
 
@@ -50,7 +47,6 @@ ps3d_LDADD = 						\
 
 #genspec_SOURCES = 				\
 	utils/options.f90			\
-	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
@@ -67,7 +63,6 @@ ps3d_LDADD = 						\
 
 #genspec2d_SOURCES = 				\
 	utils/options.f90			\
-	utils/parameters.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
@@ -84,7 +79,6 @@ ps3d_LDADD = 						\
 
 beltrami_SOURCES = 				\
 	utils/options.f90			\
-	utils/parameters.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
@@ -116,7 +110,6 @@ beltrami_LDADD = 					\
 
 #production_SOURCES = 				\
 	utils/options.f90			\
-	utils/parameters.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\

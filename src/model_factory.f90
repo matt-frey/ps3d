@@ -21,7 +21,7 @@ contains
         character(len=*), intent(in) :: grid_type
 
         select case(grid_type)
-            case('Chebyshev')
+            case('chebyshev')
                 allocate(cheby_layout_t :: layout)
                 allocate(cheby_ops_t :: ops)
             case('uniform')

@@ -7,11 +7,13 @@ lib_LTLIBRARIES = libps_utils.la
 libps_utils_la_SOURCES = 	\
 	iomanip.f90		\
 	constants.f90		\
+	parameters.f90		\
 	config.f90		\
 	physics.f90		\
 	jacobi.f90		\
 	merge_sort.f90		\
-	dimensions.f90
+	dimensions.f90		\
+	rolling_mean.f90
 
 if ENABLE_BUOYANCY
 libps_utils_la_SOURCES += 	\

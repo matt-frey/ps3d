@@ -10,7 +10,8 @@ module model_manager
                       , field_step
     use constants
     use parameters, only : nx, ny, nz, ncelli   &
-                         , update_parameters
+                         , update_parameters    &
+                         , grid_type
     use physics, only : read_physical_quantities    &
                       , print_physical_quantities
 #ifdef ENABLE_BUOYANCY
@@ -567,7 +568,6 @@ contains
         integer                  :: ncid, gid
         integer                  :: ncells(3)
         double precision         :: ini_time = zero
-        character(len=16)        :: grid_type
 
         time%initial = zero ! make sure user cannot start at arbitrary time
 
