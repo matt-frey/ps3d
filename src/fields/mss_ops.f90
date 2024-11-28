@@ -3,7 +3,6 @@ module mss_ops
     use mss_layout, only : mss_layout_t
     use constants, only : zero, f12
     use parameters, only : nz, ncell, dxi, fnzi
-    use inversion_utils, only : filt
     use sta3dfft, only : ztrig, zfactors, rkzi, rkz, green
     use mpi_utils, only : mpi_check_for_error
     use stafft, only : dst, dct
@@ -23,7 +22,6 @@ module mss_ops
         procedure :: diffz
         procedure :: calc_decomposed_mean
         procedure :: adjust_decomposed_mean
-        procedure :: apply_filter
 
         ! Specific routines:
         procedure :: vertvel
@@ -132,18 +130,6 @@ contains
         endif
 
     end subroutine adjust_decomposed_mean
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine apply_filter(this, fs)
-        class (mss_ops_t), intent(in)    :: this
-        double precision,  intent(inout) :: fs(box%lo(3):box%hi(3), &
-                                               box%lo(2):box%hi(2), &
-                                               box%lo(1):box%hi(1))
-
-        fs = filt * fs
-
-    end subroutine apply_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

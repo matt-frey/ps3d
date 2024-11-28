@@ -30,7 +30,6 @@ module field_ops
         procedure (m_diffz), deferred :: diffz
         procedure (m_calc_decomposed_mean), deferred :: calc_decomposed_mean
         procedure (m_adjust_decomposed_mean), deferred :: adjust_decomposed_mean
-        procedure (m_apply_filter), deferred :: apply_filter
 
         ! Specific routines:
         procedure (m_vertvel), deferred :: vertvel
@@ -82,15 +81,6 @@ module field_ops
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
             double precision, intent(in)    :: avg
-        end subroutine
-
-        subroutine m_apply_filter(this, fs)
-            use mpi_layout, only : box
-            import :: ops_t
-            class (ops_t),    intent(in)    :: this
-            double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &
-                                                  box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
         end subroutine
 
         subroutine m_vertvel(this, ds, es)

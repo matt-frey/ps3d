@@ -42,8 +42,6 @@ module inversion_utils
     double precision, allocatable :: bhdis(:, :)
 #endif
 
-    ! Spectral filter:
-    double precision, allocatable :: filt(:, :, :)
 
     double precision :: dzi, hdzi
 
@@ -55,14 +53,12 @@ module inversion_utils
     logical :: is_initialised = .false.
 
     public :: init_inversion        &
-            , finalise_inversion    &
             , init_diffusion        &
 #ifdef ENABLE_BUOYANCY
             , bvisc                 &
             , bhdis                 &
 #endif
             , vvisc                 &
-            , filt                  &
             , hdzi                  &
             , vhdis                 &
             , call_ptospc
@@ -192,117 +188,6 @@ module inversion_utils
 
             call initialise_fft(extent)
 
-            !----------------------------------------------------------
-            !Define de-aliasing filter:
-
-            allocate(filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            select case (filtering)
-                case ("Hou & Li")
-                    call init_hou_and_li_filter
-                case ("2/3-rule")
-                    call init_23rd_rule_filter
-                case default
-                    call init_hou_and_li_filter
-            end select
-
-            !Ensure filter does not change domain mean:
-            if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-                filt(:, 0, 0) = one
-            endif
-
         end subroutine init_inversion
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Define Hou and Li filter (2D and 3D):
-        subroutine init_hou_and_li_filter
-            integer          :: kx, ky, kz
-            double precision :: kxmaxi, kymaxi, kzmaxi
-            double precision :: skx(box%lo(1):box%hi(1)), &
-                                sky(box%lo(2):box%hi(2)), &
-                                skz(0:nz)
-
-            call mpi_print("Using Hou & Li de-aliasing filter.")
-
-            kxmaxi = one / maxval(rkx)
-            skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
-            kymaxi = one/maxval(rky)
-            sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
-            kzmaxi = one/maxval(rkz)
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
-
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                    filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
-                    filt(nz, ky, kx) = filt(0, ky, kx)
-                    do kz = 1, nz-1
-                        filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
-                    enddo
-                enddo
-            enddo
-
-        end subroutine init_hou_and_li_filter
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        !Define de-aliasing filter (2/3 rule):
-        subroutine init_23rd_rule_filter
-            integer          :: kx, ky, kz
-            double precision :: rkxmax, rkymax, rkzmax
-            double precision :: skx(box%lo(1):box%hi(1)), &
-                                sky(box%lo(2):box%hi(2)), &
-                                skz(0:nz)
-
-            call mpi_print("Using 2/3-rule de-aliasing filter.")
-
-            rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
-            rkzmax = maxval(rkz)
-
-            do kx = box%lo(1), box%hi(1)
-                if (rkx(kx) <= f23 * rkxmax) then
-                    skx(kx) = one
-                else
-                    skx(kx) = zero
-                endif
-            enddo
-
-            do ky = box%lo(2), box%hi(2)
-                if (rky(ky) <= f23 * rkymax) then
-                    sky(ky) = one
-                else
-                    sky(ky) = zero
-                endif
-            enddo
-
-            do kz = 0, nz
-                if (rkz(kz) <= f23 * rkzmax) then
-                    skz(kz) = one
-                else
-                    skz(kz) = zero
-                endif
-            enddo
-
-            ! Take product of 1d filters:
-            do kx = box%lo(1), box%hi(1)
-                do ky = box%lo(2), box%hi(2)
-                  filt(0,  ky, kx) = skx(kx) * sky(ky)
-                  filt(nz, ky, kx) = filt(0, ky, kx)
-                  do kz = 1, nz-1
-                     filt(kz, ky, kx) = filt(0, ky, kx) * skz(kz)
-                  enddo
-               enddo
-            enddo
-        end subroutine init_23rd_rule_filter
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine finalise_inversion
-            deallocate(filt)
-
-            call finalise_fft
-
-        end subroutine finalise_inversion
 
 end module inversion_utils
