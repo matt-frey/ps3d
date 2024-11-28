@@ -147,6 +147,14 @@ program genspec2d
             pp = fp
 
             !Transform data in pp to spectral space: (periodic in x and in y)
+            !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+!         ! this routine is call by the genspec2d program
+!         subroutine call_ptospc(pp, ss)
+!             double precision, intent(inout) :: pp(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
+!             double precision, intent(out)   :: ss(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
+!             call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
+!         end subroutine call_ptospc
             call call_ptospc(pp, ss)
 
             do k = 0, kmax

@@ -9,7 +9,6 @@ program test_diffz_4
     use unit_test
     use constants, only : zero, one, three, six
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
-    use inversion_utils
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -42,7 +41,7 @@ program test_diffz_4
 
     call update_parameters
 
-    call init_inversion
+!     call init_inversion
 
     do iz = 0, nz
         z = lower(3) + iz * dx(3)

@@ -6,7 +6,6 @@ program test_vor2vel
     use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
-    use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -37,7 +36,7 @@ program test_vor2vel
     allocate(mag(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
     call field_default
 
-    call init_inversion
+!     call init_inversion
 
     if (casenum == 1) then
         k = two

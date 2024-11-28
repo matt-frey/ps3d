@@ -51,8 +51,7 @@ module model_manager
                              , field_derived_default    &
                              , pressure                 &
                              , horizontal_divergence
-    use inversion_utils, only : init_inversion          &
-                              , init_diffusion
+    use diffusion, only : init_diffusion
 #ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
 #endif
@@ -108,8 +107,6 @@ contains
 
         ! read domain dimensions
         call setup_domain_and_parameters(trim(field_file), field_step)
-
-        call init_inversion
 
 #ifdef ENABLE_BALANCE
         if (output%l_balanced) then

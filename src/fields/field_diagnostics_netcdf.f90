@@ -3,7 +3,6 @@
 ! =============================================================================
 module field_diagnostics_netcdf
     use fields
-    use inversion_utils
     use netcdf_utils
     use netcdf_writer
     use netcdf_reader

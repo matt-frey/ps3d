@@ -1,6 +1,5 @@
 module inversion_mod
     use model_factory, only : layout, ops
-    use inversion_utils
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY

@@ -17,7 +17,6 @@ program test_vor2vel_3
     use constants, only : f12, one
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
-    use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -50,7 +49,7 @@ program test_vor2vel_3
 
     call field_default
 
-    call init_inversion
+!     call init_inversion
 
     do iz = 0, nz
         z = lower(3) + iz * dx(3)

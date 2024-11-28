@@ -5,7 +5,6 @@ program test_omp_collapse
     use unit_test
     use constants, only : one, two, pi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
-    use inversion_utils
     use sta2dfft, only : dst
     use sta3dfft, only : zfactors, ztrig
     use fields
@@ -36,7 +35,7 @@ program test_omp_collapse
 
     call field_default
 
-    call init_inversion
+!     call init_inversion
 
     k = two
     l = two

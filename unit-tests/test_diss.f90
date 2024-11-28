@@ -16,9 +16,9 @@ program test_diffusion
     use constants, only : one, two, pi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
-    use inversion_utils
     use mpi_timer
     use mpi_environment
+    use diffusion
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use options, only : vor_visc
@@ -57,7 +57,7 @@ program test_diffusion
     l = two
     m = one
 
-    call init_inversion
+!     call init_inversion
 
     te = 0.28125d0
     en = 2.53113708762278d0

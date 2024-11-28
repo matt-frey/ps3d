@@ -1,28 +1,13 @@
-module inversion_utils
+module diffusion
     use constants
-    use parameters, only : nx, ny, nz, dx, dxi, extent, ncelli, upper, lower
     use mpi_layout
     use mpi_environment
     use sta3dfft, only : initialise_fft &
                        , finalise_fft   &
                        , rkx            &
                        , rky            &
-                       , rkz            &
-                       , fftxyp2s       &
-                       , fftxys2p       &
-                       , fftsine        &
-                       , fftcosine      &
-                       , xfactors       &
-                       , xtrig          &
-                       , yfactors       &
-                       , ytrig          &
-                       , zfactors       &
-                       , ztrig          &
                        , k2l2
-    use stafft, only : dst
-    use sta2dfft, only : ptospc
-    use deriv1d, only : init_deriv
-    use options, only : vor_visc, filtering
+    use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
 #endif
@@ -43,8 +28,6 @@ module inversion_utils
 #endif
 
 
-    double precision :: dzi, hdzi
-
     double precision :: vvisc
 #ifdef ENABLE_BUOYANCY
     double precision :: bvisc
@@ -52,27 +35,15 @@ module inversion_utils
 
     logical :: is_initialised = .false.
 
-    public :: init_inversion        &
-            , init_diffusion        &
+    public :: init_diffusion        &
 #ifdef ENABLE_BUOYANCY
             , bvisc                 &
             , bhdis                 &
 #endif
             , vvisc                 &
-            , hdzi                  &
-            , vhdis                 &
-            , call_ptospc
+            , vhdis
 
     contains
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        ! this routine is call by the genspec2d program
-        subroutine call_ptospc(pp, ss)
-            double precision, intent(inout) :: pp(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
-            double precision, intent(out)   :: ss(box%lo(2):box%hi(2), box%lo(1):box%lo(2))
-            call ptospc(nx, ny, pp, ss, xfactors, yfactors, xtrig, ytrig)
-        end subroutine call_ptospc
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -172,22 +143,4 @@ module inversion_utils
 
         end subroutine init_dissipation
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine init_inversion
-            integer          :: kx, ky, kz
-
-            if (is_initialised) then
-                return
-            endif
-
-            is_initialised = .true.
-
-            dzi = dxi(3)
-            hdzi = f12 * dxi(3)
-
-            call initialise_fft(extent)
-
-        end subroutine init_inversion
-
-end module inversion_utils
+end module diffusion

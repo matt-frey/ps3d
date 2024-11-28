@@ -10,7 +10,6 @@ bin_PROGRAMS = ps3d beltrami
 #genspec genspec2d  production
 
 ps3d_SOURCES = 					\
-	inversion/inversion_utils.f90		\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
 	fields/cheby.f90			\
@@ -22,6 +21,7 @@ ps3d_SOURCES = 					\
 	fields/mss_filter.f90			\
 	fields/cheby_filter.f90			\
 	fields/fields.f90			\
+	inversion/diffusion.f90			\
 	model_factory.f90			\
 	inversion/inversion.f90			\
 	fields/fields_derived.f90		\
@@ -48,7 +48,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec_SOURCES = 				\
-	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
@@ -63,7 +62,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec2d_SOURCES = 				\
-	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
@@ -78,7 +76,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 beltrami_SOURCES = 				\
-	inversion/inversion_utils.f90   	\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
 	fields/cheby.f90			\
@@ -87,6 +84,7 @@ beltrami_SOURCES = 				\
 	fields/mss_ops.f90			\
 	fields/cheby_ops.f90			\
 	fields/fields.f90			\
+	inversion/diffusion.f90		   	\
 	model_factory.f90			\
 	fields/fields_derived.f90		\
 	fields/field_netcdf.f90			\
@@ -108,7 +106,6 @@ beltrami_LDADD = 					\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #production_SOURCES = 				\
-	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\

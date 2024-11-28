@@ -4,7 +4,7 @@ module impl_rk4_mod
     use constants, only : f12, f13, f16
     use parameters, only : nz
     use fields
-    use inversion_utils
+    use diffusion
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
     implicit none

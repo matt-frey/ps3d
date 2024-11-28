@@ -16,7 +16,6 @@ program test_vor2vel_1
     use constants, only : one, two, pi, f12
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
     use fields
-    use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
@@ -54,7 +53,7 @@ program test_vor2vel_1
     l = two
     m = one
 
-    call init_inversion
+!     call init_inversion
 
 
     alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)

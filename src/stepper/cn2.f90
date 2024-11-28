@@ -19,7 +19,7 @@ module cn2_mod
     use constants, only : f12, one
     use parameters, only : nz
     use fields
-    use inversion_utils
+    use diffusion
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
     implicit none

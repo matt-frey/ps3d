@@ -16,7 +16,6 @@ program test_implicit_rk
     use constants, only : zero, one, f12
     use parameters, only : lower, update_parameters, nx, ny, nz, extent
     use fields
-    use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer, vorticity_tendency, vtend_timer
     use field_diagnostics
     use mpi_timer
@@ -58,7 +57,7 @@ program test_implicit_rk
 
     call field_default
 
-    call init_inversion
+!     call init_inversion
 
     time_step = 0.1d0
     do n = 1, 4

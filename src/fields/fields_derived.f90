@@ -5,7 +5,6 @@ module fields_derived
     use mpi_utils, only : mpi_exit_on_error
     use mpi_timer, only : start_timer, stop_timer
     use fields, only : svel, vor
-    use inversion_utils
 #ifdef ENABLE_BUOYANCY
     use fields, only : sbuoy, buoy
 #endif
