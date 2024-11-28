@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
-    use model_factory, only : ops
+    use model_factory, only : ops, filter
     use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
@@ -107,9 +107,13 @@ module cn2_mod
             !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
             bsm = sbuoy + dt2 * sbuoys
+            sbuoy = bsm + dt2 * sbuoys
+
+            call filter%apply(sbuoy)
+
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                sbuoy(iz, :, :) = bdiss * filt(iz, :, :) * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
+                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
             enddo
             !$omp end parallel do
 #endif
@@ -120,10 +124,13 @@ module cn2_mod
             !$omp end parallel workshare
 
             do nc = 1, 3
+                svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
+
+                call filter%apply(svor(:, :, :, nc))
+
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    svor(iz, :, :, nc) = vdiss * filt(iz, :, :) &
-                                       * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
+                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                 enddo
                 !$omp end parallel do
             enddo
@@ -146,18 +153,25 @@ module cn2_mod
 
                 !Update fields:
 #ifdef ENABLE_BUOYANCY
+                sbuoy = bsm + dt2 * sbuoys
+
+                call filter%apply(sbuoy)
+
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
-                    sbuoy(iz, :, :) = bdiss * filt(iz, :, :) * (bsm(iz, :, :) + dt2 * sbuoys(iz, :, :))
+                    sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
                 enddo
                 !$omp end parallel do
 #endif
 
                 do nc = 1, 3
+                    svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
+
+                    call filter%apply(svor(:, :, :, nc))
+
                     !$omp parallel do private(iz)  default(shared)
                     do iz = 0, nz
-                        svor(iz, :, :, nc) = vdiss * filt(iz, :, :) &
-                                           * (vortsm(iz, :, :, nc) + dt2 * svorts(iz, :, :, nc))
+                        svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
                     enddo
                     !$omp end parallel do
                 enddo

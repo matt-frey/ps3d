@@ -1,13 +1,22 @@
 module cheby_filter
-    use field_filter, only : field_filter_t
+    use field_filter, only : filter_t
+    use mpi_layout, only : box
+    use parameters, only : nz
+    use constants, only : zero
     implicit none
 
-    type, extends(field_filter_t) :: cheby_filter_t
+    type, extends(filter_t) :: cheby_filter_t
 
+        ! Filter for the Chebyshev cofficients:
+        double precision, allocatable :: zfilt(:, :, :)
+
+        ! Filter for the surfaces:
+        double precision, allocatable :: filt(:, :)
 
     contains
 
         procedure :: apply
+        procedure :: apply2d
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
 
@@ -44,12 +53,10 @@ contains
         fs(nz, :, :) = zero
 
         ! Get Chebyshev coefficients
-        call this%get_cheb_poly(fs, coeffs)
+!         call this%get_cheb_poly(fs, coeffs) !FIXME
 
         ! Apply filter on coefficients
-        do iz = 0, nz
-            coeffs(iz, :, :) = filt(iz, :, :) * coeffs(iz, :, :)
-        enddo
+        coeffs = this%zfilt * coeffs
 
         ! Boundary-Preserving Filter:
         err_e = coeffs(0, :, :)
@@ -68,12 +75,43 @@ contains
         coeffs(1, :, :) = coeffs(1, :, :) - err_o
 
         ! Return filtered field with 0 bc's
-        call this%cheb_eval(coeffs, fs)
+!         call this%cheb_eval(coeffs, fs) !FIXME
 
         ! Restore filtered surfaces
-        fs(0,  :, :) = filt(0,  :, :) * fsbot
-        fs(nz, :, :) = filt(nz, :, :) * fstop
+        fs(0,  :, :) = this%filt * fsbot
+        fs(nz, :, :) = this%filt * fstop
 
     end subroutine apply
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply2d(this, fs)
+        class (cheby_filter_t), intent(in) :: this
+        double precision,       intent(inout) :: fs(box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+
+    end subroutine apply2d
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define Hou and Li filter (2D and 3D):
+    subroutine init_hou_and_li(this)
+        class(cheby_filter_t), intent(inout) :: this
+
+        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+    end subroutine init_hou_and_li
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define de-aliasing filter (2/3 rule):
+    subroutine init_23rd_rule(this)
+        class(cheby_filter_t), intent(inout) :: this
+
+        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+    end subroutine init_23rd_rule
 
 end module

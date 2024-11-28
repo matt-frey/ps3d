@@ -18,6 +18,9 @@ ps3d_SOURCES = 					\
 	fields/field_ops.f90			\
 	fields/mss_ops.f90			\
 	fields/cheby_ops.f90			\
+	fields/field_filter.f90			\
+	fields/mss_filter.f90			\
+	fields/cheby_filter.f90			\
 	fields/fields.f90			\
 	model_factory.f90			\
 	inversion/inversion.f90			\

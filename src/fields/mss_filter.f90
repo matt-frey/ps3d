@@ -1,13 +1,22 @@
 module mss_filter
-    use field_filter, only : field_filter_t
+    use field_filter, only : filter_t
+    use mpi_layout, only : box
+    use parameters, only : nz
+    use sta3dfft, only : rkx, rky, rkz
+    use constants, only : zero, f23, one
     implicit none
 
-    type, extends(field_filter_t) :: mss_filter_t
+    type, extends(filter_t) :: mss_filter_t
 
+    private
+        ! Spectral filter:
+        double precision, allocatable :: filt(:, :, :)
 
     contains
 
         procedure :: apply
+        procedure :: apply2d
+        procedure :: finalise
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
 
@@ -23,9 +32,20 @@ contains
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
 
-        fs = filt * fs
+        fs = this%filt * fs
 
     end subroutine apply
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply2d(this, fs)
+        class (mss_filter_t), intent(in) :: this
+        double precision,     intent(inout) :: fs(box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+
+        fs = this%filt(0, :, :) * fs
+
+    end subroutine apply2d
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -40,6 +60,8 @@ contains
 
         call mpi_print("Using Hou & Li de-aliasing filter.")
 
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
         kxmaxi = one / maxval(rkx)
         skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
         kymaxi = one/maxval(rky)
@@ -49,20 +71,25 @@ contains
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
-                filt(nz, ky, kx) = filt(0, ky, kx)
+                this%filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
+                this%filt(nz, ky, kx) = this%filt(0, ky, kx)
                 do kz = 1, nz-1
-                    filt(kz, ky, kx) = filt(0, ky, kx) * dexp(skz(kz))
+                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * dexp(skz(kz))
                 enddo
             enddo
         enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = one
+        endif
 
     end subroutine init_hou_and_li
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     !Define de-aliasing filter (2/3 rule):
-    subroutine init_23rd_rule
+    subroutine init_23rd_rule(this)
         class(mss_filter_t), intent(inout) :: this
         integer                            :: kx, ky, kz
         double precision                   :: rkxmax, rkymax, rkzmax
@@ -71,6 +98,8 @@ contains
                                               skz(0:nz)
 
         call mpi_print("Using 2/3-rule de-aliasing filter.")
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         rkxmax = maxval(rkx)
         rkymax = maxval(rky)
@@ -103,13 +132,26 @@ contains
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                filt(0,  ky, kx) = skx(kx) * sky(ky)
-                filt(nz, ky, kx) = filt(0, ky, kx)
+                this%filt(0,  ky, kx) = skx(kx) * sky(ky)
+                this%filt(nz, ky, kx) = this%filt(0, ky, kx)
                 do kz = 1, nz-1
-                    filt(kz, ky, kx) = filt(0, ky, kx) * skz(kz)
+                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * skz(kz)
                 enddo
             enddo
         enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = one
+        endif
+
     end subroutine init_23rd_rule
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine finalise(this)
+        class(mss_filter_t), intent(inout) :: this
+        deallocate(this%filt)
+    end subroutine finalise
 
 end module

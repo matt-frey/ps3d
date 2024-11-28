@@ -1,5 +1,5 @@
 module impl_rk4_mod
-    use model_factory, only : ops
+    use model_factory, only : ops, filter
     use stepper_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz
@@ -87,7 +87,7 @@ module impl_rk4_mod
             ! set integrating factors
             self%epq = dexp(vdiss)
             self%emq = 1.0d0 / self%epq
-            self%epq = self%epq * filt(0, :, :)
+            self%epq = self%epq !* filt(0, :, :) !FIXME
 
 #ifdef ENABLE_BUOYANCY
             self%bpq = dexp(bdiss)
@@ -228,9 +228,9 @@ module impl_rk4_mod
             integer                         :: iz
 
             ! Filter source
-            do iz = 0, nz
-                sqs(iz, :, :) = filt(0, :, :) * sqs(iz, :, :)
-            enddo
+!             do iz = 0, nz
+!                 sqs(iz, :, :) = filt(0, :, :) * sqs(iz, :, :) !FIXME
+!             enddo
             qdi = q
             q = (qdi + dt2 * sqs)
             !$omp parallel do private(iz)  default(shared)

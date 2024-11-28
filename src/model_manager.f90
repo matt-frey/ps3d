@@ -52,7 +52,6 @@ module model_manager
                              , pressure                 &
                              , horizontal_divergence
     use inversion_utils, only : init_inversion          &
-                              , finalise_inversion      &
                               , init_diffusion
 #ifdef ENABLE_BALANCE
     use field_balance, only : initialise_balance, finalise_balance
@@ -149,8 +148,6 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine post_run
-        call finalise_inversion
-
 #ifdef ENABLE_BALANCE
         if (output%l_balanced) then
             call finalise_balance
