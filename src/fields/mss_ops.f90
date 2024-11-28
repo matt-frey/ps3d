@@ -15,9 +15,6 @@ module mss_ops
     type, extends (ops_t) :: mss_ops_t
 
     contains
-        procedure :: initialise
-        procedure :: finalise
-
         procedure :: get_z_axis
 
         ! Field diagnostics:
@@ -36,19 +33,6 @@ module mss_ops
 
 contains
 
-    subroutine initialise(this)
-        class (mss_ops_t), intent(inout)  :: this
-
-
-
-    end subroutine initialise
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine finalise(this)
-        class (mss_ops_t), intent(inout)  :: this
-    end subroutine finalise
-
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_z_axis(this)
@@ -59,17 +43,6 @@ contains
         do i = 0, nz
             get_z_axis(i) = lower(3) + dble(i) * dx(3)
         enddo
-
-!         select case (gridtype)
-!             case ('regular')
-!                 do i = 0, nz
-!                     get_z_axis(i) = lower(3) + dble(i) * dx(3)
-!                 enddo
-!             case ('chebyshev')
-!                 get_z_axis = 0.0d0 !FIXME
-!             case default
-!                 call mpi_stop('Error: invalid grid type.')
-!         end select
 
     end function get_z_axis
 

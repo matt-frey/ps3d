@@ -10,8 +10,8 @@ module field_ops
     type, abstract :: ops_t
 
     contains
-        procedure (m_initialise), deferred :: initialise
-        procedure (m_finalise), deferred :: finalise
+        procedure :: initialise => m_initialise
+        procedure :: finalise => m_finalise
 
         ! Axes
         procedure :: get_x_axis => m_get_x_axis
@@ -38,16 +38,6 @@ module field_ops
     end type
 
     interface
-        subroutine m_initialise(this)
-            import :: ops_t
-            class (ops_t), intent(inout)  :: this
-        end subroutine
-
-        subroutine m_finalise(this)
-            import :: ops_t
-            class (ops_t), intent(inout)  :: this
-        end subroutine
-
         function m_get_z_axis(this) result(get_z_axis)
             use parameters, only : nz
             import :: ops_t
@@ -126,6 +116,22 @@ module field_ops
     end interface
 
 contains
+
+    subroutine m_initialise(this)
+        class (ops_t), intent(inout)  :: this
+
+        ! The base class does nothing here
+
+    end subroutine m_initialise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine m_finalise(this)
+        class (ops_t), intent(inout)  :: this
+
+        ! The base class does nothing here
+
+    end subroutine m_finalise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

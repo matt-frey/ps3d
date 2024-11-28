@@ -32,6 +32,8 @@ contains
                     "Error in model creation. No grid type '" // grid_type // "'.")
         end select
 
+        call ops%initialise
+
     end subroutine create_model
 
 end module model_factory
