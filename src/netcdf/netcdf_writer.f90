@@ -352,29 +352,6 @@ module netcdf_writer
             call write_netcdf_attribute_character(ncid, "creation_zone", tmp3)
         end subroutine write_netcdf_timestamp
 
-        subroutine write_netcdf_box(ncid, origin, extent, ncells)
-            integer,          intent(in) :: ncid
-            double precision, intent(in) :: origin(:), extent(:)
-            integer,          intent(in) :: ncells(:)
-            integer                      :: gid
-
-            ncerr = nf90_inq_ncid(ncid, 'parameters', gid)
-            if (ncerr /= 0) then
-                ncerr = nf90_def_grp(ncid, 'parameters', gid)
-                call check_netcdf_error("Failed to define or group 'parameters'.")
-            endif
-
-            ncerr = nf90_put_att(ncid=gid, varid=NF90_GLOBAL, name="ncells", values=ncells)
-            call check_netcdf_error("Failed to define 'ncells' global attribute.")
-
-            ncerr = nf90_put_att(ncid=gid, varid=NF90_GLOBAL, name="extent", values=extent)
-            call check_netcdf_error("Failed to define 'extent' global attribute.")
-
-            ncerr = nf90_put_att(ncid=gid, varid=NF90_GLOBAL, name="origin", values=origin)
-            call check_netcdf_error("Failed to define 'origin' global attribute.")
-
-        end subroutine write_netcdf_box
-
         subroutine write_netcdf_axis(ncid, dimid, coords)
             integer,           intent(in) :: ncid
             integer,           intent(in) :: dimid

@@ -10,7 +10,6 @@ bin_PROGRAMS = ps3d beltrami
 #genspec genspec2d  production
 
 ps3d_SOURCES = 					\
-	utils/options.f90			\
 	inversion/inversion_utils.f90		\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
@@ -46,7 +45,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec_SOURCES = 				\
-	utils/options.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
@@ -62,7 +60,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec2d_SOURCES = 				\
-	utils/options.f90			\
 	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
@@ -78,7 +75,6 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 beltrami_SOURCES = 				\
-	utils/options.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/field_layout.f90			\
 	fields/mss_layout.f90			\
@@ -109,7 +105,6 @@ beltrami_LDADD = 					\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #production_SOURCES = 				\
-	utils/options.f90			\
 	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\

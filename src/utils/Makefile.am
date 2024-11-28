@@ -13,7 +13,8 @@ libps_utils_la_SOURCES = 	\
 	jacobi.f90		\
 	merge_sort.f90		\
 	dimensions.f90		\
-	rolling_mean.f90
+	rolling_mean.f90	\
+	options.f90
 
 if ENABLE_BUOYANCY
 libps_utils_la_SOURCES += 	\

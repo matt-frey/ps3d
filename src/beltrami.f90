@@ -17,7 +17,8 @@
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
-    use parameters, only : nx, ny, nz, dx, lower, extent
+    use parameters, only : nx, ny, nz, dx, lower, extent    &
+                         , write_netcdf_parameters
     use netcdf_utils
     use netcdf_writer
     use config, only : package_version, cf_version
@@ -75,8 +76,6 @@ program beltrami
                                    file_type='fields',           &
                                    cf_version=cf_version)
 
-            call write_netcdf_box(ncid, lower, extent, box%ncells)
-
             call define_netcdf_spatial_dimensions_3d(ncid=ncid,             &
                                                      ngps=(/nx, ny, nz+1/), &
                                                      dimids=dimids(1:3),    &
@@ -92,7 +91,7 @@ program beltrami
             ! write box
             lower = box%origin
             extent = box%extent
-            call write_netcdf_box(ncid, lower, extent, box%ncells)
+            call write_netcdf_parameters(ncid)
 
             call beltrami_init
 
