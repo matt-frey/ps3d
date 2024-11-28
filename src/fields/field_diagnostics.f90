@@ -9,7 +9,7 @@ module field_diagnostics
     use mpi_environment
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
-    use fields, only : vor, vel, svor, svel, ini_vor_mean, flayout
+    use fields, only : vor, vel, svor, svel, ini_vor_mean
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use ape_density, only : ape_den
@@ -37,7 +37,7 @@ module field_diagnostics
             integer                      :: i, j
             double precision             :: z(0:nz)
 
-            z = flayout%get_z_axis()
+            z = ops%get_z_axis()
 
             ape = zero
             do i = box%lo(1), box%hi(1)

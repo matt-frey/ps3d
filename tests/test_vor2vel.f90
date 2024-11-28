@@ -2,6 +2,7 @@
 !                       Test convergence of vor2vel
 ! =============================================================================
 program test_vor2vel
+    use model_factory, only : layout
     use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
@@ -219,9 +220,9 @@ program test_vor2vel
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
         subroutine invert
-            call flayout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-            call flayout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call flayout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+            call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+            call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+            call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
             call vor2vel
         end subroutine invert
