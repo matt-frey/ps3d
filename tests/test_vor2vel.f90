@@ -2,7 +2,7 @@
 !                       Test convergence of vor2vel
 ! =============================================================================
 program test_vor2vel
-    use model_factory, only : layout
+    use model, only : layout
     use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields

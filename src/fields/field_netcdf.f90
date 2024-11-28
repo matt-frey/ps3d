@@ -1,5 +1,5 @@
 module field_netcdf
-    use model_factory, only : ops
+    use model, only : ops
     use options, only : output, verbose
     use constants, only : one
     use netcdf_utils

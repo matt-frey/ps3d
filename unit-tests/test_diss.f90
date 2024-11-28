@@ -22,7 +22,7 @@ program test_diffusion
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use options, only : vor_visc
-    use model_factory, only : layout
+    use model, only : layout
     implicit none
 
     double precision              :: error

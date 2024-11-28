@@ -1,5 +1,5 @@
 module field_diagnostics
-    use model_factory, only : ops
+    use model, only : ops
     use parameters, only : nz, ncelli, dx, lower, extent   &
                          , fnzi, ncell
     use constants, only : zero, f12, f14, one, small

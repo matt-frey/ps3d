@@ -23,7 +23,7 @@ program test_implicit_rk
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use mpi_utils, only : mpi_stop
-    use model_factory, only : layout
+    use model, only : layout
     implicit none
 
     double precision :: error

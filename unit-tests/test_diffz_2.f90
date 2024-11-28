@@ -13,7 +13,7 @@ program test_diffz_2
     use mpi_environment
     use mpi_layout
     use mpi_collectives
-    use model_factory, only : ops
+    use model, only : ops
     implicit none
 
     double precision              :: error

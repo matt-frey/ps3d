@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
-    use model_factory, only : ops, filter
+    use model, only : ops, filter
     use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc

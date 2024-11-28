@@ -1,5 +1,5 @@
 module impl_rk4_mod
-    use model_factory, only : ops, filter
+    use model, only : ops, filter
     use stepper_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz

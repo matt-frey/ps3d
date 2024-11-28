@@ -31,7 +31,7 @@ module model_manager
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
                                        , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
-    use model_factory, only : create_model, layout
+    use model, only : layout, create_model
     use constants, only : zero
     use mpi_timer
     use fields

@@ -23,7 +23,7 @@ program beltrami
     use netcdf_writer
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist
-    use model_factory, only : ops
+    use model, only : ops
     implicit none
 
     logical                     :: verbose = .false.

@@ -22,7 +22,7 @@ program test_vor2vel_4
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use model_factory, only : layout
+    use model, only : layout
     implicit none
 
     double precision              :: error
