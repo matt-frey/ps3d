@@ -7,7 +7,8 @@ module model_manager
                       , output              &
                       , verbose             &
                       , field_file          &
-                      , field_step
+                      , field_step          &
+                      , filtering
     use constants
     use parameters, only : nx, ny, nz, ncelli   &
                          , update_parameters    &
@@ -609,7 +610,7 @@ contains
 
         call read_netcdf_attribute(gid, 'grid_type', grid_type)
 
-        call create_model(grid_type)
+        call create_model(grid_type, filtering)
 
         call close_netcdf_file(ncid)
 

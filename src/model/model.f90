@@ -15,8 +15,9 @@ module model
 
 contains
 
-    subroutine create_model(grid_type)
+    subroutine create_model(grid_type, filter_type)
         character(len=*), intent(in) :: grid_type
+        character(len=*), intent(in) :: filter_type
 
         select case(grid_type)
             case('chebyshev')
@@ -29,6 +30,8 @@ contains
         end select
 
         call layout%initialise
+
+        call filter%initialise(filter_type)
 
     end subroutine create_model
 
