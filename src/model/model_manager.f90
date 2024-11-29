@@ -237,7 +237,7 @@ contains
         call diffy(sbuoy, ys)
         call fftxys2p(ys, yp)
 
-        call ops%diffz(sbuoy, xs)
+        call layout%diffz(sbuoy, xs)
         call fftxys2p(xs, zp)
         call decompose_semi_spectral(sbuoy)
 
@@ -257,10 +257,10 @@ contains
         !$omp end parallel workshare
 
         !Maximum vorticity magnitude:
-        vortmax = dsqrt(ops%get_absmax(xp, l_allreduce=.false.))
+        vortmax = dsqrt(layout%get_absmax(xp, l_allreduce=.false.))
 
         !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
-        vortrms = dsqrt(ops%get_mean(xp, l_allreduce=.true.))
+        vortrms = dsqrt(layout%get_mean(xp, l_allreduce=.true.))
 
         !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
         vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
@@ -650,7 +650,7 @@ contains
 
         ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
         do nc = 1, 2
-            ini_vor_mean(nc) = ops%calc_decomposed_mean(svor(:, :, :, nc))
+            ini_vor_mean(nc) = layout%calc_decomposed_mean(svor(:, :, :, nc))
         enddo
 
         call vor2vel

@@ -13,7 +13,7 @@ program test_diffz_4
     use mpi_environment
     use mpi_layout
     use mpi_collectives
-    use model, only : ops
+    use model, only : layout
     implicit none
 
     double precision              :: error
@@ -49,7 +49,7 @@ program test_diffz_4
         dfdz_ref(iz, :, :) = - six * z
     enddo
 
-    call ops%diffz(fp, dfdz)
+    call layout%diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 

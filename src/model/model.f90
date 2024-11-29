@@ -1,23 +1,17 @@
 module model
     use field_layout, only : layout_t
-    use field_ops, only : ops_t
     use field_filter, only : filter_t
-!     use field_grid, only : grid_t
     use cheby_layout, only : cheby_layout_t
     use mss_layout, only : mss_layout_t
-    use mss_ops, only : mss_ops_t
-    use cheby_ops, only : cheby_ops_t
     use mpi_utils, only : mpi_stop
     implicit none
 
     private
 
     class(layout_t),  allocatable :: layout
-    class(ops_t),     allocatable :: ops
     class(filter_t),  allocatable :: filter
-!     class(grid_t),    allocatable :: grid
 
-    public :: create_model, layout, ops, filter
+    public :: create_model, layout, filter
 
 contains
 
@@ -27,16 +21,14 @@ contains
         select case(grid_type)
             case('chebyshev')
                 allocate(cheby_layout_t :: layout)
-                allocate(cheby_ops_t :: ops)
             case('uniform')
                 allocate(mss_layout_t :: layout)
-                allocate(mss_ops_t :: ops)
             case default
                 call mpi_stop(&
                     "Error in model creation. No grid type '" // grid_type // "'.")
         end select
 
-        call ops%initialise
+        call layout%initialise
 
     end subroutine create_model
 

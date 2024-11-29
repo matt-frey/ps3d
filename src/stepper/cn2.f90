@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
-    use model, only : ops, filter
+    use model, only : layout, filter
     use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
@@ -137,7 +137,7 @@ module cn2_mod
 
             ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
-                call ops%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+                call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo
 
             !diss is related to the hyperdiffusive operator (see end of adapt)
@@ -178,7 +178,7 @@ module cn2_mod
 
                 ! Ensure zero global mean horizontal vorticity conservation:
                 do nc = 1, 2
-                    call ops%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+                    call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
                 enddo
 
             enddo

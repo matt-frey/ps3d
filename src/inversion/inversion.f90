@@ -1,5 +1,5 @@
 module inversion_mod
-    use model, only : layout, ops
+    use model, only : layout
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
@@ -43,7 +43,7 @@ module inversion_mod
             cs = svor(:, :, :, 3)
             !$omp end parallel workshare
             call layout%combine_semi_spectral(cs)
-            call ops%diffz(cs, es)                     ! es = E
+            call layout%diffz(cs, es)                     ! es = E
             call layout%decompose_semi_spectral(es)
 
             ! ubar and vbar are used here to store the mean x and y components of the vorticity
@@ -89,7 +89,7 @@ module inversion_mod
             ds = ds - es
             !$omp end parallel workshare
 
-            call ops%vertvel(ds, es)
+            call layout%vertvel(ds, es)
 
             ! Get complete zeta field in semi-spectral space
             !$omp parallel workshare
@@ -103,10 +103,10 @@ module inversion_mod
 
                 ! <xi>_{x,y} = <w_y>_{x,y} - <v_z>_{x,y} = - <v_z>_{x,y}
                 ubar = - svor(:, 0, 0, 1)
-                call ops%zinteg(ubar, vbar, .true.)
+                call layout%zinteg(ubar, vbar, .true.)
 
                 ! <eta>_{x,y} = <u_z>_{x,y} - <w_x>_{x,y} = <u_z>_{x,y}
-                call ops%zinteg(svor(:, 0, 0, 2), ubar, .true.)
+                call layout%zinteg(svor(:, 0, 0, 2), ubar, .true.)
             endif
 
             !-------------------------------------------------------
@@ -284,7 +284,7 @@ module inversion_mod
 
             ! dxi/dt  = dr/dy - dq/dz
             call diffy(r, svorts(:, :, :, 1))
-            call ops%diffz(fp, gp)
+            call layout%diffz(fp, gp)
             call layout%decompose_physical(gp, p)
             !$omp parallel workshare
             svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
@@ -298,7 +298,7 @@ module inversion_mod
 
             ! deta/dt = dp/dz - dr/dx
             call diffx(r, svorts(:, :, :, 2))
-            call ops%diffz(fp, gp)
+            call layout%diffz(fp, gp)
             call layout%decompose_physical(gp, r)
             !$omp parallel workshare
             svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz

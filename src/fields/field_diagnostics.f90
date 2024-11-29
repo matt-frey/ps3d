@@ -1,5 +1,5 @@
 module field_diagnostics
-    use model, only : ops
+    use model, only : layout
     use parameters, only : nz, ncelli, dx, lower, extent   &
                          , fnzi, ncell
     use constants, only : zero, f12, f14, one, small
@@ -37,7 +37,7 @@ module field_diagnostics
             integer                      :: i, j
             double precision             :: z(0:nz)
 
-            z = ops%get_z_axis()
+            z = layout%get_z_axis()
 
             ape = zero
             do i = box%lo(1), box%hi(1)
@@ -97,9 +97,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                ke = f12 * ops%get_mean(fke, l_allreduce)
+                ke = f12 * layout%get_mean(fke, l_allreduce)
             else
-                ke = f12 * ops%get_local_sum(fke)
+                ke = f12 * layout%get_local_sum(fke)
             endif
 
         end function get_kinetic_energy
@@ -125,9 +125,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                ke = f12 * ops%get_mean(fke, l_allreduce=.false.)
+                ke = f12 * layout%get_mean(fke, l_allreduce=.false.)
             else
-                ke = f12 * ops%get_local_sum(fke)
+                ke = f12 * layout%get_local_sum(fke)
             endif
 
         end function get_horizontal_kinetic_energy
@@ -148,9 +148,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                ke = ops%get_mean(fke, l_allreduce=.false.)
+                ke = layout%get_mean(fke, l_allreduce=.false.)
             else
-                ke = ops%get_local_sum(fke)
+                ke = layout%get_local_sum(fke)
             endif
 
         end function get_vertical_kinetic_energy
@@ -174,9 +174,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                en = f12 * ops%get_mean(fen, l_allreduce)
+                en = f12 * layout%get_mean(fen, l_allreduce)
             else
-                en = f12 * ops%get_local_sum(fen)
+                en = f12 * layout%get_local_sum(fen)
             endif
 
         end function get_enstrophy
@@ -198,9 +198,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                en = f12 * ops%get_mean(fen, l_allreduce=.false.)
+                en = f12 * layout%get_mean(fen, l_allreduce=.false.)
             else
-                en = f12 * ops%get_local_sum(fen)
+                en = f12 * layout%get_local_sum(fen)
             endif
 
         end function get_horizontal_enstrophy
@@ -236,9 +236,9 @@ module field_diagnostics
 
             if (l_global) then
                 ! already includes normalisation with "ncell"
-                en = ops%get_mean(fen, l_allreduce=.false.)
+                en = layout%get_mean(fen, l_allreduce=.false.)
             else
-                en = ops%get_local_sum(fen)
+                en = layout%get_local_sum(fen)
             endif
 
         end function get_vertical_enstrophy
@@ -254,7 +254,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call ops%diffz(buoy, dbdz)
+            call layout%diffz(buoy, dbdz)
 
             ! As we use the pertubation mode, we only have b'_z, i.e. we must
             ! add N^2 because b_z = N^2 + b'_z
@@ -323,7 +323,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call ops%diffz(buoy, dbdz)
+            call layout%diffz(buoy, dbdz)
 
             mss = minval(dbdz)
 
@@ -358,7 +358,7 @@ module field_diagnostics
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call ops%diffz(sbuoy, mag)
+            call layout%diffz(sbuoy, mag)
             call fftxys2p(ds, mag)
             call flayout%decompose_semi_spectral(sbuoy)
 
@@ -450,7 +450,7 @@ module field_diagnostics
             integer             :: nc
 
             do nc = 1, 3
-                vormean(nc) =  ops%get_local_mean(vor(:, :, :, nc))
+                vormean(nc) =  layout%get_local_mean(vor(:, :, :, nc))
             enddo
 
             if (l_allreduce) then

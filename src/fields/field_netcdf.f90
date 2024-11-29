@@ -1,5 +1,5 @@
 module field_netcdf
-    use model, only : ops
+    use model, only : layout
     use options, only : output, verbose
     use constants, only : one
     use netcdf_utils
@@ -203,9 +203,9 @@ module field_netcdf
             cnt(4)   = 1
 
             if (n_writes == 1) then
-                call write_netcdf_axis(ncid, dimids(1), ops%get_x_axis())
-                call write_netcdf_axis(ncid, dimids(2), ops%get_y_axis())
-                call write_netcdf_axis(ncid, dimids(3), ops%get_z_axis())
+                call write_netcdf_axis(ncid, dimids(1), layout%get_x_axis())
+                call write_netcdf_axis(ncid, dimids(2), layout%get_y_axis())
+                call write_netcdf_axis(ncid, dimids(3), layout%get_z_axis())
             endif
 
             ! write time

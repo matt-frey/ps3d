@@ -13,7 +13,7 @@ program test_diffz_1
     use mpi_environment
     use mpi_layout
     use mpi_collectives
-    use model, only : ops
+    use model, only : layout
     implicit none
 
     double precision              :: error
@@ -50,7 +50,7 @@ program test_diffz_1
     enddo
 
     ! calculate z-derivative (dfdz)
-    call ops%diffz(fp, dfdz)
+    call layout%diffz(fp, dfdz)
 
     error = maxval(dabs(dfdz_ref - dfdz))
 
