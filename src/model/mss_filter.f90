@@ -4,6 +4,7 @@ module mss_filter
     use parameters, only : nz
     use sta3dfft, only : rkx, rky, rkz
     use constants, only : zero, f23, one
+    use mpi_utils, only : mpi_print
     implicit none
 
     type, extends(filter_t) :: mss_filter_t

@@ -1,4 +1,5 @@
 module cheby_filter
+    use cheby
     use field_filter, only : filter_t
     use mpi_layout, only : box
     use parameters, only : nz

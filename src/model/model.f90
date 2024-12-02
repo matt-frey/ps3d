@@ -4,6 +4,8 @@ module model
     use cheby_layout, only : cheby_layout_t
     use mss_layout, only : mss_layout_t
     use mpi_utils, only : mpi_stop
+    use cheby_filter, only : cheby_filter_t
+    use mss_filter, only : mss_filter_t
     implicit none
 
     private
@@ -22,8 +24,10 @@ contains
         select case(grid_type)
             case('chebyshev')
                 allocate(cheby_layout_t :: layout)
+                allocate(cheby_filter_t :: filter)
             case('uniform')
                 allocate(mss_layout_t :: layout)
+                allocate(mss_filter_t :: filter)
             case default
                 call mpi_stop(&
                     "Error in model creation. No grid type '" // grid_type // "'.")
