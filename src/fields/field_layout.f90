@@ -30,6 +30,9 @@ module field_layout
         procedure :: initialise => m_initialise
         procedure :: finalise => m_finalise
 
+        ! Internal routine allowed to be called in child classes
+        procedure :: init_decomposition
+
         ! Axes
         procedure :: get_x_axis => m_get_x_axis
         procedure :: get_y_axis => m_get_y_axis
@@ -171,6 +174,15 @@ contains
 
     subroutine m_initialise(this)
         class(layout_t), intent(inout) :: this
+
+        call this%init_decomposition
+
+    end subroutine m_initialise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine init_decomposition(this)
+        class(layout_t), intent(inout) :: this
         double precision               :: z(0:nz), zm(0:nz), zp(0:nz)
         double precision               :: phip00(0:nz)
         integer                        :: kx, ky, iz
@@ -244,11 +256,11 @@ contains
         allocate(this%gambot(0:nz))
 
         call MPI_Allreduce(MPI_IN_PLACE,            &
-                            phip00(0:nz),            &
-                            nz+1,                    &
-                            MPI_DOUBLE_PRECISION,    &
-                            MPI_SUM,                 &
-                            world%comm,              &
+                            phip00(0:nz),           &
+                            nz+1,                   &
+                            MPI_DOUBLE_PRECISION,   &
+                            MPI_SUM,                &
+                            world%comm,             &
                             world%err)
 
         !$omp parallel workshare
@@ -262,7 +274,7 @@ contains
         !$omp end parallel do
         !Here gambot is the complement of gamtop.
 
-    end subroutine m_initialise
+    end subroutine init_decomposition
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

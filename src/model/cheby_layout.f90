@@ -10,8 +10,9 @@ module cheby_layout
                          , dx
     use field_layout
     use mpi_layout, only : box
-    use sta3dfft, only : fftxyp2s, fftxys2p
+    use sta3dfft, only : is_fft_initialised, fftxyp2s, fftxys2p
     use mpi_collectives, only : mpi_blocking_reduce
+    use mpi_utils, only : mpi_stop
     use sta3dfft, only : k2l2
     implicit none
 
@@ -70,6 +71,11 @@ contains
         this%l_initialised = .true.
 
         !------------------------------------------------------------------
+        ! Ensure FFT module is initialised:
+        ! (this call does nothing if already initialised)
+        call initialise_fft(extent)
+
+        !------------------------------------------------------------------
         ! Allocate arrays:
         allocate(this%d1z(0:nz, 0:nz))
         allocate(this%d2z(0:nz, 0:nz))
@@ -104,6 +110,8 @@ contains
 !                                             zfiltering%beta)
 !             enddo
 
+        ! Call parent class initialise
+        call this%init_decomposition
 
     end subroutine
 

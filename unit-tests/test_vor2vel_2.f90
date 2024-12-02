@@ -25,14 +25,8 @@ program test_vor2vel_2
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use model, only : layout
+    use model, only : layout, create_model
     implicit none
-
-    double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
-    integer                       :: ix, iy, iz
-    double precision              :: x, y, z, klsq, k, l, f, dfdz, d2fdz2
-    double precision              :: coskx, sinkx, cosly, sinly
 
     call mpi_env_initialise
 
@@ -47,65 +41,83 @@ program test_vor2vel_2
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
-    allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
-
     call update_parameters
 
     call field_default
 
-    l = twopi
-    k = two * l
+    call run_test("uniform")
 
-!     call init_inversion
-
-
-    klsq = k ** 2 - l ** 2
-
-    do ix = box%lo(1), box%hi(1)
-        x = lower(1) + ix * dx(1)
-        do iy = box%lo(2), box%hi(2)
-            y = lower(2) + iy * dx(2)
-            do iz = 0, nz
-                z = lower(3) + iz * dx(3)
-
-                f = two * z - z ** 2 - z ** 3
-                dfdz = two - two * z - three * z ** 2
-                d2fdz2 = -two - six * z
-                sinkx = dsin(k * x)
-                coskx = dcos(k * x)
-                sinly = dsin(l * y)
-                cosly = dcos(l * y)
-
-                ! velocity
-                vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly
-                vel_ref(iz, iy, ix, 2) = -l * dfdz * sinkx * cosly
-                vel_ref(iz, iy, ix, 3) =  klsq * f * sinkx * sinly
-
-                ! vorticity
-                vor(iz, iy, ix, 1) = l * (klsq * f + d2fdz2) * sinkx * cosly
-                vor(iz, iy, ix, 2) = k * (d2fdz2 - klsq * f) * coskx * sinly
-                vor(iz, iy, ix, 3) = - two * k * l * dfdz * coskx * cosly
-
-            enddo
-        enddo
-    enddo
-
-    call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
-
-    call vor2vel
-
-    error = maxval(dabs(vel_ref - vel))
-
-    call mpi_blocking_reduce(error, MPI_MAX, world)
-
-    if (world%rank == world%root) then
-        call print_result_dp('Test vor2vel', error, atol=1.2e-2)
-    endif
-
-    deallocate(vel_ref)
+    call run_test("chebyshev")
 
     call mpi_env_finalise
+
+contains
+
+    subroutine run_test(grid_type)
+        character(*), intent(in)      :: grid_type
+        double precision              :: error
+        double precision, allocatable :: vel_ref(:, :, :, :)
+        double precision, allocatable :: x(:), y(:), z(:)
+        integer                       :: ix, iy, iz
+        double precision              :: klsq, k, l, f, dfdz, d2fdz2
+        double precision              :: coskx, sinkx, cosly, sinly
+
+        call create_model(grid_type, "Hou & Li")
+
+        allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+
+        l = twopi
+        k = two * l
+
+        klsq = k ** 2 - l ** 2
+
+        x = layout%get_x_axis()
+        y = layout%get_y_axis()
+        z = layout%get_z_axis()
+        do ix = box%lo(1), box%hi(1)
+            do iy = box%lo(2), box%hi(2)
+                do iz = 0, nz
+                    f = two * z(iz) - z(iz) ** 2 - z(iz) ** 3
+                    dfdz = two - two * z(iz) - three * z(iz) ** 2
+                    d2fdz2 = -two - six * z(iz)
+                    sinkx = dsin(k * x(ix))
+                    coskx = dcos(k * x(ix))
+                    sinly = dsin(l * y(iy))
+                    cosly = dcos(l * y(iy))
+
+                    ! velocity
+                    vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly
+                    vel_ref(iz, iy, ix, 2) = -l * dfdz * sinkx * cosly
+                    vel_ref(iz, iy, ix, 3) =  klsq * f * sinkx * sinly
+
+                    ! vorticity
+                    vor(iz, iy, ix, 1) = l * (klsq * f + d2fdz2) * sinkx * cosly
+                    vor(iz, iy, ix, 2) = k * (d2fdz2 - klsq * f) * coskx * sinly
+                    vor(iz, iy, ix, 3) = - two * k * l * dfdz * coskx * cosly
+
+                enddo
+            enddo
+        enddo
+
+        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+
+        call vor2vel
+
+        error = maxval(dabs(vel_ref - vel))
+
+        print *, error
+
+        call mpi_blocking_reduce(error, MPI_MAX, world)
+
+        if (world%rank == world%root) then
+            call print_result_dp('Test vor2vel ' // grid_type, error, atol=1.2e-2)
+        endif
+
+        deallocate(x, y, z)
+        deallocate(vel_ref)
+
+    end subroutine run_test
 
 end program test_vor2vel_2
