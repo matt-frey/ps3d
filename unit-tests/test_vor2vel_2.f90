@@ -65,6 +65,7 @@ contains
         call create_model(grid_type, "Hou & Li")
 
         allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+        allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
 
         l = twopi
         k = two * l
@@ -106,8 +107,6 @@ contains
         call vor2vel
 
         error = maxval(dabs(vel_ref - vel))
-
-        print *, error
 
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
