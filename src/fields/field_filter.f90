@@ -1,4 +1,6 @@
 module field_filter
+    use options, only : verbose
+    use mpi_utils, only : mpi_print
     implicit none
 
     type, abstract :: filter_t
@@ -45,19 +47,29 @@ module field_filter
 contains
 
     subroutine m_initialise(this, method)
-        character(*),    intent(in)    :: method
+        character(8),    intent(in)    :: method
         class(filter_t), intent(inout) :: this
+        character(8)                   :: used_method
 
         !----------------------------------------------------------
         !Define de-aliasing filter:
         select case (method)
             case ("Hou & Li")
+                used_method = method
                 call this%init_hou_and_li
             case ("2/3-rule")
                 call this%init_23rd_rule
+                used_method = method
             case default
                 call this%init_hou_and_li
+                used_method = "Hou & Li"
         end select
+
+#ifdef ENABLE_VERBOSE
+        if (verbose) then
+            call mpi_print("Using " // used_method // " de-aliasing filter.")
+        endif
+#endif
 
     end subroutine m_initialise
 

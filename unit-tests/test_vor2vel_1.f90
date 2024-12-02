@@ -21,7 +21,7 @@ program test_vor2vel_1
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use model, only : layout
+    use model, only : layout, create_model
     implicit none
 
     double precision              :: error
@@ -53,8 +53,7 @@ program test_vor2vel_1
     l = two
     m = one
 
-!     call init_inversion
-
+    call create_model("uniform", "Hou & Li")
 
     alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
     fk2l2 = one / dble(k ** 2 + l ** 2)

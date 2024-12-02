@@ -4,7 +4,6 @@ module mss_filter
     use parameters, only : nz
     use sta3dfft, only : rkx, rky, rkz
     use constants, only : zero, f23, one
-    use mpi_utils, only : mpi_print
     implicit none
 
     type, extends(filter_t) :: mss_filter_t
@@ -59,8 +58,6 @@ contains
                                               sky(box%lo(2):box%hi(2)), &
                                               skz(0:nz)
 
-        call mpi_print("Using Hou & Li de-aliasing filter.")
-
         allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         kxmaxi = one / maxval(rkx)
@@ -97,8 +94,6 @@ contains
         double precision                   :: skx(box%lo(1):box%hi(1)), &
                                               sky(box%lo(2):box%hi(2)), &
                                               skz(0:nz)
-
-        call mpi_print("Using 2/3-rule de-aliasing filter.")
 
         allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
