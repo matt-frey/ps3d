@@ -315,7 +315,7 @@ contains
         double precision             :: m_get_y_axis(0:ny-1)
         integer                      :: i
 
-        do i = 0, nz-1
+        do i = 0, ny-1
             m_get_y_axis(i) = lower(2) + dble(i) * dx(2)
         enddo
 
