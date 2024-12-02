@@ -1,11 +1,11 @@
 module diffusion
+    use parameters, only : extent
     use constants
     use mpi_layout
     use mpi_environment
-    use sta3dfft, only : initialise_fft &
-                       , finalise_fft   &
-                       , rkx            &
-                       , rky            &
+    use sta3dfft, only : is_fft_initialised &
+                       , rkx                &
+                       , rky                &
                        , k2l2
     use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
@@ -26,7 +26,6 @@ module diffusion
     ! Spectral dissipation operator for buoyancy
     double precision, allocatable :: bhdis(:, :)
 #endif
-
 
     double precision :: vvisc
 #ifdef ENABLE_BUOYANCY
@@ -57,6 +56,9 @@ module diffusion
                 call mpi_print("Error: Inversion not initialised!")
             endif
 
+            if (.not. is_fft_initialised) then
+                call mpi_stop("Error: FFT not initialised.")
+            endif
 
             vvisc = get_viscosity(vor_visc%length_scale, &
                                   vor_visc%prediss,      &

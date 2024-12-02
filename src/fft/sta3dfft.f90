@@ -33,28 +33,29 @@ module sta3dfft
 
     integer :: nx, ny, nz
 
-    logical :: is_fft_initialised = .false.
+    logical, protected :: is_fft_initialised = .false.
 
-    public :: initialise_fft &
-            , finalise_fft   &
-            , diffx          &
-            , diffy          &
-            , fftxyp2s       &
-            , fftxys2p       &
-            , fftsine        &
-            , fftcosine      &
-            , rkx            &
-            , rky            &
-            , rkz            &
-            , rkzi           &
-            , zfactors       &
-            , ztrig          &
-            , xfactors       &
-            , xtrig          &
-            , yfactors       &
-            , ytrig          &
-            , green          &
-            , k2l2           &
+    public :: initialise_fft        &
+            , finalise_fft          &
+            , is_fft_initialised    &
+            , diffx                 &
+            , diffy                 &
+            , fftxyp2s              &
+            , fftxys2p              &
+            , fftsine               &
+            , fftcosine             &
+            , rkx                   &
+            , rky                   &
+            , rkz                   &
+            , rkzi                  &
+            , zfactors              &
+            , ztrig                 &
+            , xfactors              &
+            , xtrig                 &
+            , yfactors              &
+            , ytrig                 &
+            , green                 &
+            , k2l2                  &
             , k2l2i
 
     contains
