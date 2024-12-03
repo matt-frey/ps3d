@@ -100,16 +100,6 @@ contains
         ! Get Clenshaw-Curtis weights:
         call clencurt(nz, this%zccw)
 
-!             !------------------------------------------------------------------
-!             ! Dembenek filter:
-!             rkmax = zfiltering%kmax * dble(nz)
-!             do iz = 0, nz
-!                 zfilt(iz) = dembenek_filter(iz,                 &
-!                                             rkmax,              &
-!                                             zfiltering%alpha,   &
-!                                             zfiltering%beta)
-!             enddo
-
         ! Call parent class initialise
         call this%init_decomposition
 
@@ -379,17 +369,6 @@ contains
         call this%diffz(ds, es)
 
     end subroutine vertvel
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    function dembenek_filter(k, rkmax, alpha, beta) result(res)
-        integer,          intent(in) :: k
-        double precision, intent(in) :: alpha, beta, rkmax
-        double precision             :: res, x
-
-        x = dble(k)/rkmax
-        res = dexp(-alpha*x**beta)
-    end function dembenek_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
