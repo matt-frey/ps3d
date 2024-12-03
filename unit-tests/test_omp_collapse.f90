@@ -12,7 +12,7 @@ program test_omp_collapse
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use model, only : layout
+    use model, only : layout, create_model
     implicit none
 
     double precision               :: error
@@ -35,7 +35,7 @@ program test_omp_collapse
 
     call field_default
 
-!     call init_inversion
+    call create_model('uniform', "Hou & Li")
 
     k = two
     l = two
