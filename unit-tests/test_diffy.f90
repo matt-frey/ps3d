@@ -6,18 +6,14 @@
 program test_diffy
     use unit_test
     use constants, only : pi, twopi, f12, zero, four, two
-    use sta3dfft, only : initialise_fft, finalise_fft, fftxyp2s, fftxys2p, diffy
+    use sta3dfft, only : fftxyp2s, fftxys2p, diffy
     use parameters, only : update_parameters, dx, nx, ny, nz, lower, extent
     use mpi_environment
     use mpi_layout
+    use model, only : layout, create_model
     implicit none
 
-    double precision, allocatable :: fp(:, :, :), &
-                                     fs(:, :, :), &
-                                     ds(:, :, :)
-    integer                       :: i, j, k
-    double precision              :: x, y, z
-    logical                       :: passed = .false.
+    logical :: passed = .false.
 
     call mpi_env_initialise
 
@@ -33,64 +29,78 @@ program test_diffy
 
     call update_parameters
 
-    allocate(fp(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-    allocate(fs(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-    allocate(ds(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    call run_test("uniform")
 
-    call initialise_fft(extent)
-
-    fp(:, :, :) = zero
-
-    ! setup test field
-    do i = box%lo(1), box%hi(1)
-        x = lower(1) + dble(i) * dx(1)
-        do j = box%lo(2), box%hi(2)
-            y = lower(2) + dble(j) * dx(2)
-            do k = box%lo(3), box%hi(3)
-                z = lower(3) + dble(k) * dx(3)
-                fp(k, j, i) = dcos(four * y)
-            enddo
-        enddo
-    enddo
-
-    fs = zero
-
-    ! forward FFT
-    call fftxyp2s(fp, fs)
-
-    fp = zero
-
-    call diffy(fs, ds)
-
-    ! inverse FFT
-    call fftxys2p(ds, fp)
-
-    ! check result test field
-    do i = box%lo(1), box%hi(1)
-        x = lower(1) + dble(i) * dx(1)
-        do j = box%lo(2), box%hi(2)
-            y = lower(2) + dble(j) * dx(2)
-            do k = box%lo(3), box%hi(3)
-                z = lower(3) + dble(k) * dx(3)
-                passed = (passed .and. (fp(k, j, i) - (-four * dsin(four * y)) < 1.0e-12))
-            enddo
-        enddo
-    enddo
-
-    call finalise_fft
-
-    if (world%rank == world%root) then
-        call MPI_Reduce(MPI_IN_PLACE, passed, 1, MPI_LOGICAL, MPI_LAND, world%root, world%comm, world%err)
-    else
-        call MPI_Reduce(passed, passed, 1, MPI_LOGICAL, MPI_LAND, world%root, world%comm, world%err)
-    endif
+    call run_test("chebyshev")
 
     call mpi_env_finalise
 
-    passed = (passed .and. (world%err == 0))
 
-    if (world%rank == world%root) then
-        call print_result_logical('Test MPI diffy', passed)
-    endif
+contains
+
+    subroutine run_test(grid_type)
+        character(*), intent(in)      :: grid_type
+        double precision, allocatable :: fp(:, :, :), &
+                                         fs(:, :, :), &
+                                         ds(:, :, :)
+        double precision, allocatable :: y(:)
+        integer                       :: i, j, k
+
+        call create_model(grid_type, "Hou & Li")
+
+        allocate(fp(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(fs(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(ds(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(y(0:ny-1))
+
+        fp(:, :, :) = zero
+
+        y = layout%get_y_axis()
+
+        ! setup test field
+        do i = box%lo(1), box%hi(1)
+            do j = box%lo(2), box%hi(2)
+                do k = box%lo(3), box%hi(3)
+                    fp(k, j, i) = dcos(four * y(j))
+                enddo
+            enddo
+        enddo
+
+        fs = zero
+
+        ! forward FFT
+        call fftxyp2s(fp, fs)
+
+        fp = zero
+
+        call diffy(fs, ds)
+
+        ! inverse FFT
+        call fftxys2p(ds, fp)
+
+        ! check result test field
+        do i = box%lo(1), box%hi(1)
+            do j = box%lo(2), box%hi(2)
+                do k = box%lo(3), box%hi(3)
+                    passed = (passed .and. (fp(k, j, i) - (-four * dsin(four * y(j))) < 1.0e-12))
+                enddo
+            enddo
+        enddo
+
+        deallocate(fp, fs, ds, y)
+
+        if (world%rank == world%root) then
+            call MPI_Reduce(MPI_IN_PLACE, passed, 1, MPI_LOGICAL, MPI_LAND, world%root, world%comm, world%err)
+        else
+            call MPI_Reduce(passed, passed, 1, MPI_LOGICAL, MPI_LAND, world%root, world%comm, world%err)
+        endif
+
+        passed = (passed .and. (world%err == 0))
+
+        if (world%rank == world%root) then
+            call print_result_logical('Test MPI diffy ' // grid_type, passed)
+        endif
+
+    end subroutine run_test
 
 end program test_diffy
