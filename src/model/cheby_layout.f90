@@ -294,7 +294,8 @@ contains
     ! Solves dg/dz = f for g, either with g(0) at z = zmin when
     ! noavg = .false. or with the average of g over z equal to 0
     ! when noavg = .true.
-    ! f & g are 1D arrays over z,
+    ! f & g are 1D arrays over z
+    ! Note: Assumes input function for zeroth modes (kx = ky = 0).
     ! *** Uses dgesv from LAPACK/BLAS ***
     subroutine zinteg(this, f, g, noavg)
         class (cheby_layout_t), intent(in)  :: this
@@ -302,11 +303,19 @@ contains
         double precision,       intent(out) :: g(0:nz)
         logical,                intent(in)  :: noavg
         double precision                    :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
-        integer                             :: ipiv(0:nz-1), info
+        integer                             :: ipiv(0:nz-1), info, iz
+
+        g = f
+
+        !-----------------------------------------------------
+        ! Go to semi-spectral space, uses kx = ky = 0
+        do iz = 1, nz-1
+            g(iz) = g(iz) + g(0)  * this%phim(iz, 0, 0) &
+                          + g(nz) * this%phip(iz, 0, 0)
+        enddo
 
         !-----------------------------------------------------
         ! Integrate starting from g = 0 at z = zmin:
-        g = f
         dmat = this%d1z(0:nz-1, 0:nz-1)
         call dgesv(nz, 1, dmat, nz, ipiv, g(0:nz-1), nz, info)
         g(nz) = zero
@@ -340,6 +349,8 @@ contains
         double precision                      :: dmat(nz-1, nz-1), sol(nz-1)
         integer                               :: ipiv(nz-1), info
         integer                               :: kx, ky, iz
+
+        call this%combine_semi_spectral(ds)
 
         !-----------------------------------------------------------------
         ! Loop over horizontal wavenumbers and solve linear system:
