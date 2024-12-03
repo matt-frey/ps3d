@@ -69,10 +69,10 @@ contains
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                this%filt(0,  ky, kx) = dexp(skx(kx) + sky(ky))
+                this%filt(0,  ky, kx) = exp(skx(kx) + sky(ky))
                 this%filt(nz, ky, kx) = this%filt(0, ky, kx)
                 do kz = 1, nz-1
-                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * dexp(skz(kz))
+                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * exp(skz(kz))
                 enddo
             enddo
         enddo
