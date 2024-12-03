@@ -101,7 +101,7 @@ contains
 
         call vor2vel
 
-        error = maxval(dabs(vel_ref - vel))
+        error = maxval(abs(vel_ref - vel))
 
         deallocate(x, y, z)
         deallocate(vel_ref)

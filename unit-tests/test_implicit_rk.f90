@@ -94,7 +94,7 @@ contains
 
             call impl_rk4(time, time_step)
 
-            error = maxval(dabs(ref - svor))
+            error = maxval(abs(ref - svor))
 
             time_step = f12 * time_step
 

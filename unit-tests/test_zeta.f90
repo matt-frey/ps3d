@@ -61,7 +61,7 @@ program test_zeta
 
     call combine_zeta
 
-    error = maxval(dabs(zeta_ref - vor(:, :, :, 3)))
+    error = maxval(abs(zeta_ref - vor(:, :, :, 3)))
 
     call mpi_blocking_reduce(error, MPI_MAX, world)
 

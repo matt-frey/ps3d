@@ -117,7 +117,7 @@ contains
             call layout%decompose_semi_spectral(vd1(:, :, :, nc))
         enddo
 
-        error = maxval(dabs(vd1 - vd2))
+        error = maxval(abs(vd1 - vd2))
 
         call mpi_blocking_reduce(error, MPI_MAX, world)
 

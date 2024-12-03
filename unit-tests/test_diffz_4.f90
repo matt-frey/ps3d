@@ -64,7 +64,7 @@ contains
         call layout%diffz(fp, dfdz)
 
 
-        error = maxval(dabs(dfdz_ref - dfdz))
+        error = maxval(abs(dfdz_ref - dfdz))
 
         call mpi_blocking_reduce(error, MPI_MAX, world)
 

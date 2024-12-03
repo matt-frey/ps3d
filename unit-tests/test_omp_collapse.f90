@@ -92,7 +92,7 @@ program test_omp_collapse
     !$omp end parallel do
 
 
-    error = maxval(dabs(svel - svor))
+    error = maxval(abs(svel - svor))
 
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
