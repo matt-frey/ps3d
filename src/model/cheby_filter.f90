@@ -94,7 +94,7 @@ contains
         double precision,       intent(inout) :: fs(box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
 
-        fs = filt * fs
+        fs = this%filt * fs
 
     end subroutine apply2d
 
