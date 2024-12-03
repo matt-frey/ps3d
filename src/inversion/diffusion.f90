@@ -32,14 +32,15 @@ module diffusion
     double precision :: bvisc
 #endif
 
-    logical :: is_initialised = .false.
+    logical, protected :: is_diffusion_initialised = .false.
 
-    public :: init_diffusion        &
+    public :: init_diffusion            &
+            , is_diffusion_initialised  &
 #ifdef ENABLE_BUOYANCY
-            , bvisc                 &
-            , bhdis                 &
+            , bvisc                     &
+            , bhdis                     &
 #endif
-            , vvisc                 &
+            , vvisc                     &
             , vhdis
 
     contains
@@ -52,9 +53,11 @@ module diffusion
 
 
             ! check if initialised
-            if (.not. is_initialised) then
+            if (.not. is_diffusion_initialised) then
                 call mpi_print("Error: Inversion not initialised!")
             endif
+
+            is_diffusion_initialised = .true.
 
             if (.not. is_fft_initialised) then
                 call mpi_stop("Error: FFT not initialised.")
