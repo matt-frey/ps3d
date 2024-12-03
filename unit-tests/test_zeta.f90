@@ -44,13 +44,13 @@ program test_zeta
             do iz = 0, nz
                 z = lower(3) + iz * dx(3)
 
-                zeta_ref(iz, iy, ix) = dsin(x) * dsin(z)
+                zeta_ref(iz, iy, ix) = sin(x) * sin(z)
 
                 ! vorticity
-                vor(iz, iy, ix, 1) = dcos(x) * dcos(z)
+                vor(iz, iy, ix, 1) = cos(x) * cos(z)
                 vor(iz, iy, ix, 2) = 0.0d0
             enddo
-            zeta(0, iy, ix) = dsin(x) * dsin(z)
+            zeta(0, iy, ix) = sin(x) * sin(z)
         enddo
     enddo
 

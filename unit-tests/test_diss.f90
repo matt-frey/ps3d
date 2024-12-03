@@ -88,10 +88,10 @@ contains
         do ix = box%lo(1), box%hi(1)
             do iy = box%lo(2), box%hi(2)
                 do iz = 0, nz
-                    cosmz = dcos(m * z(iz))
-                    sinmz = dsin(m * z(iz))
-                    sinkxly = dsin(k * x(ix) + l * y(iy))
-                    coskxly = dcos(k * x(ix) + l * y(iy))
+                    cosmz = cos(m * z(iz))
+                    sinmz = sin(m * z(iz))
+                    sinkxly = sin(k * x(ix) + l * y(iy))
+                    coskxly = cos(k * x(ix) + l * y(iy))
 
                     ! vorticity
                     vor(iz, iy, ix, 1) = alpha * fk2l2 * (k * m * sinmz - l * alpha * cosmz) * sinkxly

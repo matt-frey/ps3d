@@ -63,9 +63,9 @@ contains
         y = layout%get_y_axis()
         z = layout%get_z_axis()
         do ix = box%lo(1), box%hi(1)
-            coskx = dcos(k * x(ix))
+            coskx = cos(k * x(ix))
             do iy = box%lo(2), box%hi(2)
-                sinly = dsin(l * y(iy))
+                sinly = sin(l * y(iy))
                 do iz = 0, nz
                     fp(iz, iy, ix) = z(iz) * coskx * sinly
                     dfdz_ref(iz, iy, ix) = coskx * sinly

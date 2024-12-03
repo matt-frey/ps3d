@@ -337,7 +337,7 @@ contains
 
         kl = sqrt(k2l2(ky, kx))
         fac = kl * extent(3)
-        ef = dexp(- fac)
+        ef = exp(- fac)
 #ifndef NDEBUG
         ! To avoid "Floating-point exception - erroneous arithmetic operation"
         ! when ef is really small.
@@ -349,8 +349,8 @@ contains
         Lm = kl * zm
         Lp = kl * zp
 
-        ep = dexp(- Lp)
-        em = dexp(- Lm)
+        ep = exp(- Lp)
+        em = exp(- Lm)
 
 #ifndef NDEBUG
         ! To avoid "Floating-point exception - erroneous arithmetic operation"

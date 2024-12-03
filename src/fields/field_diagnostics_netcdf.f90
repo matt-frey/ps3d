@@ -402,7 +402,7 @@ module field_diagnostics_netcdf
             buf(8)  = maxval(vor(0,  :, :, 2))
             buf(9)  = maxval(vor(nz, :, :, 3))
             buf(10) = maxval(vor(0,  :, :, 3))
-            buf(11) = dsqrt(maxval(vel(nz, :, :, 1) ** 2 + &
+            buf(11) = sqrt(maxval(vel(nz, :, :, 1) ** 2 + &
                                    vel(nz, :, :, 2) ** 2))
 
             buf(12) = get_max_rossby_number(l_global=.false.)

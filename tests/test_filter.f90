@@ -108,7 +108,7 @@ program test_filter
         rkmax = kmax * dble(nz)
         do kz = 0, nz
             x = dble(kz) / rkmax
-            filt(kz) = dexp(-alpha * x**beta)
+            filt(kz) = exp(-alpha * x**beta)
         enddo
     endif
 

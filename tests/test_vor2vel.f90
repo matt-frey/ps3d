@@ -43,7 +43,7 @@ program test_vor2vel
         l = two
         m = one
 
-        alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
+        alpha = sqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)
 
         do ix = box%lo(1), box%hi(1)
@@ -53,10 +53,10 @@ program test_vor2vel
                 do iz = 0, nz
                     z = lower(3) + iz * dx(3)
 
-                    cosmz = dcos(m * z)
-                    sinmz = dsin(m * z)
-                    sinkxly = dsin(k * x + l * y)
-                    coskxly = dcos(k * x + l * y)
+                    cosmz = cos(m * z)
+                    sinmz = sin(m * z)
+                    sinkxly = sin(k * x + l * y)
+                    coskxly = cos(k * x + l * y)
 
                     ! velocity
                     vel_ref(iz, iy, ix, 1) = fk2l2 * (k * m * sinmz - l * alpha * cosmz) * sinkxly
@@ -94,10 +94,10 @@ program test_vor2vel
                     f = two * z - z ** 2 - z ** 3
                     dfdz = two - two * z - three * z ** 2
                     d2fdz2 = -two - six * z
-                    sinkx = dsin(k * x)
-                    coskx = dcos(k * x)
-                    sinly = dsin(l * y)
-                    cosly = dcos(l * y)
+                    sinkx = sin(k * x)
+                    coskx = cos(k * x)
+                    sinly = sin(l * y)
+                    cosly = cos(l * y)
 
                     ! velocity
                     vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly
@@ -231,7 +231,7 @@ program test_vor2vel
         subroutine magnitude
             vel_ref = vel_ref - vel
 
-            mag = dsqrt(vel_ref(:, :, :, 1) ** 2 &
+            mag = sqrt(vel_ref(:, :, :, 1) ** 2 &
                       + vel_ref(:, :, :, 2) ** 2 &
                       + vel_ref(:, :, :, 3) ** 2)
         end subroutine magnitude
@@ -246,7 +246,7 @@ program test_vor2vel
 
         subroutine get_erms
             erms = f12 * sum(mag(0, :, :) ** 2 + mag(nz, :, :) ** 2) + sum(mag(1:nz-1, :, :) ** 2)
-            erms = dsqrt(erms / dble(nz*nx*ny))
+            erms = sqrt(erms / dble(nz*nx*ny))
         end subroutine get_erms
 
         !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

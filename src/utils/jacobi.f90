@@ -35,14 +35,14 @@ module jacobi
                 ! We need to add epsilon with the proper sign
                 ! since aij might be -epsilon causing a division by zero.
                 theta = f12 * h / (aij + sign(epsilon(aij), aij))
-                t = one / (dabs(theta) + dsqrt(one + theta ** 2))
+                t = one / (dabs(theta) + sqrt(one + theta ** 2))
                 if (theta < zero) then
                     t = -t
                 endif
             endif
 
             ! c = cos(theta)
-            c = one / dsqrt(one + t ** 2)
+            c = one / sqrt(one + t ** 2)
 
             ! s = sin(theta)
             s = t * c

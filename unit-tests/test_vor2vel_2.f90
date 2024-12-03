@@ -81,10 +81,10 @@ contains
                     f = two * z(iz) - z(iz) ** 2 - z(iz) ** 3
                     dfdz = two - two * z(iz) - three * z(iz) ** 2
                     d2fdz2 = -two - six * z(iz)
-                    sinkx = dsin(k * x(ix))
-                    coskx = dcos(k * x(ix))
-                    sinly = dsin(l * y(iy))
-                    cosly = dcos(l * y(iy))
+                    sinkx = sin(k * x(ix))
+                    coskx = cos(k * x(ix))
+                    sinly = sin(l * y(iy))
+                    cosly = cos(l * y(iy))
 
                     ! velocity
                     vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly

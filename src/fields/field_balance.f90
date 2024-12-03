@@ -52,7 +52,7 @@ module field_balance
             endif
 
             ! buoyancy frequency, N
-            bf = dsqrt(bfsq)
+            bf = sqrt(bfsq)
 
             ! D = N * H / f where H is the original depth of the domain
             depth = bf * extent(3) / f_cor(3)
@@ -118,23 +118,23 @@ module field_balance
             double precision             :: ep(0:nz), ed(0:nz)
             double precision             :: ef, kl
 
-            kl = dsqrt(k2l2(ky, kx))
+            kl = sqrt(k2l2(ky, kx))
 
-            ed = dexp(-two * kl * (zz + depth))  ! exp[-2DK - 2Kz]
-            ep = dexp(kl * zz)                   ! exp[Kz]
+            ed = exp(-two * kl * (zz + depth))  ! exp[-2DK - 2Kz]
+            ep = exp(kl * zz)                   ! exp[Kz]
 #ifndef NDEBUG
             ! To avoid "Floating-point exception - erroneous arithmetic operation"
             ! when ep and ed are really small.
-            ed = max(ed, dsqrt(tiny(ed)))
-            ep = max(ep, dsqrt(tiny(ep)))
+            ed = max(ed, sqrt(tiny(ed)))
+            ep = max(ep, sqrt(tiny(ep)))
 #endif
             ! ef = 1 / (1 - exp[-2DK])
-            ef = one / (one - dexp(- two * kl * depth))
+            ef = one / (one - exp(- two * kl * depth))
 
 #ifndef NDEBUG
             ! To avoid "Floating-point exception - erroneous arithmetic operation"
             ! when ef is really small.
-            ef = max(ef, dsqrt(tiny(ef)))
+            ef = max(ef, sqrt(tiny(ef)))
 #endif
 
             !pq = exp[Kz] * (1 + exp[-2DK-2Kz]) / (KN * (1 - exp[-2DK]))

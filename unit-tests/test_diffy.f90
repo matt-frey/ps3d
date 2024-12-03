@@ -61,7 +61,7 @@ contains
         do i = box%lo(1), box%hi(1)
             do j = box%lo(2), box%hi(2)
                 do k = box%lo(3), box%hi(3)
-                    fp(k, j, i) = dcos(four * y(j))
+                    fp(k, j, i) = cos(four * y(j))
                 enddo
             enddo
         enddo
@@ -82,7 +82,7 @@ contains
         do i = box%lo(1), box%hi(1)
             do j = box%lo(2), box%hi(2)
                 do k = box%lo(3), box%hi(3)
-                    passed = (passed .and. (fp(k, j, i) - (-four * dsin(four * y(j))) < 1.0e-12))
+                    passed = (passed .and. (fp(k, j, i) - (-four * sin(four * y(j))) < 1.0e-12))
                 enddo
             enddo
         enddo

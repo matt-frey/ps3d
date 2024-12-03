@@ -85,12 +85,12 @@ module impl_rk4_mod
             dt6 = f16 * dt
 
             ! set integrating factors
-            self%epq = dexp(vdiss)
+            self%epq = exp(vdiss)
             self%emq = 1.0d0 / self%epq
             call filter%apply2d(self%epq)
 
 #ifdef ENABLE_BUOYANCY
-            self%bpq = dexp(bdiss)
+            self%bpq = exp(bdiss)
             self%bmq = 1.0d0 / self%bpq
             call filter%apply2d(self%bpq)
 #endif

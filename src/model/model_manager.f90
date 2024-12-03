@@ -248,7 +248,7 @@ contains
         !$omp end parallel workshare
 
         !Maximum buoyancy frequency:
-        bfmax = dsqrt(dsqrt(maxval(xp)))
+        bfmax = sqrt(sqrt(maxval(xp)))
 #endif
 
 
@@ -258,10 +258,10 @@ contains
         !$omp end parallel workshare
 
         !Maximum vorticity magnitude:
-        vortmax = dsqrt(layout%get_absmax(xp, l_allreduce=.false.))
+        vortmax = sqrt(layout%get_absmax(xp, l_allreduce=.false.))
 
         !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
-        vortrms = dsqrt(layout%get_mean(xp, l_allreduce=.true.))
+        vortrms = sqrt(layout%get_mean(xp, l_allreduce=.true.))
 
         !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
         vorch = get_char_vorticity(vortrms, l_allreduce=.true.)

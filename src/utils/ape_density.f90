@@ -26,7 +26,7 @@ module ape_density
             br = b + bfsq * z  ! convert buoyancy perturbation to total buoyancy
             br = max(br, -one)
             br = min(br,  one)
-            a = br * dasin(br) + dsqrt(one - br ** 2) - z * br - dcos(z)
+            a = br * dasin(br) + sqrt(one - br ** 2) - z * br - cos(z)
 #else
             ! linear stratification:
             a = br ** 2 / (two * bfsq)

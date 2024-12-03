@@ -254,7 +254,7 @@ contains
 !         double precision             :: res, x
 !
 !         x = dble(k)/rkmax
-!         res = dexp(-alpha*x**beta)
+!         res = exp(-alpha*x**beta)
 !     end function dembenek_filter
 
 end module
