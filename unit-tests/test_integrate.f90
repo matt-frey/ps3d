@@ -21,13 +21,15 @@ program test_integrate
                          , update_parameters
     use mpi_environment
     use mpi_layout
-    use inversion_utils
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
-    double precision :: integral_approx, exact_integral
-    double precision :: rsum, error, x, y, z
-    integer          :: ix, iy, iz
+    double precision              :: integral_approx, exact_integral
+    double precision              :: rsum, error, z
+    integer                       :: ix, iy, iz
     double precision, allocatable :: f(:, :, :)
+    double precision, allocatable :: x(:), y(:)
+    type(cheby_layout_t)          :: layout
 
     call mpi_env_initialise
 
@@ -43,27 +45,28 @@ program test_integrate
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
     allocate(f(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(x(0:nx-1), y(0:ny-1))
 
     call update_parameters
 
     !-----------------------------------------------------------------
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
-    call init_inversion
+    call layout%initialise
 
     ! Define the exact integral of f(x, y, z) = x^2 + y^2 * z
     exact_integral = 8.0d0 / 3.0d0
 
     ! Define the function f(x, y, z)
+    x = layout%get_x_axis()
+    y = layout%get_y_axis()
     do ix = box%lo(1), box%hi(1)
-        x = lower(1) + dble(ix) * dx(1)
         do iy = box%lo(2), box%hi(2)
-            y = lower(2) + dble(iy) * dx(2)
             do iz = 0, nz
                 ! Map from Chebyhshev points t in [-1, 1] to [1/2, 3/2]
                 ! z = (b-a) / 2 * t + (a+b)/2 for [a, b]
-                z = f12 * zcheb(iz) + one
+                z = f12 * layout%zcheb(iz) + one
 
-                f(iz, iy, ix) = x ** 2 + y ** 2 * z
+                f(iz, iy, ix) = x(ix) ** 2 + y(iy) ** 2 * z
             enddo
         enddo
     enddo
@@ -72,7 +75,7 @@ program test_integrate
     rsum = zero
 
     do iz = 0, nz
-        rsum = rsum + zccw(iz) * sum(f(iz, :, :))
+        rsum = rsum + layout%zccw(iz) * sum(f(iz, :, :))
     enddo
 
     ! dz = (b-a)/ 2 * dt = 1/2 * dz
@@ -85,7 +88,7 @@ program test_integrate
         print *, 'Clenshaw-Curtis nodes and weights for N =', nz
         print *, '  Node (x)       Weight (w)'
         do iz = 0, nz
-            print *, zcheb(iz), zccw(iz)
+            print *, layout%zcheb(iz), layout%zccw(iz)
         enddo
         print *, 'Exact integral of f(x,y,z):', exact_integral
         print *, 'Integral using Clenshaw-Curtis quadrature:', integral_approx
@@ -97,9 +100,7 @@ program test_integrate
         call print_result_dp('Test field integration', error, atol=6.0e-3)
     endif
 
-    call finalise_inversion
-
-    deallocate(f)
+    deallocate(f, x, y)
 
     call mpi_env_finalise
 
