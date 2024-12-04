@@ -15,12 +15,13 @@ program test_clenshaw
                          , update_parameters
     use mpi_environment
     use mpi_layout
-    use inversion_utils
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
-    double precision :: integral_approx, exact_integral
-    double precision :: rsum, f, error
-    integer          :: i
+    double precision     :: integral_approx, exact_integral
+    double precision     :: rsum, f, error
+    integer              :: i
+    type(cheby_layout_t) :: layout
 
     call mpi_env_initialise
 
@@ -39,7 +40,7 @@ program test_clenshaw
 
     !-----------------------------------------------------------------
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
-    call init_inversion
+    call layout%initialise
 
     ! Define the exact integral of f(z) = 1 over [0, 1]
     exact_integral = one
@@ -50,7 +51,7 @@ program test_clenshaw
         ! Define the function f(z) = 1
         f = 1.0d0
 
-        rsum = rsum + zccw(i) * f
+        rsum = rsum + layout%zccw(i) * f
     enddo
 
     ! Map from Chebyhshev points t in [-1, 1] to [0, 1]
@@ -65,7 +66,7 @@ program test_clenshaw
         print *, 'Clenshaw-Curtis nodes and weights for N =', nz
         print *, '  Node (z)       Weight (w)'
         do i = 0, nz
-            print *, zcheb(i), zccw(i)
+            print *, layout%zcheb(i), layout%zccw(i)
         enddo
         print *, 'Exact integral of f(z) = 1 over [0, 1]:', exact_integral
         print *, 'Integral using Clenshaw-Curtis quadrature:', integral_approx
@@ -76,8 +77,6 @@ program test_clenshaw
     if (world%rank == world%root) then
         call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-13)
     endif
-
-    call finalise_inversion
 
     call mpi_env_finalise
 

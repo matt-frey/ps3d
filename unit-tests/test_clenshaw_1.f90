@@ -15,12 +15,13 @@ program test_clenshaw
                          , update_parameters
     use mpi_environment
     use mpi_layout
-    use inversion_utils
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
-    double precision :: integral_approx, exact_integral
-    double precision :: rsum, f, error, x
-    integer          :: i
+    double precision     :: integral_approx, exact_integral
+    double precision     :: rsum, f, error, x
+    integer              :: i
+    type(cheby_layout_t) :: layout
 
     call mpi_env_initialise
 
@@ -39,7 +40,7 @@ program test_clenshaw
 
     !-----------------------------------------------------------------
     ! Compute Chebyshev nodes and Clenshaw-Curtis weights
-    call init_inversion
+    call layout%initialise
 
     ! Define the exact integral of f(x) = x^3 -x^2 + 4x over [-2, 4]
     exact_integral = 60.0d0
@@ -50,11 +51,11 @@ program test_clenshaw
         ! Define the function f(x) = x^3 -x^2 + 4x
         ! Map from Chebyhshev points t in [-1, 1] to [-2, 4]
         ! x = (b-a) / 2 * t + (a+b)/2 for [a, b]
-        x = 3.0d0 * zcheb(i) + 1.0d0
+        x = 3.0d0 * layout%zcheb(i) + 1.0d0
 
         f = x ** 3 - x ** 2 + 4.0d0 * x
 
-        rsum = rsum + zccw(i) * f
+        rsum = rsum + layout%zccw(i) * f
     enddo
 
     ! dx = (b-a)/ 2 * dt
@@ -67,7 +68,7 @@ program test_clenshaw
         print *, 'Clenshaw-Curtis nodes and weights for N =', nz
         print *, '  Node (x)       Weight (w)'
         do i = 0, nz
-            print *, zcheb(i), zccw(i)
+            print *, layout%zcheb(i), layout%zccw(i)
         enddo
         print *, 'Exact integral of f(x) = x^3 -x^2 + 4x over [-2, 4]:', exact_integral
         print *, 'Integral using Clenshaw-Curtis quadrature:', integral_approx
@@ -78,8 +79,6 @@ program test_clenshaw
     if (world%rank == world%root) then
         call print_result_dp('Test Clenshaw-Curtis weights', error, atol=1.0e-13)
     endif
-
-    call finalise_inversion
 
     call mpi_env_finalise
 
