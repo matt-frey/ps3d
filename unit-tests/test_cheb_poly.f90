@@ -7,13 +7,13 @@ program test_cheb_poly
     use parameters, only : lower, nx, ny, nz, extent &
                          , update_parameters
     use fields
-    use inversion_utils
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use stafft, only : forfft, initfft
     use cheby, only : cheb_poly
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
     double precision, allocatable :: f(:)
@@ -21,6 +21,7 @@ program test_cheb_poly
     integer                       :: iz
     double precision, allocatable :: sol(:)
     double precision              :: error
+    type(cheby_layout_t)          :: layout
 
 
     call mpi_env_initialise
@@ -43,17 +44,17 @@ program test_cheb_poly
     call update_parameters
 
     !-----------------------------------------------------------------
-    ! Initialise inversion module:
-    call init_inversion
+    ! Initialise Chebyshev module:
+    call layout%initialise
 
     f = zero
     do iz = 0, nz
-        f(iz)  =      8.0d0 * get_cheb_poly(zcheb(iz), 1) &
-                    - 9.0d0 * get_cheb_poly(zcheb(iz), 2) &
-                    + 3.0d0 * get_cheb_poly(zcheb(iz), 3) &
-                    - 4.0d0 * get_cheb_poly(zcheb(iz), 4) &
-                    + 5.0d0 * get_cheb_poly(zcheb(iz), 5) &
-                    + 2.5d0 * get_cheb_poly(zcheb(iz), 9)
+        f(iz)  =      8.0d0 * get_cheb_poly(layout%zcheb(iz), 1) &
+                    - 9.0d0 * get_cheb_poly(layout%zcheb(iz), 2) &
+                    + 3.0d0 * get_cheb_poly(layout%zcheb(iz), 3) &
+                    - 4.0d0 * get_cheb_poly(layout%zcheb(iz), 4) &
+                    + 5.0d0 * get_cheb_poly(layout%zcheb(iz), 5) &
+                    + 2.5d0 * get_cheb_poly(layout%zcheb(iz), 9)
     enddo
 
     sol = zero
@@ -77,8 +78,6 @@ program test_cheb_poly
     if (world%rank == world%root) then
         call print_result_dp('Test cheb_poly', error, atol=5.0d-15)
     endif
-
-    call finalise_inversion
 
     deallocate(f, coeff, sol)
 
