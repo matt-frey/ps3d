@@ -33,7 +33,7 @@ program test_filter
 
     nx = 32
     ny = 32
-    nz = 32
+    nz = 128
 
     lower  = -f12 * pi * (/one, one, one/)
     extent =  pi * (/one, one, one/)
@@ -72,7 +72,7 @@ contains
         m = one
 
         mean = 0.0d0
-        stddev = 0.01d0
+        stddev = 0.025d0
 
         allocate(unfiltered(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
@@ -130,8 +130,8 @@ contains
             print *, "FILTERED FIELD"
             print *, "z                  f(x)                  g(x)                       ||g(x)-f(x)|| "
             do iz = 0, nz
-                print *, z(iz), unfiltered(iz, 0, 0, 1), vor(iz, 0, 0, 1), &
-                                abs(unfiltered(iz, 0, 0, 1) - vor(iz, 0, 0, 1))
+                print *, z(iz), unfiltered(iz, 1, 1, 1), vor(iz, 1, 1, 1), &
+                                abs(unfiltered(iz, 1, 1, 1) - vor(iz, 1, 1, 1))
             enddo
         endif
 
