@@ -2,7 +2,7 @@
 !                       Test convergence of vor2vel
 ! =============================================================================
 program test_vor2vel
-    use model, only : layout
+    use model, only : layout, create_model
     use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
     use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
     use fields
@@ -16,8 +16,9 @@ program test_vor2vel
     double precision              :: emax, erms
     double precision, allocatable :: vel_ref(:, :, :, :)
     double precision, allocatable :: mag(:, :, :)
-    integer                       :: ix, iy, iz, casenum
-    double precision              :: x, y, z, k, l, m, alpha, klsq, coskx, cosly, sinkx, sinly
+    double precision, allocatable :: x(:), y(:), z(:)
+    integer                       :: ix, iy, iz, casenum, grid_type
+    double precision              :: k, l, m, alpha, klsq, coskx, cosly, sinkx, sinly
     double precision              :: f, dfdz, d2fdz2, coskxly, sinkxly, cosmz, sinmz, fk2l2
 
     call mpi_env_initialise
@@ -32,11 +33,25 @@ program test_vor2vel
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
+    call update_parameters
+
+    if (grid_type == 1) then
+        call create_model("uniform", "Hou & Li")
+    else if (grid_type == 2) then
+        call create_model("chebyshev", "Hou & Li")
+    else
+        write(*, *) ' No such grid type. Exiting.'
+        stop
+    endif
+
     allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
     allocate(mag(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+    allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
     call field_default
 
-!     call init_inversion
+    x = layout%get_x_axis()
+    y = layout%get_y_axis()
+    z = layout%get_z_axis()
 
     if (casenum == 1) then
         k = two
@@ -47,16 +62,13 @@ program test_vor2vel
         fk2l2 = one / dble(k ** 2 + l ** 2)
 
         do ix = box%lo(1), box%hi(1)
-            x = lower(1) + ix * dx(1)
             do iy = box%lo(2), box%hi(2)
-                y = lower(2) + iy * dx(2)
                 do iz = 0, nz
-                    z = lower(3) + iz * dx(3)
 
-                    cosmz = cos(m * z)
-                    sinmz = sin(m * z)
-                    sinkxly = sin(k * x + l * y)
-                    coskxly = cos(k * x + l * y)
+                    cosmz = cos(m * z(iz))
+                    sinmz = sin(m * z(iz))
+                    sinkxly = sin(k * x(ix) + l * y(iy))
+                    coskxly = cos(k * x(ix) + l * y(iy))
 
                     ! velocity
                     vel_ref(iz, iy, ix, 1) = fk2l2 * (k * m * sinmz - l * alpha * cosmz) * sinkxly
@@ -85,19 +97,16 @@ program test_vor2vel
         klsq = k ** 2 - l ** 2
 
         do ix = box%lo(1), box%hi(1)
-            x = lower(1) + ix * dx(1)
             do iy = box%lo(2), box%hi(2)
-                y = lower(2) + iy * dx(2)
                 do iz = 0, nz
-                    z = lower(3) + iz * dx(3)
 
-                    f = two * z - z ** 2 - z ** 3
-                    dfdz = two - two * z - three * z ** 2
-                    d2fdz2 = -two - six * z
-                    sinkx = sin(k * x)
-                    coskx = cos(k * x)
-                    sinly = sin(l * y)
-                    cosly = cos(l * y)
+                    f = two * z(iz) - z(iz) ** 2 - z(iz) ** 3
+                    dfdz = two - two * z(iz) - three * z(iz) ** 2
+                    d2fdz2 = -two - six * z(iz)
+                    sinkx = sin(k * x(ix))
+                    coskx = cos(k * x(ix))
+                    sinly = sin(l * y(iy))
+                    cosly = cos(l * y(iy))
 
                     ! velocity
                     vel_ref(iz, iy, ix, 1) =  k * dfdz * coskx * sinly
@@ -120,10 +129,8 @@ program test_vor2vel
 
         ! linear -- test_vor2vel_3
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
-
             ! velocity
-            vel_ref(iz, :, :, 1) = z - f12 * (lower(3) + upper(3))
+            vel_ref(iz, :, :, 1) = z(iz) - f12 * (lower(3) + upper(3))
             vel_ref(iz, :, :, 2) = zero
             vel_ref(iz, :, :, 3) = zero
 
@@ -141,16 +148,14 @@ program test_vor2vel
 
         ! quadratic -- test_vor2vel_4
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
-
             ! velocity
-            vel_ref(iz, :, :, 1) = z ** 2 - f13
+            vel_ref(iz, :, :, 1) = z(iz) ** 2 - f13
             vel_ref(iz, :, :, 2) = zero
             vel_ref(iz, :, :, 3) = zero
 
             ! vorticity
             vor(iz, :, :, 1) = zero
-            vor(iz, :, :, 2) = two * z
+            vor(iz, :, :, 2) = two * z(iz)
             vor(iz, :, :, 3) = zero
         enddo
 
@@ -162,16 +167,14 @@ program test_vor2vel
 
         ! cubic -- test_vor2vel_5
         do iz = 0, nz
-            z = lower(3) + iz * dx(3)
-
             ! velocity
-            vel_ref(iz, :, :, 1) = z ** 3 - f14
+            vel_ref(iz, :, :, 1) = z(iz) ** 3 - f14
             vel_ref(iz, :, :, 2) = zero
             vel_ref(iz, :, :, 3) = zero
 
             ! vorticity
             vor(iz, :, :, 1) = zero
-            vor(iz, :, :, 2) = three * z ** 2
+            vor(iz, :, :, 2) = three * z(iz) ** 2
             vor(iz, :, :, 3) = zero
         enddo
 
@@ -181,94 +184,98 @@ program test_vor2vel
 
     endif
 
+    deallocate(x, y, z)
     deallocate(vel_ref)
     deallocate(mag)
 
     call mpi_env_finalise
 
-    contains
+contains
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine get_input_arguments
-            write(*, *) ' Enter the number of cells:'
-            read(*, *) nx
-            ny = nx
-            nz = nx
+    subroutine get_input_arguments
+        write(*, *) ' Enter the number of cells:'
+        read(*, *) nx
+        ny = nx
+        nz = nx
 
-            write(*, *) ' Enter the case to study:'
-            write(*, *) ' 1 - Beltrami'
-            write(*, *) ' 2 - linear/quadratic/cubic'
-            read(*, *) casenum
+        write(*, *) ' Enter the case to study:'
+        write(*, *) ' 1 - Beltrami'
+        write(*, *) ' 2 - linear/quadratic/cubic'
+        read(*, *) casenum
 
-            if (casenum == 1) then
-                lower  = -f12 * pi * (/one, one, one/)
-                extent =  pi * (/one, one, one/)
-            else if (casenum == 2) then
-                lower  = (/-f12, -f12, zero/)
-                extent = (/one, one, one/)
-            else
-                write(*, *) ' No such case. Exiting.'
-                stop
-            endif
+        write(*, *) ' Enter the grid type:'
+        write(*, *) ' 1 - Uniform'
+        write(*, *) ' 2 - Chebyshev'
+        read(*, *) grid_type
 
-            call update_parameters
+        if (casenum == 1) then
+            lower  = -f12 * pi * (/one, one, one/)
+            extent =  pi * (/one, one, one/)
+        else if (casenum == 2) then
+            lower  = (/-f12, -f12, zero/)
+            extent = (/one, one, one/)
+        else
+            write(*, *) ' No such case. Exiting.'
+            stop
+        endif
 
-        end subroutine get_input_arguments
+    end subroutine get_input_arguments
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine invert
-            call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-            call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-            call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+    subroutine invert
+        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
+        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
 
-            call vor2vel
-        end subroutine invert
+        call vor2vel
+    end subroutine invert
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine magnitude
-            vel_ref = vel_ref - vel
+    subroutine magnitude
+        vel_ref = vel_ref - vel
 
-            mag = sqrt(vel_ref(:, :, :, 1) ** 2 &
-                      + vel_ref(:, :, :, 2) ** 2 &
-                      + vel_ref(:, :, :, 3) ** 2)
-        end subroutine magnitude
+        mag = sqrt(vel_ref(:, :, :, 1) ** 2 &
+                    + vel_ref(:, :, :, 2) ** 2 &
+                    + vel_ref(:, :, :, 3) ** 2)
+    end subroutine magnitude
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine get_emax
-            emax = maxval(mag)
-        end subroutine get_emax
+    subroutine get_emax
+        emax = maxval(mag)
+    end subroutine get_emax
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine get_erms
-            erms = f12 * sum(mag(0, :, :) ** 2 + mag(nz, :, :) ** 2) + sum(mag(1:nz-1, :, :) ** 2)
-            erms = sqrt(erms / dble(nz*nx*ny))
-        end subroutine get_erms
+    subroutine get_erms
+        erms = f12 * sum(mag(0, :, :) ** 2 + mag(nz, :, :) ** 2) + sum(mag(1:nz-1, :, :) ** 2)
+        erms = sqrt(erms / dble(nz*nx*ny))
+    end subroutine get_erms
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine write_result(fname)
-            character(*), intent(in) :: fname
-            logical                  :: l_exist
+    subroutine write_result(fname)
+        character(*), intent(in) :: fname
+        logical                  :: l_exist
 
-            call magnitude
-            call get_emax
-            call get_erms
+        call magnitude
+        call get_emax
+        call get_erms
 
-            inquire(file=fname, exist=l_exist)
+        inquire(file=fname, exist=l_exist)
 
-            if (l_exist) then
-                open(88,file=fname, status='old', position='append')
-            else
-                open(88,file=fname, status='new')
-            endif
+        if (l_exist) then
+            open(88,file=fname, status='old', position='append')
+        else
+            open(88,file=fname, status='new')
+        endif
 
-            write(88,'(i4,2(2x,1p,e14.7))') nz, emax, erms
-            close(88)
-        end subroutine write_result
+        write(88,'(i4,2(2x,1p,e14.7))') nz, emax, erms
+        close(88)
+    end subroutine write_result
 
 end program test_vor2vel
