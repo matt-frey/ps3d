@@ -18,12 +18,11 @@ program test_crank_nicolson
     use parameters, only : lower, nx, ny, nz, extent &
                          , update_parameters
     use fields
-    use inversion_utils
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use zops, only : d1z
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
     double precision, allocatable :: u(:), alpha_v(:), eye(:, :), Lm(:, :), Rm(:, :), Am(:, :), v(:)
@@ -32,6 +31,8 @@ program test_crank_nicolson
     double precision              :: alpha_h, l1norm_initial, l1norm_final
     integer                       :: iz, i, j, nt, info, nsave
     integer, allocatable          :: ipiv(:)
+    type(cheby_layout_t)          :: layout
+
 
     call mpi_env_initialise
 
@@ -63,12 +64,12 @@ program test_crank_nicolson
 
     allocate(sol(0:int(nt/nsave), 0:nz))
 
-    call init_inversion
+    call layout%initialise
 
-    u = exp(zcheb)
+    u = exp(layout%zcheb)
 
     ! Diffusivity (hyperbolic function)
-    alpha_v = (tanh(5.0d0 * (zcheb + 1.0d0)) * tanh(5.0d0 * (1.0d0 - zcheb))) ** 2
+    alpha_v = (tanh(5.0d0 * (layout%zcheb + 1.0d0)) * tanh(5.0d0 * (1.0d0 - layout%zcheb))) ** 2
 
     alpha_h = maxval(alpha_v)
 
@@ -85,12 +86,12 @@ program test_crank_nicolson
     Lm = eye + f12 * dt * k2 * alpha_h * eye
     Rm = eye - f12 * dt * k2 * alpha_h * eye
 
-    Am = matmul(matmul(d1z, Am), d1z)
+    Am = matmul(matmul(layout%d1z, Am), layout%d1z)
 
     Lm = Lm - f12 * dt * Am
     Rm = Rm + f12 * dt * Am
 
-    l1norm_initial = dot_product(zccw, u)
+    l1norm_initial = dot_product(layout%zccw, u)
 
     sol(0, :) = u
     i = 1
@@ -112,7 +113,7 @@ program test_crank_nicolson
         endif
     enddo
 
-    l1norm_final = dot_product(zccw, u)
+    l1norm_final = dot_product(layout%zccw, u)
 
     if (world%rank == world%root) then
         call print_result_logical('Test Crank-Nicolson 3', (l1norm_final < l1norm_initial))
@@ -120,11 +121,9 @@ program test_crank_nicolson
 
     if (verbose .and. (world%rank == world%root)) then
         do iz = 0, nz
-            print *, zcheb(iz), sol(:, iz)
+            print *, layout%zcheb(iz), sol(:, iz)
         enddo
     endif
-
-    call finalise_inversion
 
     deallocate(u, v, sol)
     deallocate(alpha_v, ipiv)
