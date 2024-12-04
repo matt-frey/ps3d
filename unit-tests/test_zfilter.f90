@@ -7,12 +7,10 @@ program test_zfilter
     use parameters, only : lower, nx, ny, nz, extent &
                          , update_parameters
     use fields
-    use inversion_utils
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use options, only : zfiltering
     implicit none
 
     double precision, allocatable :: f(:, :, :)
@@ -34,8 +32,6 @@ program test_zfilter
 
     allocate(f(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
     allocate(g(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-    zfiltering%kmax = 1.0d0 / 8.0d0
 
     call update_parameters
 

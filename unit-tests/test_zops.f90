@@ -7,12 +7,12 @@ program test_zops
     use parameters, only : lower, nx, ny, nz, extent, hl &
                          , update_parameters, center, upper
     use fields
-    use inversion_utils
-    use sta3dfft, only : k2l2
+    use sta3dfft, only : k2l2, fftxys2p
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use cheby_layout, only : cheby_layout_t
     implicit none
 
     double precision, allocatable :: f(:, :, :), f1(:)
@@ -20,10 +20,12 @@ program test_zops
     double precision, allocatable :: z(:)
     double precision              :: gavg, alpha, rk, fac, maxerr
     integer                       :: kx, ky, iz
+    type(cheby_layout_t)         :: layout
 
     call mpi_env_initialise
 
     call parse_command_line
+
 
     nx = 16
     ny = 16
@@ -42,10 +44,10 @@ program test_zops
 
     call update_parameters
 
-    call init_inversion
+    call layout%initialise
 
     ! Set up z grid:
-    z = center(3) - hl(3) * zcheb
+    z = layout%get_z_axis()
 
     if (verbose .and. (world%rank == world%root)) then
         write(*,'(a,i2,a)') '  @@@   Using nz = ',nz,' grid intervals in z   @@@'
@@ -61,7 +63,7 @@ program test_zops
         enddo
     enddo
 
-    call zderiv(f, g)
+    call layout%zderiv(f, g)
 
     if (verbose) then
         maxerr = maxval(abs(g - f))
@@ -80,7 +82,7 @@ program test_zops
         enddo
     enddo
 
-    call zzderiv(f, g)
+    call layout%zzderiv(f, g)
 
     if (verbose) then
         maxerr = maxval(abs(g - f))
@@ -96,7 +98,7 @@ program test_zops
 
     f1 = exp(z)
 
-    call zinteg(f1, g1, .true.)
+    call layout%zinteg(f1, g1, .true.)
 
     gavg = (one + lower(3) - exp(lower(3))) / extent(3)
     f1 = f1 - one - gavg
@@ -120,7 +122,15 @@ program test_zops
         enddo
     enddo
 
-    call vertvel(g)
+    call layout%decompose_physical(g, f)
+    g = f
+
+    ! We must pass f as well, although it is not used here.
+    call layout%vertvel(g, f)
+
+    f = g
+
+    call fftxys2p(f, g)
 
     gavg = zero
     do kx = box%lo(1), box%hi(1)
@@ -151,10 +161,8 @@ program test_zops
     endif
 
     if (world%rank == world%root) then
-        call print_result_dp('Test zops', maxerr, atol=6.0e-7)
+        call print_result_dp('Test zops chebyshev', maxerr, atol=6.0e-7)
     endif
-
-    call finalise_inversion
 
     deallocate(f)
     deallocate(g)
