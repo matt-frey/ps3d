@@ -118,6 +118,8 @@ contains
             this%l_initialised = .false.
         endif
 
+        call finalise_cheby
+
     end subroutine finalise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

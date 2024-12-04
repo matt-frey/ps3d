@@ -51,8 +51,8 @@ unittests_PROGRAMS =   		\
         test_crank_nicolson	\
         test_crank_nicolson_1	\
         test_crank_nicolson_2	\
-        test_crank_nicolson_3
-#         test_zfilter
+        test_crank_nicolson_3	\
+        test_filter
 # 	test_diagnostics
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
@@ -118,9 +118,6 @@ test_clenshaw_3_LDADD = libcombi.la
 test_integrate_SOURCES = unit_test.f90 test_integrate.f90
 test_integrate_LDADD = libcombi.la
 
-# test_zfilter_SOURCES = unit_test.f90 test_zfilter.f90
-# test_zfilter_LDADD = libcombi.la
-
 test_cheb_poly_SOURCES = unit_test.f90 test_cheb_poly.f90
 test_cheb_poly_LDADD = libcombi.la
 
@@ -138,6 +135,9 @@ test_crank_nicolson_2_LDADD = libcombi.la
 
 test_crank_nicolson_3_SOURCES = unit_test.f90 test_crank_nicolson_3.f90
 test_crank_nicolson_3_LDADD = libcombi.la
+
+test_filter_SOURCES = unit_test.f90 test_filter.f90
+test_filter_LDADD = libcombi.la
 
 # test_diagnostics_SOURCES = unit_test.f90 test_diagnostics.f90
 # test_diagnostics_LDADD = libcombi.la
