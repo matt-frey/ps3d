@@ -18,7 +18,8 @@
 program beltrami
     use constants, only : pi, f12, zero, one, two
     use parameters, only : nx, ny, nz, dx, lower, extent    &
-                         , write_netcdf_parameters
+                         , write_netcdf_parameters          &
+                         , update_parameters, grid_type
     use netcdf_utils
     use netcdf_writer
     use mpi_environment
@@ -38,14 +39,14 @@ program beltrami
     integer                     :: x_vor_id, y_vor_id, z_vor_id
     double precision, parameter :: hpi = f12 * pi
 
-    type grid_type
+    type mesh_type
         integer          :: ncells(3)   ! number of cells
         double precision :: extent(3)   ! size of domain
         double precision :: origin(3)   ! origin of domain (lower left corner)
         character(len=9) :: layout      ! "uniform" or "chebyshev"
-    end type grid_type
+    end type mesh_type
 
-    type(grid_type) :: grid
+    type(mesh_type) :: grid
 
     type beltrami_type
         integer          :: k, l, m
@@ -61,7 +62,6 @@ program beltrami
 
     call read_config_file
 
-    dx = grid%extent / dble(grid%ncells)
     nx = grid%ncells(1)
     ny = grid%ncells(2)
     nz = grid%ncells(3)
@@ -69,13 +69,15 @@ program beltrami
     ! make origin and extent always a multiple of pi
     grid%origin = pi * grid%origin
     grid%extent = pi * grid%extent
-    dx = dx * pi
 
     ! write box
     lower = grid%origin
     extent = grid%extent
+    grid_type = grid%layout
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
+
+    call update_parameters
 
     call read_physical_quantities_from_namelist(trim(filename))
 

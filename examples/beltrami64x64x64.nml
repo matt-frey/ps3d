@@ -2,13 +2,15 @@
 
  ncfname    = 'beltrami_64x64x64.nc'
 
- box%ncells = 64, 64, 64
+ grid%ncells = 64, 64, 64
+
+ grid%layout = 'uniform'
 
  ! the extent and origin are multiples of pi,
  ! i.e., extent = 1.0, results in pi and origin = -0.5
  ! in -0.5 * pi
- box%extent =  1.0, 1.0, 1.0
- box%origin = -0.5, -0.5, -0.5
+ grid%extent =  1.0, 1.0, 1.0
+ grid%origin = -0.5, -0.5, -0.5
 
  ! Beltrami flow:
  !     u(x, y, z) = (k^2 + l^2)^(-1) * [k*m*sin(mz) - l*alpha*cos(m*z) * sin(k*x + l*y)]
