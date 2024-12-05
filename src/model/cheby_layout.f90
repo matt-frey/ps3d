@@ -241,17 +241,23 @@ contains
     ! This is only calculated on the MPI rank having kx = ky = 0
     function calc_decomposed_mean(this, fs) result(savg)
         class (cheby_layout_t), intent(in) :: this
-        double precision,       intent(in) :: fs(box%lo(3):box%hi(3), &
+        double precision,       intent(in) :: fs(0:nz,                &
                                                  box%lo(2):box%hi(2), &
                                                  box%lo(1):box%hi(1))
-        double precision                   :: savg
+        double precision                   :: savg, c
         integer                            :: iz
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            savg = zero
-            do iz = box%lo(3), box%hi(3)
-                savg = savg + this%zccw(iz) * fs(iz, 0, 0)
+            savg = this%zccw(0) * fs(0, 0, 0)
+            do iz = 1, nz-1
+                ! combine to semi-spectral
+                c = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
+                                 + fs(nz, 0, 0) * this%phip(iz, 0, 0)
+
+                savg = savg + this%zccw(iz) * c
             enddo
+            savg = savg + this%zccw(nz) * fs(nz, 0, 0)
+
             ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
             ! where the Chebyshev points are given in [-1, 1]
             ! z = (b-a) / 2 * t + (a+b)/2 for [a, b] --> dz = (b-a) / 2 * dt
@@ -267,21 +273,31 @@ contains
     ! This is only calculated on the MPI rank having kx = ky = 0
     subroutine adjust_decomposed_mean(this, fs, avg)
         class (cheby_layout_t), intent(in)    :: this
-        double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
+        double precision,       intent(inout) :: fs(0:nz,                &
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: avg
-        double precision                      :: savg
-
-        call this%combine_semi_spectral(fs)
+        double precision                      :: savg, c
+        integer                               :: iz
 
         savg = this%calc_decomposed_mean(fs)
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            fs(: , 0, 0) = fs(:, 0, 0) + avg - savg
-        endif
+            do iz = 1, nz-1
+                ! transform to semi-spectral
+                fs(iz, 0, 0) = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
+                                            + fs(nz, 0, 0) * this%phip(iz, 0, 0)
 
-        call this%decompose_semi_spectral(fs)
+                ! adjust the mean
+                fs(iz, 0, 0) = fs(iz, 0, 0) + avg - savg
+
+                ! decompose from semi-spectral
+                fs(iz, 0, 0) = fs(iz, 0, 0) - (fs(0,  0, 0) * this%phim(iz, 0, 0) + &
+                                               fs(nz, 0, 0) * this%phip(iz, 0, 0))
+            enddo
+            fs(0 , 0, 0) = fs(0,  0, 0) + avg - savg
+            fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
+        endif
 
     end subroutine adjust_decomposed_mean
 

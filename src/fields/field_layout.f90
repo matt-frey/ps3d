@@ -127,20 +127,22 @@ module field_layout
         end subroutine
 
         function m_calc_decomposed_mean(this, fs) result(savg)
+            use parameters, only : nz
             use mpi_layout, only : box
             import :: layout_t
             class (layout_t), intent(in) :: this
-            double precision, intent(in) :: fs(box%lo(3):box%hi(3), &
+            double precision, intent(in) :: fs(0:nz,                &
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
             double precision             :: savg
         end function
 
         subroutine m_adjust_decomposed_mean(this, fs, avg)
+            use parameters, only : nz
             use mpi_layout, only : box
             import :: layout_t
             class (layout_t), intent(in) :: this
-            double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &
+            double precision, intent(inout) :: fs(0:nz,                &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
             double precision, intent(in)    :: avg

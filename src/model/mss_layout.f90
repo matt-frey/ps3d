@@ -214,7 +214,7 @@ contains
     ! This is only calculated on the MPI rank having kx = ky = 0
     function calc_decomposed_mean(this, fs) result(savg)
         class (mss_layout_t), intent(in) :: this
-        double precision,     intent(in) :: fs(box%lo(3):box%hi(3), &
+        double precision,     intent(in) :: fs(0:nz,                &
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
         double precision                 :: wk(1:nz)
@@ -235,7 +235,7 @@ contains
     ! This is only calculated on the MPI rank having kx = ky = 0
     subroutine adjust_decomposed_mean(this, fs, avg)
         class (mss_layout_t), intent(in)    :: this
-        double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
+        double precision,     intent(inout) :: fs(0:nz,                &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
         double precision,     intent(in)    :: avg
