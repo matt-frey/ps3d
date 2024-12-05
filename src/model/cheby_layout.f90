@@ -273,11 +273,15 @@ contains
         double precision,       intent(in)    :: avg
         double precision                      :: savg
 
+        call this%combine_semi_spectral(fs)
+
         savg = this%calc_decomposed_mean(fs)
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             fs(: , 0, 0) = fs(:, 0, 0) + avg - savg
         endif
+
+        call this%decompose_semi_spectral(fs)
 
     end subroutine adjust_decomposed_mean
 
