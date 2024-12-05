@@ -17,11 +17,20 @@
  !     v(x, y, z) = (k^2 + l^2)^(-1) * [k*m*sin(mz) + l*alpha*cos(m*z) * sin(k*x + l*y)]
  !     w(x, y, z) = cos(m*z) * cos(k*x + l*y)
  ! The vorticity of this flow is
- !    xi(x, y, z) = alpha * u(x, y, z)
- !   eta(x, y, z) = alpha * v(x, y, z)
- !  zeta(x, y, z) = alpha * w(x, y, z)
+ !    xi(x, y, z) = alpha * u(x, y, z) + xi_pert
+ !   eta(x, y, z) = alpha * v(x, y, z) + eta_pert
+ !  zeta(x, y, z) = alpha * w(x, y, z) + zeta_pert
+ !
+ ! Perturbation:
+ !   xi_pert = a * cos(2y) * cos(z)
+ !  eta_pert = b * cos(2x) * cos(z)
+ ! zeta_pert = 0.0
 
  beltrami_flow%k = 2
  beltrami_flow%l = 2
  beltrami_flow%m = 1
+
+ ! perturbation
+ beltrami_flow%a = 0.2d0
+ beltrami_flow%b = 0.1d0
 /

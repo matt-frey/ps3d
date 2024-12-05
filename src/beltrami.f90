@@ -6,14 +6,21 @@
 !     v(x, y, z) = (k^2 + l^2)^(-1) * [l*m*sin(mz) + k*alpha*cos(m*z) * sin(k*x + l*y)]
 !     w(x, y, z) = cos(m*z) * cos(k*x + l*y)
 ! The vorticity of this flow is
-!    xi(x, y, z) = alpha * u(x, y, z)
-!   eta(x, y, z) = alpha * v(x, y, z)
-!  zeta(x, y, z) = alpha * w(x, y, z)
+!    xi(x, y, z) = alpha * u(x, y, z) + xi_pert
+!   eta(x, y, z) = alpha * v(x, y, z) + eta_pert
+!  zeta(x, y, z) = alpha * w(x, y, z) + zeta_pert
+!
+! where
+!    xi_pert = a * cos(2y) * cos(z)
+!   eta_pert = b * cos(2x) * cos(z)
+!  zeta_pert = 0.0
 !
 !                   The code uses following variable names:
 !                       beltrami_flow%k = k
 !                       beltrami_flow%l = l
 !                       beltrami_flow%m = m
+!                       beltrami_flow%a = a
+!                       beltrami_flow%b = b
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
@@ -35,7 +42,7 @@ program beltrami
     character(len=512)          :: ncfname = ''
     integer                     :: ncid
     integer                     :: dimids(4), axids(4)
-    double precision            :: fk2l2, kk, ll, mm, alpha
+    double precision            :: fk2l2, kk, ll, mm, alpha, aa, bb
     integer                     :: x_vor_id, y_vor_id, z_vor_id
     double precision, parameter :: hpi = f12 * pi
 
@@ -50,6 +57,7 @@ program beltrami
 
     type beltrami_type
         integer          :: k, l, m
+        double precision :: a, b
     end type beltrami_type
 
     type(beltrami_type) :: beltrami_flow
@@ -161,6 +169,8 @@ contains
         kk = dble(beltrami_flow%k)
         ll = dble(beltrami_flow%l)
         mm = dble(beltrami_flow%m)
+        aa = dble(beltrami_flow%a)
+        bb = dble(beltrami_flow%b)
         alpha = sqrt(kk ** 2 + ll ** 2 + mm ** 2)
         fk2l2 = alpha / dble(beltrami_flow%k ** 2 + beltrami_flow%l ** 2)
 
@@ -223,6 +233,10 @@ contains
         omega(1) = fk2l2 * (kk * mm * sinmz - ll * alpha * cosmz) * sinkxly
         omega(2) = fk2l2 * (ll * mm * sinmz + kk * alpha * cosmz) * sinkxly
         omega(3) = alpha * cosmz * coskxly
+
+        ! add horizontal perturbation
+        omega(1) = omega(1) + aa * cos(2.0d0 * y) * cos(z)
+        omega(2) = omega(2) + bb * cos(2.0d0 * x) * cos(z)
 
     end function get_flow_vorticity
 
