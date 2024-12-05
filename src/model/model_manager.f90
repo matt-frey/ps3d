@@ -219,7 +219,7 @@ contains
                                                         box%lo(1):box%hi(1)) ! dw/dy in physical space
         double precision                :: vormean(3)
         double precision                :: buf(7)
-        double precision                :: umax, vmax, wmax, dtcfl
+        double precision                :: umax, vmax, wmax(0:nz), dtcfl, dz, z(0:nz)
         double precision                :: vval, bval, lmax
 #ifdef ENABLE_VERBOSE
         logical                         :: l_exist = .false.
@@ -369,20 +369,25 @@ contains
         !$omp parallel workshare
         umax = maxval(vel(:, :, :, 1))
         vmax = maxval(vel(:, :, :, 2))
-        wmax = maxval(vel(:, :, :, 3))
         !$omp end parallel workshare
+
+        !$omp parallel do
+        do iz = 0, nz
+            wmax(iz) = maxval(abs(vel(iz, :, :, 3)))
+        enddo
+        !$omp parallel enddo
 
         buf(1) = bfmax
         buf(2) = ggmax
         buf(3) = umax
         buf(4) = vmax
-        buf(5) = wmax
-        buf(6) = usggmax
-        buf(7) = lsggmax
+        buf(5:5+nz) = wmax
+        buf(6+nz) = usggmax
+        buf(7+nz) = lsggmax
 
-        call MPI_Allreduce(MPI_IN_PLACE,            &
-                            buf(1:7),                &
-                            7,                       &
+        call MPI_Allreduce(MPI_IN_PLACE,             &
+                            buf(1:7+nz),             &
+                            7+nz,                    &
                             MPI_DOUBLE_PRECISION,    &
                             MPI_MAX,                 &
                             world%comm,              &
@@ -392,29 +397,38 @@ contains
         ggmax = buf(2)
         umax = buf(3)
         vmax = buf(4)
-        wmax = buf(5)
-        usggmax = buf(6)
-        lsggmax = buf(7)
+        wmax = buf(5:5+nz)
+        usggmax = buf(6+nz)
+        lsggmax = buf(7+nz)
 
         call set_netcdf_field_diagnostic(bfmax, NC_BFMAX)
         call set_netcdf_field_diagnostic(ggmax, NC_GMAX)
         call set_netcdf_field_diagnostic(umax, NC_UMAX)
         call set_netcdf_field_diagnostic(vmax, NC_VMAX)
-        call set_netcdf_field_diagnostic(wmax, NC_WMAX)
+        lmax = maxval(wmax)
+        call set_netcdf_field_diagnostic(lmax, NC_WMAX)
         call set_netcdf_field_diagnostic(usggmax, NC_USGMAX)
         call set_netcdf_field_diagnostic(lsggmax, NC_LSGMAX)
 
+        ! vertical CFL condition
+        dtcfl = huge(0.0d0)
+        z = layout%get_z_axis()
+        do iz = 1, nz-1
+            !FIXME Pre-store dzmin as they never change.
+            dz = min(z(iz) - z(iz-1), z(iz+1) - z(iz))
+            dtcfl = min(dtcfl, dz / (wmax(iz) + small))
+        enddo
 
         ! CFL time step constraint:
         dtcfl = cflmax * min(dx(1) / (umax + small), &
-                                dx(2) / (vmax + small), &
-                                dx(3) / (wmax + small))
+                             dx(2) / (vmax + small), &
+                             dtcfl)
 
         !Choose new time step:
         dt = min(time%alpha / (ggmax + small),  &
-                    time%alpha / (bfmax + small),  &
-                    dtcfl,                         &
-                    time%limit - t)
+                 time%alpha / (bfmax + small),  &
+                 dtcfl,                         &
+                 time%limit - t)
 
 #ifdef ENABLE_VERBOSE
         if (world%rank == world%root) then
@@ -425,16 +439,15 @@ contains
             else
                 open(unit=1235, file=trim(fname), status='replace')
                 write(1235, *) '  # time (s)                \alpha_s/\gamma_{max}     ' // &
-                                '\alpha_b/N_{max}          CFL'
+                               '\alpha_b/N_{max}          CFL'
             endif
 
             write(1235, *) t, time%alpha / (ggmax + small), time%alpha / (bfmax + small), &
-                            dtcfl
+                           dtcfl
 
             close(1235)
         endif
 #endif
-
 
         vval = zero
         bval = zero
