@@ -51,10 +51,9 @@ module diffusion
             double precision, intent(in) :: te ! total energy
             double precision, intent(in) :: en ! enstrophy
 
-
             ! check if initialised
-            if (.not. is_diffusion_initialised) then
-                call mpi_print("Error: Inversion not initialised!")
+            if (is_diffusion_initialised) then
+                return
             endif
 
             is_diffusion_initialised = .true.
