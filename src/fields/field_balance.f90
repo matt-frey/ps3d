@@ -7,6 +7,7 @@ module field_balance
                               , combine_semi_spectral
     use sta3dfft, only : diffx, diffy, fftxys2p
     use fields, only : vel, sbuoy, buoy
+    use model, only : layout
     use mpi_layout
     use field_diagnostics, only : get_available_potential_energy    &
                                 , get_horizontal_kinetic_energy     &
@@ -44,8 +45,8 @@ module field_balance
     contains
 
         subroutine initialise_balance
-            integer          :: kx, ky, iz
-            double precision :: zz(0:nz), z
+            integer          :: kx, ky
+            double precision :: zz(0:nz), z(0:nz)
 
             if (allocated(pq)) then
                 return
@@ -62,10 +63,8 @@ module field_balance
 
             !------------------------------------------------------------------
             ! Define scaled height:
-            do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                zz(iz) = bf * z / f_cor(3)
-            enddo
+            z = layout%get_z_axis()
+            zz = bf * z / f_cor(3)
 
             !------------------------------------------------------------------
             ! Fill pq and bq:

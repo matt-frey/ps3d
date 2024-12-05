@@ -625,7 +625,7 @@ contains
         integer                  :: nc
 #ifdef ENABLE_BUOYANCY
         integer                  :: iz
-        double precision         :: z
+        double precision         :: z(0:nz)
 #endif
 
         call field_default
@@ -638,9 +638,9 @@ contains
         call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
 
         ! remove basic state from buoyancy
+        z = layout%get_z_axis()
         do iz = 0, nz
-            z = lower(3) + dble(iz) * dx(3)
-            bbarz(iz) = bfsq * z
+            bbarz(iz) = bfsq * z(iz)
             buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
         enddo
         call layout%decompose_physical(buoy, sbuoy)
