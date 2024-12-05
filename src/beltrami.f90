@@ -205,7 +205,7 @@ contains
 
         call write_netcdf_dataset(ncid, z_vor_id, vor(0:nz,                    &
                                                       box%lo(2):box%hi(2),     &
-                                                      box%lo(1):box%hi(1), 2), &
+                                                      box%lo(1):box%hi(1), 3), &
                                                       start, cnt)
 
     end subroutine beltrami_init
