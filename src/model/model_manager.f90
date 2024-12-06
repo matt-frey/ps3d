@@ -218,7 +218,7 @@ contains
         double precision                :: dwdy(0:nz, box%lo(2):box%hi(2), &
                                                         box%lo(1):box%hi(1)) ! dw/dy in physical space
         double precision                :: vormean(3)
-        double precision                :: buf(7)
+        double precision                :: buf(7+nz)
         double precision                :: umax, vmax, wmax(0:nz), dtcfl, dz, z(0:nz)
         double precision                :: vval, bval, lmax
 #ifdef ENABLE_VERBOSE
