@@ -24,8 +24,8 @@
 ! ====================================================================================
 program beltrami
     use constants, only : pi, f12, zero, one, two
-    use parameters, only : nx, ny, nz, dx, lower, extent    &
-                         , write_netcdf_parameters          &
+    use parameters, only : nx, ny, nz, lower, extent    &
+                         , write_netcdf_parameters      &
                          , update_parameters, grid_type
     use netcdf_utils
     use netcdf_writer

@@ -9,7 +9,8 @@ module mss_layout
                        , fftxys2p   &
                        , rkzi       &
                        , rkz        &
-                       , green
+                       , green      &
+                       , fftcosine
     use stafft, only : dst, dct
     use mpi_utils, only : mpi_check_for_error
     implicit none
@@ -37,6 +38,9 @@ module mss_layout
         ! Specific routines:
         procedure :: vertvel
         procedure :: zinteg
+
+        procedure :: central_diffz
+        procedure :: decomposed_diffz
 
     end type mss_layout_t
 
@@ -183,7 +187,25 @@ contains
 
     !Calculates df/dz for a field f using 2nd-order differencing.
     !Here fs = f, ds = df/dz. In physical or semi-spectral space.
-    subroutine diffz(this, fs, ds)
+    subroutine diffz(this, fs, ds, l_decomposed)
+        class (mss_layout_t), intent(in)  :: this
+        double precision,     intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,     intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        logical,              intent(in)  :: l_decomposed
+
+        if (l_decomposed) then
+            call this%decomposed_diffz(fs, ds)
+        else
+            call this%central_diffz(fs, ds)
+        endif
+
+    end subroutine diffz
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Calculates df/dz for a field f using 2nd-order differencing.
+    !Here fs = f, ds = df/dz. In physical or semi-spectral space.
+    subroutine central_diffz(this, fs, ds)
         class (mss_layout_t), intent(in)  :: this
         double precision,     intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         double precision,     intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
@@ -207,7 +229,54 @@ contains
         enddo
         !$omp end parallel do
 
-    end subroutine diffz
+    end subroutine central_diffz
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Calculates df/dz for a field f in mixed-spectral space
+    !Here fs = f, ds = df/dz. Both fields are in mixed-spectral space.
+    ! fs - mixed-spectral space
+    ! ds - derivative linear part
+    ! as - derivative sine part
+    subroutine decomposed_diffz(this, fs, ds)
+        class(mss_layout_t), intent(in)  :: this
+        double precision,    intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,    intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                 :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                          :: kz, iz
+
+        !Calculate the derivative of the linear part (ds) in semi-spectral space:
+        !$omp parallel do private(iz)  default(shared)
+        do iz = 0, nz
+            ds(iz, :, :) = fs(0,  :, :) * this%dphim(iz, :, :)  &
+                         + fs(nz, :, :) * this%dphip(iz, :, :)
+        enddo
+        !$omp end parallel do
+
+        ! Calculate d/dz of this sine series:
+        !$omp parallel workshare
+        as(0, :, :) = zero
+        !$omp end parallel workshare
+        !$omp parallel do private(kz)  default(shared)
+        do kz = 1, nz-1
+            as(kz, :, :) = rkz(kz) * fs(kz, :, :)
+        enddo
+        !$omp end parallel do
+        !$omp parallel workshare
+        as(nz, :, :) = zero
+        !$omp end parallel workshare
+
+        !FFT these quantities back to semi-spectral space:
+        call fftcosine(as)
+
+        ! Combine vertical derivative given the sine (as) and linear (ds) parts:
+        !omp parallel workshare
+        ds = ds + as
+        !omp end parallel workshare
+
+        call this%decompose_semi_spectral(ds)
+
+    end subroutine decomposed_diffz
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

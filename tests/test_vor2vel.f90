@@ -4,7 +4,7 @@
 program test_vor2vel
     use model, only : layout, create_model
     use constants, only : f12, f13, one, two, three, six, pi, twopi, f14
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent, upper
     use fields
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer

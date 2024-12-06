@@ -7,7 +7,7 @@ program test_diffx
     use unit_test
     use constants, only : pi, twopi, f12, zero, four, two
     use sta3dfft, only : diffx, fftxyp2s, fftxys2p
-    use parameters, only : update_parameters, dx, nx, ny, nz, lower, extent
+    use parameters, only : update_parameters, nx, ny, nz, lower, extent
     use mpi_environment
     use mpi_layout
     use model, only : layout, create_model

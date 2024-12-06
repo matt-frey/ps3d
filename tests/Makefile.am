@@ -8,6 +8,7 @@ AM_FCFLAGS =                            \
         -I $(top_builddir)/src/netcdf
 
 AM_LDFLAGS =                                   	\
+	$(top_builddir)/src/stepper/*.o		\
 	$(top_builddir)/src/model/*.o     	\
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fields/*.o          \

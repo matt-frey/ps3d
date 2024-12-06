@@ -231,16 +231,16 @@ contains
 #ifdef ENABLE_BUOYANCY
         !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
         !Obtain gradient of buoyancy in physical space -> xp, yp, zp
-        call combine_semi_spectral(sbuoy)
+        call layout%combine_semi_spectral(sbuoy)
         call diffx(sbuoy, xs)
         call fftxys2p(xs, xp)
 
         call diffy(sbuoy, ys)
         call fftxys2p(ys, yp)
 
-        call layout%diffz(sbuoy, xs)
+        call layout%diffz(sbuoy, xs, l_decomposed=.false.)
         call fftxys2p(xs, zp)
-        call decompose_semi_spectral(sbuoy)
+        call layout%decompose_semi_spectral(sbuoy)
 
         !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
         !$omp parallel workshare

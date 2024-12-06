@@ -3,7 +3,7 @@ module field_layout
     use mpi_environment
     use constants, only : zero, f12, f13, one, two
     use parameters, only : nx, ny, nz, extent, dx, lower, upper, ncell
-    use sta3dfft, only : k2l2, k2l2i, initialise_fft
+    use sta3dfft, only : k2l2, k2l2i, initialise_fft, rkz
     use mpi_collectives, only : mpi_blocking_reduce
     use mpi_utils, only : mpi_check_for_error
     implicit none
@@ -21,10 +21,8 @@ module field_layout
         double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
         double precision, allocatable :: phim(:, :, :)      ! phi_{-}           (eq. 3.4a)
         double precision, allocatable :: phip(:, :, :)      ! phi_{+}           (eq. 3.4b)
-#ifdef ENABLE_BUOYANCY
         double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
         double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
-#endif
 
     contains
         procedure :: initialise => m_initialise
@@ -117,13 +115,14 @@ module field_layout
             double precision             :: res
         end function
 
-        subroutine m_diffz(this, fs, ds)
+        subroutine m_diffz(this, fs, ds, l_decomposed)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: layout_t
             class (layout_t), intent(in)  :: this
             double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
             double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+            logical,          intent(in)  :: l_decomposed
         end subroutine
 
         function m_calc_decomposed_mean(this, fs) result(savg)
@@ -208,10 +207,8 @@ contains
         !Hyperbolic functions used for solutions of Laplace's equation:
         allocate(this%phim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%phip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-#ifdef ENABLE_BUOYANCY
         allocate(this%dphim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%dphip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-#endif
         allocate(this%thetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%thetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%dthetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
@@ -237,10 +234,8 @@ contains
             this%phim(:, 0, 0) = zm / extent(3)
             this%phip(:, 0, 0) = zp / extent(3)
 
-#ifdef ENABLE_BUOYANCY
             this%dphim(:, 0, 0) = - one / extent(3)
             this%dphip(:, 0, 0) =   one / extent(3)
-#endif
 
             this%thetam(:, 0, 0) = zero
             this%thetap(:, 0, 0) = zero
@@ -287,10 +282,8 @@ contains
         deallocate(this%gambot)
         deallocate(this%phim)
         deallocate(this%phip)
-#ifdef ENABLE_BUOYANCY
         deallocate(this%dphim)
         deallocate(this%dphip)
-#endif
         deallocate(this%thetam)
         deallocate(this%thetap)
         deallocate(this%dthetam)
@@ -331,9 +324,6 @@ contains
         integer,          intent(in)    :: kx, ky
         double precision, intent(in)    :: zm(0:nz), zp(0:nz)
         double precision                :: R(0:nz), Q(0:nz), k2ifac
-#ifndef ENABLE_BUOYANCY
-        double precision                :: dphim(0:nz), dphip(0:nz)
-#endif
         double precision                :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
         double precision                :: fac, div, kl
 
@@ -364,13 +354,8 @@ contains
         this%phim(:, ky, kx) = div * (ep - ef * em)
         this%phip(:, ky, kx) = div * (em - ef * ep)
 
-#ifdef ENABLE_BUOYANCY
         this%dphim(:, ky, kx) = - kl * div * (ep + ef * em)
         this%dphip(:, ky, kx) =   kl * div * (em + ef * ep)
-#else
-        dphim = - kl * div * (ep + ef * em)
-        dphip =   kl * div * (em + ef * ep)
-#endif
 
         Q = div * (one + ef**2)
         R = div * two * ef
@@ -380,63 +365,11 @@ contains
         this%thetap(:, ky, kx) = k2ifac * (R * Lp * this%phim(:, ky, kx) - &
                                            Q * Lm * this%phip(:, ky, kx))
 
-#ifdef ENABLE_BUOYANCY
         this%dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * this%dphim(:, ky, kx) - &
                                                       R * Lm * this%dphip(:, ky, kx))
         this%dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * this%dphip(:, ky, kx) - &
                                                       R * Lp * this%dphim(:, ky, kx))
-#else
-        this%dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * dphim - R * Lm * dphip)
-        this%dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * dphip - R * Lp * dphim)
-#endif
     end subroutine set_hyperbolic_functions
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-#ifdef ENABLE_BUOYANCY
-    !Calculates df/dz for a field f in mixed-spectral space
-    !Here fs = f, ds = df/dz. Both fields are in mixed-spectral space.
-    ! fs - mixed-spectral space
-    ! ds - derivative linear part
-    ! as - derivative sine part
-    subroutine diffz(fs, ds)
-        double precision, intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision, intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision              :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                       :: kz, iz
-
-        !Calculate the derivative of the linear part (ds) in semi-spectral space:
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            ds(iz, :, :) = fs(0, :, :) * dphim(iz, :, :) + fs(nz, :, :) * dphip(iz, :, :)
-        enddo
-        !$omp end parallel do
-
-        ! Calculate d/dz of this sine series:
-        !$omp parallel workshare
-        as(0, :, :) = zero
-        !$omp end parallel workshare
-        !$omp parallel do private(kz)  default(shared)
-        do kz = 1, nz-1
-            as(kz, :, :) = rkz(kz) * fs(kz, :, :)
-        enddo
-        !$omp end parallel do
-        !$omp parallel workshare
-        as(nz, :, :) = zero
-        !$omp end parallel workshare
-
-        !FFT these quantities back to semi-spectral space:
-        call fftcosine(as)
-
-        ! Combine vertical derivative given the sine (as) and linear (ds) parts:
-        !omp parallel workshare
-        ds = ds + as
-        !omp end parallel workshare
-
-        call decompose_semi_spectral(ds)
-
-    end subroutine diffz
-#endif
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

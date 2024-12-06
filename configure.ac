@@ -11,6 +11,8 @@ AC_FC_SRCEXT(f90)
 
 FCFLAGS="-std=f2018 -fdefault-real-8 -fdefault-double-8 -cpp -mcmodel=large"
 
+FCFLAGS="$FCFLAGS -Wno-unused-dummy-argument"
+
 AC_CONFIG_MACRO_DIRS([m4])
 AC_CONFIG_HEADERS([src/utils/config.h])
 AC_CONFIG_FILES([

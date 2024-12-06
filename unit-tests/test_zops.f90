@@ -4,8 +4,8 @@
 program test_zops
     use unit_test
     use constants, only : zero, f12, one, pi, twopi, f14
-    use parameters, only : lower, nx, ny, nz, extent, hl &
-                         , update_parameters, center, upper
+    use parameters, only : lower, nx, ny, nz, extent &
+                         , update_parameters, upper
     use fields
     use sta3dfft, only : k2l2, fftxys2p
     use mpi_timer

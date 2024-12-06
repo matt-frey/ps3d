@@ -232,7 +232,7 @@ module field_netcdf
             call write_field_double(NC_DELTA, delta, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
-            call flayout%combine_physical(sbuoy, buoy)
+            call layout%combine_physical(sbuoy, buoy)
 
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
 

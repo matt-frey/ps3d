@@ -14,7 +14,7 @@
 program test_diffusion
     use unit_test
     use constants, only : one, two, pi, f12
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent
     use fields
     use mpi_timer
     use mpi_environment

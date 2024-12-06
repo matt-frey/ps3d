@@ -54,6 +54,8 @@ module cheby_layout
         procedure :: zderiv
         procedure :: zzderiv
 
+        procedure :: decomposed_diffz
+
     end type cheby_layout_t
 
 contains
@@ -227,14 +229,34 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine diffz(this, fs, ds)
+    subroutine diffz(this, fs, ds, l_decomposed)
         class (cheby_layout_t), intent(in)  :: this
         double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        logical,                intent(in)  :: l_decomposed
 
-        call this%zderiv(fs, ds)
+        if (l_decomposed) then
+            call this%decomposed_diffz(fs, ds)
+        else
+            call this%zderiv(fs, ds)
+        endif
 
     end subroutine diffz
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine decomposed_diffz(this, fs, ds)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                    :: gs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+        gs = fs
+        call this%combine_semi_spectral(gs)
+        call this%zderiv(gs, ds)
+        call this%decompose_semi_spectral(ds)
+
+    end subroutine decomposed_diffz
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -277,7 +299,7 @@ contains
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: avg
-        double precision                      :: savg, c
+        double precision                      :: savg
         integer                               :: iz
 
         savg = this%calc_decomposed_mean(fs)
@@ -388,7 +410,7 @@ contains
         enddo
 
         ! Calculate z-derivative of vertical velocity:
-        call this%diffz(ds, es)
+        call this%diffz(ds, es, l_decomposed=.false.)
 
     end subroutine vertvel
 

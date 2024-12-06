@@ -8,7 +8,7 @@
 program test_diffz_2
     use unit_test
     use constants, only : zero, one, two, pi, twopi, f12
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent
     use mpi_timer
     use mpi_environment
     use mpi_layout
@@ -73,7 +73,7 @@ contains
             enddo
         enddo
 
-        call layout%diffz(fp, dfdz)
+        call layout%diffz(fp, dfdz, l_decomposed=.false.)
 
         error = maxval(abs(dfdz_ref - dfdz))
 

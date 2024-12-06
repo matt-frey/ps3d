@@ -4,7 +4,7 @@
 program test_omp_collapse
     use unit_test
     use constants, only : one, two, pi, f12
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent
     use sta2dfft, only : dst
     use sta3dfft, only : zfactors, ztrig
     use fields

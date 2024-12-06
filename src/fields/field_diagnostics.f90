@@ -254,7 +254,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call layout%diffz(buoy, dbdz)
+            call layout%diffz(buoy, dbdz, l_decomposed=.false.)
 
             ! As we use the pertubation mode, we only have b'_z, i.e. we must
             ! add N^2 because b_z = N^2 + b'_z
@@ -323,7 +323,7 @@ module field_diagnostics
                                         box%lo(2):box%hi(2), &
                                         box%lo(1):box%hi(1))
 
-            call layout%diffz(buoy, dbdz)
+            call layout%diffz(buoy, dbdz, l_decomposed=.false.)
 
             mss = minval(dbdz)
 
@@ -351,16 +351,16 @@ module field_diagnostics
 
             !------------------------------------
             !Obtain magnitude of buoyancy gradient
-            call flayout%combine_semi_spectral(sbuoy)
+            call layout%combine_semi_spectral(sbuoy)
             call diffx(sbuoy, ds)
             call fftxys2p(ds, dbdx)
 
             call diffy(sbuoy, ds)
             call fftxys2p(ds, dbdy)
 
-            call layout%diffz(sbuoy, mag)
+            call layout%diffz(sbuoy, mag, l_decomposed=.false.)
             call fftxys2p(ds, mag)
-            call flayout%decompose_semi_spectral(sbuoy)
+            call layout%decompose_semi_spectral(sbuoy)
 
             ! mag = |gradb|
             mag = sqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

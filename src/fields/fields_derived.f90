@@ -9,8 +9,9 @@ module fields_derived
     use fields, only : sbuoy, buoy
 #endif
     use sta2dfft, only : dct
-    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, green
+    use sta3dfft, only : ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, green, k2l2i
     use physics, only : f_cor
+    use model, only : layout
     implicit none
 
     integer :: pres_timer       &
@@ -105,8 +106,8 @@ module fields_derived
             !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-            call combine_physical(sbuoy, buoy)
-            call flayout%diffz(buoy, dbdz)
+            call layout%combine_physical(sbuoy, buoy)
+            call layout%diffz(buoy, dbdz, l_decomposed=.false.)
             pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 #endif
 
@@ -143,8 +144,8 @@ module fields_derived
             do kx = box%lo(1), box%hi(1)
                 do ky = box%lo(2), box%hi(2)
                     rs(:, ky, kx) = rs(:, ky, kx) &
-                                  + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * dphip(:, ky, kx) &
-                                  + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * dphim(:, ky, kx)
+                                  + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * layout%dphip(:, ky, kx) &
+                                  + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * layout%dphim(:, ky, kx)
                 enddo
             enddo
 #endif
