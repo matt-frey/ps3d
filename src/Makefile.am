@@ -6,7 +6,7 @@ AM_FCFLAGS =				\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
 
-bin_PROGRAMS = ps3d beltrami
+bin_PROGRAMS = ps3d beltrami rayleigh_taylor
 #genspec genspec2d  production
 
 ps3d_SOURCES = 					\
@@ -97,6 +97,31 @@ beltrami_SOURCES += 				\
 	beltrami.f90
 
 beltrami_LDADD = 					\
+	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_mpi_fft.la        \
+	$(top_builddir)/src/mpi/libps_mpi.la		\
+	$(top_builddir)/src/netcdf/libps_netcdf.la
+
+
+rayleigh_taylor_SOURCES =			\
+	fields/field_layout.f90			\
+	fields/field_filter.f90			\
+	fields/fields.f90			\
+	model/mss_layout.f90			\
+	model/mss_filter.f90			\
+	model/cheby.f90				\
+	model/cheby_layout.f90			\
+	model/cheby_filter.f90			\
+	inversion/diffusion.f90		   	\
+	model/model.f90				\
+	fields/fields_derived.f90		\
+	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
+	fields/field_diagnostics_netcdf.f90	\
+        inversion/inversion.f90         	\
+	rayleigh_taylor.f90
+
+rayleigh_taylor_LDADD = 				\
 	$(top_builddir)/src/utils/libps_utils.la 	\
 	$(top_builddir)/src/fft/libps_mpi_fft.la        \
 	$(top_builddir)/src/mpi/libps_mpi.la		\
