@@ -81,12 +81,16 @@ module field_diagnostics_netcdf
                         , NC_BUSMAX   = 45  &
                         , NC_BLSMIN   = 46  &
                         , NC_BLSMAX   = 47  &
-                        , NC_MSS      = 48  &  ! mss = minimum static stability
+                        , NC_MSS      = 48     ! mss = minimum static stability
+#ifdef ENABLE_BALANCE
                         , NC_KEBAL    = 49  &
                         , NC_KEUBAL   = 50  &
                         , NC_APEBAL   = 51  &
                         , NC_APEUBAL  = 52
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
+#else
+    type(netcdf_stat_info) :: nc_dset(NC_MSS)
+#endif
 #else
     type(netcdf_stat_info) :: nc_dset(NC_ROMAX)
 #endif
@@ -750,6 +754,34 @@ module field_diagnostics_netcdf
                 unit='m/s^2',                                           &
                 dtype=NF90_DOUBLE)
 
+            call nc_dset(NC_BUSMIN)%set_info(                           &
+                name='busmin',                                          &
+                long_name='minimum upper surface buoyancy',             &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            call nc_dset(NC_BUSMAX)%set_info(                           &
+                name='busmax',                                          &
+                long_name='maximum upper surface buoyancy',             &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            call nc_dset(NC_BLSMIN)%set_info(                           &
+                name='blsmin',                                          &
+                long_name='minimum lower surface buoyancy',             &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
+            call nc_dset(NC_BLSMAX)%set_info(                           &
+                name='blsmax',                                          &
+                long_name='maximum lower surface buoyancy',             &
+                std_name='',                                            &
+                unit='m/s^2',                                           &
+                dtype=NF90_DOUBLE)
+
             call nc_dset(NC_BMAX)%set_info(                             &
                 name='max_buoyancy',                                    &
                 long_name='maximum buoyancy',                           &
@@ -764,6 +796,7 @@ module field_diagnostics_netcdf
                 unit='1',                                               &
                 dtype=NF90_DOUBLE)
 
+#ifdef ENABLE_BALANCE
             if (output%l_balanced) then
                 call nc_dset(NC_KEBAL)%set_info(                            &
                     name='kebal',                                           &
@@ -793,6 +826,7 @@ module field_diagnostics_netcdf
                     unit='m^2/s^2',                                         &
                     dtype=NF90_DOUBLE)
             endif
+#endif
 #endif
 
         end subroutine set_netcdf_stat_info
