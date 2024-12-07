@@ -10,7 +10,7 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function create_stepper(name) result(stepper)
-        character(len=9),  intent(in) :: name
+        character(len=*),  intent(in) :: name
         class(stepper_t), allocatable :: stepper
 
         ! 27 March 2024
