@@ -17,55 +17,55 @@ module rolling_mean_mod
 
     end type rolling_mean_t
 
-    contains
+contains
 
-        subroutine alloc(self, n)
-            class(rolling_mean_t), intent(inout) :: self
-            integer,               intent(in)    :: n
+    subroutine alloc(self, n)
+        class(rolling_mean_t), intent(inout) :: self
+        integer,               intent(in)    :: n
 
-            if (.not. allocated(self%history)) then
-                allocate(self%history(n))
-            endif
+        if (.not. allocated(self%history)) then
+            allocate(self%history(n))
+        endif
 
-            self%length = n
+        self%length = n
 
-        end subroutine alloc
+    end subroutine alloc
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        function get_next(self, vnew) result(rm)
-            class(rolling_mean_t), intent(inout) :: self
-            double precision,      intent(in)    :: vnew
-            double precision                     :: vold
-            double precision                     :: rm
+    function get_next(self, vnew) result(rm)
+        class(rolling_mean_t), intent(inout) :: self
+        double precision,      intent(in)    :: vnew
+        double precision                     :: vold
+        double precision                     :: rm
 
-            if (self%l_filled) then
+        if (self%l_filled) then
 
-                ! get oldest value
-                vold = self%history(self%iold)
-                self%iold = mod(self%iold, self%length) + 1
+            ! get oldest value
+            vold = self%history(self%iold)
+            self%iold = mod(self%iold, self%length) + 1
 
-                self%sma = self%sma + (vnew - vold) / dble(self%length)
+            self%sma = self%sma + (vnew - vold) / dble(self%length)
 
-                ! add new value
-                self%history(self%inew) = vnew
-                self%inew = mod(self%inew, self%length) + 1
+            ! add new value
+            self%history(self%inew) = vnew
+            self%inew = mod(self%inew, self%length) + 1
 
-            else
-                ! add newest value
-                self%history(self%inew) = vnew
+        else
+            ! add newest value
+            self%history(self%inew) = vnew
 
-                ! if we have not yet fully filled, we just
-                ! return the mean value up to this point
-                self%sma = sum(self%history(1:self%inew)) / dble(self%inew)
+            ! if we have not yet fully filled, we just
+            ! return the mean value up to this point
+            self%sma = sum(self%history(1:self%inew)) / dble(self%inew)
 
-                self%l_filled = (self%length == self%inew)
+            self%l_filled = (self%length == self%inew)
 
-                self%inew = mod(self%inew, self%length) + 1
-            endif
+            self%inew = mod(self%inew, self%length) + 1
+        endif
 
-            rm = self%sma
+        rm = self%sma
 
-        end function get_next
+    end function get_next
 
 end module rolling_mean_mod
