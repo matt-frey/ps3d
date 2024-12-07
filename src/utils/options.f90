@@ -91,110 +91,110 @@ module options
     type(time_info_type) :: time
 
 
-    contains
-        ! parse configuration file
-        ! (see https://cyber.dabamos.de/programming/modernfortran/namelists.html [8 March 2021])
-        subroutine read_config_file
-            integer :: ios
-            integer :: fn = 1
-            logical :: exists = .false.
+contains
+    ! parse configuration file
+    ! (see https://cyber.dabamos.de/programming/modernfortran/namelists.html [8 March 2021])
+    subroutine read_config_file
+        integer :: ios
+        integer :: fn = 1
+        logical :: exists = .false.
 
-            ! namelist definitions
-            namelist /PS3D/ field_file,         &
-                            field_step,         &
-                            time_stepper,       &
-                            vor_visc,           &
+        ! namelist definitions
+        namelist /PS3D/ field_file,         &
+                        field_step,         &
+                        time_stepper,       &
+                        vor_visc,           &
 #ifdef ENABLE_BUOYANCY
-                            buoy_visc,          &
+                        buoy_visc,          &
 #endif
-                            filtering,          &
-                            output,             &
-                            time
+                        filtering,          &
+                        output,             &
+                        time
 
-            ! check whether file exists
-            inquire(file=filename, exist=exists)
+        ! check whether file exists
+        inquire(file=filename, exist=exists)
 
-            if (exists .eqv. .false.) then
-                call mpi_stop(&
-                    'Error: input file "' // trim(filename) // '" does not exist.')
-            endif
+        if (exists .eqv. .false.) then
+            call mpi_stop(&
+                'Error: input file "' // trim(filename) // '" does not exist.')
+        endif
 
-            ! open and read Namelist file.
-            open(action='read', file=filename, iostat=ios, newunit=fn)
+        ! open and read Namelist file.
+        open(action='read', file=filename, iostat=ios, newunit=fn)
 
-            read(nml=PS3D, iostat=ios, unit=fn)
+        read(nml=PS3D, iostat=ios, unit=fn)
 
-            if (ios /= 0) then
-                call mpi_stop('Error: invalid Namelist format.')
-            end if
+        if (ios /= 0) then
+            call mpi_stop('Error: invalid Namelist format.')
+        end if
 
-            close(fn)
+        close(fn)
 
-            ! check whether NetCDF files already exist
-            inquire(file=output%basename, exist=exists)
+        ! check whether NetCDF files already exist
+        inquire(file=output%basename, exist=exists)
 
-            if (exists) then
-                call mpi_stop(&
-                    'Error: output file "' // trim(output%basename) // '" already exists.')
-            endif
+        if (exists) then
+            call mpi_stop(&
+                'Error: output file "' // trim(output%basename) // '" already exists.')
+        endif
 
-        end subroutine read_config_file
+    end subroutine read_config_file
 
-        subroutine write_netcdf_options(ncid)
-            integer, intent(in) :: ncid
-            integer             :: gid
+    subroutine write_netcdf_options(ncid)
+        integer, intent(in) :: ncid
+        integer             :: gid
 
-            ncerr = nf90_inq_ncid(ncid, 'options', gid)
-            if (ncerr /= 0) then
-                ncerr = nf90_def_grp(ncid, 'options', gid)
-                call check_netcdf_error("Failed to define or group 'options'.")
-            endif
+        ncerr = nf90_inq_ncid(ncid, 'options', gid)
+        if (ncerr /= 0) then
+            ncerr = nf90_def_grp(ncid, 'options', gid)
+            call check_netcdf_error("Failed to define or group 'options'.")
+        endif
 
 #ifdef ENABLE_VERBOSE
-            call write_netcdf_attribute(gid, "verbose", verbose)
+        call write_netcdf_attribute(gid, "verbose", verbose)
 #endif
 
-            call write_netcdf_viscosity(gid, vor_visc, 'vor_visc')
+        call write_netcdf_viscosity(gid, vor_visc, 'vor_visc')
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
+        call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
 #endif
-            call write_netcdf_attribute(gid, "filtering", filtering)
+        call write_netcdf_attribute(gid, "filtering", filtering)
 
-            call write_netcdf_attribute(gid, "time_stepper", time_stepper)
+        call write_netcdf_attribute(gid, "time_stepper", time_stepper)
 
-            call write_netcdf_attribute(gid, "field_freq", output%field_freq)
-            call write_netcdf_attribute(gid, "write_fields", output%write_fields)
-            call write_netcdf_attribute(gid, "field_stats_freq", output%field_stats_freq)
-            call write_netcdf_attribute(gid, "write_field_stats", output%write_field_stats)
-            call write_netcdf_attribute(gid, "overwrite", output%overwrite)
-            call write_netcdf_attribute(gid, "basename", trim(output%basename))
+        call write_netcdf_attribute(gid, "field_freq", output%field_freq)
+        call write_netcdf_attribute(gid, "write_fields", output%write_fields)
+        call write_netcdf_attribute(gid, "field_stats_freq", output%field_stats_freq)
+        call write_netcdf_attribute(gid, "write_field_stats", output%write_field_stats)
+        call write_netcdf_attribute(gid, "overwrite", output%overwrite)
+        call write_netcdf_attribute(gid, "basename", trim(output%basename))
 
-            call write_netcdf_attribute(gid, "limit", time%limit)
-            call write_netcdf_attribute(gid, "initial", time%initial)
-            call write_netcdf_attribute(gid, "precise_stop", time%precise_stop)
-            call write_netcdf_attribute(gid, "alpha", time%alpha)
+        call write_netcdf_attribute(gid, "limit", time%limit)
+        call write_netcdf_attribute(gid, "initial", time%initial)
+        call write_netcdf_attribute(gid, "precise_stop", time%precise_stop)
+        call write_netcdf_attribute(gid, "alpha", time%alpha)
 
-        end subroutine write_netcdf_options
+    end subroutine write_netcdf_options
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine write_netcdf_viscosity(gid, visc, label)
-            integer,          intent(in) :: gid
-            type(visc_type),  intent(in) :: visc
-            character(len=*), intent(in) :: label
+    subroutine write_netcdf_viscosity(gid, visc, label)
+        integer,          intent(in) :: gid
+        type(visc_type),  intent(in) :: visc
+        character(len=*), intent(in) :: label
 
-            if (visc%nnu == 1) then
-                call write_netcdf_attribute(gid, label, "molecular")
-            else
-                call write_netcdf_attribute(gid, label, "hyperviscosity")
-            endif
+        if (visc%nnu == 1) then
+            call write_netcdf_attribute(gid, label, "molecular")
+        else
+            call write_netcdf_attribute(gid, label, "hyperviscosity")
+        endif
 
-            call write_netcdf_attribute(gid, label // "%nnu", visc%nnu)
-            call write_netcdf_attribute(gid, label // "%prediss", visc%prediss)
-            call write_netcdf_attribute(gid, label // "%pretype", visc%pretype)
-            call write_netcdf_attribute(gid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
-            call write_netcdf_attribute(gid, label // "%length_scale", visc%length_scale)
+        call write_netcdf_attribute(gid, label // "%nnu", visc%nnu)
+        call write_netcdf_attribute(gid, label // "%prediss", visc%prediss)
+        call write_netcdf_attribute(gid, label // "%pretype", visc%pretype)
+        call write_netcdf_attribute(gid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+        call write_netcdf_attribute(gid, label // "%length_scale", visc%length_scale)
 
-        end subroutine write_netcdf_viscosity
+    end subroutine write_netcdf_viscosity
 
 end module options

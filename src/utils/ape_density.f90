@@ -5,32 +5,32 @@ module ape_density
 
     public :: ape_den
 
-    contains
+contains
 
-        elemental function ape_den(b, z) result(a)
-            double precision, intent(in) :: b       ! perturbation buoyancy
-            double precision, intent(in) :: z       ! height
-            double precision             :: a       ! APE density
-            double precision             :: br
+    elemental function ape_den(b, z) result(a)
+        double precision, intent(in) :: b       ! perturbation buoyancy
+        double precision, intent(in) :: z       ! height
+        double precision             :: a       ! APE density
+        double precision             :: br
 
-            br = b
+        br = b
 
 #ifdef ENABLE_IW_TEST_CASE
-            br = br + bfsq * z
-            br = max(br, -twopi)
-            br = min(br,  twopi)
-            br = br - bfsq * z
+        br = br + bfsq * z
+        br = max(br, -twopi)
+        br = min(br,  twopi)
+        br = br - bfsq * z
 #endif
 
 #ifdef ENABLE_RT_TEST_CASE
-            br = b + bfsq * z  ! convert buoyancy perturbation to total buoyancy
-            br = max(br, -one)
-            br = min(br,  one)
-            a = br * dasin(br) + sqrt(one - br ** 2) - z * br - cos(z)
+        br = b + bfsq * z  ! convert buoyancy perturbation to total buoyancy
+        br = max(br, -one)
+        br = min(br,  one)
+        a = br * dasin(br) + sqrt(one - br ** 2) - z * br - cos(z)
 #else
-            ! linear stratification:
-            a = br ** 2 / (two * bfsq)
+        ! linear stratification:
+        a = br ** 2 / (two * bfsq)
 #endif
-        end function ape_den
+    end function ape_den
 
 end module ape_density

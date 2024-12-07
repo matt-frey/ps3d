@@ -68,222 +68,222 @@ module stafft
 
     private :: rt2, rtf12, rtf516, sinf2pi5, sinfpi3, sinfpi5, sinrat
 
-    contains
+contains
 
-        ! Subroutine performs initialisation work for all the transforms.
-        ! It calls routines to factorise the array length n and then sets up
-        ! a trig array full of sin/cos values used in the transform backend.
-        subroutine initfft(n, factors, trig)
-            integer,          intent(in)  :: n
-            integer,          intent(out) :: factors(5)
-            double precision, intent(out) :: trig(2*n)
-            double precision              :: ftwopin
-            integer                       :: i, j, k, l, m, fac(5), rem, ierr
+    ! Subroutine performs initialisation work for all the transforms.
+    ! It calls routines to factorise the array length n and then sets up
+    ! a trig array full of sin/cos values used in the transform backend.
+    subroutine initfft(n, factors, trig)
+        integer,          intent(in)  :: n
+        integer,          intent(out) :: factors(5)
+        double precision, intent(out) :: trig(2*n)
+        double precision              :: ftwopin
+        integer                       :: i, j, k, l, m, fac(5), rem, ierr
 
-            ! First factorise n:
-            call factorisen(n, factors, ierr)
+        ! First factorise n:
+        call factorisen(n, factors, ierr)
 
-            ! Return if factorisation unsuccessful:
-            if (ierr == 1) then
-                ! Catastrophic end to run if factorisation fails:
-                write(*,*) '****************************'
-                write(*,*) ' Factorisation not possible.'
-                write(*,*) ' Only factors from 2-6 allowed.'
-                write(*,*) ' STOPPING...'
-                write(*,*) '****************************'
-                stop
-            endif
+        ! Return if factorisation unsuccessful:
+        if (ierr == 1) then
+            ! Catastrophic end to run if factorisation fails:
+            write(*,*) '****************************'
+            write(*,*) ' Factorisation not possible.'
+            write(*,*) ' Only factors from 2-6 allowed.'
+            write(*,*) ' STOPPING...'
+            write(*,*) '****************************'
+            stop
+        endif
 
-            ! Define list of factors array:
-            fac(1) = 6
-            fac(2) = 4
-            fac(3) = 2
-            fac(4) = 3
-            fac(5) = 5
+        ! Define list of factors array:
+        fac(1) = 6
+        fac(2) = 4
+        fac(3) = 2
+        fac(4) = 3
+        fac(5) = 5
 
-            ! Define constants needed in trig array definition:
-            ftwopin = twopi / dble(n)
-            rem = n
-            m = 1
-            do i = 1, 5
-                do j = 1, factors(i)
-                    rem = rem / fac(i)
-                    do k = 1, fac(i)-1
-                        do l = 0, rem-1
-                            trig(m) = ftwopin * dble(k * l)
-                            m = m + 1
-                        enddo
+        ! Define constants needed in trig array definition:
+        ftwopin = twopi / dble(n)
+        rem = n
+        m = 1
+        do i = 1, 5
+            do j = 1, factors(i)
+                rem = rem / fac(i)
+                do k = 1, fac(i)-1
+                    do l = 0, rem-1
+                        trig(m) = ftwopin * dble(k * l)
+                        m = m + 1
                     enddo
-                    ftwopin = ftwopin * fac(i)
                 enddo
+                ftwopin = ftwopin * fac(i)
             enddo
+        enddo
 
-            do i = 1, n-1
-                trig(n+i) = -sin(trig(i))
-                trig(i)   =  cos(trig(i))
-            enddo
-        end subroutine
-
-
-        subroutine factorisen(n, factors, ierr)
-            integer, intent(in)  :: n
-            integer, intent(out) :: factors(5), ierr
-            integer              :: i, rem
-
-            ierr = 0
-            ! Initialiase factors array:
-            do i=1, 5
-                factors(i)=0
-            enddo
-
-            rem=n
-            ! Find factors of 6:
-            do while (mod(rem, 6) == 0)
-                factors(1) = factors(1) + 1
-                rem = rem / 6
-                if (rem == 1) then
-                    return
-                endif
-            enddo
-
-            ! Find factors of 4:
-            do while (mod(rem, 4) == 0)
-                factors(2) = factors(2) + 1
-                rem = rem / 4
-                if (rem == 1) then
-                    return
-                endif
-            enddo
-
-            ! Find factors of 2:
-            do while (mod(rem,2) == 0)
-                factors(3) = factors(3) + 1
-                rem = rem / 2
-                if (rem == 1) then
-                    return
-                endif
-            enddo
-
-            ! Find factors of 3:
-            do while (mod(rem,3) == 0)
-                factors(4) = factors(4) + 1
-                rem = rem / 3
-                if (rem == 1) then
-                    return
-                endif
-            enddo
-
-            ! Find factors of 5:
-            do while (mod(rem,5) == 0)
-                factors(5) = factors(5) + 1
-                rem = rem / 5
-                if (rem == 1) then
-                    return
-                endif
-            enddo
-            ! If code reaches this point factorisation has
-            ! failed - return error code in ierr:
-            ierr = 1
-        end subroutine
+        do i = 1, n-1
+            trig(n+i) = -sin(trig(i))
+            trig(i)   =  cos(trig(i))
+        enddo
+    end subroutine
 
 
-        ! Main physical to spectral (forward) FFT routine.
-        ! Performs m transforms of length n in the array x which is dimensioned x(m, n).
-        ! The arrays trig and factors are filled by the init routine and
-        ! should be kept from call to call.
-        ! Backend consists of mixed-radix routines, with 'decimation in time'.
-        ! Transform is stored in Hermitian form.
-        subroutine forfft(m, n, x, trig, factors)
-            integer,          intent(in)    :: m, n
-            double precision, intent(inout) :: x(0:m*n-1)
-            double precision, intent(in)    :: trig(0:2*n-1)
-            integer,          intent(in)    :: factors(5)
-            double precision                :: wk(0:m*n-1), normfac
-            integer                         :: i, rem, cum, iloc
-            logical                         :: orig
+    subroutine factorisen(n, factors, ierr)
+        integer, intent(in)  :: n
+        integer, intent(out) :: factors(5), ierr
+        integer              :: i, rem
 
-            ! Initialise flip/flop logical and counters
-            orig = .true.
-            rem = n
-            cum = 1
+        ierr = 0
+        ! Initialiase factors array:
+        do i=1, 5
+            factors(i)=0
+        enddo
 
-            ! Use factors of 5:
-            do i = 1, factors(5)
-                rem = rem / 5
-                iloc = (rem - 1) * 5 * cum
-                if (orig) then
-                    call forrdx5(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
-                else
-                    call forrdx5(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
-                endif
-                orig = .not. orig
-                cum = cum * 5
-            enddo
-
-            ! Use factors of 3:
-            do i = 1, factors(4)
-                rem = rem / 3
-                iloc = (rem - 1) * 3 * cum
-                if (orig) then
-                    call forrdx3(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
-                else
-                    call forrdx3(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
-                endif
-                orig = .not. orig
-                cum = cum * 3
-            enddo
-
-            ! Use factors of 2:
-            do i = 1, factors(3)
-                rem = rem / 2
-                iloc = (rem - 1) * 2 * cum
-                if (orig) then
-                    call forrdx2(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
-                else
-                    call forrdx2(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
-                endif
-                orig = .not. orig
-                cum = cum * 2
-            enddo
-
-            ! Use factors of 4:
-            do i = 1, factors(2)
-                rem = rem / 4
-                iloc = (rem - 1) * 4 * cum
-                if (orig) then
-                    call forrdx4(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
-                else
-                    call forrdx4(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
-                endif
-                orig = .not. orig
-                cum = cum * 4
-            enddo
-
-            ! Use factors of 6:
-            do i= 1, factors(1)
-                rem = rem / 6
-                iloc =(rem - 1) * 6 * cum
-                if (orig) then
-                    call forrdx6(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
-                else
-                    call forrdx6(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
-                endif
-                orig = .not. orig
-                cum = cum * 6
-            enddo
-
-            ! Multiply by the normalisation constant and put
-            ! transformed array in the right location:
-            normfac = one / sqrt(dble(n))
-            if (orig) then
-                do i= 0, m * n - 1
-                    x(i) = x(i) * normfac
-                enddo
-            else
-                do i = 0, m * n - 1
-                    x(i) = wk(i) * normfac
-                enddo
+        rem=n
+        ! Find factors of 6:
+        do while (mod(rem, 6) == 0)
+            factors(1) = factors(1) + 1
+            rem = rem / 6
+            if (rem == 1) then
+                return
             endif
+        enddo
+
+        ! Find factors of 4:
+        do while (mod(rem, 4) == 0)
+            factors(2) = factors(2) + 1
+            rem = rem / 4
+            if (rem == 1) then
+                return
+            endif
+        enddo
+
+        ! Find factors of 2:
+        do while (mod(rem,2) == 0)
+            factors(3) = factors(3) + 1
+            rem = rem / 2
+            if (rem == 1) then
+                return
+            endif
+        enddo
+
+        ! Find factors of 3:
+        do while (mod(rem,3) == 0)
+            factors(4) = factors(4) + 1
+            rem = rem / 3
+            if (rem == 1) then
+                return
+            endif
+        enddo
+
+        ! Find factors of 5:
+        do while (mod(rem,5) == 0)
+            factors(5) = factors(5) + 1
+            rem = rem / 5
+            if (rem == 1) then
+                return
+            endif
+        enddo
+        ! If code reaches this point factorisation has
+        ! failed - return error code in ierr:
+        ierr = 1
+    end subroutine
+
+
+    ! Main physical to spectral (forward) FFT routine.
+    ! Performs m transforms of length n in the array x which is dimensioned x(m, n).
+    ! The arrays trig and factors are filled by the init routine and
+    ! should be kept from call to call.
+    ! Backend consists of mixed-radix routines, with 'decimation in time'.
+    ! Transform is stored in Hermitian form.
+    subroutine forfft(m, n, x, trig, factors)
+        integer,          intent(in)    :: m, n
+        double precision, intent(inout) :: x(0:m*n-1)
+        double precision, intent(in)    :: trig(0:2*n-1)
+        integer,          intent(in)    :: factors(5)
+        double precision                :: wk(0:m*n-1), normfac
+        integer                         :: i, rem, cum, iloc
+        logical                         :: orig
+
+        ! Initialise flip/flop logical and counters
+        orig = .true.
+        rem = n
+        cum = 1
+
+        ! Use factors of 5:
+        do i = 1, factors(5)
+            rem = rem / 5
+            iloc = (rem - 1) * 5 * cum
+            if (orig) then
+                call forrdx5(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
+            else
+                call forrdx5(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
+            endif
+            orig = .not. orig
+            cum = cum * 5
+        enddo
+
+        ! Use factors of 3:
+        do i = 1, factors(4)
+            rem = rem / 3
+            iloc = (rem - 1) * 3 * cum
+            if (orig) then
+                call forrdx3(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
+            else
+                call forrdx3(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
+            endif
+            orig = .not. orig
+            cum = cum * 3
+        enddo
+
+        ! Use factors of 2:
+        do i = 1, factors(3)
+            rem = rem / 2
+            iloc = (rem - 1) * 2 * cum
+            if (orig) then
+                call forrdx2(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
+            else
+                call forrdx2(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
+            endif
+            orig = .not. orig
+            cum = cum * 2
+        enddo
+
+        ! Use factors of 4:
+        do i = 1, factors(2)
+            rem = rem / 4
+            iloc = (rem - 1) * 4 * cum
+            if (orig) then
+                call forrdx4(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
+            else
+                call forrdx4(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
+            endif
+            orig = .not. orig
+            cum = cum * 4
+        enddo
+
+        ! Use factors of 6:
+        do i= 1, factors(1)
+            rem = rem / 6
+            iloc =(rem - 1) * 6 * cum
+            if (orig) then
+                call forrdx6(x, wk, m*rem, cum, trig(iloc), trig(n+iloc))
+            else
+                call forrdx6(wk, x, m*rem, cum, trig(iloc), trig(n+iloc))
+            endif
+            orig = .not. orig
+            cum = cum * 6
+        enddo
+
+        ! Multiply by the normalisation constant and put
+        ! transformed array in the right location:
+        normfac = one / sqrt(dble(n))
+        if (orig) then
+            do i= 0, m * n - 1
+                x(i) = x(i) * normfac
+            enddo
+        else
+            do i = 0, m * n - 1
+                x(i) = wk(i) * normfac
+            enddo
+        endif
     end subroutine
 
 

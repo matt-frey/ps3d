@@ -1,6 +1,6 @@
 module iomanip
 
-    contains
+contains
 
     ! convert number to string of length 10 with
     ! leading zeros

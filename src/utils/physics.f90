@@ -109,235 +109,235 @@ module physics
 #endif
                print_physical_quantity_character
 
-    contains
+contains
 
-        ! This subroutine is only used in model setups
-        subroutine read_physical_quantities_from_namelist(fname)
-            character(*), intent(in) :: fname
-            integer                  :: ios
-            integer                  :: fn = 2
-            logical                  :: exists = .false.
+    ! This subroutine is only used in model setups
+    subroutine read_physical_quantities_from_namelist(fname)
+        character(*), intent(in) :: fname
+        integer                  :: ios
+        integer                  :: fn = 2
+        logical                  :: exists = .false.
 
-            ! namelist definitions
-            namelist /PHYSICS/ gravity,             &
-                               L_v,                 &
-                               c_p,                 &
-                               theta_0,             &
-                               ang_vel,             &
-                               l_planet_vorticity,  &
-                               lat_degrees,         &
-                               q_0,                 &
-                               height_c
+        ! namelist definitions
+        namelist /PHYSICS/ gravity,             &
+                            L_v,                 &
+                            c_p,                 &
+                            theta_0,             &
+                            ang_vel,             &
+                            l_planet_vorticity,  &
+                            lat_degrees,         &
+                            q_0,                 &
+                            height_c
 
-            ! check whether file exists
-            inquire(file=fname, exist=exists)
+        ! check whether file exists
+        inquire(file=fname, exist=exists)
 
-            if (exists .eqv. .false.) then
-                call mpi_stop('Error: input file "' // fname // '" does not exist.')
-            endif
+        if (exists .eqv. .false.) then
+            call mpi_stop('Error: input file "' // fname // '" does not exist.')
+        endif
 
-            ! open and read Namelist file.
-            open(action='read', file=fname, iostat=ios, newunit=fn)
+        ! open and read Namelist file.
+        open(action='read', file=fname, iostat=ios, newunit=fn)
 
-            read(nml=PHYSICS, iostat=ios, unit=fn)
+        read(nml=PHYSICS, iostat=ios, unit=fn)
 
-            if (ios == IOSTAT_END) then
-                ! physical constants/parameters not present
-            else if (ios /= 0) then
-                call mpi_stop('Error: invalid Namelist format.')
-            endif
+        if (ios == IOSTAT_END) then
+            ! physical constants/parameters not present
+        else if (ios /= 0) then
+            call mpi_stop('Error: invalid Namelist format.')
+        endif
 
-            close(fn)
+        close(fn)
 
-            call update_physical_quantities
+        call update_physical_quantities
 
-        end subroutine read_physical_quantities_from_namelist
+    end subroutine read_physical_quantities_from_namelist
 
-        subroutine update_physical_quantities
+    subroutine update_physical_quantities
 
-            glat = gravity * L_v / (c_p * theta_0)
-            glati = one / glat
+        glat = gravity * L_v / (c_p * theta_0)
+        glati = one / glat
 
-            lambda_c = one / height_c
+        lambda_c = one / height_c
 
-            if (l_planet_vorticity) then
-                lat_ref = lat_degrees * deg2rad
-                f_cor(1) = zero
-                f_cor(2) = two * ang_vel * cos(lat_ref)
-                f_cor(3) = two * ang_vel * sin(lat_ref)
-            else
-                f_cor = zero
-            endif
-        end subroutine update_physical_quantities
+        if (l_planet_vorticity) then
+            lat_ref = lat_degrees * deg2rad
+            f_cor(1) = zero
+            f_cor(2) = two * ang_vel * cos(lat_ref)
+            f_cor(3) = two * ang_vel * sin(lat_ref)
+        else
+            f_cor = zero
+        endif
+    end subroutine update_physical_quantities
 
-        subroutine read_physical_quantities(ncid)
-            integer, intent(in) :: ncid
-            integer             :: grp_ncid
+    subroutine read_physical_quantities(ncid)
+        integer, intent(in) :: ncid
+        integer             :: grp_ncid
 
-            ncerr = nf90_inq_ncid(ncid, 'physical_quantities', grp_ncid)
+        ncerr = nf90_inq_ncid(ncid, 'physical_quantities', grp_ncid)
 
-            if (ncerr == 0) then
-                call read_netcdf_attribute_default(grp_ncid, 'standard_gravity', gravity)
-                call read_netcdf_attribute_default(grp_ncid, 'latent_heat_of_vaporization', L_v)
-                call read_netcdf_attribute_default(grp_ncid, 'specific_heat', c_p)
-                call read_netcdf_attribute_default(grp_ncid, 'temperature_at_sea_level', theta_0)
-                call read_netcdf_attribute_default(grp_ncid, 'planetary_angular_velocity', ang_vel)
-                call read_netcdf_attribute_default(grp_ncid, 'saturation_specific_humidity_at_ground_level', q_0)
-                call read_netcdf_attribute_default(grp_ncid, 'planetary_vorticity', l_planet_vorticity)
-                call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
-                call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
+        if (ncerr == 0) then
+            call read_netcdf_attribute_default(grp_ncid, 'standard_gravity', gravity)
+            call read_netcdf_attribute_default(grp_ncid, 'latent_heat_of_vaporization', L_v)
+            call read_netcdf_attribute_default(grp_ncid, 'specific_heat', c_p)
+            call read_netcdf_attribute_default(grp_ncid, 'temperature_at_sea_level', theta_0)
+            call read_netcdf_attribute_default(grp_ncid, 'planetary_angular_velocity', ang_vel)
+            call read_netcdf_attribute_default(grp_ncid, 'saturation_specific_humidity_at_ground_level', q_0)
+            call read_netcdf_attribute_default(grp_ncid, 'planetary_vorticity', l_planet_vorticity)
+            call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
+            call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
 #ifdef ENABLE_BUOYANCY
-                l_bfsq = has_attribute(grp_ncid, 'squared_buoyancy_frequency')
-                if (l_bfsq) then
-                    call read_netcdf_attribute_default(grp_ncid, 'squared_buoyancy_frequency', bfsq)
-                endif
+            l_bfsq = has_attribute(grp_ncid, 'squared_buoyancy_frequency')
+            if (l_bfsq) then
+                call read_netcdf_attribute_default(grp_ncid, 'squared_buoyancy_frequency', bfsq)
+            endif
 #endif
 #ifdef ENABLE_VERBOSE
-            else
-                call mpi_print(&
-                    "WARNING: No physical constants found! PS3D uses default values.")
+        else
+            call mpi_print(&
+                "WARNING: No physical constants found! PS3D uses default values.")
 #endif
-            endif
+        endif
 
-            call update_physical_quantities
+        call update_physical_quantities
 
-        end subroutine read_physical_quantities
+    end subroutine read_physical_quantities
 
-        subroutine write_physical_quantities(ncid)
-            integer, intent(in)     :: ncid
-            integer                 :: grp_ncid
-            character(*), parameter :: name = 'physical_quantities'
+    subroutine write_physical_quantities(ncid)
+        integer, intent(in)     :: ncid
+        integer                 :: grp_ncid
+        character(*), parameter :: name = 'physical_quantities'
 
-            ncerr = nf90_def_grp(ncid, name, grp_ncid)
+        ncerr = nf90_def_grp(ncid, name, grp_ncid)
 
-            call check_netcdf_error("Faild to create NetCDF group '" // name // "'.")
+        call check_netcdf_error("Faild to create NetCDF group '" // name // "'.")
 
-            call write_netcdf_attribute(grp_ncid, 'standard_gravity', gravity)
-            call write_netcdf_attribute(grp_ncid, 'latent_heat_of_vaporization', L_v)
-            call write_netcdf_attribute(grp_ncid, 'specific_heat', c_p)
-            call write_netcdf_attribute(grp_ncid, 'temperature_at_sea_level', theta_0)
-            call write_netcdf_attribute(grp_ncid, 'planetary_angular_velocity', ang_vel)
-            call write_netcdf_attribute(grp_ncid, 'saturation_specific_humidity_at_ground_level', q_0)
-            call write_netcdf_attribute(grp_ncid, 'planet_vorticity', l_planet_vorticity)
-            call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
-            call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
+        call write_netcdf_attribute(grp_ncid, 'standard_gravity', gravity)
+        call write_netcdf_attribute(grp_ncid, 'latent_heat_of_vaporization', L_v)
+        call write_netcdf_attribute(grp_ncid, 'specific_heat', c_p)
+        call write_netcdf_attribute(grp_ncid, 'temperature_at_sea_level', theta_0)
+        call write_netcdf_attribute(grp_ncid, 'planetary_angular_velocity', ang_vel)
+        call write_netcdf_attribute(grp_ncid, 'saturation_specific_humidity_at_ground_level', q_0)
+        call write_netcdf_attribute(grp_ncid, 'planet_vorticity', l_planet_vorticity)
+        call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
+        call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
 #ifdef ENABLE_BUOYANCY
-            if (l_bfsq) then
-                call write_netcdf_attribute(grp_ncid, 'squared_buoyancy_frequency', bfsq)
-            endif
+        if (l_bfsq) then
+            call write_netcdf_attribute(grp_ncid, 'squared_buoyancy_frequency', bfsq)
+        endif
 #endif
 
-        end subroutine write_physical_quantities
+    end subroutine write_physical_quantities
 
-        subroutine print_physical_quantities
-            if (world%rank /= world%root) then
-                return
-            endif
-            write(*, "(a)") 'List of physical quantities (in MKS units):'
-            write(*, "(a)") repeat("-", 78)
-            call print_physical_quantity('standard gravity', gravity, 'm/s^2')
-            call print_physical_quantity('latent heat of vaporization', L_v, 'J/kg')
-            call print_physical_quantity('specific heat', c_p, 'J/(kg*K)')
-            call print_physical_quantity('temperature at sea level', theta_0, 'K')
-            call print_physical_quantity('planetary angular velocity', ang_vel, 'rad/s')
-            call print_physical_quantity('saturation specific humidity at ground level', q_0)
-            call print_physical_quantity('planetary vorticity', l_planet_vorticity)
-            call print_physical_quantity('vertical planetary vorticity', f_cor(3), '1/s')
-            call print_physical_quantity('horizontal planetary vorticity', f_cor(2), '1/s')
-            call print_physical_quantity('latitude degrees', lat_degrees, 'deg')
-            call print_physical_quantity('scale height', height_c, 'm')
-            call print_physical_quantity('inverse scale height', lambda_c, '1/m')
+    subroutine print_physical_quantities
+        if (world%rank /= world%root) then
+            return
+        endif
+        write(*, "(a)") 'List of physical quantities (in MKS units):'
+        write(*, "(a)") repeat("-", 78)
+        call print_physical_quantity('standard gravity', gravity, 'm/s^2')
+        call print_physical_quantity('latent heat of vaporization', L_v, 'J/kg')
+        call print_physical_quantity('specific heat', c_p, 'J/(kg*K)')
+        call print_physical_quantity('temperature at sea level', theta_0, 'K')
+        call print_physical_quantity('planetary angular velocity', ang_vel, 'rad/s')
+        call print_physical_quantity('saturation specific humidity at ground level', q_0)
+        call print_physical_quantity('planetary vorticity', l_planet_vorticity)
+        call print_physical_quantity('vertical planetary vorticity', f_cor(3), '1/s')
+        call print_physical_quantity('horizontal planetary vorticity', f_cor(2), '1/s')
+        call print_physical_quantity('latitude degrees', lat_degrees, 'deg')
+        call print_physical_quantity('scale height', height_c, 'm')
+        call print_physical_quantity('inverse scale height', lambda_c, '1/m')
 #ifdef ENABLE_BUOYANCY
-            if (l_bfsq) then
-                call print_physical_quantity('squared_buoyancy_frequency', bfsq, '1/s^2')
-            endif
+        if (l_bfsq) then
+            call print_physical_quantity('squared_buoyancy_frequency', bfsq, '1/s^2')
+        endif
 #endif
-            write(*, *) ''
-        end subroutine print_physical_quantities
+        write(*, *) ''
+    end subroutine print_physical_quantities
 
-        subroutine print_physical_quantity_double(name, val, unit)
-            character(*),           intent(in) :: name
-            double precision,       intent(in) :: val
-            character(*), optional, intent(in) :: unit
-            character(64)                      :: fix_length_name
+    subroutine print_physical_quantity_double(name, val, unit)
+        character(*),           intent(in) :: name
+        double precision,       intent(in) :: val
+        character(*), optional, intent(in) :: unit
+        character(64)                      :: fix_length_name
 
-            fix_length_name = name
-            if (present(unit)) then
-                fix_length_name = name // ', ' // unit
-            endif
-            write (*, "(a, 1p,e14.7)") fix_length_name, val
-        end subroutine print_physical_quantity_double
+        fix_length_name = name
+        if (present(unit)) then
+            fix_length_name = name // ', ' // unit
+        endif
+        write (*, "(a, 1p,e14.7)") fix_length_name, val
+    end subroutine print_physical_quantity_double
 
-        subroutine print_physical_quantity_integer(name, val, unit)
-            character(*),           intent(in) :: name
-            integer,                intent(in) :: val
-            character(*), optional, intent(in) :: unit
-            character(64)                      :: fix_length_name
+    subroutine print_physical_quantity_integer(name, val, unit)
+        character(*),           intent(in) :: name
+        integer,                intent(in) :: val
+        character(*), optional, intent(in) :: unit
+        character(64)                      :: fix_length_name
 
-            fix_length_name = name
-            if (present(unit)) then
-                fix_length_name = name // ', ' // unit
-            endif
-            write (*, "(a, I14)") fix_length_name, val
-        end subroutine print_physical_quantity_integer
+        fix_length_name = name
+        if (present(unit)) then
+            fix_length_name = name // ', ' // unit
+        endif
+        write (*, "(a, I14)") fix_length_name, val
+    end subroutine print_physical_quantity_integer
 
-        subroutine print_physical_quantity_logical(name, val, unit)
-            character(*),           intent(in) :: name
-            logical,                intent(in) :: val
-            character(*), optional, intent(in) :: unit
+    subroutine print_physical_quantity_logical(name, val, unit)
+        character(*),           intent(in) :: name
+        logical,                intent(in) :: val
+        character(*), optional, intent(in) :: unit
 
-            if (val) then
-                call print_physical_quantity_character(name, 'true', unit)
-            else
-                call print_physical_quantity_character(name, 'false', unit)
-            endif
-        end subroutine print_physical_quantity_logical
+        if (val) then
+            call print_physical_quantity_character(name, 'true', unit)
+        else
+            call print_physical_quantity_character(name, 'false', unit)
+        endif
+    end subroutine print_physical_quantity_logical
 
-        subroutine print_physical_quantity_character(name, val, unit)
-            character(*),           intent(in) :: name
-            character(*),           intent(in) :: val
-            character(*), optional, intent(in) :: unit
-            character(64)                      :: fix_length_name
+    subroutine print_physical_quantity_character(name, val, unit)
+        character(*),           intent(in) :: name
+        character(*),           intent(in) :: val
+        character(*), optional, intent(in) :: unit
+        character(64)                      :: fix_length_name
 
-            fix_length_name = name
-            if (present(unit)) then
-                fix_length_name = name // ', ' // unit
-            endif
-            write (*, "(a, a14)") fix_length_name, val
-        end subroutine print_physical_quantity_character
+        fix_length_name = name
+        if (present(unit)) then
+            fix_length_name = name // ', ' // unit
+        endif
+        write (*, "(a, a14)") fix_length_name, val
+    end subroutine print_physical_quantity_character
 
 #ifdef ENABLE_BUOYANCY
-        subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
-            integer,          intent(in) :: nx, ny, nz
-            double precision, intent(in) :: zext
-            double precision, intent(in) :: buoy(0:nz,                 &
-                                                 box%lo(2):box%hi(2),  &
-                                                 box%lo(1):box%hi(1))
+    subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
+        integer,          intent(in) :: nx, ny, nz
+        double precision, intent(in) :: zext
+        double precision, intent(in) :: buoy(0:nz,                 &
+                                                box%lo(2):box%hi(2),  &
+                                                box%lo(1):box%hi(1))
 
-            if (l_bfsq) then
-                if (world%rank == world%root) then
-                    print *, "Provided squared buoyancy frequency:", bfsq
-                endif
-                return
-            endif
-
-            bfsq = sum(buoy(nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                     - buoy(0,  box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-            call MPI_Allreduce(MPI_IN_PLACE,            &
-                               bfsq,                    &
-                               1,                       &
-                               MPI_DOUBLE_PRECISION,    &
-                               MPI_SUM,                 &
-                               world%comm,              &
-                               world%err)
-
-            bfsq = bfsq / (dble(nx * ny) * zext)
-
+        if (l_bfsq) then
             if (world%rank == world%root) then
-                print *, "Calculated squared buoyancy frequency:", bfsq
+                print *, "Provided squared buoyancy frequency:", bfsq
             endif
-        end subroutine calculate_basic_reference_state
+            return
+        endif
+
+        bfsq = sum(buoy(nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
+                    - buoy(0,  box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        call MPI_Allreduce(MPI_IN_PLACE,            &
+                            bfsq,                    &
+                            1,                       &
+                            MPI_DOUBLE_PRECISION,    &
+                            MPI_SUM,                 &
+                            world%comm,              &
+                            world%err)
+
+        bfsq = bfsq / (dble(nx * ny) * zext)
+
+        if (world%rank == world%root) then
+            print *, "Calculated squared buoyancy frequency:", bfsq
+        endif
+    end subroutine calculate_basic_reference_state
 #endif
 
 end module physics

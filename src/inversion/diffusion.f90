@@ -43,108 +43,108 @@ module diffusion
             , vvisc                     &
             , vhdis
 
-    contains
+contains
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_diffusion(te, en)
-            double precision, intent(in) :: te ! total energy
-            double precision, intent(in) :: en ! enstrophy
+    subroutine init_diffusion(te, en)
+        double precision, intent(in) :: te ! total energy
+        double precision, intent(in) :: en ! enstrophy
 
-            ! check if initialised
-            if (is_diffusion_initialised) then
-                return
-            endif
+        ! check if initialised
+        if (is_diffusion_initialised) then
+            return
+        endif
 
-            is_diffusion_initialised = .true.
+        is_diffusion_initialised = .true.
 
-            if (.not. is_fft_initialised) then
-                call mpi_stop("Error: FFT not initialised.")
-            endif
+        if (.not. is_fft_initialised) then
+            call mpi_stop("Error: FFT not initialised.")
+        endif
 
-            vvisc = get_viscosity(vor_visc%length_scale, &
-                                  vor_visc%prediss,      &
-                                  vor_visc%nnu, te, en)
+        vvisc = get_viscosity(vor_visc%length_scale, &
+                                vor_visc%prediss,      &
+                                vor_visc%nnu, te, en)
 
-            allocate(vhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(vhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-            call init_dissipation('Vorticity', vvisc, vor_visc%nnu, vhdis)
+        call init_dissipation('Vorticity', vvisc, vor_visc%nnu, vhdis)
 
 #ifdef ENABLE_BUOYANCY
-            bvisc = get_viscosity(buoy_visc%length_scale, &
-                                  buoy_visc%prediss,      &
-                                  buoy_visc%nnu, te, en)
+        bvisc = get_viscosity(buoy_visc%length_scale, &
+                                buoy_visc%prediss,      &
+                                buoy_visc%nnu, te, en)
 
-            allocate(bhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(bhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-            call init_dissipation('Buoyancy', bvisc, buoy_visc%nnu, bhdis)
+        call init_dissipation('Buoyancy', bvisc, buoy_visc%nnu, bhdis)
 #endif
 
-        end subroutine init_diffusion
+    end subroutine init_diffusion
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        function get_viscosity(lscale, prediss, p, te, en) result(vis)
-            character(len=11), intent(in) :: lscale
-            double precision,  intent(in) :: prediss
-            integer,           intent(in) :: p
-            double precision,  intent(in) :: te ! total energy
-            double precision,  intent(in) :: en ! enstrophy
-            double precision              :: rkmsi, vis
-            double precision              :: rkxmax, rkymax, K2max
+    function get_viscosity(lscale, prediss, p, te, en) result(vis)
+        character(len=11), intent(in) :: lscale
+        double precision,  intent(in) :: prediss
+        integer,           intent(in) :: p
+        double precision,  intent(in) :: te ! total energy
+        double precision,  intent(in) :: en ! enstrophy
+        double precision              :: rkmsi, vis
+        double precision              :: rkxmax, rkymax, K2max
 
-            rkxmax = maxval(rkx)
-            rkymax = maxval(rky)
+        rkxmax = maxval(rkx)
+        rkymax = maxval(rky)
 
 
-            ! Define viscosity:
-            K2max = max(rkxmax, rkymax) ** 2
-            rkmsi = one / K2max
+        ! Define viscosity:
+        K2max = max(rkxmax, rkymax) ** 2
+        rkmsi = one / K2max
 
-            select case (lscale)
-                case ('Kolmogorov')
-                    vis = prediss *  (K2max * te /en) ** f13 * rkmsi ** p
-                case ('geophysical')
-                    vis = prediss * rkmsi ** p
-                case default
-                    call mpi_stop(&
-                        "We only support 'Kolmogorov' or 'geophysical'")
-            end select
+        select case (lscale)
+            case ('Kolmogorov')
+                vis = prediss *  (K2max * te /en) ** f13 * rkmsi ** p
+            case ('geophysical')
+                vis = prediss * rkmsi ** p
+            case default
+                call mpi_stop(&
+                    "We only support 'Kolmogorov' or 'geophysical'")
+        end select
 
-        end function get_viscosity
+    end function get_viscosity
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine init_dissipation(label, visc, p, hdis)
-            character(len=*), intent(in)  :: label
-            double precision, intent(in)  :: visc
-            integer,          intent(in)  :: p
-            double precision, intent(out) :: hdis(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
+    subroutine init_dissipation(label, visc, p, hdis)
+        character(len=*), intent(in)  :: label
+        double precision, intent(in)  :: visc
+        integer,          intent(in)  :: p
+        double precision, intent(out) :: hdis(box%lo(2):box%hi(2), &
+                                                box%lo(1):box%hi(1))
 
-            !---------------------------------------------------------------------
-            ! Damping, viscous or hyperviscous:
-            if (p .eq. 1) then
-                if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') label // ' molecular viscosity nu = ', visc
-                endif
+        !---------------------------------------------------------------------
+        ! Damping, viscous or hyperviscous:
+        if (p .eq. 1) then
+            if (world%rank == world%root) then
+                write(*,'(a,1p,e14.7)') label // ' molecular viscosity nu = ', visc
+            endif
 
-                !Define spectral dissipation operator:
-                !$omp parallel workshare
-                hdis = visc * k2l2
-                !$omp end parallel workshare
-             else
-                !Define hyperviscosity:
-                if (world%rank == world%root) then
-                    write(*,'(a,1p,e14.7)') label // ' hyperviscosity nu = ', visc
-                endif
+            !Define spectral dissipation operator:
+            !$omp parallel workshare
+            hdis = visc * k2l2
+            !$omp end parallel workshare
+        else
+            !Define hyperviscosity:
+            if (world%rank == world%root) then
+                write(*,'(a,1p,e14.7)') label // ' hyperviscosity nu = ', visc
+            endif
 
-                !Define dissipation operator:
-                !$omp parallel workshare
-                hdis = visc * k2l2 ** p
-                !$omp end parallel workshare
-             endif
+            !Define dissipation operator:
+            !$omp parallel workshare
+            hdis = visc * k2l2 ** p
+            !$omp end parallel workshare
+        endif
 
-        end subroutine init_dissipation
+    end subroutine init_dissipation
 
 end module diffusion
