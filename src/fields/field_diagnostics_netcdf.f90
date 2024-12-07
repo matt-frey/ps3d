@@ -338,7 +338,7 @@ module field_diagnostics_netcdf
             nc_dset(NC_USZRMS)%val   = sqrt(buf(7))
             nc_dset(NC_USDELRMS)%val = sqrt(buf(8))
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_APE)%val    = buf(9)
+            nc_dset(NC_APE)%val    = buf(9) * ncelli
 
 #ifdef ENABLE_BALANCE
             if (output%l_balanced) then

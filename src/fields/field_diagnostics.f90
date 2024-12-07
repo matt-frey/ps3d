@@ -28,49 +28,30 @@ module field_diagnostics
             double precision, intent(inout) :: bb(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
-            logical,          intent(in) :: l_global
-            logical,          intent(in) :: l_allreduce
-            double precision             :: ape
-#if !defined(NDEBUG)
-            logical                      :: l_dummy
-#endif
-            integer                      :: i, j
-            double precision             :: z(0:nz)
+            logical,          intent(in)    :: l_global
+            logical,          intent(in)    :: l_allreduce
+            double precision                :: ape
+            integer                         :: i, j
+            double precision                :: z(0:nz)
+            double precision                :: ad(0:nz,                &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
 
             z = layout%get_z_axis()
 
-            ape = zero
             do i = box%lo(1), box%hi(1)
                 do j = box%lo(2), box%hi(2)
-                    ape = ape + sum(ape_den(bb(1:nz-1, j, i), z(1:nz-1))) &
-                        + f12 *     ape_den(bb(0,      j, i), z(0))       &
-                        + f12 *     ape_den(bb(nz,     j, i), z(nz))
+                    ad(:, j, i) = ape_den(bb(:, j, i), z)
                 enddo
             enddo
 
-            ape = ape * ncelli
-
             if (l_global) then
-                if (l_allreduce) then
-                    call MPI_Allreduce(MPI_IN_PLACE,            &
-                                       ape,                     &
-                                       1,                       &
-                                       MPI_DOUBLE_PRECISION,    &
-                                       MPI_SUM,                 &
-                                       world%comm,              &
-                                       world%err)
-
-                    call mpi_check_for_error(world, &
-                        "in MPI_Allreduce of field_diagnostics::get_available_potential_energy.")
-                else
-                    call mpi_blocking_reduce(ape, MPI_SUM, world)
-                endif
+                ! already includes normalisation with "ncell"
+                ape = layout%get_mean(ad, l_allreduce)
+            else
+                ape = layout%get_local_sum(ad)
             endif
 
-#ifndef NDEBUG
-            l_dummy = l_allreduce ! just to avoid unused variable compiler error in debug mode
-            l_dummy = l_global
-#endif
         end function get_available_potential_energy
 #endif
 
