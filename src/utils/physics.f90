@@ -307,6 +307,14 @@ contains
     end subroutine print_physical_quantity_character
 
 #ifdef ENABLE_BUOYANCY
+    subroutine set_basic_reference_state(bf2)
+        double precision, intent(in) :: bf2
+
+        bfsq = bf2
+        l_bfsq = .true.
+    end subroutine set_basic_reference_state
+
+
     subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
         integer,          intent(in) :: nx, ny, nz
         double precision, intent(in) :: zext
