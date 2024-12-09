@@ -17,7 +17,7 @@ module model_manager
                       , print_physical_quantities
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq, calculate_basic_reference_state
-    use options, only : buoy_visc
+    use options, only : buoy_visc, l_buoyancy_anomaly
 #endif
     use field_diagnostics
     use jacobi, only : jacobi_eigenvalues
@@ -649,13 +649,17 @@ contains
         ! decompose initial fields
 #ifdef ENABLE_BUOYANCY
         call calculate_basic_reference_state(nx, ny, nz, extent(3), buoy)
+        if (l_buoyancy_anomaly) then
 
-        ! remove basic state from buoyancy
-        z = layout%get_z_axis()
-        do iz = 0, nz
-            bbarz(iz) = bfsq * z(iz)
-            buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
-        enddo
+            ! remove basic state from buoyancy
+            z = layout%get_z_axis()
+            do iz = 0, nz
+                bbarz(iz) = bfsq * z(iz)
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
+        else
+            bbarz = zero
+        endif
         call layout%decompose_physical(buoy, sbuoy)
 #endif
         call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))

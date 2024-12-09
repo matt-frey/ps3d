@@ -16,6 +16,7 @@ module field_diagnostics
     use fields, only : buoy, sbuoy
     use fields, only : bbarz
     use physics, only : bfsq
+    use options, only : l_buoyancy_anomaly
 #endif
     use mpi_utils, only : mpi_check_for_error
     implicit none
@@ -309,6 +310,10 @@ contains
         mss = minval(dbdz)
 
         mss = one + mss / bfsq
+
+        if (.not. l_buoyancy_anomaly) then
+            mss = mss - one
+        endif
 
         if (l_global) then
             call mpi_blocking_reduce(mss, MPI_MIN, world)

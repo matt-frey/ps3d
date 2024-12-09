@@ -4,6 +4,7 @@ module inversion_mod
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
+    use options, only : l_buoyancy_anomaly
 #endif
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
@@ -229,7 +230,11 @@ contains
         !
         !   d(w*b)/dz = w * db/dz
         !
-        btend = btend - bfsq * vel(:, :, :, 3) - fp
+        if (l_buoyancy_anomaly) then
+            btend = btend - bfsq * vel(:, :, :, 3) - fp
+        else
+            btend = btend - fp
+        endif
 
         ! Convert to mixed-spectral space:
         call layout%decompose_physical(btend, sbuoys)

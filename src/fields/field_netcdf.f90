@@ -1,6 +1,9 @@
 module field_netcdf
     use model, only : layout
     use options, only : output, verbose
+#ifdef ENABLE_BUOYANCY
+    use options, only : l_buoyancy_anomaly
+#endif
     use constants, only : one
     use netcdf_utils
     use netcdf_writer
@@ -234,7 +237,9 @@ contains
 #ifdef ENABLE_BUOYANCY
         call layout%combine_physical(sbuoy, buoy)
 
-        call write_field_double(NC_BUOY_AN, buoy, start, cnt)
+        if (l_buoyancy_anomaly) then
+            call write_field_double(NC_BUOY_AN, buoy, start, cnt)
+        endif
 
         if (nc_dset(NC_BUOY)%l_enabled) then
             ! get total buoyancy
@@ -454,7 +459,9 @@ contains
             nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_BUOY)%l_enabled  = .true.
-            nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            if (l_buoyancy_anomaly) then
+                nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            endif
 #endif
         else
             ! check individual fields
@@ -486,7 +493,9 @@ contains
             nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
             nc_dset(NC_BUOY)%l_enabled  = .true.
-            nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            if (l_buoyancy_anomaly) then
+                nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            endif
 #endif
         endif
 
