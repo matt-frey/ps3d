@@ -64,6 +64,7 @@ module model_manager
                             , get_time              &
                             , get_netcdf_box        &
                             , read_netcdf_attribute
+    use drew_impl_rk4
     implicit none
 
     private
@@ -76,7 +77,7 @@ module model_manager
 #ifdef ENABLE_BUOYANCY
     type(rolling_mean_t) :: buoy_rollmean
 #endif
-    class(stepper_t), allocatable :: stepper
+!     class(stepper_t), allocatable :: stepper
 
     !Diagnostic quantities:
     double precision :: bfmax, vortmax, vortrms, ggmax
@@ -119,7 +120,7 @@ contains
 
         call setup_output_files
 
-        stepper = create_stepper(time_stepper)
+!         stepper = create_stepper(time_stepper)
 
     end subroutine
 
@@ -184,7 +185,8 @@ contains
             print *, "At time", t, "and time step", dt
         endif
 
-        call stepper%step(t, dt)
+!         call stepper%step(t, dt)
+        call impl_rk4(t, dt)
 
     end subroutine advance
 
@@ -469,7 +471,8 @@ contains
         bval = get_diffusion_pre_factor(buoy_visc)
 #endif
 
-        call stepper%set_diffusion(dt, vval, bval)
+!         call stepper%set_diffusion(dt, vval, bval)
+        call set_diffusion(dt, vval, bval)
 
     end subroutine adapt
 

@@ -33,6 +33,7 @@ ps3d_SOURCES +=					\
 	stepper/stepper.f90			\
 	stepper/cn2.f90				\
 	stepper/impl_rk4.f90			\
+	stepper/drew_impl_rk4.f90		\
 	stepper/stepper_factory.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	model/model_manager.f90			\
