@@ -55,6 +55,7 @@ module cheby_layout
         procedure :: zzderiv
 
         procedure :: decomposed_diffz
+        procedure :: semi_spectral_diffz
 
     end type cheby_layout_t
 
@@ -238,7 +239,7 @@ contains
         if (l_decomposed) then
             call this%decomposed_diffz(fs, ds)
         else
-            call this%zderiv(fs, ds)
+            call this%semi_spectral_diffz(fs, ds)
         endif
 
     end subroutine diffz
@@ -249,14 +250,47 @@ contains
         class (cheby_layout_t), intent(in)  :: this
         double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: gs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                    :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                             :: iz
 
-        gs = fs
-        call this%combine_semi_spectral(gs)
-        call this%zderiv(gs, ds)
+        ! Calculate the derivative in fully decomposed form:
+        !$omp parallel workshare
+        as(0,      :, :) = zero
+        as(1:nz-1, :, :) = fs(1:nz-1, :, :)
+        as(nz,     :, :) = zero
+        !$omp end parallel workshare
+
+        call this%zderiv(as, ds)
+
+        !Calculate the derivative of the linear part in semi-spectral space
+        !and add both contributions:
+        !$omp parallel do private(iz)  default(shared)
+        do iz = 0, nz
+            ds(iz, :, :) = ds(iz, :, :) + fs(0,  :, :) * this%dphim(iz, :, :)  &
+                                        + fs(nz, :, :) * this%dphip(iz, :, :)
+        enddo
+        !$omp end parallel do
+
         call this%decompose_semi_spectral(ds)
 
     end subroutine decomposed_diffz
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine semi_spectral_diffz(this, fs, ds)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                    :: gs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+        gs = fs
+        call this%decompose_semi_spectral(gs)
+
+        call this%decomposed_diffz(gs, ds)
+
+        call this%combine_semi_spectral(ds)
+
+    end subroutine semi_spectral_diffz
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

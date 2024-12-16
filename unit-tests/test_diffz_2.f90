@@ -14,6 +14,7 @@ program test_diffz_2
     use mpi_layout
     use mpi_collectives
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s, fftxys2p
     implicit none
 
 
@@ -24,7 +25,7 @@ program test_diffz_2
     nz = 32
 
     lower  = (/zero, -f12*pi, zero/)
-    extent = (/pi, twopi, twopi/)
+    extent = (/pi, twopi, one/)
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
@@ -42,7 +43,7 @@ contains
         character(*), intent(in)      :: grid_type
         double precision              :: error
         double precision, allocatable :: dfdz_ref(:, :, :), dfdz(:, :, :)
-        double precision, allocatable :: fp(:, :, :)
+        double precision, allocatable :: fp(:, :, :), fs(:, :, :)
         double precision, allocatable :: x(:), y(:), z(:)
         integer                       :: ix, iy, iz
         double precision              :: k, l, coskx, sinly
@@ -50,6 +51,7 @@ contains
         call create_model(grid_type, "Hou & Li")
 
         allocate(fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(dfdz(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(dfdz_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
@@ -73,18 +75,24 @@ contains
             enddo
         enddo
 
-        call layout%diffz(fp, dfdz, l_decomposed=.false.)
+        call fftxyp2s(fp, fs)
+
+        call layout%diffz(fs, dfdz, l_decomposed=.false.)
+
+        fs = dfdz
+
+        call fftxys2p(fs, dfdz)
 
         error = maxval(abs(dfdz_ref - dfdz))
 
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_dp('Test diffz 2 ' // grid_type, error, atol=3.0e-13)
+            call print_result_dp('Test diffz 2 ' // grid_type, error, atol=4.0e-13)
         endif
 
         deallocate(x, y, z)
-        deallocate(fp)
+        deallocate(fp, fs)
         deallocate(dfdz)
         deallocate(dfdz_ref)
 

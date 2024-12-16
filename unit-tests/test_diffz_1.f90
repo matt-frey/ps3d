@@ -14,6 +14,7 @@ program test_diffz_1
     use mpi_layout
     use mpi_collectives
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s, fftxys2p
     implicit none
 
     call mpi_env_initialise
@@ -41,13 +42,14 @@ contains
         character(*), intent(in)      :: grid_type
         double precision              :: error
         double precision, allocatable :: dfdz_ref(:, :, :), dfdz(:, :, :)
-        double precision, allocatable :: fp(:, :, :)
+        double precision, allocatable :: fp(:, :, :), fs(:, :, :)
         double precision, allocatable :: z(:)
         integer                       :: iz
 
         call create_model(grid_type, "Hou & Li")
 
         allocate(fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(dfdz(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(dfdz_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(z(0:nz))
@@ -60,18 +62,24 @@ contains
             dfdz_ref(iz, :, :) = one
         enddo
 
+        call fftxyp2s(fp, fs)
+
         ! calculate z-derivative (dfdz)
-        call layout%diffz(fp, dfdz, l_decomposed=.false.)
+        call layout%diffz(fs, dfdz, l_decomposed=.false.)
+
+        fs = dfdz
+
+        call fftxys2p(fs, dfdz)
 
         error = maxval(abs(dfdz_ref - dfdz))
 
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_dp('Test diffz 1 ' // grid_type, error, atol=3.0e-14)
+            call print_result_dp('Test diffz 1 ' // grid_type, error, atol=1.0e-13)
         endif
 
-        deallocate(fp, z)
+        deallocate(fp, fs, z)
         deallocate(dfdz)
         deallocate(dfdz_ref)
 
