@@ -1,5 +1,5 @@
 module inversion_mod
-    use model, only : layout
+    use model, only : layout, filter
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
@@ -326,14 +326,41 @@ contains
     ! Note, vel obtained by vor2vel before calling this
     ! routine is spectrally truncated.
     subroutine source
+        double precision :: stmp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer :: nc
+
+        !--------------------------------------------------
+        ! Filter fields: velocity, vorticity and buoyancy
+        do nc = 1, 3
+            stmp = svor(:, :, :, nc)
+            call filter%apply(stmp)
+            call layout%combine_physical(stmp, vor(:, :, :, nc))
+        enddo
+
+        do nc = 1, 3
+            call layout%decompose_physical(vel(:, :, :, nc), stmp)
+            call filter%apply(stmp)
+            call layout%combine_physical(stmp, vel(:, :, :, nc))
+        enddo
+
 #ifdef ENABLE_BUOYANCY
-        !------------------------------------
-        !Buoyancy source:
-        call buoyancy_tendency
+        stmp = sbuoy
+        call filter%apply(sbuoy)
 #endif
-        !------------------------------------
-        !Vorticity source:
+
+        !--------------------------------------------------
+        !Vorticity source: (uses the filtered sbuoy)
         call vorticity_tendency
+
+#ifdef ENABLE_BUOYANCY
+        !--------------------------------------------------
+        !Buoyancy source:  (uses the filtered sbuoy)
+        call buoyancy_tendency
+
+        !--------------------------------------------------
+        ! Undo buoyancy filtering:
+        sbuoy = stmp
+#endif
 
     end subroutine source
 
