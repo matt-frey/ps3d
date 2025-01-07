@@ -10,7 +10,7 @@
 ! We start with the guess S^{n+1} = S^n and iterate  niter  times
 ! (see parameter statement below).
 module cn2_mod
-    use model, only : layout, filter
+    use model, only : layout
     use options, only : vor_visc
 #ifdef ENABLE_BUOYANCY
     use options, only : buoy_visc
@@ -109,8 +109,6 @@ contains
         bsm = sbuoy + dt2 * sbuoys
         sbuoy = bsm + dt2 * sbuoys
 
-        call filter%apply(sbuoy)
-
         !$omp parallel do private(iz)  default(shared)
         do iz = 0, nz
             sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
@@ -125,8 +123,6 @@ contains
 
         do nc = 1, 3
             svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-            call filter%apply(svor(:, :, :, nc))
 
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
@@ -155,8 +151,6 @@ contains
 #ifdef ENABLE_BUOYANCY
             sbuoy = bsm + dt2 * sbuoys
 
-            call filter%apply(sbuoy)
-
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
@@ -166,8 +160,6 @@ contains
 
             do nc = 1, 3
                 svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-                call filter%apply(svor(:, :, :, nc))
 
                 !$omp parallel do private(iz)  default(shared)
                 do iz = 0, nz
