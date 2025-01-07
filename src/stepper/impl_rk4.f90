@@ -1,5 +1,5 @@
 module impl_rk4_mod
-    use model, only : layout, filter
+    use model, only : layout
     use stepper_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz
@@ -87,12 +87,10 @@ contains
         ! set integrating factors
         self%epq = exp(vdiss)
         self%emq = 1.0d0 / self%epq
-        call filter%apply2d(self%epq)
 
 #ifdef ENABLE_BUOYANCY
         self%bpq = exp(bdiss)
         self%bmq = 1.0d0 / self%bpq
-        call filter%apply2d(self%bpq)
 #endif
 
         !------------------------------------------------------------------
@@ -227,10 +225,6 @@ contains
                                               box%lo(1):box%hi(1))
         integer                         :: iz
 
-        ! Filter source
-        do iz = 0, nz
-            call filter%apply2d(sqs(iz, :, :))
-        enddo
         qdi = q
         q = (qdi + dt2 * sqs)
         !$omp parallel do private(iz)  default(shared)
