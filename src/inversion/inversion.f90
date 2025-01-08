@@ -349,12 +349,12 @@ contains
 #endif
 
         !--------------------------------------------------
-        !Vorticity source: (uses the filtered sbuoy)
+        !Vorticity source: (uses the filtered fields including sbuoy)
         call vorticity_tendency
 
 #ifdef ENABLE_BUOYANCY
         !--------------------------------------------------
-        !Buoyancy source:  (uses the filtered sbuoy)
+        !Buoyancy source:  (uses the filtered fields including sbuoy)
         call buoyancy_tendency
 
         !--------------------------------------------------
