@@ -228,19 +228,6 @@ contains
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(2):box%hi(2))
 
-        j = 1
-        do iy = box%hi(2), box%lo(2), -1
-            if (y_comm%rank == y_reo%dest(iy)) then
-                cycle
-            endif
-            do ix = box%lo(1), box%hi(1)
-                do iz = box%lo(3), box%hi(3)
-                    y_reo%send_buffer(j) = fs(iz, iy, ix)
-                    j = j + 1
-                enddo
-            enddo
-        enddo
-
         !--------------------------------------------------------------
         ! Revert array locally
 
@@ -305,8 +292,6 @@ contains
         integer                       :: ix, iy, iz
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(1):box%hi(1))
-
-        gs(:, :, box%lo(1):box%hi(1)) = fs
 
         !--------------------------------------------------------------
         ! Revert array locally
