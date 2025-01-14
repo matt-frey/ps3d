@@ -228,6 +228,18 @@ contains
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(2):box%hi(2))
 
+        j = 1
+        do iy = box%hi(2), box%lo(2), -1
+            if (y_comm%rank == y_reo%dest(iy)) then
+                cycle
+            endif
+            do ix = box%lo(1), box%hi(1)
+                do iz = box%lo(3), box%hi(3)
+                    y_reo%send_buffer(j) = fs(iz, iy, ix)
+                    j = j + 1
+                enddo
+            enddo
+        enddo
 
         !--------------------------------------------------------------
         ! Revert array locally
@@ -294,6 +306,7 @@ contains
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(1):box%hi(1))
 
+        gs(:, :, box%lo(1):box%hi(1)) = fs
 
         !--------------------------------------------------------------
         ! Revert array locally
@@ -449,13 +462,13 @@ contains
 
         ! send west buffer to east halo
         call MPI_Isend(reo%lo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                        size(reo%lo_buffer),                     &
-                        MPI_DOUBLE_PRECISION,                    &
-                        reo%lo_rank,                             &
-                        REVERSE_LO_TAG,                          &
-                        sub_comm%comm,                           &
-                        requests(1),                             &
-                        sub_comm%err)
+                       size(reo%lo_buffer),                     &
+                       MPI_DOUBLE_PRECISION,                    &
+                       reo%lo_rank,                             &
+                       REVERSE_LO_TAG,                          &
+                       sub_comm%comm,                           &
+                       requests(1),                             &
+                       sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Isend of mpi_reverse::communicate_halo.")
@@ -465,13 +478,13 @@ contains
 
         ! receive west buffer to east halo (left to right)
         call MPI_Recv(reo%hi_halo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                        size(reo%hi_halo_buffer),                     &
-                        MPI_DOUBLE_PRECISION,                         &
-                        reo%hi_rank,                                  &
-                        REVERSE_LO_TAG,                               &
-                        sub_comm%comm,                                &
-                        MPI_STATUS_IGNORE,                            &
-                        sub_comm%err)
+                      size(reo%hi_halo_buffer),                     &
+                      MPI_DOUBLE_PRECISION,                         &
+                      reo%hi_rank,                                  &
+                      REVERSE_LO_TAG,                               &
+                      sub_comm%comm,                                &
+                      MPI_STATUS_IGNORE,                            &
+                      sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Recv of mpi_reverse::communicate_halo.")
@@ -481,13 +494,13 @@ contains
 
         ! send east buffer to west halo
         call MPI_Isend(reo%hi_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                        size(reo%hi_buffer),                     &
-                        MPI_DOUBLE_PRECISION,                    &
-                        reo%hi_rank,                             &
-                        REVERSE_HI_TAG,                          &
-                        sub_comm%comm,                           &
-                        requests(2),                             &
-                        sub_comm%err)
+                       size(reo%hi_buffer),                     &
+                       MPI_DOUBLE_PRECISION,                    &
+                       reo%hi_rank,                             &
+                       REVERSE_HI_TAG,                          &
+                       sub_comm%comm,                           &
+                       requests(2),                             &
+                       sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Isend of mpi_reverse::communicate_halo.")
@@ -497,13 +510,13 @@ contains
 
         ! receive east buffer into west halo (right to left)
         call MPI_Recv(reo%lo_halo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                        size(reo%lo_halo_buffer),                     &
-                        MPI_DOUBLE_PRECISION,                         &
-                        reo%lo_rank,                                  &
-                        REVERSE_HI_TAG,                               &
-                        sub_comm%comm,                                &
-                        MPI_STATUS_IGNORE,                            &
-                        sub_comm%err)
+                      size(reo%lo_halo_buffer),                     &
+                      MPI_DOUBLE_PRECISION,                         &
+                      reo%lo_rank,                                  &
+                      REVERSE_HI_TAG,                               &
+                      sub_comm%comm,                                &
+                      MPI_STATUS_IGNORE,                            &
+                      sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Recv of mpi_reverse::communicate_halo.")

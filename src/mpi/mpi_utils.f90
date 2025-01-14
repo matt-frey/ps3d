@@ -54,10 +54,10 @@ contains
         status%MPI_ERROR = 0
 
         call MPI_probe(source,          &
-                        tag,             &
-                        comm%comm,       &
-                        status,          &
-                        comm%err)
+                       tag,             &
+                       comm%comm,       &
+                       status,          &
+                       comm%err)
 
         call mpi_check_for_error(comm, &
             "in MPI_probe of mpi_utils::mpi_check_for_message.")
