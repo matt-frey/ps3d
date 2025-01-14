@@ -19,6 +19,7 @@ module mss_filter
         procedure :: finalise
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
+        procedure, private :: init_none
 
     end type
 
@@ -142,6 +143,18 @@ contains
         endif
 
     end subroutine init_23rd_rule
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define no filter:
+    subroutine init_none(this)
+        class(mss_filter_t), intent(inout) :: this
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        this%filt = one
+
+    end subroutine init_none
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

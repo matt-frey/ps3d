@@ -9,10 +9,12 @@ module field_filter
         procedure :: initialise => m_initialise
         procedure :: finalise => m_finalise
 
+
         procedure (m_apply),   deferred :: apply
         procedure (m_apply2d), deferred :: apply2d
         procedure (m_init_hou_and_li), private, deferred :: init_hou_and_li
         procedure (m_init_23rd_rule),  private, deferred :: init_23rd_rule
+        procedure (m_init_none),       private, deferred :: init_none
     end type
 
     interface
@@ -42,6 +44,11 @@ module field_filter
             import filter_t
             class(filter_t), intent(inout) :: this
         end subroutine m_init_23rd_rule
+
+        subroutine m_init_none(this)
+            import filter_t
+            class(filter_t), intent(inout) :: this
+        end subroutine m_init_none
     end interface
 
 contains
@@ -60,6 +67,9 @@ contains
             case ("2/3-rule")
                 call this%init_23rd_rule
                 used_method = method
+            case ("none")
+                call this%init_none
+                used_method = "no"
             case default
                 call this%init_hou_and_li
                 used_method = "Hou & Li"

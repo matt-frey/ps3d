@@ -21,6 +21,7 @@ module cheby_filter
         procedure :: apply2d
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
+        procedure, private :: init_none
         procedure, private :: get_cheb_poly
         procedure, private :: cheb_eval
 
@@ -195,6 +196,20 @@ contains
         endif
 
     end subroutine init_23rd_rule
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define no filter:
+    subroutine init_none(this)
+        class(cheby_filter_t), intent(inout) :: this
+
+        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        this%filt = one
+        this%zfilt = one
+
+    end subroutine init_none
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
