@@ -1,5 +1,5 @@
 module drew_impl_rk4
-    use inversion_mod, only : vor2vel, vorticity_tendency
+    use inversion_mod, only : vor2vel, source
     use model, only : layout
     use mpi_layout, only : box
     use parameters, only : nz
