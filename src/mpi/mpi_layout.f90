@@ -284,7 +284,6 @@ contains
         if (coords < remaining) then
             nlocal = nlocal + 1
             first = first + coords
-            last = last + coords
         else
             first = first + remaining
         endif
