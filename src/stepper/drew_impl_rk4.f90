@@ -47,115 +47,116 @@ contains
         dt6 = dt / 6.0d0
 
         ! set integrating factors
-        emq = exp(- dt2 * vdiss)
-        epq = 1.0d0 / emq
+        epq = exp(vdiss)
+        emq = 1.0d0 / epq
 
+        !------------------------------------------------------------------
+        ! RK4 predictor step at time t0 + dt/2:
         qdi = svor
         svor = (qdi + dt2 * svorts)
         do nc = 1, 3
-            call layout%combine_semi_spectral(svor(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
                 svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
-
         qdf = qdi + dt6 * svorts
+
+        !------------------------------------------------------------------
+        ! Invert and get new sources:
+        call vor2vel
+        call source
 
         !------------------------------------------------------------------
         !RK4 corrector step at time t0 + dt/2:
         t = t + dt2
 
-        call vor2vel
-
-        call vorticity_tendency
         ! apply integrating factors to source
         do nc = 1, 3
-            call layout%combine_semi_spectral(svorts(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
+                svorts(iz, :, :, nc) = epq * svorts(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
         svor = (qdi + dt2 * svorts)
+
         do nc = 1, 3
-            call layout%combine_semi_spectral(svor(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
+                svor(iz, :, :, nc) = emq * svor(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
         qdf = qdf + dt3 * svorts
+
+        !------------------------------------------------------------------
+        ! Invert and get new sources:
+        call vor2vel
+        call source
 
         !------------------------------------------------------------------
         !RK4 predictor step at time t0 + dt:
+        t = t + dt2
 
-        !Invert PV and compute velocity:
-        call vor2vel
+        emq = emq ** 2
 
-        call vorticity_tendency
         ! apply integrating factors to source
         do nc = 1, 3
-            call layout%combine_semi_spectral(svorts(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
+                svorts(iz, :, :, nc) = epq * svorts(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
-        emq = emq**2
         svor = qdi + dt * svorts
+
         do nc = 1, 3
-            call layout%combine_semi_spectral(svor(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
+                svor(iz, :, :, nc) = emq * svor(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
         qdf = qdf + dt3 * svorts
 
         !------------------------------------------------------------------
-        !RK4 corrector step at time t0 + dt:
-        t = t + dt2
-
+        ! Invert and get new sources:
         call vor2vel
-        call vorticity_tendency
+        call source
 
+        !------------------------------------------------------------------
+        !RK4 corrector step at time t0 + dt:
         epq = epq**2
+
         ! apply integrating factors to source
         do nc = 1, 3
-            call layout%combine_semi_spectral(svorts(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
+                svorts(iz, :, :, nc) = epq * svorts(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
         svor = qdf + dt6 * svorts
+
         do nc = 1, 3
-            call layout%combine_semi_spectral(svor(:, :, :, nc))
             !$omp parallel do private(iz)  default(shared)
             do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
+                svor(iz, :, :, nc) = emq * svor(iz, :, :, nc)
             enddo
             !$omp end parallel do
-            call layout%decompose_semi_spectral(svor(:, :, :, nc))
+        enddo
+
+        ! Ensure zero global mean horizontal vorticity conservation:
+        do nc = 1, 2
+            call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
         enddo
 
     end subroutine impl_rk4
