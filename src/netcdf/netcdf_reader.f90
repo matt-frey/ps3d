@@ -43,363 +43,363 @@ module netcdf_reader
                read_netcdf_dataset_2d,               &
                read_netcdf_dataset_3d
 
-    contains
+contains
 
-        subroutine get_var_id(ncid, name, varid)
-            integer,      intent(in)  :: ncid
-            character(*), intent(in)  :: name
-            integer,      intent(out) :: varid
+    subroutine get_var_id(ncid, name, varid)
+        integer,      intent(in)  :: ncid
+        character(*), intent(in)  :: name
+        integer,      intent(out) :: varid
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
-            call check_netcdf_error("Reading the ID of '" // name // "' failed.")
-        end subroutine get_var_id
+        ncerr = nf90_inq_varid(ncid, name, varid)
+        call check_netcdf_error("Reading the ID of '" // name // "' failed.")
+    end subroutine get_var_id
 
-        subroutine get_dim_id(ncid, name, dimid)
-            integer,      intent(in)  :: ncid
-            character(*), intent(in)  :: name
-            integer,      intent(out) :: dimid
+    subroutine get_dim_id(ncid, name, dimid)
+        integer,      intent(in)  :: ncid
+        character(*), intent(in)  :: name
+        integer,      intent(out) :: dimid
 
-            ncerr = nf90_inq_dimid(ncid, name, dimid)
-            call check_netcdf_error("Reading the ID of '" // name // "' failed.")
-        end subroutine get_dim_id
+        ncerr = nf90_inq_dimid(ncid, name, dimid)
+        call check_netcdf_error("Reading the ID of '" // name // "' failed.")
+    end subroutine get_dim_id
 
-        subroutine get_dimension_size(ncid, name, num)
-            integer,      intent(in) :: ncid
-            character(*), intent(in) :: name
-            integer, intent(out)     :: num
-            integer                  :: dimid
+    subroutine get_dimension_size(ncid, name, num)
+        integer,      intent(in) :: ncid
+        character(*), intent(in) :: name
+        integer, intent(out)     :: num
+        integer                  :: dimid
 
-            ncerr = nf90_inq_dimid(ncid, name, dimid)
-            call check_netcdf_error("Reading " // name // " dimension id failed.")
-            ncerr = nf90_inquire_dimension(ncid, dimid, len=num)
-            call check_netcdf_error("Reading " // name // " failed.")
-        end subroutine get_dimension_size
+        ncerr = nf90_inq_dimid(ncid, name, dimid)
+        call check_netcdf_error("Reading " // name // " dimension id failed.")
+        ncerr = nf90_inquire_dimension(ncid, dimid, len=num)
+        call check_netcdf_error("Reading " // name // " failed.")
+    end subroutine get_dimension_size
 
-        subroutine get_num_parcels(ncid, n_parcels)
-            integer, intent(in)  :: ncid
-            integer, intent(out) :: n_parcels
+    subroutine get_num_parcels(ncid, n_parcels)
+        integer, intent(in)  :: ncid
+        integer, intent(out) :: n_parcels
 
-            call get_dimension_size(ncid, 'n_parcels', n_parcels)
-        end subroutine get_num_parcels
+        call get_dimension_size(ncid, 'n_parcels', n_parcels)
+    end subroutine get_num_parcels
 
-        subroutine get_num_steps(ncid, n_steps)
-            integer, intent(in)  :: ncid
-            integer, intent(out) :: n_steps
-            integer              :: dimid
+    subroutine get_num_steps(ncid, n_steps)
+        integer, intent(in)  :: ncid
+        integer, intent(out) :: n_steps
+        integer              :: dimid
 
-            ncerr = nf90_inq_dimid(ncid, netcdf_dims(4), dimid)
-            call check_netcdf_error("Reading time dimension id failed.")
-            ncerr = nf90_inquire_dimension(ncid, dimid, len=n_steps)
+        ncerr = nf90_inq_dimid(ncid, netcdf_dims(4), dimid)
+        call check_netcdf_error("Reading time dimension id failed.")
+        ncerr = nf90_inquire_dimension(ncid, dimid, len=n_steps)
+        call check_netcdf_error("Reading time failed.")
+    end subroutine get_num_steps
+
+    subroutine get_time_at_step(ncid, step, t)
+        integer,          intent(in)  :: ncid
+        integer,          intent(in)  :: step
+        double precision, intent(out) :: t
+        integer                       :: n_steps, varid, start(1), cnt(1)
+        double precision              :: values(1)
+
+        call get_num_steps(ncid, n_steps)
+
+        if (step > n_steps) then
+            call mpi_stop("Error: Step beyond record number.")
+        endif
+
+        if (has_dataset(ncid, 't')) then
+            start(1) = step
+            cnt(1) = 1
+            ncerr = nf90_inq_varid(ncid, 't', varid)
+            call check_netcdf_error("Reading time id failed.")
+            ncerr = nf90_get_var(ncid, varid, values, start=start, count=cnt)
+            t = values(1)
             call check_netcdf_error("Reading time failed.")
-        end subroutine get_num_steps
+            return
+        else
+            call mpi_stop("Error: No time dataset found.")
+        endif
+    end subroutine get_time_at_step
 
-        subroutine get_time_at_step(ncid, step, t)
-            integer,          intent(in)  :: ncid
-            integer,          intent(in)  :: step
-            double precision, intent(out) :: t
-            integer                       :: n_steps, varid, start(1), cnt(1)
-            double precision              :: values(1)
+    subroutine get_time(ncid, t)
+        integer,          intent(in)  :: ncid
+        double precision, intent(out) :: t
+        integer                       :: n_steps, varid, start(1), cnt(1)
+        double precision              :: values(1)
 
-            call get_num_steps(ncid, n_steps)
+        call get_num_steps(ncid, n_steps)
 
-            if (step > n_steps) then
-                call mpi_stop("Error: Step beyond record number.")
-            endif
+        if (has_dataset(ncid, netcdf_dims(4))) then
+            start(1) = n_steps
+            cnt(1) = 1
+            ncerr = nf90_inq_varid(ncid, netcdf_dims(4), varid)
+            call check_netcdf_error("Reading time id failed.")
+            ncerr = nf90_get_var(ncid, varid, values, start=start, count=cnt)
+            t = values(1)
+            call check_netcdf_error("Reading time failed.")
+            return
+        else
+            call mpi_stop("Error: No time dataset found.")
+        endif
+    end subroutine get_time
 
-            if (has_dataset(ncid, 't')) then
-                start(1) = step
-                cnt(1) = 1
-                ncerr = nf90_inq_varid(ncid, 't', varid)
-                call check_netcdf_error("Reading time id failed.")
-                ncerr = nf90_get_var(ncid, varid, values, start=start, count=cnt)
-                t = values(1)
-                call check_netcdf_error("Reading time failed.")
-                return
-            else
-                call mpi_stop("Error: No time dataset found.")
-            endif
-        end subroutine get_time_at_step
+    subroutine get_file_type(ncid, file_type)
+        integer,      intent(in)  :: ncid
+        character(*), intent(out) :: file_type
 
-        subroutine get_time(ncid, t)
-            integer,          intent(in)  :: ncid
-            double precision, intent(out) :: t
-            integer                       :: n_steps, varid, start(1), cnt(1)
-            double precision              :: values(1)
+        if (.not. has_attribute(ncid, 'file_type')) then
+            call mpi_stop('Not a proper '//package//' NetCDF file.')
+        endif
 
-            call get_num_steps(ncid, n_steps)
+        ncerr = nf90_get_att(ncid=ncid, varid=NF90_GLOBAL, &
+                             name='file_type', values=file_type)
+        call check_netcdf_error("Reading file type failed.")
 
-            if (has_dataset(ncid, netcdf_dims(4))) then
-                start(1) = n_steps
-                cnt(1) = 1
-                ncerr = nf90_inq_varid(ncid, netcdf_dims(4), varid)
-                call check_netcdf_error("Reading time id failed.")
-                ncerr = nf90_get_var(ncid, varid, values, start=start, count=cnt)
-                t = values(1)
-                call check_netcdf_error("Reading time failed.")
-                return
-            else
-                call mpi_stop("Error: No time dataset found.")
-            endif
-        end subroutine get_time
+    end subroutine get_file_type
 
-        subroutine get_file_type(ncid, file_type)
-            integer,      intent(in)  :: ncid
-            character(*), intent(out) :: file_type
+    function has_attribute(ncid, name) result(link_exists)
+        integer,      intent(in) :: ncid
+        character(*), intent(in) :: name
+        logical                  :: link_exists
 
-            if (.not. has_attribute(ncid, 'file_type')) then
-                call mpi_stop('Not a proper '//package//' NetCDF file.')
-            endif
+        ncerr = nf90_inquire_attribute(ncid, NF90_GLOBAL, name)
 
-            ncerr = nf90_get_att(ncid=ncid, varid=NF90_GLOBAL, &
-                                 name='file_type', values=file_type)
-            call check_netcdf_error("Reading file type failed.")
+        link_exists = (ncerr == nf90_noerr)
+        ncerr = 0
+    end function has_attribute
 
-        end subroutine get_file_type
+    function has_dataset(ncid, name) result(link_exists)
+        integer,      intent(in) :: ncid
+        character(*), intent(in) :: name
+        integer                  :: varid
+        logical                  :: link_exists
 
-        function has_attribute(ncid, name) result(link_exists)
-            integer,      intent(in) :: ncid
-            character(*), intent(in) :: name
-            logical                  :: link_exists
+        ncerr = nf90_inq_varid(ncid, name, varid)
 
-            ncerr = nf90_inquire_attribute(ncid, NF90_GLOBAL, name)
+        link_exists = (ncerr == nf90_noerr)
 
+        if (link_exists) then
+            ncerr = nf90_inquire_variable(ncid, varid)
             link_exists = (ncerr == nf90_noerr)
-            ncerr = 0
-        end function has_attribute
+        endif
 
-        function has_dataset(ncid, name) result(link_exists)
-            integer,      intent(in) :: ncid
-            character(*), intent(in) :: name
-            integer                  :: varid
-            logical                  :: link_exists
+        ncerr = 0
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
+    end function has_dataset
 
-            link_exists = (ncerr == nf90_noerr)
+    subroutine read_netcdf_dataset_1d_integer(ncid, name, buffer, start, cnt)
+        integer,           intent(in)  :: ncid
+        character(*),      intent(in)  :: name
+        integer,           intent(out) :: buffer(:)
+        integer, optional, intent(in)  :: start(:)
+        integer, optional, intent(in)  :: cnt(:)
+        integer                        :: varid
 
-            if (link_exists) then
-                ncerr = nf90_inquire_variable(ncid, varid)
-                link_exists = (ncerr == nf90_noerr)
-            endif
+        ncerr = nf90_inq_varid(ncid, name, varid)
+        call check_netcdf_error("Reading dataset id failed.")
 
-            ncerr = 0
+        ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
+                             start=start, count=cnt)
+    end subroutine read_netcdf_dataset_1d_integer
 
-        end function has_dataset
+    subroutine read_netcdf_dataset_1d(ncid, name, buffer, start, cnt)
+        integer,           intent(in)  :: ncid
+        character(*),      intent(in)  :: name
+        double precision,  intent(out) :: buffer(:)
+        integer, optional, intent(in)  :: start(:)
+        integer, optional, intent(in)  :: cnt(:)
+        integer                        :: varid
 
-        subroutine read_netcdf_dataset_1d_integer(ncid, name, buffer, start, cnt)
-            integer,           intent(in)  :: ncid
-            character(*),      intent(in)  :: name
-            integer,           intent(out) :: buffer(:)
-            integer, optional, intent(in)  :: start(:)
-            integer, optional, intent(in)  :: cnt(:)
-            integer                        :: varid
+        ncerr = nf90_inq_varid(ncid, name, varid)
+        call check_netcdf_error("Reading dataset id failed.")
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
-            call check_netcdf_error("Reading dataset id failed.")
+        ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
+                             start=start, count=cnt)
+    end subroutine read_netcdf_dataset_1d
 
-            ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
-                                 start=start, count=cnt)
-        end subroutine read_netcdf_dataset_1d_integer
+    subroutine read_netcdf_dataset_2d(ncid, name, buffer, start, cnt)
+        integer,           intent(in)  :: ncid
+        character(*),      intent(in)  :: name
+        double precision,  intent(out) :: buffer(:, :)
+        integer, optional, intent(in)  :: start(:)
+        integer, optional, intent(in)  :: cnt(:)
+        integer                        :: varid, map(2)
+        double precision, allocatable  :: values(:, :)
 
-        subroutine read_netcdf_dataset_1d(ncid, name, buffer, start, cnt)
-            integer,           intent(in)  :: ncid
-            character(*),      intent(in)  :: name
-            double precision,  intent(out) :: buffer(:)
-            integer, optional, intent(in)  :: start(:)
-            integer, optional, intent(in)  :: cnt(:)
-            integer                        :: varid
+        map = shape(buffer)
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
-            call check_netcdf_error("Reading dataset id failed.")
+        allocate(values(map(2), map(1)))
 
-            ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
-                                 start=start, count=cnt)
-        end subroutine read_netcdf_dataset_1d
+        ncerr = nf90_inq_varid(ncid, name, varid)
+        call check_netcdf_error("Reading dataset id failed.")
 
-        subroutine read_netcdf_dataset_2d(ncid, name, buffer, start, cnt)
-            integer,           intent(in)  :: ncid
-            character(*),      intent(in)  :: name
-            double precision,  intent(out) :: buffer(:, :)
-            integer, optional, intent(in)  :: start(:)
-            integer, optional, intent(in)  :: cnt(:)
-            integer                        :: varid, map(2)
-            double precision, allocatable  :: values(:, :)
+        ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
+                             start=start, count=cnt)
 
-            map = shape(buffer)
+        buffer = transpose(values)
 
-            allocate(values(map(2), map(1)))
+        deallocate(values)
+    end subroutine read_netcdf_dataset_2d
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
-            call check_netcdf_error("Reading dataset id failed.")
+    subroutine read_netcdf_dataset_3d(ncid, name, buffer, start, cnt)
+        integer,           intent(in)  :: ncid
+        character(*),      intent(in)  :: name
+        double precision,  intent(out) :: buffer(:, :, :)
+        integer, optional, intent(in)  :: start(:)
+        integer, optional, intent(in)  :: cnt(:)
+        integer                        :: varid, map(3)
+        double precision, allocatable  :: values(:, :, :)
 
-            ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
-                                 start=start, count=cnt)
+        map = shape(buffer)
 
-            buffer = transpose(values)
+        allocate(values(map(3), map(2), map(1)))
 
-            deallocate(values)
-        end subroutine read_netcdf_dataset_2d
+        ncerr = nf90_inq_varid(ncid, name, varid)
+        call check_netcdf_error("Reading dataset id failed.")
 
-        subroutine read_netcdf_dataset_3d(ncid, name, buffer, start, cnt)
-            integer,           intent(in)  :: ncid
-            character(*),      intent(in)  :: name
-            double precision,  intent(out) :: buffer(:, :, :)
-            integer, optional, intent(in)  :: start(:)
-            integer, optional, intent(in)  :: cnt(:)
-            integer                        :: varid, map(3)
-            double precision, allocatable  :: values(:, :, :)
+        ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
+                             start=start, count=cnt)
 
-            map = shape(buffer)
+        buffer = reshape(values, shape=(/map(1), map(2), map(3)/), order=(/3, 2, 1/))
+        deallocate(values)
+    end subroutine read_netcdf_dataset_3d
 
-            allocate(values(map(3), map(2), map(1)))
+    subroutine read_netcdf_attrib_integer(ncid, name, val)
+        integer,       intent(in)     :: ncid
+        character(*),  intent(in)     :: name
+        integer,       intent(out)    :: val
 
-            ncerr = nf90_inq_varid(ncid, name, varid)
-            call check_netcdf_error("Reading dataset id failed.")
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
+        call check_netcdf_error("Reading attribute '" // name // "' failed.")
+    end subroutine read_netcdf_attrib_integer
 
-            ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
-                                 start=start, count=cnt)
+    subroutine read_netcdf_attrib_double(ncid, name, val)
+        integer,          intent(in)     :: ncid
+        character(*),     intent(in)     :: name
+        double precision, intent(out)    :: val
 
-            buffer = reshape(values, shape=(/map(1), map(2), map(3)/), order=(/3, 2, 1/))
-            deallocate(values)
-        end subroutine read_netcdf_dataset_3d
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
+        call check_netcdf_error("Reading attribute '" // name // "' failed.")
 
-        subroutine read_netcdf_attrib_integer(ncid, name, val)
-            integer,       intent(in)     :: ncid
-            character(*),  intent(in)     :: name
-            integer,       intent(out)    :: val
+    end subroutine read_netcdf_attrib_double
 
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
-            call check_netcdf_error("Reading attribute '" // name // "' failed.")
-        end subroutine read_netcdf_attrib_integer
+    subroutine read_netcdf_attrib_character(ncid, name, val)
+        integer,      intent(in)     :: ncid
+        character(*), intent(in)     :: name
+        character(*), intent(out)    :: val
 
-        subroutine read_netcdf_attrib_double(ncid, name, val)
-            integer,          intent(in)     :: ncid
-            character(*),     intent(in)     :: name
-            double precision, intent(out)    :: val
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
+        call check_netcdf_error("Reading attribute '" // name // "' failed.")
 
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
-            call check_netcdf_error("Reading attribute '" // name // "' failed.")
+    end subroutine read_netcdf_attrib_character
 
-        end subroutine read_netcdf_attrib_double
+    subroutine read_netcdf_attrib_logical(ncid, name, val)
+        integer,      intent(in)  :: ncid
+        character(*), intent(in)  :: name
+        logical,      intent(out) :: val
+        character(5)              :: char_val
 
-        subroutine read_netcdf_attrib_character(ncid, name, val)
-            integer,      intent(in)     :: ncid
-            character(*), intent(in)     :: name
-            character(*), intent(out)    :: val
+        call read_netcdf_attrib_character(ncid, name, char_val)
 
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, name, val)
-            call check_netcdf_error("Reading attribute '" // name // "' failed.")
+        val = (char_val == 'true')
 
-        end subroutine read_netcdf_attrib_character
+    end subroutine read_netcdf_attrib_logical
 
-        subroutine read_netcdf_attrib_logical(ncid, name, val)
-            integer,      intent(in)  :: ncid
-            character(*), intent(in)  :: name
-            logical,      intent(out) :: val
-            character(5)              :: char_val
+    subroutine read_netcdf_domain(ncfname, origin, extent, ncells)
+        character(*), intent(in)      :: ncfname
+        integer                       :: ncid
+        double precision, intent(out) :: extent(:), origin(:)
+        integer,          intent(out) :: ncells(:)
 
-            call read_netcdf_attrib_character(ncid, name, char_val)
+        call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
+        call get_netcdf_box(ncid, origin, extent, ncells)
+        call close_netcdf_file(ncid)
 
-            val = (char_val == 'true')
+    end subroutine read_netcdf_domain
 
-        end subroutine read_netcdf_attrib_logical
+    subroutine get_netcdf_box(ncid, origin, extent, ncells)
+        integer,          intent(in)     :: ncid
+        double precision, intent(out)    :: extent(:), origin(:)
+        integer,          intent(out)    :: ncells(:)
 
-        subroutine read_netcdf_domain(ncfname, origin, extent, ncells)
-            character(*), intent(in)      :: ncfname
-            integer                       :: ncid
-            double precision, intent(out) :: extent(:), origin(:)
-            integer,          intent(out) :: ncells(:)
+        if ((size(ncells) > 3) .or. (size(extent) > 3) .or. (size(extent) > 3)) then
+            call mpi_stop("Cannot read more than 3 dimensions!")
+        endif
 
-            call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
-            call get_netcdf_box(ncid, origin, extent, ncells)
-            call close_netcdf_file(ncid)
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, "ncells", ncells)
+        call check_netcdf_error("Reading attribute 'ncells' failed.")
 
-        end subroutine read_netcdf_domain
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, "extent", extent)
+        call check_netcdf_error("Reading attribute 'extent' failed.")
 
-        subroutine get_netcdf_box(ncid, origin, extent, ncells)
-            integer,          intent(in)     :: ncid
-            double precision, intent(out)    :: extent(:), origin(:)
-            integer,          intent(out)    :: ncells(:)
+        ncerr = nf90_get_att(ncid, NF90_GLOBAL, "origin", origin)
+        call check_netcdf_error("Reading attribute 'origin' failed.")
 
-            if ((size(ncells) > 3) .or. (size(extent) > 3) .or. (size(extent) > 3)) then
-                call mpi_stop("Cannot read more than 3 dimensions!")
-            endif
+    end subroutine get_netcdf_box
 
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, "ncells", ncells)
-            call check_netcdf_error("Reading attribute 'ncells' failed.")
+    subroutine read_netcdf_attrib_default_double(ncid, name, val)
+        integer,          intent(in)   :: ncid
+        character(*),     intent(in)    :: name
+        double precision, intent(inout) :: val
 
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, "extent", extent)
-            call check_netcdf_error("Reading attribute 'extent' failed.")
-
-            ncerr = nf90_get_att(ncid, NF90_GLOBAL, "origin", origin)
-            call check_netcdf_error("Reading attribute 'origin' failed.")
-
-        end subroutine get_netcdf_box
-
-        subroutine read_netcdf_attrib_default_double(ncid, name, val)
-            integer,          intent(in)   :: ncid
-            character(*),     intent(in)    :: name
-            double precision, intent(inout) :: val
-
-            if (has_attribute(ncid, name)) then
-                call read_netcdf_attrib_double(ncid, name, val)
+        if (has_attribute(ncid, name)) then
+            call read_netcdf_attrib_double(ncid, name, val)
 #ifdef ENABLE_VERBOSE
-                call mpi_print("Found float attribute '" // name // "'.")
-            else
-                call mpi_print("WARNING: Using default value of '" // name // "'.")
+            call mpi_print("Found float attribute '" // name // "'.")
+        else
+            call mpi_print("WARNING: Using default value of '" // name // "'.")
 #endif
-            endif
+        endif
 
-        end subroutine read_netcdf_attrib_default_double
+    end subroutine read_netcdf_attrib_default_double
 
-        subroutine read_netcdf_attrib_default_integer(ncid, name, val)
-            integer,      intent(in)    :: ncid
-            character(*), intent(in)    :: name
-            integer,      intent(inout) :: val
+    subroutine read_netcdf_attrib_default_integer(ncid, name, val)
+        integer,      intent(in)    :: ncid
+        character(*), intent(in)    :: name
+        integer,      intent(inout) :: val
 
-            if (has_attribute(ncid, name)) then
-                call read_netcdf_attrib_integer(ncid, name, val)
+        if (has_attribute(ncid, name)) then
+            call read_netcdf_attrib_integer(ncid, name, val)
 #ifdef ENABLE_VERBOSE
-                call mpi_print("Found integer attribute '" // name // "'.")
-            else
-                call mpi_print("WARNING: Using default value of '" // name // "'.")
+            call mpi_print("Found integer attribute '" // name // "'.")
+        else
+            call mpi_print("WARNING: Using default value of '" // name // "'.")
 #endif
-            endif
+        endif
 
-        end subroutine read_netcdf_attrib_default_integer
+    end subroutine read_netcdf_attrib_default_integer
 
 
-        subroutine read_netcdf_attrib_default_logical(ncid, name, val)
-            integer,      intent(in)    :: ncid
-            character(*), intent(in)    :: name
-            logical,      intent(inout) :: val
+    subroutine read_netcdf_attrib_default_logical(ncid, name, val)
+        integer,      intent(in)    :: ncid
+        character(*), intent(in)    :: name
+        logical,      intent(inout) :: val
 
-            if (has_attribute(ncid, name)) then
-                call read_netcdf_attrib_logical(ncid, name, val)
+        if (has_attribute(ncid, name)) then
+            call read_netcdf_attrib_logical(ncid, name, val)
 #ifdef ENABLE_VERBOSE
-                call mpi_print("Found boolean attribute '" // name // "'.")
-            else
-                call mpi_print("WARNING: Using default value of '" // name // "'.")
+            call mpi_print("Found boolean attribute '" // name // "'.")
+        else
+            call mpi_print("WARNING: Using default value of '" // name // "'.")
 #endif
-            endif
+        endif
 
-        end subroutine read_netcdf_attrib_default_logical
+    end subroutine read_netcdf_attrib_default_logical
 
 
-        subroutine read_netcdf_attrib_default_character(ncid, name, val)
-            integer,      intent(in)     :: ncid
-            character(*), intent(in)     :: name
-            character(*), intent(inout)  :: val
+    subroutine read_netcdf_attrib_default_character(ncid, name, val)
+        integer,      intent(in)     :: ncid
+        character(*), intent(in)     :: name
+        character(*), intent(inout)  :: val
 
-            if (has_attribute(ncid, name)) then
-                call read_netcdf_attrib_character(ncid, name, val)
+        if (has_attribute(ncid, name)) then
+            call read_netcdf_attrib_character(ncid, name, val)
 #ifdef ENABLE_VERBOSE
-                call mpi_print("Found character attribute '" // name // "'.")
-            else
-                call mpi_print("WARNING: Using default value of '" // name // "'.")
+            call mpi_print("Found character attribute '" // name // "'.")
+        else
+            call mpi_print("WARNING: Using default value of '" // name // "'.")
 #endif
-            endif
+        endif
 
-        end subroutine read_netcdf_attrib_default_character
+    end subroutine read_netcdf_attrib_default_character
 
 end module netcdf_reader
