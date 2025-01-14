@@ -198,10 +198,10 @@ contains
         ! 6. Transform from (y, x, z) to (z, y, x) pencil
 
         call transpose_to_pencil(y_from_z_transposition,  &
-                                    (/1, 2, 3/),             &
-                                    fft_y_comm,              &
-                                    FORWARD,                 &
-                                    fp(box%lo(3):box%hi(3),  &
+                                 (/1, 2, 3/),             &
+                                 fft_y_comm,              &
+                                 FORWARD,                 &
+                                 fp(box%lo(3):box%hi(3),  &
                                     box%lo(2):box%hi(2),  &
                                     box%lo(1):box%hi(1)), &
                                     fft_in_y_buffer)
@@ -213,11 +213,11 @@ contains
         enddo
 
         call transpose_to_pencil(x_from_y_transposition, &
-                                    (/2, 3, 1/),            &
-                                    fft_x_comm,             &
-                                    FORWARD,                &
-                                    fft_in_y_buffer,        &
-                                    fft_in_x_buffer)
+                                 (/2, 3, 1/),            &
+                                 fft_x_comm,             &
+                                 FORWARD,                &
+                                 fft_in_y_buffer,        &
+                                 fft_in_x_buffer)
 
         do i = 1, size(fft_in_x_buffer, 2)
             do j = 1, size(fft_in_x_buffer, 3)
@@ -226,18 +226,18 @@ contains
         enddo
 
         call transpose_to_pencil(y_from_x_transposition,    &
-                                    (/3, 1, 2/),               &
-                                    fft_x_comm,                &
-                                    BACKWARD,                  &
-                                    fft_in_x_buffer,           &
-                                    fft_in_y_buffer)
+                                 (/3, 1, 2/),               &
+                                 fft_x_comm,                &
+                                 BACKWARD,                  &
+                                 fft_in_x_buffer,           &
+                                 fft_in_y_buffer)
 
         call transpose_to_pencil(z_from_y_transposition,  &
-                                    (/2, 3, 1/),             &
-                                    fft_y_comm,              &
-                                    BACKWARD,                &
-                                    fft_in_y_buffer,         &
-                                    fs)
+                                 (/2, 3, 1/),             &
+                                 fft_y_comm,              &
+                                 BACKWARD,                &
+                                 fft_in_y_buffer,         &
+                                 fs)
 
     end subroutine fftxyp2s
 
@@ -264,18 +264,18 @@ contains
         ! 6. Transform from (y, x, z) to (z, y, x) pencil
 
         call transpose_to_pencil(y_from_z_transposition, &
-                                    (/1, 2, 3/),            &
-                                    fft_y_comm,             &
-                                    FORWARD,                &
-                                    fs,                     &
-                                    fft_in_y_buffer)
+                                 (/1, 2, 3/),            &
+                                 fft_y_comm,             &
+                                 FORWARD,                &
+                                 fs,                     &
+                                 fft_in_y_buffer)
 
         call transpose_to_pencil(x_from_y_transposition, &
-                                    (/2, 3, 1/),            &
-                                    fft_x_comm,             &
-                                    FORWARD,                &
-                                    fft_in_y_buffer,        &
-                                    fft_in_x_buffer)
+                                 (/2, 3, 1/),            &
+                                 fft_x_comm,             &
+                                 FORWARD,                &
+                                 fft_in_y_buffer,        &
+                                 fft_in_x_buffer)
 
         do i = 1, size(fft_in_x_buffer, 2)
             do j = 1, size(fft_in_x_buffer, 3)
@@ -284,11 +284,11 @@ contains
         enddo
 
         call transpose_to_pencil(y_from_x_transposition, &
-                                    (/3, 1, 2/),            &
-                                    fft_x_comm,             &
-                                    BACKWARD,               &
-                                    fft_in_x_buffer,        &
-                                    fft_in_y_buffer)
+                                 (/3, 1, 2/),            &
+                                 fft_x_comm,             &
+                                 BACKWARD,               &
+                                 fft_in_x_buffer,        &
+                                 fft_in_y_buffer)
 
         do i = 1, size(fft_in_y_buffer, 2)
             do j = 1, size(fft_in_y_buffer, 3)
@@ -297,11 +297,11 @@ contains
         enddo
 
         call transpose_to_pencil(z_from_y_transposition,  &
-                                    (/2, 3, 1/),             &
-                                    fft_y_comm,              &
-                                    BACKWARD,                &
-                                    fft_in_y_buffer,         &
-                                    fp(box%lo(3):box%hi(3),  &
+                                 (/2, 3, 1/),             &
+                                 fft_y_comm,              &
+                                 BACKWARD,                &
+                                 fft_in_y_buffer,         &
+                                 fp(box%lo(3):box%hi(3),  &
                                     box%lo(2):box%hi(2),  &
                                     box%lo(1):box%hi(1)))
 
@@ -311,8 +311,8 @@ contains
 
     subroutine fftsine(fs)
         double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &  ! 0:nz
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
+                                              box%lo(2):box%hi(2), &
+                                              box%lo(1):box%hi(1))
         integer                         :: kx, ky
 
         !$omp parallel do collapse(2) private(kx, ky)
@@ -329,8 +329,8 @@ contains
 
     subroutine fftcosine(fs)
         double precision, intent(inout) :: fs(box%lo(3):box%hi(3), & ! 0:nz
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
+                                              box%lo(2):box%hi(2), &
+                                              box%lo(1):box%hi(1))
         integer                         :: kx, ky
 
         !$omp parallel do collapse(2) private(kx, ky)
