@@ -13,35 +13,35 @@ module mpi_environment
 
     type(communicator) :: world
 
-    contains
+contains
 
-        subroutine mpi_env_initialise
+    subroutine mpi_env_initialise
 #ifdef ENABLE_OPENMP
-            integer :: provided
-            call MPI_Init_thread(MPI_THREAD_FUNNELED, provided, world%err)
+        integer :: provided
+        call MPI_Init_thread(MPI_THREAD_FUNNELED, provided, world%err)
 
-            if (.not. provided == MPI_THREAD_FUNNELED) then
-                stop
-            endif
+        if (.not. provided == MPI_THREAD_FUNNELED) then
+            stop
+        endif
 #else
-            call MPI_Init(world%err)
+        call MPI_Init(world%err)
 #endif
-            call MPI_Comm_size(world%comm, world%size, world%err)
-            call MPI_Comm_rank(world%comm, world%rank, world%err)
-        end subroutine mpi_env_initialise
+        call MPI_Comm_size(world%comm, world%size, world%err)
+        call MPI_Comm_rank(world%comm, world%rank, world%err)
+    end subroutine mpi_env_initialise
 
-        subroutine mpi_env_finalise
-            logical :: flag
-            call MPI_Initialized(flag, world%err)
+    subroutine mpi_env_finalise
+        logical :: flag
+        call MPI_Initialized(flag, world%err)
 
-            if (flag) then
-                call MPI_Finalize(world%err)
-            endif
+        if (flag) then
+            call MPI_Finalize(world%err)
+        endif
 
-            call MPI_Finalized(flag, world%err)
+        call MPI_Finalized(flag, world%err)
 
-            if (.not. flag) then
-                call MPI_Abort(world%comm, -1, world%err)
-            endif
-        end subroutine mpi_env_finalise
+        if (.not. flag) then
+            call MPI_Abort(world%comm, -1, world%err)
+        endif
+    end subroutine mpi_env_finalise
 end module mpi_environment
