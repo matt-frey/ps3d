@@ -185,7 +185,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, (/data/), &
-                                start=(/start/), count=(/1/))
+                             start=(/start/), count=(/1/))
 
         call check_netcdf_error("Failed to write scalar.")
 
@@ -202,7 +202,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, (/data/), &
-                                start=(/start/), count=(/1/))
+                             start=(/start/), count=(/1/))
 
         call check_netcdf_error("Failed to write scalar.")
 
@@ -220,7 +220,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, data, &
-                                start=start, count = cnt)
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -241,7 +241,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, transpose(data),  &
-                                start=start, count = cnt)
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -262,9 +262,9 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid,                                    &
-                                reshape(data, shape=(/map(3), map(2), map(1)/), &
-                                        order=(/3, 2, 1/)),                     &
-                                start=start, count = cnt)
+                             reshape(data, shape=(/map(3), map(2), map(1)/), &
+                                     order=(/3, 2, 1/)),                     &
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -282,7 +282,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, data, &
-                                start=start, count = cnt)
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -303,7 +303,7 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid, transpose(data),  &
-                                start=start, count = cnt)
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -324,9 +324,9 @@ contains
 
         ! write data
         ncerr = nf90_put_var(ncid, varid,                                    &
-                                reshape(data, shape=(/map(3), map(2), map(1)/), &
-                                        order=(/3, 2, 1/)),                     &
-                                start=start, count = cnt)
+                             reshape(data, shape=(/map(3), map(2), map(1)/), &
+                                     order=(/3, 2, 1/)),                     &
+                             start=start, count = cnt)
 
         call check_netcdf_error("Failed to write dataset.")
 
@@ -386,14 +386,14 @@ contains
 
         ! define dimensions
         call define_netcdf_dimension(ncid=ncid,                 &
-                                        name=netcdf_dims(1),       &
-                                        dimsize=ngps(1),           &
-                                        dimid=dimids(1))
+                                     name=netcdf_dims(1),       &
+                                     dimsize=ngps(1),           &
+                                     dimid=dimids(1))
 
         call define_netcdf_dimension(ncid=ncid,                 &
-                                        name=netcdf_dims(2),       &
-                                        dimsize=ngps(2),           &
-                                        dimid=dimids(2))
+                                     name=netcdf_dims(2),       &
+                                     dimsize=ngps(2),           &
+                                     dimid=dimids(2))
 
         call define_netcdf_dataset(                                                 &
             ncid=ncid,                                                              &
@@ -489,9 +489,9 @@ contains
         integer, intent(out) :: dimid, axid
 
         call define_netcdf_dimension(ncid=ncid,                 &
-                                        name=netcdf_dims(4),       &
-                                        dimsize=NF90_UNLIMITED,    &
-                                        dimid=dimid)
+                                     name=netcdf_dims(4),       &
+                                     dimsize=NF90_UNLIMITED,    &
+                                     dimid=dimid)
 
         call define_netcdf_dataset(             &
             ncid=ncid,                          &
