@@ -66,7 +66,7 @@ program test_zeta
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test zeta', error, atol=1.0e-14)
+        call print_result_dp('Test zeta', error, atol=1.0d-14)
     endif
 
     deallocate(zeta_ref)

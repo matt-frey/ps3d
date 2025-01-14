@@ -91,7 +91,7 @@ program test_implicit_rk
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test implicit RK', error, atol=1.0e-12)
+        call print_result_dp('Test implicit RK', error, atol=1.0d-12)
     endif
 
     deallocate(ref)

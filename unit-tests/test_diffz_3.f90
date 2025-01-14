@@ -68,7 +68,7 @@ program test_diffz_3
     call mpi_blocking_reduce(error, MPI_MAX, world)
 
     if (world%rank == world%root) then
-        call print_result_dp('Test diffz', error, atol=2.0e-13)
+        call print_result_dp('Test diffz', error, atol=2.0d-13)
     endif
 
     deallocate(fp)
