@@ -63,8 +63,8 @@ contains
         endif
 
         vvisc = get_viscosity(vor_visc%length_scale, &
-                                vor_visc%prediss,      &
-                                vor_visc%nnu, te, en)
+                              vor_visc%prediss,      &
+                              vor_visc%nnu, te, en)
 
         allocate(vhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
@@ -72,8 +72,8 @@ contains
 
 #ifdef ENABLE_BUOYANCY
         bvisc = get_viscosity(buoy_visc%length_scale, &
-                                buoy_visc%prediss,      &
-                                buoy_visc%nnu, te, en)
+                              buoy_visc%prediss,      &
+                              buoy_visc%nnu, te, en)
 
         allocate(bhdis(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
@@ -106,9 +106,11 @@ contains
                 vis = prediss *  (K2max * te /en) ** f13 * rkmsi ** p
             case ('geophysical')
                 vis = prediss * rkmsi ** p
+            case ('constant')
+                vis = prediss
             case default
                 call mpi_stop(&
-                    "We only support 'Kolmogorov' or 'geophysical'")
+                    "We only support 'Kolmogorov', 'geophysical' or 'constant'.")
         end select
 
     end function get_viscosity
