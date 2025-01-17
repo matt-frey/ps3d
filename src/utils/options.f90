@@ -65,7 +65,7 @@ module options
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
-        ! "Kolmogorov or "geophysical"
+        ! "Kolmogorov", "geophysical" or "constant"
         character(len=11) :: length_scale = "Kolmogorov"
 
     end type visc_type
