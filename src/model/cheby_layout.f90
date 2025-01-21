@@ -306,7 +306,7 @@ contains
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             savg = this%zccw(0) * fs(0, 0, 0)
             do iz = 1, nz-1
-                ! combine to semi-spectral
+                ! add back the harmonic part
                 c = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
                                  + fs(nz, 0, 0) * this%phip(iz, 0, 0)
 
@@ -333,26 +333,32 @@ contains
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: avg
-        double precision                      :: savg
+        double precision                      :: savg, cor
         integer                               :: iz
 
         savg = this%calc_decomposed_mean(fs)
 
+        cor = avg - savg
+
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             do iz = 1, nz-1
-                ! transform to semi-spectral
+                ! add back the harmonic part
                 fs(iz, 0, 0) = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
                                             + fs(nz, 0, 0) * this%phip(iz, 0, 0)
 
                 ! adjust the mean
-                fs(iz, 0, 0) = fs(iz, 0, 0) + avg - savg
+                fs(iz, 0, 0) = fs(iz, 0, 0) + cor
+            enddo
 
-                ! decompose from semi-spectral
+            ! adjust the mean at the surfaces
+            fs(0 , 0, 0) = fs(0,  0, 0) + cor
+            fs(nz, 0, 0) = fs(nz, 0, 0) + cor
+
+            do iz = 1, nz-1
+                ! remove the harmonic part
                 fs(iz, 0, 0) = fs(iz, 0, 0) - (fs(0,  0, 0) * this%phim(iz, 0, 0) + &
                                                fs(nz, 0, 0) * this%phip(iz, 0, 0))
             enddo
-            fs(0 , 0, 0) = fs(0,  0, 0) + avg - savg
-            fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
         endif
 
     end subroutine adjust_decomposed_mean
