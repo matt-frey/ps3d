@@ -15,7 +15,6 @@ module mss_filter
     contains
 
         procedure :: apply
-        procedure :: apply2d
         procedure :: finalise
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
@@ -36,17 +35,6 @@ contains
         fs = this%filt * fs
 
     end subroutine apply
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine apply2d(this, fs)
-        class (mss_filter_t), intent(in) :: this
-        double precision,     intent(inout) :: fs(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-
-        fs = this%filt(0, :, :) * fs
-
-    end subroutine apply2d
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

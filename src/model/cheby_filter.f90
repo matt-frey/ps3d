@@ -18,7 +18,6 @@ module cheby_filter
     contains
 
         procedure :: apply
-        procedure :: apply2d
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
         procedure, private :: init_none
@@ -87,17 +86,6 @@ contains
         fs(nz, :, :) = this%filt * fstop
 
     end subroutine apply
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine apply2d(this, fs)
-        class (cheby_filter_t), intent(in) :: this
-        double precision,       intent(inout) :: fs(box%lo(2):box%hi(2), &
-                                                    box%lo(1):box%hi(1))
-
-        fs = this%filt * fs
-
-    end subroutine apply2d
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
