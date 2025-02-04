@@ -11,7 +11,6 @@ module field_filter
 
 
         procedure (m_apply),   deferred :: apply
-        procedure (m_apply2d), deferred :: apply2d
         procedure (m_init_hou_and_li), private, deferred :: init_hou_and_li
         procedure (m_init_23rd_rule),  private, deferred :: init_23rd_rule
         procedure (m_init_none),       private, deferred :: init_none
@@ -26,14 +25,6 @@ module field_filter
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
         end subroutine m_apply
-
-        subroutine m_apply2d(this, fs)
-            use mpi_layout, only : box
-            import filter_t
-            class(filter_t),  intent(in)    :: this
-            double precision, intent(inout) :: fs(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-        end subroutine m_apply2d
 
         subroutine m_init_hou_and_li(this)
             import filter_t
