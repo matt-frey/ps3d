@@ -26,14 +26,16 @@ module field_filter
                                                   box%lo(1):box%hi(1))
         end subroutine m_apply
 
-        subroutine m_init_hou_and_li(this)
+        subroutine m_init_hou_and_li(this, l_disable_vertical)
             import filter_t
             class(filter_t), intent(inout) :: this
+            logical,         intent(in)    :: l_disable_vertical
         end subroutine m_init_hou_and_li
 
-        subroutine m_init_23rd_rule(this)
+        subroutine m_init_23rd_rule(this, l_disable_vertical)
             import filter_t
             class(filter_t), intent(inout) :: this
+            logical,         intent(in)    :: l_disable_vertical
         end subroutine m_init_23rd_rule
 
         subroutine m_init_none(this)
@@ -47,22 +49,28 @@ contains
     subroutine m_initialise(this, method)
         character(8),    intent(in)    :: method
         class(filter_t), intent(inout) :: this
-        character(8)                   :: used_method
+        character(24)                  :: used_method
 
         !----------------------------------------------------------
         !Define de-aliasing filter:
         select case (method)
             case ("Hou & Li")
                 used_method = method
-                call this%init_hou_and_li
+                call this%init_hou_and_li(l_disable_vertical=.false.)
             case ("2/3-rule")
-                call this%init_23rd_rule
+                call this%init_23rd_rule(l_disable_vertical=.false.)
+                used_method = method
+            case ("Hou & Li (no vertical)")
+                used_method = method
+                call this%init_hou_and_li(l_disable_vertical=.true.)
+            case ("2/3-rule (no vertical)")
+                call this%init_23rd_rule(l_disable_vertical=.true.)
                 used_method = method
             case ("none")
                 call this%init_none
                 used_method = "no"
             case default
-                call this%init_hou_and_li
+                call this%init_hou_and_li(l_disable_vertical=.false.)
                 used_method = "Hou & Li"
         end select
 
