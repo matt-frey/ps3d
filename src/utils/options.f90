@@ -78,6 +78,8 @@ module options
     logical :: l_buoyancy_anomaly = .true.
 #endif
 
+    logical :: l_ensure_solenoidal = .false.
+
     type(visc_type) :: vor_visc
 
 #ifdef ENABLE_BUOYANCY
@@ -105,16 +107,17 @@ contains
         logical :: exists = .false.
 
         ! namelist definitions
-        namelist /PS3D/ field_file,         &
-                        field_step,         &
-                        time_stepper,       &
-                        vor_visc,           &
+        namelist /PS3D/ field_file,          &
+                        field_step,          &
+                        time_stepper,        &
+                        vor_visc,            &
 #ifdef ENABLE_BUOYANCY
-                        buoy_visc,          &
-                        l_buoyancy_anomaly, &
+                        buoy_visc,           &
+                        l_buoyancy_anomaly,  &
 #endif
-                        filtering,          &
-                        output,             &
+                        l_ensure_solenoidal, &
+                        filtering,           &
+                        output,              &
                         time
 
         ! check whether file exists
@@ -165,6 +168,7 @@ contains
         call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
         call write_netcdf_attribute(gid, "l_buoyancy_anomaly", l_buoyancy_anomaly)
 #endif
+        call write_netcdf_attribute(gid, "l_ensure_solenoidal", l_ensure_solenoidal)
         call write_netcdf_attribute(gid, "filtering", filtering)
 
         call write_netcdf_attribute(gid, "time_stepper", time_stepper)
