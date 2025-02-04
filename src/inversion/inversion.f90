@@ -6,6 +6,7 @@ module inversion_mod
     use physics, only : bfsq
     use options, only : l_buoyancy_anomaly
 #endif
+    use options, only : l_ensure_solenoidal
     use constants, only : zero, two
     use sta2dfft, only : dct, dst
     use sta3dfft, only : rkz, rkzi, ztrig, zfactors, diffx, diffy, fftxyp2s, fftxys2p, k2l2i
@@ -18,19 +19,14 @@ module inversion_mod
 
 contains
 
-    ! Given the vorticity vector field (svor) in spectral space, this
-    ! returns the associated velocity field (vel) as well as vorticity
-    ! in physical space (vor)
-    subroutine vor2vel
+    subroutine make_vorticity_solenoidal
         double precision :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
         double precision :: bs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
         double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
         double precision :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
         double precision :: cs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
         double precision :: ubar(0:nz), vbar(0:nz)
-        integer          :: iz, nc
-
-        call start_timer(vor2vel_timer)
+        integer          :: iz
 
         !----------------------------------------------------------
         ! Enforce solenoidality
@@ -74,6 +70,26 @@ contains
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             svor(:, 0, 0, 1) = ubar
             svor(:, 0, 0, 2) = vbar
+        endif
+
+    end subroutine make_vorticity_solenoidal
+
+    ! Given the vorticity vector field (svor) in spectral space, this
+    ! returns the associated velocity field (vel) as well as vorticity
+    ! in physical space (vor)
+    subroutine vor2vel
+        double precision :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: bs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: cs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  ! semi-spectral
+        double precision :: ubar(0:nz), vbar(0:nz)
+        integer          :: iz, nc
+
+        call start_timer(vor2vel_timer)
+
+        if (l_ensure_solenoidal) then
+            call make_vorticity_solenoidal
         endif
 
         !----------------------------------------------------------
