@@ -90,8 +90,9 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     !Define Hou and Li filter (2D and 3D):
-    subroutine init_hou_and_li(this)
+    subroutine init_hou_and_li(this, l_disable_vertical)
         class(cheby_filter_t), intent(inout) :: this
+        logical,               intent(in)    :: l_disable_vertical
         integer                              :: kx, ky, kz
         double precision                     :: kxmaxi, kymaxi, kzmaxi
         double precision                     :: skx(box%lo(1):box%hi(1)), &
@@ -106,7 +107,11 @@ contains
         kymaxi = one/maxval(rky)
         sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
         kzmaxi = one/maxval(rkz)
-        skz = -36.d0 * (kzmaxi * rkz) ** 36
+        if (l_disable_vertical) then
+            skz = zero
+        else
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
+        endif
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
@@ -128,8 +133,9 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     !Define de-aliasing filter (2/3 rule):
-    subroutine init_23rd_rule(this)
+    subroutine init_23rd_rule(this, l_disable_vertical)
         class(cheby_filter_t), intent(inout) :: this
+        logical,               intent(in)    :: l_disable_vertical
         integer                              :: kx, ky, kz
         double precision                     :: rkxmax, rkymax, rkzmax
         double precision                     :: skx(box%lo(1):box%hi(1)), &
@@ -159,13 +165,17 @@ contains
             endif
         enddo
 
-        do kz = 0, nz
-            if (rkz(kz) <= f23 * rkzmax) then
-                skz(kz) = one
-            else
-                skz(kz) = zero
-            endif
-        enddo
+        if (l_disable_vertical) then
+            skz = one
+        else
+            do kz = 0, nz
+                if (rkz(kz) <= f23 * rkzmax) then
+                    skz(kz) = one
+                else
+                    skz(kz) = zero
+                endif
+            enddo
+        endif
 
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)

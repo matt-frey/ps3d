@@ -70,8 +70,8 @@ module options
 
     end type visc_type
 
-    ! 'Hou & Li' or '2/3-rule'
-    character(len=8) :: filtering = "Hou & Li"
+    ! 'Hou & Li', 'Hou & Li (no vertical)', '2/3-rule' or '2/3-rule (no vertical)'
+    character(len=24) :: filtering = "Hou & Li"
 
 #ifdef ENABLE_BUOYANCY
     ! Enable or disable removal of buoyancy basic state
