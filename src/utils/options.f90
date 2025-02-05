@@ -68,6 +68,9 @@ module options
         ! "Kolmogorov", "geophysical" or "constant"
         character(len=11) :: length_scale = "Kolmogorov"
 
+        ! Use 3D diffusion operator
+        logical :: l_use_3d = .false.
+
     end type visc_type
 
     ! 'Hou & Li', 'Hou & Li (no vertical)', '2/3-rule' or '2/3-rule (no vertical)'
@@ -205,6 +208,7 @@ contains
         call write_netcdf_attribute(gid, label // "%pretype", visc%pretype)
         call write_netcdf_attribute(gid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
         call write_netcdf_attribute(gid, label // "%length_scale", visc%length_scale)
+        call write_netcdf_attribute(gid, label // "%l_use_3d", visc%l_use_3d)
 
     end subroutine write_netcdf_viscosity
 

@@ -30,7 +30,7 @@ module fields
         bsm         ! used for time stepping
 #endif
 
-    double precision, allocatable, dimension(:, :) :: &
+    double precision, allocatable, dimension(:, :, :) :: &
         vdiss,  &   ! dissipation operator
         bdiss
 
@@ -72,8 +72,8 @@ contains
         allocate(bbarz(0:nz))
 #endif
 
-        allocate(vdiss(lo(2):hi(2), lo(1):hi(1)))
-        allocate(bdiss(lo(2):hi(2), lo(1):hi(1)))
+        allocate(vdiss(0:nz, lo(2):hi(2), lo(1):hi(1)))
+        allocate(bdiss(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
         ! Spectral fields needed in time stepping:
         allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))

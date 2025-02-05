@@ -14,10 +14,10 @@ module impl_rk4_mod
     type, extends(stepper_t) :: impl_rk4
         ! epq = exp( D * (t-t0))
         ! emq = exp(-D * (t-t0))
-        double precision, allocatable :: epq(:, :), emq(:, :)
+        double precision, allocatable :: epq(:, :, :), emq(:, :, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
-        double precision, allocatable :: bpq(:, :), bmq(:, :)
+        double precision, allocatable :: bpq(:, :, :), bmq(:, :, :)
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
 #endif
 
@@ -58,14 +58,14 @@ contains
     subroutine impl_rk4_setup(self)
         class(impl_rk4), intent(inout) :: self
 
-        allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%epq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%emq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
         allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
 #ifdef ENABLE_BUOYANCY
-        allocate(self%bpq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(self%bmq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%bpq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%bmq(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(self%sbuoyf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(self%sbuoyi(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 #endif
@@ -221,19 +221,16 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1))
-        double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: mq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        integer                         :: iz
 
+        !$omp parallel workshare
         qdi = q
         q = (qdi + dt2 * sqs)
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            q(iz, :, :) = q(iz, :, :) * mq
-        enddo
-        !$omp end parallel do
-
+        q = q * mq
         qdf = qdi + dt6 * sqs
+        !$omp end parallel workshare
 
     end subroutine impl_rk4_substep_one
 
@@ -250,28 +247,21 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1))
-        double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: mq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: pq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
         integer                         :: iz
 
+        !$omp parallel workshare
         ! apply integrating factors to source
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            sqs(iz, :, :) = pq * sqs(iz, :, :)
-        enddo
-        !$omp end parallel do
-
+        sqs = pq * sqs
         q = qdi + dt2 * sqs
-
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            q(iz, :, :) = mq * q(iz, :, :)
-        enddo
-        !$omp end parallel do
-
+        q = mq * q
         qdf = qdf + dt3 * sqs
+        !$omp end parallel workshare
 
     end subroutine impl_rk4_substep_two
 
@@ -288,29 +278,23 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1))
-        double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: mq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: pq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
         double precision, intent(in)    :: dt
         integer                         :: iz
 
+        !$omp parallel workshare
         ! apply integrating factors to source
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            sqs(iz, :, :) = pq * sqs(iz, :, :)
-        enddo
-        !$omp end parallel do
-
+        sqs = pq * sqs
         q = qdi + dt * sqs
-
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            q(iz, :, :) = mq * q(iz, :, :)
-        enddo
-        !$omp end parallel do
-
+        q = mq * q
         qdf = qdf + dt3 * sqs
+        !$omp end parallel workshare
+
     end subroutine impl_rk4_substep_three
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -324,26 +308,20 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1))
-        double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: mq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
+        double precision, intent(in)    :: pq(0:nz,                &
+                                              box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
         integer                         :: iz
 
+        !$omp parallel workshare
         ! apply integrating factors to source
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            sqs(iz, :, :) = pq * sqs(iz, :, :)
-        enddo
-        !$omp end parallel do
-
+        sqs = pq * sqs
         q = qdf + dt6 * sqs
-
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            q(iz, :, :) = mq * q(iz, :, :)
-        enddo
-        !$omp end parallel do
+        q = mq * q
+        !$omp end parallel workshare
 
     end subroutine impl_rk4_substep_four
 

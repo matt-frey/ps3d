@@ -96,7 +96,6 @@ contains
         double precision, intent(in)    :: dt
         integer                         :: iter
         integer                         :: nc
-        integer                         :: iz
 
         !Update value of dt/2:
         dt2 = f12 * dt
@@ -106,14 +105,10 @@ contains
 
         !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
+        !$omp parallel workshare
         bsm = sbuoy + dt2 * sbuoys
-        sbuoy = bsm + dt2 * sbuoys
-
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
-        enddo
-        !$omp end parallel do
+        sbuoy = bdiss * (bsm + dt2 * sbuoys)
+        !$omp end parallel workshare
 #endif
 
         ! Advance interior and boundary values of vorticity
@@ -122,13 +117,9 @@ contains
         !$omp end parallel workshare
 
         do nc = 1, 3
-            svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
-            enddo
-            !$omp end parallel do
+            !$omp parallel workshare
+            svor(:, :, :, nc) = vdiss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+            !$omp end parallel workshare
         enddo
 
         ! Ensure zero global mean horizontal vorticity conservation:
@@ -149,23 +140,15 @@ contains
 
             !Update fields:
 #ifdef ENABLE_BUOYANCY
-            sbuoy = bsm + dt2 * sbuoys
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
-            enddo
-            !$omp end parallel do
+            !$omp parallel workshare
+            sbuoy = bdiss * (bsm + dt2 * sbuoys)
+            !$omp end parallel workshare
 #endif
 
             do nc = 1, 3
-                svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
+                !$omp parallel workshare
+                svor(:, :, :, nc) = vdiss * (vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc))
+                !$omp end parallel workshare
             enddo
 
             ! Ensure zero global mean horizontal vorticity conservation:

@@ -26,7 +26,7 @@ program test_implicit_rk
     use model, only : layout, create_model
     implicit none
 
-    double precision, allocatable :: ref(:, :, :, :), ed(:, :)
+    double precision, allocatable :: ref(:, :, :, :), ed(:, :, :)
     double precision, allocatable :: src(:, :, :, :)
 
     call mpi_env_initialise
@@ -62,14 +62,14 @@ contains
     subroutine run_test(grid_type)
         character(*), intent(in)  :: grid_type
         double precision          :: error
-        integer                   :: iz, nc, n
+        integer                   :: nc, n
         double precision          :: time, time_step
 
         call create_model(grid_type, "Hou & Li")
 
         allocate(ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
         allocate(src(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
-        allocate(ed(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(ed(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         time_step = 0.1d0
         do n = 1, 4
@@ -85,9 +85,7 @@ contains
             do nc = 1, 3
                 call layout%combine_semi_spectral(ref(:, :, :, nc))
                 call layout%combine_semi_spectral(src(:, :, :, nc))
-                do iz = 0, nz
-                    ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / vdiss
-                enddo
+                ref(:, :, :, nc) = ed * ref(:, :, :, nc) + (one - ed) * src(:, :, :, nc) / vdiss
                 call layout%decompose_semi_spectral(ref(:, :, :, nc))
                 call layout%decompose_semi_spectral(src(:, :, :, nc))
             enddo
@@ -115,15 +113,17 @@ contains
         double precision, intent(inout) :: t
         double precision, intent(in)    :: dt
         double precision                :: dt2, dt3, dt6
-        double precision                :: epq(box%lo(2):box%hi(2), &       ! exp(D * (t-t0))
+        double precision                :: epq(0:nz,                &       ! exp(D * (t-t0))
+                                               box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
-        double precision                :: emq(box%lo(2):box%hi(2), &       ! exp(- D * (t-t0))
+        double precision                :: emq(0:nz,                &       ! exp(- D * (t-t0))
+                                               box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
         double precision                :: qdi(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1), 3)
         double precision                :: qdf(0:nz, box%lo(2):box%hi(2), &
                                                      box%lo(1):box%hi(1), 3)
-        integer                         :: iz, nc
+        integer                         :: nc
 
 
         dt2 = dt / 2.0d0
@@ -138,11 +138,7 @@ contains
         svor = (qdi + dt2 * svorts)
         do nc = 1, 3
             call layout%combine_semi_spectral(svor(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-            enddo
-            !$omp end parallel do
+            svor(:, :, :, nc) = svor(:, :, :, nc) * emq
             call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
@@ -160,22 +156,14 @@ contains
         ! apply integrating factors to source
         do nc = 1, 3
             call layout%combine_semi_spectral(svorts(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-            enddo
-            !$omp end parallel do
+            svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
             call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
         svor = (qdi + dt2 * svorts)
         do nc = 1, 3
             call layout%combine_semi_spectral(svor(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-            enddo
-            !$omp end parallel do
+            svor(:, :, :, nc) = svor(:, :, :, nc) * emq
             call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
@@ -192,11 +180,7 @@ contains
         ! apply integrating factors to source
         do nc = 1, 3
             call layout%combine_semi_spectral(svorts(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-            enddo
-            !$omp end parallel do
+            svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
             call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
@@ -204,11 +188,7 @@ contains
         svor = qdi + dt * svorts
         do nc = 1, 3
             call layout%combine_semi_spectral(svor(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-            enddo
-            !$omp end parallel do
+            svor(:, :, :, nc) = svor(:, :, :, nc) * emq
             call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 
@@ -226,22 +206,14 @@ contains
         ! apply integrating factors to source
         do nc = 1, 3
             call layout%combine_semi_spectral(svorts(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svorts(iz, :, :, nc) = svorts(iz, :, :, nc) * epq
-            enddo
-            !$omp end parallel do
+            svorts(:, :, :, nc) = svorts(:, :, :, nc) * epq
             call layout%decompose_semi_spectral(svorts(:, :, :, nc))
         enddo
 
         svor = qdf + dt6 * svorts
         do nc = 1, 3
             call layout%combine_semi_spectral(svor(:, :, :, nc))
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = svor(iz, :, :, nc) * emq
-            enddo
-            !$omp end parallel do
+            svor(:, :, :, nc) = svor(:, :, :, nc) * emq
             call layout%decompose_semi_spectral(svor(:, :, :, nc))
         enddo
 

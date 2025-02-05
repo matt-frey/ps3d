@@ -110,10 +110,8 @@ contains
 
         do nc = 1, 3
             call layout%combine_semi_spectral(vd1(:, :, :, nc))
-            do iz = 0, nz
-                vd1(iz, :, :, nc) = vhdis * vd1(iz, :, :, nc)
-                vd2(iz, :, :, nc) = vhdis * vd2(iz, :, :, nc)
-            enddo
+            vd1(:, :, :, nc) = vhdis * vd1(:, :, :, nc)
+            vd2(:, :, :, nc) = vhdis * vd2(:, :, :, nc)
             call layout%decompose_semi_spectral(vd1(:, :, :, nc))
         enddo
 
