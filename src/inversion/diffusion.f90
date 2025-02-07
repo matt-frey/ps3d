@@ -159,7 +159,7 @@ contains
                     hdis(0, ky, kx) = visc * k2l2(ky, kx) ** p
                     hdis(nz, ky, kx) = hdis(0, ky, kx)
                     do kz = 1, nz-1
-                        hdis(kz, kx, ky) = visc * (k2l2(kx, ky) + rkz(kz) ** 2) ** p
+                        hdis(kz, ky, kx) = visc * (k2l2(ky, kx) + rkz(kz) ** 2) ** p
                     enddo
                 enddo
             enddo
