@@ -253,7 +253,6 @@ contains
         double precision, intent(in)    :: pq(0:nz,                &
                                               box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        integer                         :: iz
 
         !$omp parallel workshare
         ! apply integrating factors to source
@@ -285,7 +284,6 @@ contains
                                               box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
         double precision, intent(in)    :: dt
-        integer                         :: iz
 
         !$omp parallel workshare
         ! apply integrating factors to source
@@ -314,7 +312,6 @@ contains
         double precision, intent(in)    :: pq(0:nz,                &
                                               box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        integer                         :: iz
 
         !$omp parallel workshare
         ! apply integrating factors to source
