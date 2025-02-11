@@ -18,6 +18,7 @@ module mss_filter
         procedure :: finalise
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
+        procedure, private :: init_23rd_rule_circular
         procedure, private :: init_none
 
     end type
@@ -97,6 +98,7 @@ contains
         rkymax = maxval(rky)
         rkzmax = maxval(rkz)
 
+
         do kx = box%lo(1), box%hi(1)
             if (rkx(kx) <= f23 * rkxmax) then
                 skx(kx) = one
@@ -142,6 +144,49 @@ contains
         endif
 
     end subroutine init_23rd_rule
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine init_23rd_rule_circular(this)
+        class(mss_filter_t), intent(inout) :: this
+        double precision                   :: rkxmax, rkymax, rkzmax, rkfsq2d, rkfsq3d, rklsq
+        integer                            :: kx, ky, kz
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        rkxmax = maxval(rkx)
+        rkymax = maxval(rky)
+        rkzmax = maxval(rkz)
+
+        rkfsq2d = (f23 * min(rkxmax, rkymax)) ** 2
+        rkfsq3d = (f23 * min(rkxmax, rkymax, rkzmax)) ** 2
+
+        ! Take product of 1d filters:
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                rklsq = rkx(kx) ** 2 + rky(ky) ** 2
+
+                this%filt(0,  ky, kx) = zero
+                if (rklsq <= rkfsq2d) then
+                    this%filt(0,  ky, kx) = one
+                endif
+                this%filt(nz, ky, kx) = this%filt(0, ky, kx)
+
+                do kz = 1, nz-1
+                    this%filt(kz, ky, kx) = zero
+                    if (rklsq + rkz(kz) ** 2 <= rkfsq3d) then
+                        this%filt(kz, ky, kx) = one
+                    endif
+                enddo
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = one
+        endif
+
+    end subroutine init_23rd_rule_circular
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

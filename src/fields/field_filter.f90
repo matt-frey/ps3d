@@ -13,6 +13,7 @@ module field_filter
         procedure (m_apply),   deferred :: apply
         procedure (m_init_hou_and_li), private, deferred :: init_hou_and_li
         procedure (m_init_23rd_rule),  private, deferred :: init_23rd_rule
+        procedure (m_init_23rd_rule_circular),  private, deferred :: init_23rd_rule_circular
         procedure (m_init_none),       private, deferred :: init_none
     end type
 
@@ -38,6 +39,11 @@ module field_filter
             logical,         intent(in)    :: l_disable_vertical
         end subroutine m_init_23rd_rule
 
+        subroutine m_init_23rd_rule_circular(this)
+            import filter_t
+            class(filter_t), intent(inout) :: this
+        end subroutine m_init_23rd_rule_circular
+
         subroutine m_init_none(this)
             import filter_t
             class(filter_t), intent(inout) :: this
@@ -59,6 +65,9 @@ contains
                 call this%init_hou_and_li(l_disable_vertical=.false.)
             case ("2/3-rule")
                 call this%init_23rd_rule(l_disable_vertical=.false.)
+                used_method = method
+            case ("2/3-rule (circular)")
+                call this%init_23rd_rule_circular
                 used_method = method
             case ("Hou & Li (no vertical)")
                 used_method = method

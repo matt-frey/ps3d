@@ -20,6 +20,7 @@ module cheby_filter
         procedure :: apply
         procedure, private :: init_hou_and_li
         procedure, private :: init_23rd_rule
+        procedure, private :: init_23rd_rule_circular
         procedure, private :: init_none
         procedure, private :: get_cheb_poly
         procedure, private :: cheb_eval
@@ -194,6 +195,56 @@ contains
         endif
 
     end subroutine init_23rd_rule
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define de-aliasing filter (2/3 rule):
+    subroutine init_23rd_rule_circular(this)
+        class(cheby_filter_t), intent(inout) :: this
+        integer                              :: kx, ky, kz
+        double precision                     :: rkxmax, rkymax, rkzmax, rkfsq2d, rkfsq3d, rklsq
+
+        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        rkxmax = maxval(rkx)
+        rkymax = maxval(rky)
+        rkzmax = maxval(rkz)
+
+        rkfsq2d = (f23 * min(rkxmax, rkymax)) ** 2
+        rkfsq3d = (f23 * min(rkxmax, rkymax, rkzmax)) ** 2
+
+        ! Take product of 1d filters:
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                rklsq = rkx(kx) ** 2 + rky(ky) ** 2
+
+                this%filt(ky, kx) = zero
+                if (rklsq <= rkfsq2d) then
+                    this%filt(ky, kx) = one
+                endif
+
+                do kz = 0, nz
+                    this%zfilt(kz, ky, kx) = zero
+                    if (rklsq + rkz(kz) ** 2 <= rkfsq3d) then
+                        this%zfilt(kz, ky, kx) = one
+                    endif
+                enddo
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(0, 0) = one
+            do kz = 0, nz
+                this%zfilt(kz, 0, 0) = zero
+                if (rkz(kz) ** 2 <= rkfsq3d) then
+                    this%zfilt(kz, 0, 0) = one
+                endif
+            enddo
+        endif
+
+    end subroutine init_23rd_rule_circular
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
