@@ -214,13 +214,17 @@ contains
 
         hdzi = f12 * dxi(3)
 
-        ! Linear extrapolation at the boundaries:
-        ! iz = 0:  (fs(1) - fs(0)) / dz
-        ! iz = nz: (fs(nz) - fs(nz-1)) / dz
-        !$omp parallel workshare
-        ds(0,  :, :) = dxi(3) * (fs(1,    :, :) - fs(0,    :, :))
-        ds(nz, :, :) = dxi(3) * (fs(nz,   :, :) - fs(nz-1, :, :))
-        !$omp end parallel workshare
+!         ! Linear extrapolation at the boundaries:
+!         ! iz = 0:  (fs(1) - fs(0)) / dz
+!         ! iz = nz: (fs(nz) - fs(nz-1)) / dz
+!         !$omp parallel workshare
+!         ds(0,  :, :) = dxi(3) * (fs(1,    :, :) - fs(0,    :, :))
+!         ds(nz, :, :) = dxi(3) * (fs(nz,   :, :) - fs(nz-1, :, :))
+!         !$omp end parallel workshare
+
+        ! One-sided second order differentiation:
+        ds(0,  :, :) = (4.0d0 * fs(1,    :, :) - fs(2,    :, :) - 3.0d0 * fs(0,    :, :)) * hdzi
+        ds(nz, :, :) = (3.0d0 * fs(nz,   :, :) + fs(nz-2, :, :) - 4.0d0 * fs(nz-1, :, :)) * hdzi
 
         ! central differencing for interior cells
         !$omp parallel do private(iz) default(shared)
