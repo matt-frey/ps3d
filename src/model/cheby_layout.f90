@@ -49,6 +49,7 @@ module cheby_layout
 
         procedure :: vertvel
         procedure :: zinteg
+        procedure :: zdiffuse
 
         ! Routines only available in this class
         procedure :: zderiv
@@ -408,6 +409,58 @@ contains
         g = g + gavg
 
     end subroutine zinteg
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine zdiffuse(this, fs, dt)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(0:nz,                 &
+                                                    box%lo(2):box%hi(2),  &
+                                                    box%lo(1):box%hi(1))
+        double precision,       intent(in)    :: dt
+        double precision, allocatable ::  eye(:, :), Lm(:, :), Rm(:, :), D2(:,:), Am(:,:)
+        double precision, allocatable :: rhs(:)
+        integer, allocatable          :: ipiv(:)
+        integer :: kx, ky, iz, info
+        double precision :: alpha_h
+
+        allocate(Am(0:nz, 0:nz))
+        allocate(D2(1:nz-1, 1:nz-1))
+        allocate(eye(1:nz-1, 1:nz-1))
+        allocate(Lm(1:nz-1, 1:nz-1))
+        allocate(Rm(1:nz-1, 1:nz-1))
+        allocate(rhs(1:nz-1))
+        allocate(ipiv(0:nz))
+
+        eye = zero
+        Am = zero
+        do iz = 1, nz-1
+            eye(iz, iz) = one
+        enddo
+
+        Am = matmul(this%d1z, this%d1z)
+        D2 = Am(1:nz-1,1:nz-1)
+
+        Lm = eye - f12 * dt *  alpha_h * D2
+        Rm = eye + f12 * dt *  alpha_h * D2
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
+                fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt )* fs(nz, ky, kx)
+            enddo
+        enddo
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                rhs = matmul(Rm, fs(1:nz-1, ky, kx))
+                !! Linear Solve in z
+                call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                !! Diffuse in x-y
+                fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+            enddo
+        enddo
+    end subroutine zdiffuse
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
