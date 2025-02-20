@@ -38,6 +38,7 @@ module mss_layout
         ! Specific routines:
         procedure :: vertvel
         procedure :: zinteg
+        procedure :: zdiffuse
 
         procedure :: central_diffz
         procedure :: decomposed_diffz
@@ -345,6 +346,17 @@ contains
         g = g + f(nz) * this%gamtop - f(0) * this%gambot
 
     end subroutine zinteg
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine zdiffuse(this, fs, dt)
+        class (mss_layout_t), intent(in)    :: this
+        double precision,     intent(inout) :: fs(0:nz,                 &
+                                                  box%lo(2):box%hi(2),  &
+                                                  box%lo(1):box%hi(1))
+        double precision,     intent(in)    :: dt
+        ! Do nothing here
+    end subroutine zdiffuse
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
