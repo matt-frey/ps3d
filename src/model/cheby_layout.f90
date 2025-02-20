@@ -461,7 +461,7 @@ contains
                 !! Linear Solve in z
                 call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
                 !! Diffuse in x-y
-                fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+                fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_v * k2l2(ky, kx))
             enddo
         enddo
     end subroutine zdiffuse
