@@ -26,6 +26,8 @@ module cheby_layout
                                        , zccw(:)              & ! Clenshaw-Curtis weights
                                        , zfilt(:)
 
+        double precision, allocatable ::  eye(:, :), D2(:, :)
+
     contains
 
         procedure :: initialise
@@ -67,6 +69,8 @@ contains
     subroutine initialise(this)
         class (cheby_layout_t), intent(inout) :: this
         double precision                      :: fdz1, fdz2!, rkmax
+        double precision                      :: Am(0:nz, 0:nz)
+        integer                               :: iz
 
         if (this%l_initialised) then
             return
@@ -107,6 +111,19 @@ contains
         ! Call parent class initialise
         call this%init_decomposition
 
+        ! Initialise arrays for zdiffuse:
+        allocate(this%D2(1:nz-1, 1:nz-1))
+        allocate(this%eye(1:nz-1, 1:nz-1))
+
+        this%eye = zero
+        Am = zero
+        do iz = 1, nz-1
+            this%eye(iz, iz) = one
+        enddo
+
+        Am = matmul(this%d1z, this%d1z)
+        this%D2 = Am(1:nz-1,1:nz-1)
+
     end subroutine
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -119,6 +136,8 @@ contains
             deallocate(this%d2z)
             deallocate(this%zcheb)
             deallocate(this%zfilt)
+            deallocate(this%D2)
+            deallocate(this%eye)
             this%l_initialised = .false.
         endif
 
@@ -412,42 +431,27 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine zdiffuse(this, fs, dt)
+    subroutine zdiffuse(this, fs, dt, alpha_h, alpha_v)
         class (cheby_layout_t), intent(in)    :: this
         double precision,       intent(inout) :: fs(0:nz,                 &
                                                     box%lo(2):box%hi(2),  &
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: dt
-        double precision, allocatable ::  eye(:, :), Lm(:, :), Rm(:, :), D2(:,:), Am(:,:)
-        double precision, allocatable :: rhs(:)
-        integer, allocatable          :: ipiv(:)
-        integer :: kx, ky, iz, info
-        double precision :: alpha_h
+        double precision,       intent(in)    :: alpha_h
+        double precision,       intent(in)    :: alpha_v
+        double precision                      :: Lm(1:nz-1, 1:nz-1)
+        double precision                      :: Rm(1:nz-1, 1:nz-1)
+        double precision                      :: rhs(1:nz-1)
+        integer                               :: ipiv(0:nz)
+        integer                               :: kx, ky, info
 
-        allocate(Am(0:nz, 0:nz))
-        allocate(D2(1:nz-1, 1:nz-1))
-        allocate(eye(1:nz-1, 1:nz-1))
-        allocate(Lm(1:nz-1, 1:nz-1))
-        allocate(Rm(1:nz-1, 1:nz-1))
-        allocate(rhs(1:nz-1))
-        allocate(ipiv(0:nz))
-
-        eye = zero
-        Am = zero
-        do iz = 1, nz-1
-            eye(iz, iz) = one
-        enddo
-
-        Am = matmul(this%d1z, this%d1z)
-        D2 = Am(1:nz-1,1:nz-1)
-
-        Lm = eye - f12 * dt *  alpha_h * D2
-        Rm = eye + f12 * dt *  alpha_h * D2
+        Lm = this%eye - f12 * dt *  alpha_h * this%D2
+        Rm = this%eye + f12 * dt *  alpha_h * this%D2
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
                 fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
-                fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt )* fs(nz, ky, kx)
+                fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(nz, ky, kx)
             enddo
         enddo
 

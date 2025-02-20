@@ -349,12 +349,14 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine zdiffuse(this, fs, dt)
+    subroutine zdiffuse(this, fs, dt, alpha_h, alpha_v)
         class (mss_layout_t), intent(in)    :: this
         double precision,     intent(inout) :: fs(0:nz,                 &
                                                   box%lo(2):box%hi(2),  &
                                                   box%lo(1):box%hi(1))
         double precision,     intent(in)    :: dt
+        double precision,     intent(in)    :: alpha_h
+        double precision,     intent(in)    :: alpha_v
         ! Do nothing here
     end subroutine zdiffuse
 
