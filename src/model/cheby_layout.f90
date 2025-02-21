@@ -445,8 +445,8 @@ contains
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
-        Lm = this%eye - f12 * dt *  alpha_h * this%D2
-        Rm = this%eye + f12 * dt *  alpha_h * this%D2
+        Lm = this%eye - f12 * dt *  alpha_v * this%D2
+        Rm = this%eye + f12 * dt *  alpha_v * this%D2
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
