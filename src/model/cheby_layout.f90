@@ -448,6 +448,8 @@ contains
         Lm = this%eye - f12 * dt *  alpha_v * this%D2
         Rm = this%eye + f12 * dt *  alpha_v * this%D2
 
+        call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
+
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
                 fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
@@ -459,7 +461,8 @@ contains
             do ky = box%lo(2), box%hi(2)
                 rhs = matmul(Rm, fs(1:nz-1, ky, kx))
                 !! Linear Solve in z
-                call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                call dgetrs('N', nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+
                 !! Diffuse in x-y
                 fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_v * k2l2(ky, kx))
             enddo
