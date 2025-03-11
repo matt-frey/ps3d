@@ -4,7 +4,7 @@
 
  grid%ncells = 64, 64, 64
 
- grid%layout = 'uniform'
+ grid%layout = 'chebyshev'
 
  ! the extent and origin are multiples of pi,
  ! i.e., extent = 1.0, results in pi and origin = -0.5
@@ -26,7 +26,7 @@
 /
 
 &PHYSICS
- l_planet_vorticity = .true.
+ l_planetary_vorticity = .true.
  ang_vel = 0.5d0
  lat_degrees = 90.0d0
 /
