@@ -437,7 +437,7 @@ contains
         do kx = 1, nx
             der(kx, ny) = zero
         enddo
-        do ky = 1, ny
+        do ky = 1, ny - 1
             do kx = 1, nx
                 der(kx, ky) = -rky(ky) * var(kx, ky)
             enddo
@@ -694,6 +694,11 @@ contains
             der(nx, ky) = zero
             !der = 0 when kx = nx since var = 0 when kx = nx.
         enddo
+
+        !Ensure ny array element is zero, like that of var:
+        do kx = 0, nx
+           der(kx, ny) = zero
+        enddo
     end subroutine
 
 
@@ -722,6 +727,11 @@ contains
                 der(kx, ky) = rky(ky) * var(kx, ky)
             enddo
         enddo
+
+        !Ensure nx array element is zero, like that of var:
+        do ky = 0, ny
+           der(nx, ky) = zero
+        enddo
     end subroutine
 
 
@@ -743,6 +753,11 @@ contains
                 der(kx, ky) = -rkx(kx) * var(kx, ky)
             enddo
             der(nx, ky) = zero
+        enddo
+
+        !Ensure ny array element is zero, like that of var:
+        do kx = 1, nx
+           der(kx, ny) = zero
         enddo
     end subroutine
 
@@ -822,7 +837,12 @@ contains
                 der(kx, ky) = -rky(ky) * var(kx, ky)
             enddo
         enddo
-    end subroutine
+
+        !Ensure nx array element is zero, like that of var:
+        do ky = 1, ny
+           der(nx, ky) = zero
+        enddo
+    end subroutine yderiv_sc
 
 
 
@@ -860,13 +880,15 @@ contains
         integer                       :: kx, ky
 
         !Carry out differentiation by wavenumber multiplication:
-        do kx = 0, nx
-            der(kx, ny) = zero
-        enddo
         do ky = 1, ny - 1
             do kx = 0, nx
                 der(kx, ky) = -rky(ky) * var(kx, ky)
             enddo
+        enddo
+
+        !Ensure ny array element is zero, like that of var:
+        do kx = 0, nx
+            der(kx, ny) = zero
         enddo
     end subroutine
 end module
