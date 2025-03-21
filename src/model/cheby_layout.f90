@@ -27,6 +27,7 @@ module cheby_layout
                                        , zfilt(:)
 
         double precision, allocatable ::  eye(:, :), D2(:, :)
+        double precision, allocatable ::  eyeNF(:, :), D2NF(:, :)
 
     contains
 
@@ -52,6 +53,7 @@ module cheby_layout
         procedure :: vertvel
         procedure :: zinteg
         procedure :: zdiffuse
+        procedure :: zdiffNF
 
         ! Routines only available in this class
         procedure :: zderiv
@@ -115,14 +117,23 @@ contains
         allocate(this%D2(1:nz-1, 1:nz-1))
         allocate(this%eye(1:nz-1, 1:nz-1))
 
+        allocate(this%D2NF(0:nz, 0:nz))
+        allocate(this%eyeNF(0:nz, 0:nz))
+
         this%eye = zero
         Am = zero
         do iz = 1, nz-1
             this%eye(iz, iz) = one
         enddo
-
         Am = matmul(this%d1z, this%d1z)
-        this%D2 = Am(1:nz-1,1:nz-1)
+
+        this%D2   = Am(1:nz-1,1:nz-1)
+        this%D2NF = Am
+
+        this%eyeNF = zero
+        do iz = 0, nz
+            this%eyeNF(iz, iz) = one
+        enddo
 
     end subroutine
 
@@ -431,6 +442,51 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    subroutine zdiffNF(this, fs, dt, alpha_h, alpha_v)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(0:nz,                 &
+                                                    box%lo(2):box%hi(2),  &
+                                                    box%lo(1):box%hi(1))
+        double precision,       intent(in)    :: dt
+        double precision,       intent(in)    :: alpha_h
+        double precision,       intent(in)    :: alpha_v
+        double precision                      :: Lm(0:nz, 0:nz)
+        double precision                      :: Rm(0:nz, 0:nz)
+        double precision                      :: rhs(0:nz)
+        integer                               :: ipiv(0:nz)
+        integer                               :: kx, ky, info
+
+
+        call this%combine_semi_spectral(fs)
+
+        Lm = this%eyeNF -  dt *  alpha_v * this%D2NF
+        Lm(0,:)  = this%d1z(0,:) 
+        Lm(nz,:) = this%d1z(nz,:)
+        Rm = this%eyeNF + f12 * dt *  alpha_v * this%D2NF
+
+        call dgetrf(nz+1, nz+1, Lm, nz+1, ipiv, info)
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+
+                rhs = fs(:, ky, kx)
+                !rhs = matmul(Rm, b)
+                rhs(0) = 0.0d0
+                rhs(nz) = 0.0d0
+                !! Linear Solve in z
+                call dgetrs('N', nz+1, 1, Lm, nz+1, ipiv, rhs, nz+1, info)
+                !! Diffuse in x-y
+                !! fs(:, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+                fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * rhs
+            enddo
+        enddo
+
+        call this%decompose_semi_spectral(fs)
+
+    end subroutine zdiffNF
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
     subroutine zdiffuse(this, fs, dt, alpha_h, alpha_v)
         class (cheby_layout_t), intent(in)    :: this
         double precision,       intent(inout) :: fs(0:nz,                 &
@@ -445,13 +501,15 @@ contains
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
-        Lm = this%eye - f12 * dt *  alpha_h * this%D2
-        Rm = this%eye + f12 * dt *  alpha_h * this%D2
+        Lm = this%eye - f12 * dt *  alpha_v * this%D2
+        Rm = this%eye + f12 * dt *  alpha_v * this%D2
+                call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
-                fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(nz, ky, kx)
+                !fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
+                !fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(nz, ky, kx)
+                fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(:, ky, kx)
             enddo
         enddo
 
@@ -459,12 +517,15 @@ contains
             do ky = box%lo(2), box%hi(2)
                 rhs = matmul(Rm, fs(1:nz-1, ky, kx))
                 !! Linear Solve in z
-                call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                !call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                call dgetrs('N', nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
                 !! Diffuse in x-y
-                fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_v * k2l2(ky, kx))
+                !! fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
             enddo
         enddo
     end subroutine zdiffuse
+
+
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
