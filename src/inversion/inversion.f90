@@ -1,5 +1,5 @@
 module inversion_mod
-    use model, only : layout, filter
+    use model, only : layout
     use parameters, only : nx, ny, nz
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
@@ -349,19 +349,19 @@ contains
         ! Filter fields: velocity, vorticity and buoyancy
         do nc = 1, 3
             stmp = svor(:, :, :, nc)
-            call filter%apply(stmp)
+            call layout%apply_filter(stmp)
             call layout%combine_physical(stmp, vor(:, :, :, nc))
         enddo
 
         do nc = 1, 3
             call layout%decompose_physical(vel(:, :, :, nc), stmp)
-            call filter%apply(stmp)
+            call layout%apply_filter(stmp)
             call layout%combine_physical(stmp, vel(:, :, :, nc))
         enddo
 
 #ifdef ENABLE_BUOYANCY
         stmp = sbuoy
-        call filter%apply(sbuoy)
+        call layout%apply_filter(sbuoy)
 #endif
 
         !--------------------------------------------------

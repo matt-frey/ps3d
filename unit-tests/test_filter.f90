@@ -16,7 +16,7 @@ program test_filter
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
-    use model, only : layout, create_model, filter
+    use model, only : layout, create_model
     implicit none
 
     character(len=9) :: grid_types(2)
@@ -116,9 +116,9 @@ contains
 
         unfiltered = vor
 
-        call filter%apply(svor(:, :, :, 1))
-        call filter%apply(svor(:, :, :, 2))
-        call filter%apply(svor(:, :, :, 3))
+        call layout%apply_filter(svor(:, :, :, 1))
+        call layout%apply_filter(svor(:, :, :, 2))
+        call layout%apply_filter(svor(:, :, :, 3))
 
         call layout%combine_physical(svor(:, :, :, 1), vor(:, :, :, 1))
         call layout%combine_physical(svor(:, :, :, 2), vor(:, :, :, 2))

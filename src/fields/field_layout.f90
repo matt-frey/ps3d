@@ -6,6 +6,8 @@ module field_layout
     use sta3dfft, only : k2l2, k2l2i, initialise_fft, rkz
     use mpi_collectives, only : mpi_blocking_reduce
     use mpi_utils, only : mpi_check_for_error
+    use options, only : verbose
+    use mpi_utils, only : mpi_print
     implicit none
 
     type, abstract :: layout_t
@@ -27,6 +29,8 @@ module field_layout
     contains
         procedure :: initialise => m_initialise
         procedure :: finalise => m_finalise
+        procedure (m_finalise_filter), deferred :: finalise_filter
+
 
         ! Internal routine allowed to be called in child classes
         procedure :: init_decomposition
@@ -57,6 +61,11 @@ module field_layout
         procedure (m_calc_decomposed_mean), deferred :: calc_decomposed_mean
         procedure (m_adjust_decomposed_mean), deferred :: adjust_decomposed_mean
 
+        ! Filters:
+        procedure (m_apply_filter),   deferred :: apply_filter
+        procedure (m_apply_hfilter),  deferred :: apply_hfilter
+        procedure (m_init_filter), deferred :: init_filter
+
         ! Specific routines:
         procedure (m_vertvel), deferred :: vertvel
         procedure (m_zinteg),  deferred :: zinteg
@@ -73,6 +82,11 @@ module field_layout
             class (layout_t), intent(in) :: this
             double precision             :: get_z_axis(0:nz)
         end function
+
+        subroutine m_finalise_filter(this)
+            import :: layout_t
+            class (layout_t), intent(inout) :: this
+        end subroutine m_finalise_filter
 
         subroutine m_decompose_physical(this, fc, sf)
             use parameters, only : nz
@@ -150,6 +164,30 @@ module field_layout
             double precision, intent(in)    :: avg
         end subroutine
 
+        subroutine m_apply_filter(this, fs)
+            use mpi_layout, only : box
+            import :: layout_t
+            class(layout_t),  intent(in)    :: this
+            double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+        end subroutine m_apply_filter
+
+        subroutine m_apply_hfilter(this, fs)
+            use mpi_layout, only : box
+            import :: layout_t
+            class(layout_t),  intent(in)    :: this
+            double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+        end subroutine m_apply_hfilter
+
+        subroutine m_init_filter(this, method)
+            import :: layout_t
+            class(layout_t), intent(inout) :: this
+            character(*),    intent(in)    :: method
+        end subroutine m_init_filter
+
         subroutine m_vertvel(this, ds, es)
             use mpi_layout, only : box
             import :: layout_t
@@ -202,10 +240,17 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine m_initialise(this)
-        class(layout_t), intent(inout) :: this
+    subroutine m_initialise(this, filter_method)
+        class(layout_t),           intent(inout) :: this
+        character(*),    optional, intent(in)    :: filter_method
 
         call this%init_decomposition
+
+        if (present(filter_method)) then
+            call this%init_filter(filter_method)
+        else
+            call this%init_filter("none")
+        endif
 
     end subroutine m_initialise
 
@@ -316,6 +361,8 @@ contains
         deallocate(this%thetam)
         deallocate(this%thetap)
         deallocate(this%dthetam)
+
+        call this%finalise_filter
 
     end subroutine m_finalise
 

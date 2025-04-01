@@ -1,5 +1,5 @@
 module mss_layout
-    use constants, only : zero, f12
+    use constants, only : zero, f12, f23, one
     use field_layout
     use parameters, only : nz, ncell, dxi, fnzi
     use mpi_layout, only : box
@@ -9,6 +9,8 @@ module mss_layout
                        , fftxys2p   &
                        , rkzi       &
                        , rkz        &
+                       , rkx        &
+                       , rky        &
                        , green      &
                        , fftcosine
     use stafft, only : dst, dct
@@ -17,9 +19,15 @@ module mss_layout
 
     type, extends (layout_t) :: mss_layout_t
 
+    private
+        ! Spectral filter:
+        double precision, allocatable :: filt(:, :, :)
+
     contains
 
         procedure :: get_z_axis
+
+        procedure :: finalise_filter
 
         ! Field decompositions:
         procedure :: decompose_physical
@@ -34,6 +42,14 @@ module mss_layout
         procedure :: diffz
         procedure :: calc_decomposed_mean
         procedure :: adjust_decomposed_mean
+
+        ! Filters:
+        procedure :: init_filter
+        procedure :: apply_filter
+        procedure :: apply_hfilter
+        procedure, private :: init_hou_and_li_filter
+        procedure, private :: init_23rd_rule_filter
+        procedure, private :: init_no_filter
 
         ! Specific routines:
         procedure :: vertvel
@@ -58,6 +74,17 @@ contains
         enddo
 
     end function get_z_axis
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine finalise_filter(this)
+        class (mss_layout_t), intent(inout) :: this
+
+        if (allocated(this%filt)) then
+            deallocate(this%filt)
+        endif
+
+    end subroutine finalise_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -326,6 +353,187 @@ contains
         endif
 
     end subroutine adjust_decomposed_mean
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine init_filter(this, method)
+        class (mss_layout_t),  intent(inout) :: this
+        character(*),          intent(in)    :: method
+        character(len=64)                    :: used_method
+
+        !----------------------------------------------------------
+        !Define de-aliasing filter:
+        select case (method)
+            case ("Hou & Li")
+                used_method = method
+                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
+            case ("2/3-rule")
+                call this%init_23rd_rule_filter(l_disable_vertical=.false.)
+                used_method = method
+            case ("Hou & Li (no vertical)")
+                used_method = method
+                call this%init_hou_and_li_filter(l_disable_vertical=.true.)
+            case ("2/3-rule (no vertical)")
+                call this%init_23rd_rule_filter(l_disable_vertical=.true.)
+                used_method = method
+            case ("none")
+                call this%init_no_filter
+                used_method = "no"
+            case default
+                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
+                used_method = "Hou & Li"
+        end select
+
+#ifdef ENABLE_VERBOSE
+        if (verbose) then
+            call mpi_print("Using " // trim(used_method) // " de-aliasing filter.")
+        endif
+#endif
+
+    end subroutine init_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply_filter(this, fs)
+        class (mss_layout_t), intent(in)     :: this
+        double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+
+        fs = this%filt * fs
+
+    end subroutine apply_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply_hfilter(this, fs)
+        class (mss_layout_t), intent(in)     :: this
+        double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+
+        fs = this%filt * fs
+
+    end subroutine apply_hfilter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define Hou and Li filter (2D and 3D):
+    subroutine init_hou_and_li_filter(this, l_disable_vertical)
+        class(mss_layout_t), intent(inout) :: this
+        logical,             intent(in)    :: l_disable_vertical
+        integer                            :: kx, ky, kz
+        double precision                   :: kxmaxi, kymaxi, kzmaxi
+        double precision                   :: skx(box%lo(1):box%hi(1)), &
+                                              sky(box%lo(2):box%hi(2)), &
+                                              skz(0:nz)
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        kxmaxi = one / maxval(rkx)
+        skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
+        kymaxi = one/maxval(rky)
+        sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
+        kzmaxi = one/maxval(rkz)
+
+        if (l_disable_vertical) then
+            skz = zero
+        else
+            skz = -36.d0 * (kzmaxi * rkz) ** 36
+        endif
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                this%filt(0,  ky, kx) = exp(skx(kx) + sky(ky))
+                this%filt(nz, ky, kx) = this%filt(0, ky, kx)
+                do kz = 1, nz-1
+                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * exp(skz(kz))
+                enddo
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = one
+        endif
+
+    end subroutine init_hou_and_li_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define de-aliasing filter (2/3 rule):
+    subroutine init_23rd_rule_filter(this, l_disable_vertical)
+        class(mss_layout_t), intent(inout) :: this
+        logical,             intent(in)    :: l_disable_vertical
+        integer                            :: kx, ky, kz
+        double precision                   :: rkxmax, rkymax, rkzmax
+        double precision                   :: skx(box%lo(1):box%hi(1)), &
+                                              sky(box%lo(2):box%hi(2)), &
+                                              skz(0:nz)
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        rkxmax = maxval(rkx)
+        rkymax = maxval(rky)
+        rkzmax = maxval(rkz)
+
+        do kx = box%lo(1), box%hi(1)
+            if (rkx(kx) <= f23 * rkxmax) then
+                skx(kx) = one
+            else
+                skx(kx) = zero
+            endif
+        enddo
+
+        do ky = box%lo(2), box%hi(2)
+            if (rky(ky) <= f23 * rkymax) then
+                sky(ky) = one
+            else
+                sky(ky) = zero
+            endif
+        enddo
+
+        if (l_disable_vertical) then
+            skz = one
+        else
+            do kz = 0, nz
+                if (rkz(kz) <= f23 * rkzmax) then
+                    skz(kz) = one
+                else
+                    skz(kz) = zero
+                endif
+            enddo
+        endif
+
+        ! Take product of 1d filters:
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                this%filt(0,  ky, kx) = skx(kx) * sky(ky)
+                this%filt(nz, ky, kx) = this%filt(0, ky, kx)
+                do kz = 1, nz-1
+                    this%filt(kz, ky, kx) = this%filt(0, ky, kx) * skz(kz)
+                enddo
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = one
+        endif
+
+    end subroutine init_23rd_rule_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define no filter:
+    subroutine init_no_filter(this)
+        class(mss_layout_t), intent(inout) :: this
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        this%filt = one
+
+    end subroutine init_no_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

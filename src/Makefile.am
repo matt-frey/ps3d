@@ -11,13 +11,10 @@ bin_PROGRAMS = ps3d beltrami rayleigh_taylor
 
 ps3d_SOURCES = 					\
 	fields/field_layout.f90			\
-	fields/field_filter.f90			\
 	fields/fields.f90			\
 	model/mss_layout.f90			\
-	model/mss_filter.f90			\
 	model/cheby.f90				\
 	model/cheby_layout.f90			\
-	model/cheby_filter.f90			\
 	inversion/diffusion.f90			\
 	model/model.f90				\
 	inversion/inversion.f90			\
@@ -75,13 +72,10 @@ ps3d_LDADD = 						\
 
 beltrami_SOURCES = 				\
 	fields/field_layout.f90			\
-	fields/field_filter.f90			\
 	fields/fields.f90			\
 	model/mss_layout.f90			\
-	model/mss_filter.f90			\
 	model/cheby.f90				\
 	model/cheby_layout.f90			\
-	model/cheby_filter.f90			\
 	inversion/diffusion.f90		   	\
 	model/model.f90				\
 	fields/fields_derived.f90		\
@@ -106,13 +100,10 @@ beltrami_LDADD = 					\
 
 rayleigh_taylor_SOURCES =			\
 	fields/field_layout.f90			\
-	fields/field_filter.f90			\
 	fields/fields.f90			\
 	model/mss_layout.f90			\
-	model/mss_filter.f90			\
 	model/cheby.f90				\
 	model/cheby_layout.f90			\
-	model/cheby_filter.f90			\
 	inversion/diffusion.f90		   	\
 	model/model.f90				\
 	fields/fields_derived.f90		\

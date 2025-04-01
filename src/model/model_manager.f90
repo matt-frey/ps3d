@@ -32,7 +32,7 @@ module model_manager
                                        , NC_BFMAX, NC_UMAX, NC_VMAX         &
                                        , NC_WMAX, NC_USGMAX, NC_LSGMAX
     use rolling_mean_mod, only : rolling_mean_t
-    use model, only : layout, create_model, filter
+    use model, only : layout, create_model
     use constants, only : zero
     use mpi_timer
     use fields
@@ -665,11 +665,11 @@ contains
             bbarz = zero
         endif
         call layout%decompose_physical(buoy, sbuoy)
-        call filter%apply(sbuoy)
+        call layout%apply_filter(sbuoy)
 #endif
         do nc = 1, 3
             call layout%decompose_physical(vor(:, :, :, nc), svor(:, :, :, nc))
-            call filter%apply(svor(:, :, :, nc))
+            call layout%apply_filter(svor(:, :, :, nc))
         enddo
 
         ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
