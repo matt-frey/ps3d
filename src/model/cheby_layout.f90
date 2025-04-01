@@ -503,7 +503,8 @@ contains
 
         Lm = this%eye - f12 * dt *  alpha_v * this%D2
         Rm = this%eye + f12 * dt *  alpha_v * this%D2
-                call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
+
+        call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
