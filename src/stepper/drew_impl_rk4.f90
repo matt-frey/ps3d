@@ -63,22 +63,27 @@ contains
     subroutine impl_rk4(t, dt)
         double precision, intent(inout) :: t
         double precision, intent(in)    :: dt
+        double precision                :: nu, kappa
         integer                         :: nc
 
         if (.not. allocated(epq)) then
             call impl_rk4_setup
         endif
 
+        ! set viscocity/diffusivity
+        nu =    vvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
+        kappa = bvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
+
         dt2 = f12 * dt
         dt3 = f13 * dt
         dt6 = f16 * dt
 
         ! set integrating factors
-        epq = exp(vdiss)
+        epq = 1.d0  !!exp(vdiss)
         emq = 1.0d0 / epq
 
 #ifdef ENABLE_BUOYANCY
-        bpq = exp(bdiss)
+        bpq = 1.0d0 !!exp(bdiss)
         bmq = 1.0d0 / bpq
 #endif
 
@@ -189,11 +194,20 @@ contains
                                        mq=emq,                  &
                                        pq=epq)
         enddo
-
-        ! Ensure zero global mean horizontal vorticity conservation:
-        do nc = 1, 2
-            call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+        !!!!!   DONE ADVECTION STEP
+#ifdef ENABLE_BUOYANCY
+          !call layout%zdiffNF(sbuoy,dt,kappa,kappa)
+          call layout%zdiffuse(sbuoy,dt,kappa,kappa)
+#endif
+        do nc = 1, 3
+          call layout%zdiffuse(svor(:,:,:,nc),dt,nu,1.0*nu)
         enddo
+
+        
+        ! Ensure zero global mean horizontal vorticity conservation:
+ !       do nc = 1, 2
+ !          call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+ !      enddo
 
     end subroutine impl_rk4
 
@@ -216,9 +230,9 @@ contains
         qdi = q
         q = (qdi + dt2 * sqs)
         !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            q(iz, :, :) = q(iz, :, :) * mq
-        enddo
+        !!do iz = 0, nz
+        !!    q(iz, :, :) = q(iz, :, :) * mq
+        !!enddo
         !$omp end parallel do
 
         qdf = qdi + dt6 * sqs

@@ -61,7 +61,8 @@ module field_layout
         procedure (m_vertvel), deferred :: vertvel
         procedure (m_zinteg),  deferred :: zinteg
 
-        procedure (m_zdiffuse), deferred :: zdiffuse
+        procedure (m_zdiffuse),   deferred :: zdiffuse
+        procedure (m_zdiffNF),    deferred :: zdiffNF
 
     end type layout_t
 
@@ -171,6 +172,19 @@ module field_layout
         end subroutine
 
         subroutine m_zdiffuse(this, fs, dt, alpha_h, alpha_v)
+            use mpi_layout, only : box
+            use parameters, only : nz
+            import :: layout_t
+            class (layout_t), intent(in)    :: this
+            double precision, intent(inout) :: fs(0:nz,                &
+                                                  box%lo(2):box%hi(2), &
+                                                  box%lo(1):box%hi(1))
+            double precision, intent(in)    :: dt
+            double precision, intent(in)    :: alpha_h
+            double precision, intent(in)    :: alpha_v
+        end subroutine
+
+        subroutine m_zdiffNF(this, fs, dt, alpha_h, alpha_v)
             use mpi_layout, only : box
             use parameters, only : nz
             import :: layout_t
