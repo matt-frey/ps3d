@@ -4,7 +4,6 @@ module inversion_mod
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use physics, only : bfsq
-    use options, only : l_buoyancy_anomaly
 #endif
     use options, only : l_ensure_solenoidal
     use constants, only : zero, two

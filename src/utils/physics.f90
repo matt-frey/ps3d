@@ -90,7 +90,7 @@ module physics
 #ifdef ENABLE_BUOYANCY
     ! N**2
     double precision, protected :: bfsq = zero
-    logical                     :: l_bfsq = .false.
+    logical, protected          :: l_bfsq = .false.
 #endif
 
     interface print_physical_quantity
@@ -104,9 +104,6 @@ module physics
                print_physical_quantity_double,      &
                print_physical_quantity_integer,     &
                print_physical_quantity_logical,     &
-#ifdef ENABLE_BUOYANCY
-               l_bfsq,                              &
-#endif
                print_physical_quantity_character
 
 contains
@@ -305,47 +302,5 @@ contains
         endif
         write (*, "(a, a14)") fix_length_name, val
     end subroutine print_physical_quantity_character
-
-#ifdef ENABLE_BUOYANCY
-    subroutine set_basic_reference_state(bf2)
-        double precision, intent(in) :: bf2
-
-        bfsq = bf2
-        l_bfsq = .true.
-    end subroutine set_basic_reference_state
-
-
-    subroutine calculate_basic_reference_state(nx, ny, nz, zext, buoy)
-        integer,          intent(in) :: nx, ny, nz
-        double precision, intent(in) :: zext
-        double precision, intent(in) :: buoy(0:nz,                 &
-                                                box%lo(2):box%hi(2),  &
-                                                box%lo(1):box%hi(1))
-
-        if (l_bfsq) then
-            if (world%rank == world%root) then
-                print *, "Provided squared buoyancy frequency:", bfsq
-            endif
-            return
-        endif
-
-        bfsq = sum(buoy(nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))  &
-                    - buoy(0,  box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-        call MPI_Allreduce(MPI_IN_PLACE,            &
-                            bfsq,                    &
-                            1,                       &
-                            MPI_DOUBLE_PRECISION,    &
-                            MPI_SUM,                 &
-                            world%comm,              &
-                            world%err)
-
-        bfsq = bfsq / (dble(nx * ny) * zext)
-
-        if (world%rank == world%root) then
-            print *, "Calculated squared buoyancy frequency:", bfsq
-        endif
-    end subroutine calculate_basic_reference_state
-#endif
 
 end module physics

@@ -14,9 +14,8 @@ module field_diagnostics
 #ifdef ENABLE_BUOYANCY
     use ape_density, only : ape_den
     use fields, only : buoy, sbuoy
-    use fields, only : bbarz
+    use fields, only : bbarz, l_buoyancy_anomaly
     use physics, only : bfsq
-    use options, only : l_buoyancy_anomaly
 #endif
     use mpi_utils, only : mpi_check_for_error
     implicit none
