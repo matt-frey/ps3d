@@ -346,36 +346,13 @@ contains
         integer :: nc
 
         !--------------------------------------------------
-        ! Filter fields: velocity, vorticity and buoyancy
-        do nc = 1, 3
-            stmp = svor(:, :, :, nc)
-            call layout%apply_filter(stmp)
-            call layout%combine_physical(stmp, vor(:, :, :, nc))
-        enddo
-
-        do nc = 1, 3
-            call layout%decompose_physical(vel(:, :, :, nc), stmp)
-            call layout%apply_filter(stmp)
-            call layout%combine_physical(stmp, vel(:, :, :, nc))
-        enddo
-
-#ifdef ENABLE_BUOYANCY
-        stmp = sbuoy
-        call layout%apply_filter(sbuoy)
-#endif
-
-        !--------------------------------------------------
-        !Vorticity source: (uses the filtered sbuoy)
         call vorticity_tendency
 
 #ifdef ENABLE_BUOYANCY
         !--------------------------------------------------
-        !Buoyancy source:  (uses the filtered sbuoy)
         call buoyancy_tendency
 
         !--------------------------------------------------
-        ! Undo buoyancy filtering:
-        sbuoy = stmp
 #endif
 
     end subroutine source

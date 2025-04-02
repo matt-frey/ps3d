@@ -197,10 +197,12 @@ contains
         !!!!!   DONE ADVECTION STEP
 #ifdef ENABLE_BUOYANCY
           !call layout%zdiffNF(sbuoy,dt,kappa,kappa)
-          call layout%zdiffuse(sbuoy,dt,kappa,kappa)
+          call layout%zdiffuse(sbuoy,dt,0*kappa,kappa)
+          call layout%apply_hfilter(sbuoy)
 #endif
         do nc = 1, 3
-          call layout%zdiffuse(svor(:,:,:,nc),dt,nu,1.0*nu)
+          call layout%zdiffuse(svor(:,:,:,nc),dt,0*nu,1.0*nu)
+          call layout%apply_hfilter(svor(:,:,:,nc))
         enddo
 
         

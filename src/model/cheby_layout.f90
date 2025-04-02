@@ -719,7 +719,11 @@ contains
         double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
+        integer                               :: kz
 
+        do kz = 0, nz
+         fs(:,:,kz) = this%filt * fs(:,:,kz)
+        enddo
 
     end subroutine apply_hfilter
 
