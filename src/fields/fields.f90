@@ -39,6 +39,8 @@ module fields
 
     double precision, allocatable :: bbarz(:) ! N**2 * z
 
+    logical :: l_buoyancy_anomaly = .false.
+
 contains
 
     ! Allocate all fields

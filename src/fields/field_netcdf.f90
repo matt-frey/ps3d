@@ -1,9 +1,6 @@
 module field_netcdf
     use model, only : layout
     use options, only : output, verbose
-#ifdef ENABLE_BUOYANCY
-    use options, only : l_buoyancy_anomaly
-#endif
     use constants, only : one
     use netcdf_utils
     use netcdf_writer
@@ -58,7 +55,8 @@ module field_netcdf
     public :: create_netcdf_field_file  &
             , write_netcdf_fields       &
             , read_netcdf_fields        &
-            , field_io_timer
+            , field_io_timer            &
+            , l_buoyancy_anomaly
 
 
 contains
@@ -181,12 +179,6 @@ contains
     subroutine write_netcdf_fields(t)
         double precision, intent(in) :: t
         integer                      :: cnt(4), start(4)
-#if ENABLE_BUOYANCY
-        double precision             :: tbuoy(0:nz,                & ! total buoyancy
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
-        integer                      :: iz
-#endif
 
         call start_timer(field_io_timer)
 
@@ -237,17 +229,12 @@ contains
 #ifdef ENABLE_BUOYANCY
         call layout%combine_physical(sbuoy, buoy)
 
-        if (l_buoyancy_anomaly) then
+        if (nc_dset(NC_BUOY_AN)%l_enabled) then
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)
         endif
 
         if (nc_dset(NC_BUOY)%l_enabled) then
-            ! get total buoyancy
-            do iz = 0, nz
-                tbuoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
-            enddo
-
-            call write_field_double(NC_BUOY, tbuoy, start, cnt)
+            call write_field_double(NC_BUOY, buoy, start, cnt)
         endif
 #endif
 
@@ -416,7 +403,24 @@ contains
         endif
 
 #ifdef ENABLE_BUOYANCY
-        if (has_dataset(ncid, nc_dset(NC_BUOY)%name)) then
+        if (has_dataset(ncid, nc_dset(NC_BUOY_AN)%name)) then
+            if (world%rank == world%root) then
+                write(*, "(a63)", advance="no") &
+                    "Found " // nc_dset(NC_BUOY_AN)%name // " field input, reading ..."
+            endif
+            call read_netcdf_dataset(ncid,                       &
+                                     nc_dset(NC_BUOY_AN)%name,   &
+                                     buoy(box%lo(3):box%hi(3),   &
+                                          box%lo(2):box%hi(2),   &
+                                          box%lo(1):box%hi(1)),  &
+                                     start=start, cnt=cnt)
+            if (world%rank == world%root) then
+                write(*, *) "done"
+            endif
+
+            l_buoyancy_anomaly = .true.
+
+        else if (has_dataset(ncid, nc_dset(NC_BUOY)%name)) then
             if (world%rank == world%root) then
                 write(*, "(a63)", advance="no") &
                     "Found " // nc_dset(NC_BUOY)%name // " field input, reading ..."
@@ -430,6 +434,11 @@ contains
             if (world%rank == world%root) then
                 write(*, *) "done"
             endif
+
+            l_buoyancy_anomaly = .false.
+        else
+            ! Neither the buoyancy anomaly nor the total buoyancy is provided.
+            l_buoyancy_anomaly = .false.
         endif
 #endif
 
@@ -458,9 +467,10 @@ contains
             nc_dset(NC_Z_VEL)%l_enabled = .true.
             nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_BUOY)%l_enabled  = .true.
             if (l_buoyancy_anomaly) then
                 nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            else
+                nc_dset(NC_BUOY)%l_enabled  = .true.
             endif
 #endif
         else
@@ -492,9 +502,10 @@ contains
             nc_dset(NC_Z_VEL)%l_enabled = .true.
             nc_dset(NC_PRES)%l_enabled  = .true.
 #ifdef ENABLE_BUOYANCY
-            nc_dset(NC_BUOY)%l_enabled  = .true.
             if (l_buoyancy_anomaly) then
                 nc_dset(NC_BUOY_AN)%l_enabled = .true.
+            else
+                nc_dset(NC_BUOY)%l_enabled  = .true.
             endif
 #endif
         endif

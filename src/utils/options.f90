@@ -73,11 +73,6 @@ module options
     ! 'Hou & Li', 'Hou & Li (no vertical)', '2/3-rule' or '2/3-rule (no vertical)'
     character(len=24) :: filtering = "Hou & Li"
 
-#ifdef ENABLE_BUOYANCY
-    ! Enable or disable removal of buoyancy basic state
-    logical :: l_buoyancy_anomaly = .true.
-#endif
-
     logical :: l_ensure_solenoidal = .false.
 
     type(visc_type) :: vor_visc
@@ -113,7 +108,6 @@ contains
                         vor_visc,            &
 #ifdef ENABLE_BUOYANCY
                         buoy_visc,           &
-                        l_buoyancy_anomaly,  &
 #endif
                         l_ensure_solenoidal, &
                         filtering,           &
@@ -166,7 +160,6 @@ contains
         call write_netcdf_viscosity(gid, vor_visc, 'vor_visc')
 #ifdef ENABLE_BUOYANCY
         call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
-        call write_netcdf_attribute(gid, "l_buoyancy_anomaly", l_buoyancy_anomaly)
 #endif
         call write_netcdf_attribute(gid, "l_ensure_solenoidal", l_ensure_solenoidal)
         call write_netcdf_attribute(gid, "filtering", filtering)
