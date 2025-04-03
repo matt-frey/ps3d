@@ -149,6 +149,8 @@ contains
 
         close(fn)
 
+        l_bfsq = (bfsq /= zero)
+
         call update_physical_quantities
 
     end subroutine read_physical_quantities_from_namelist
