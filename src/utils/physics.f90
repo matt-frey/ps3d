@@ -124,6 +124,9 @@ contains
                             l_planetary_vorticity,  &
                             lat_degrees,            &
                             q_0,                    &
+#ifdef ENABLE_BUOYANCY
+                            bfsq,                   &
+#endif
                             height_c
 
         ! check whether file exists
