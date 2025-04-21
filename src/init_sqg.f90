@@ -79,12 +79,6 @@ program init_sqg
     grid%origin = pi * grid%origin
     grid%extent = pi * grid%extent
 
-    if (grid%extent(3) < 0) then
-        grid%origin(3) = grid%origin(3) + grid%extent(3)
-        grid%extent = abs(grid%extent)
-    endif
-
-
     ! write box
     lower = grid%origin
     extent = grid%extent
@@ -212,7 +206,6 @@ contains
         bf = sqrt(bfsq)
 
         ! depth  = NH/f --> H = f * depth / N
-        H = f * grid%extent(3) / bf
 
         if (verbose .and. (world%rank == world%root)) then
             print *, "Coriolis frequency:", f
@@ -227,6 +220,8 @@ contains
         x = layout%get_x_axis()
         y = layout%get_y_axis()
         z = layout%get_z_axis()
+
+        H = grid%extent(3)
 
  !!!!!   What this should do:
  !!      either take in the surface field b0, or read it here
