@@ -264,9 +264,6 @@ contains
 #endif
         integer          :: nc
 #ifdef ENABLE_BUOYANCY
-        double precision :: tbuoy(0:nz,                 & ! total buoyancy
-                                  box%lo(2):box%hi(2),  &
-                                  box%lo(1):box%hi(1))
         double precision :: bmin, bmax
         double precision :: busmin, busmax, blsmin, blsmax
         double precision :: buf(15) = zero
@@ -278,17 +275,26 @@ contains
 #ifdef ENABLE_BUOYANCY
         call layout%combine_physical(sbuoy, buoy)
 
-        ! get total buoyancy:
-        do iz = 0, nz
-            tbuoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
-        enddo
 
-        bmin = minval(tbuoy)
-        bmax = maxval(tbuoy)
-        busmin = minval(tbuoy(nz, :, :))
-        busmax = maxval(tbuoy(nz, :, :))
-        blsmin = minval(tbuoy(0,  :, :))
-        blsmax = maxval(tbuoy(0,  :, :))
+        ! get total buoyancy:
+        if (l_buoyancy_anomaly) then
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) + bbarz(iz)
+            enddo
+        endif
+
+        bmin = minval(buoy)
+        bmax = maxval(buoy)
+        busmin = minval(buoy(nz, :, :))
+        busmax = maxval(buoy(nz, :, :))
+        blsmin = minval(buoy(0,  :, :))
+        blsmax = maxval(buoy(0,  :, :))
+
+        if (l_buoyancy_anomaly) then
+            do iz = 0, nz
+                buoy(iz, :, :) = buoy(iz, :, :) - bbarz(iz)
+            enddo
+        endif
 #endif
 
         !
