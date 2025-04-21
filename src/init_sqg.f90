@@ -205,7 +205,12 @@ contains
         f = f_cor(3)
         bf = sqrt(bfsq)
 
-        ! depth  = NH/f --> H = f * depth / N
+        allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
+        x = layout%get_x_axis()
+        y = layout%get_y_axis()
+        z = layout%get_z_axis()
+
+        H = grid%extent(3)
 
         if (verbose .and. (world%rank == world%root)) then
             print *, "Coriolis frequency:", f
@@ -216,12 +221,6 @@ contains
         endif
 
 
-        allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
-        x = layout%get_x_axis()
-        y = layout%get_y_axis()
-        z = layout%get_z_axis()
-
-        H = grid%extent(3)
 
  !!!!!   What this should do:
  !!      either take in the surface field b0, or read it here
