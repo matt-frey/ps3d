@@ -124,8 +124,8 @@ contains
         call define_netcdf_temporal_dimension(ncid, dimids(4), axids(4))
 
         call define_netcdf_dataset(ncid=ncid,                           &
-                                    name='buoyancy_anomaly',            &
-                                    long_name='buoyancy_anomaly',       &
+                                    name='buoyancy',                    &
+                                    long_name='buoyancy',               &
                                     std_name='',                        &
                                     unit='m/s^2',                       &
                                     dtype=NF90_DOUBLE,                  &
@@ -298,6 +298,11 @@ contains
         svor(:, :, :, 2) = -one / f * svor(:, :, :, 2)
 
         call fftxys2p(sbuoy, buoy)
+
+        ! Make total buoyancy
+        do iz = 0, nz
+            buoy(iz, :, :) = buoy(iz, :, :) + bfsq * z(iz)
+        enddo
 
         call fftxys2p(svor(:, :, :, 1), vor(:, :, :, 1))
         call fftxys2p(svor(:, :, :, 2), vor(:, :, :, 2))
