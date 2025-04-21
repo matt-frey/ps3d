@@ -495,11 +495,15 @@ contains
         double precision                      :: Lm(0:nz, 0:nz)
         double precision                      :: Rm(0:nz, 0:nz)
         double precision                      :: rhs(0:nz)
+        double precision                      :: hfilt,alpha,beta,kmax
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
 
         call this%combine_semi_spectral(fs)
+        !alpha = 133.79d0
+        !beta = 10.31d0
+        !kmax = 1.0d0/32.d0
 
         Lm = this%eyeNF -  dt *  alpha_v * this%D2NF
         Lm(0,:)  = this%d1z(0,:)
@@ -518,8 +522,11 @@ contains
                 !! Linear Solve in z
                 call dgetrs('N', nz+1, 1, Lm, nz+1, ipiv, rhs, nz+1, info)
                 !! Diffuse in x-y
-                !! fs(:, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
-                fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * rhs
+                fs(:, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+                !!!!!!!fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * rhs
+                !hfilt = sqrt(rkx(kx)**2 + rky(ky)**2) * kmax
+                !hfilt = -alpha * hfilt ** beta
+                !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
             enddo
         enddo
 
@@ -540,6 +547,7 @@ contains
         double precision                      :: Lm(1:nz-1, 1:nz-1)
         double precision                      :: Rm(1:nz-1, 1:nz-1)
         double precision                      :: rhs(1:nz-1)
+        double precision                      :: hfilt,alpha,beta,kmax
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
@@ -547,12 +555,23 @@ contains
         Rm = this%eye + f12 * dt *  alpha_v * this%D2
 
         call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
+        alpha = 133.79d0
+        beta = 10.31d0
+        kmax = 1.0d0/sqrt(2.0*maxval(rkx))
+        !!! End Hack
+
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
                 !fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
                 !fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(nz, ky, kx)
+                !! Diffuse in Horizontal
                 fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(:, ky, kx)
+                !! Filter in Horizontal
+                !hfilt = sqrt(rkx(kx)**2 + rky(ky)**2) * kmax
+                !hfilt = -alpha * hfilt ** beta
+                !hfilt = 0.0d0
+                !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
             enddo
         enddo
 
@@ -560,8 +579,8 @@ contains
             do ky = box%lo(2), box%hi(2)
                 rhs = matmul(Rm, fs(1:nz-1, ky, kx))
                 !! Linear Solve in z
-                !call dgesv(nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
                 call dgetrs('N', nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                fs(1:nz-1, kx,ky) = rhs
                 !! Diffuse in x-y
                 !! fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
             enddo
@@ -735,6 +754,8 @@ contains
         logical,               intent(in)    :: l_disable_vertical
         integer                              :: kx, ky, kz
         double precision                     :: kxmaxi, kymaxi, kzmaxi
+        double precision                     :: alpha,beta, k2
+        double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2)) 
         double precision                     :: skx(box%lo(1):box%hi(1)), &
                                                 sky(box%lo(2):box%hi(2)), &
                                                 skz(0:nz)
@@ -742,22 +763,39 @@ contains
         allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-        kxmaxi = one / maxval(rkx)
-        skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
-        kymaxi = one/maxval(rky)
-        sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
-        kzmaxi = one/maxval(rkz)
+        alpha = 100d0
+        beta  = 12d0
+        !kxmaxi = maxval(k2l2)
+        !kxmaxi = one/kxmaxi 
+
+        !kv = sqrt( k2l2(box%lo(2):box%hi(2),box%lo(1):box%hi(1)) )
+        !kv = -alpha * (kxmaxi*kv) ** beta
+        !this%filt = max( exp(kv), 1d-10 )
+
+        !kxmaxi = one/maxval(rkx)
+        !kymaxi = one/maxval(rky)
+        !skx = -alpha * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** beta
+        !sky = -alpha * (kymaxi * rky(box%lo(2):box%hi(2))) ** beta
+        !skx = rkx(box%lo(1):box%hi(1))
+        !sky = rky(box%lo(2):box%hi(2))
+
+        kzmaxi = one/(1.0d0*nz)
         if (l_disable_vertical) then
             skz = zero
         else
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
+            skz = -alpha * (kzmaxi * rkz) ** beta
         endif
 
+        kxmaxi = sqrt(2.0d0)*maxval(rkx)
+        kxmaxi = one/kxmaxi
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                this%filt(ky, kx) = exp(skx(kx) + sky(ky))
+                k2 = sqrt( rkx(kx)**2 + rky(ky)**2)
+                k2 = -alpha * (kxmaxi * k2) ** beta
+                this%filt(ky, kx) = max(exp(k2),1d-10)
                 do kz = 0, nz
-                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * exp(skz(kz))
+                    k2 = -alpha * (kzmaxi * 1.0d0*kz) ** beta
+                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * exp(k2)
                 enddo
             enddo
         enddo
@@ -840,12 +878,18 @@ contains
     !Define no filter:
     subroutine init_no_filter(this)
         class(cheby_layout_t), intent(inout) :: this
+        integer                              :: kx, ky, kz
+        double precision                     :: alpha,beta, k2, kmax
+        double precision                     :: skx(box%lo(1):box%hi(1)), &
+                                                sky(box%lo(2):box%hi(2)), &
+                                                skz(0:nz)
 
         allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         this%filt = one
         this%zfilt = one
+
 
     end subroutine init_no_filter
 

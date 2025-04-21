@@ -8,6 +8,10 @@ module drew_impl_rk4
     use diffusion
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
+    use options, only : vor_visc
+#ifdef ENABLE_BUOYANCY
+    use options, only : buoy_visc
+#endif
     implicit none
 
     double precision :: dt2, dt3, dt6
@@ -71,8 +75,10 @@ contains
         endif
 
         ! set viscocity/diffusivity
-        nu =    vvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
-        kappa = bvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
+        !nu =    vvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
+        !kappa = bvisc*(1.d0 + 0.0*(0.07/dt - 1.0d0))
+        nu = vor_visc%prediss
+        kappa = buoy_visc%prediss
 
         dt2 = f12 * dt
         dt3 = f13 * dt
@@ -196,13 +202,13 @@ contains
         enddo
         !!!!!   DONE ADVECTION STEP
 #ifdef ENABLE_BUOYANCY
-          !call layout%zdiffNF(sbuoy,dt,kappa,kappa)
-          call layout%zdiffuse(sbuoy,dt,0*kappa,kappa)
-          call layout%apply_hfilter(sbuoy)
+          call layout%apply_filter(sbuoy)
+!          call layout%zdiffNF(sbuoy,dt,kappa,kappa)
+!          call layout%zdiffuse(sbuoy,dt,kappa,kappa)
 #endif
         do nc = 1, 3
-          call layout%zdiffuse(svor(:,:,:,nc),dt,0*nu,1.0*nu)
-          call layout%apply_hfilter(svor(:,:,:,nc))
+          call layout%apply_filter(svor(:,:,:,nc))
+!          call layout%zdiffuse(svor(:,:,:,nc),dt,nu,nu)
         enddo
 
         
