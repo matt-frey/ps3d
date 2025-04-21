@@ -341,8 +341,6 @@ contains
     ! Note, vel obtained by vor2vel before calling this
     ! routine is spectrally truncated.
     subroutine source
-        double precision :: stmp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer :: nc
 
         !--------------------------------------------------
         call vorticity_tendency
