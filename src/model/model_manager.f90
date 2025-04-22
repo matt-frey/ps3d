@@ -427,11 +427,10 @@ contains
                              dtcfl)
 
         !Choose new time step:
-        !dt = min(time%alpha / (ggmax + small),  &
-        !         time%alpha / (bfmax + small),  &
-        !         dtcfl,                         &
-        !         time%limit - t)
-        dt = min(0.1d0,dtcfl)
+        dt = min(time%alpha / (ggmax + small),  &
+                 time%alpha / (bfmax + small),  &
+                 dtcfl,                         &
+                 time%limit - t)
 
 #ifdef ENABLE_VERBOSE
         if (world%rank == world%root) then

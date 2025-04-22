@@ -153,7 +153,7 @@ contains
         allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-        !No filtering:
+        !Default: No filtering
         this%filt = one
         this%zfilt = one
 
