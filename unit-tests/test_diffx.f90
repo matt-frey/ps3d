@@ -46,7 +46,7 @@ contains
         double precision, allocatable :: x(:)
         integer                       :: i, j, k
 
-        call create_model(grid_type, "Hou & Li")
+        call create_model(grid_type)
 
         allocate(fp(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
         allocate(fs(box%lo(3):box%hi(3), box%lo(2):box%hi(2), box%lo(1):box%hi(1)))

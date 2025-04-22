@@ -39,7 +39,7 @@ module options
     type(info) :: output
 
     !(Hyper)viscosity parameters:
-    type visc_type
+    type viscosity_t
         integer :: nnu
         double precision :: prediss
         ! If nnu = 1, this is the molecular viscosity case.  Then, we
@@ -68,17 +68,25 @@ module options
         ! "Kolmogorov", "geophysical" or "constant"
         character(len=11) :: length_scale = "Kolmogorov"
 
-    end type visc_type
+    end type viscosity_t
 
-    ! 'Hou & Li', 'Hou & Li (no vertical)', '2/3-rule' or '2/3-rule (no vertical)'
-    character(len=24) :: filtering = "Hou & Li"
+    type filter_type
+        ! family: 'cutoff', 'none', 'exp'
+        character(len=6) :: family = "cutoff"
+        double precision :: cutoff = 2.0d0 / 3.0d0
+        double precision :: alpha = 36.0d0
+        double precision :: beta  = 36.0d0
+    end type filter_type
+
+    type(filter_type) :: filter
+
 
     logical :: l_ensure_solenoidal = .false.
 
-    type(visc_type) :: vor_visc
+    type(viscosity_t) :: vor_visc
 
 #ifdef ENABLE_BUOYANCY
-    type(visc_type) :: buoy_visc
+    type(viscosity_t) :: buoy_visc
 #endif
 
     ! time limit
@@ -110,7 +118,7 @@ contains
                         buoy_visc,           &
 #endif
                         l_ensure_solenoidal, &
-                        filtering,           &
+                        filter,              &
                         output,              &
                         time
 
@@ -162,7 +170,10 @@ contains
         call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
 #endif
         call write_netcdf_attribute(gid, "l_ensure_solenoidal", l_ensure_solenoidal)
-        call write_netcdf_attribute(gid, "filtering", filtering)
+        call write_netcdf_attribute(gid, "filter%family", filter%family)
+        call write_netcdf_attribute(gid, "filter%cutoff", filter%cutoff)
+        call write_netcdf_attribute(gid, "filter%alpha", filter%alpha)
+        call write_netcdf_attribute(gid, "filter%beta", filter%beta)
 
         call write_netcdf_attribute(gid, "time_stepper", time_stepper)
 
@@ -183,9 +194,9 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine write_netcdf_viscosity(gid, visc, label)
-        integer,          intent(in) :: gid
-        type(visc_type),  intent(in) :: visc
-        character(len=*), intent(in) :: label
+        integer,            intent(in) :: gid
+        type(viscosity_t),  intent(in) :: visc
+        character(len=*),   intent(in) :: label
 
         if (visc%nnu == 1) then
             call write_netcdf_attribute(gid, label, "molecular")

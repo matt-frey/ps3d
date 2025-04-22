@@ -1,6 +1,6 @@
 module model_manager
     use options, only : time                &
-                      , visc_type           &
+                      , viscosity_t         &
                       , vor_visc            &
                       , time_stepper        &
                       , read_config_file    &
@@ -8,7 +8,7 @@ module model_manager
                       , verbose             &
                       , field_file          &
                       , field_step          &
-                      , filtering
+                      , filter
     use constants
     use parameters, only : nx, ny, nz, ncelli   &
                          , update_parameters    &
@@ -480,8 +480,8 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_diffusion_pre_factor(visc) result(val)
-        type(visc_type),  intent(in) :: visc
-        double precision             :: val
+        type(viscosity_t),  intent(in) :: visc
+        double precision               :: val
 
         select case (visc%pretype)
             case ('constant')
@@ -627,7 +627,7 @@ contains
 
         call read_netcdf_attribute(gid, 'grid_type', grid_type)
 
-        call create_model(grid_type, filtering)
+        call create_model(grid_type, filter)
 
         call close_netcdf_file(ncid)
 

@@ -36,7 +36,7 @@ program test_omp_collapse
 
     call field_default
 
-    call create_model('uniform', "Hou & Li")
+    call create_model('uniform')
 
     allocate(x(0:nx-1), y(0:ny-1), z(0:nz))
 

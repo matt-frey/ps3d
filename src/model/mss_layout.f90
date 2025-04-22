@@ -23,11 +23,14 @@ module mss_layout
         ! Spectral filter:
         double precision, allocatable :: filt(:, :, :)
 
+        logical :: l_initialised = .false.
+
     contains
 
-        procedure :: get_z_axis
+        procedure :: initialise
+        procedure :: finalise
 
-        procedure :: finalise_filter
+        procedure :: get_z_axis
 
         ! Field decompositions:
         procedure :: decompose_physical
@@ -44,12 +47,10 @@ module mss_layout
         procedure :: adjust_decomposed_mean
 
         ! Filters:
-        procedure :: init_filter
+        procedure :: init_exp_filter
+        procedure :: init_cutoff_filter
         procedure :: apply_filter
         procedure :: apply_hfilter
-        procedure, private :: init_hou_and_li_filter
-        procedure, private :: init_23rd_rule_filter
-        procedure, private :: init_no_filter
 
         ! Specific routines:
         procedure :: vertvel
@@ -64,6 +65,34 @@ module mss_layout
 
 contains
 
+    subroutine initialise(this)
+        class (mss_layout_t), intent(inout) :: this
+
+        call this%init_decomposition
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        !Default: No filtering
+        this%filt = one
+
+    end subroutine initialise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine finalise(this)
+        class (mss_layout_t), intent(inout) :: this
+
+        if (this%l_initialised) then
+            this%l_initialised = .false.
+            deallocate(this%filt)
+        endif
+
+        call this%finalise_decomposition
+
+    end subroutine finalise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
     function get_z_axis(this)
         class (mss_layout_t), intent(in) :: this
         double precision                 :: get_z_axis(0:nz)
@@ -75,18 +104,7 @@ contains
 
     end function get_z_axis
 
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine finalise_filter(this)
-        class (mss_layout_t), intent(inout) :: this
-
-        if (allocated(this%filt)) then
-            deallocate(this%filt)
-        endif
-
-    end subroutine finalise_filter
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! fc  - complete field (physical space)
     ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
@@ -354,43 +372,6 @@ contains
 
     end subroutine adjust_decomposed_mean
 
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine init_filter(this, method)
-        class (mss_layout_t),  intent(inout) :: this
-        character(*),          intent(in)    :: method
-        character(len=64)                    :: used_method
-
-        !----------------------------------------------------------
-        !Define de-aliasing filter:
-        select case (method)
-            case ("Hou & Li")
-                used_method = method
-                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
-            case ("2/3-rule")
-                call this%init_23rd_rule_filter(l_disable_vertical=.false.)
-                used_method = method
-            case ("Hou & Li (no vertical)")
-                used_method = method
-                call this%init_hou_and_li_filter(l_disable_vertical=.true.)
-            case ("2/3-rule (no vertical)")
-                call this%init_23rd_rule_filter(l_disable_vertical=.true.)
-                used_method = method
-            case ("none")
-                call this%init_no_filter
-                used_method = "no"
-            case default
-                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
-                used_method = "Hou & Li"
-        end select
-
-#ifdef ENABLE_VERBOSE
-        if (verbose) then
-            call mpi_print("Using " // trim(used_method) // " de-aliasing filter.")
-        endif
-#endif
-
-    end subroutine init_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -418,29 +399,21 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    !Define Hou and Li filter (2D and 3D):
-    subroutine init_hou_and_li_filter(this, l_disable_vertical)
+    subroutine init_exp_filter(this, alpha, beta)
         class(mss_layout_t), intent(inout) :: this
-        logical,             intent(in)    :: l_disable_vertical
+        double precision,    intent(in)    :: alpha, beta
         integer                            :: kx, ky, kz
         double precision                   :: kxmaxi, kymaxi, kzmaxi
         double precision                   :: skx(box%lo(1):box%hi(1)), &
                                               sky(box%lo(2):box%hi(2)), &
                                               skz(0:nz)
 
-        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
         kxmaxi = one / maxval(rkx)
         skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
         kymaxi = one/maxval(rky)
         sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
         kzmaxi = one/maxval(rkz)
-
-        if (l_disable_vertical) then
-            skz = zero
-        else
-            skz = -36.d0 * (kzmaxi * rkz) ** 36
-        endif
+        skz = -36.d0 * (kzmaxi * rkz) ** 36
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
@@ -457,28 +430,25 @@ contains
             this%filt(:, 0, 0) = one
         endif
 
-    end subroutine init_hou_and_li_filter
+    end subroutine init_exp_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    !Define de-aliasing filter (2/3 rule):
-    subroutine init_23rd_rule_filter(this, l_disable_vertical)
+    subroutine init_cutoff_filter(this, cutoff)
         class(mss_layout_t), intent(inout) :: this
-        logical,             intent(in)    :: l_disable_vertical
+        double precision,    intent(in)    :: cutoff
         integer                            :: kx, ky, kz
         double precision                   :: rkxmax, rkymax, rkzmax
         double precision                   :: skx(box%lo(1):box%hi(1)), &
                                               sky(box%lo(2):box%hi(2)), &
                                               skz(0:nz)
 
-        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
         rkxmax = maxval(rkx)
         rkymax = maxval(rky)
         rkzmax = maxval(rkz)
 
         do kx = box%lo(1), box%hi(1)
-            if (rkx(kx) <= f23 * rkxmax) then
+            if (rkx(kx) <= cutoff * rkxmax) then
                 skx(kx) = one
             else
                 skx(kx) = zero
@@ -486,24 +456,20 @@ contains
         enddo
 
         do ky = box%lo(2), box%hi(2)
-            if (rky(ky) <= f23 * rkymax) then
+            if (rky(ky) <= cutoff * rkymax) then
                 sky(ky) = one
             else
                 sky(ky) = zero
             endif
         enddo
 
-        if (l_disable_vertical) then
-            skz = one
-        else
-            do kz = 0, nz
-                if (rkz(kz) <= f23 * rkzmax) then
-                    skz(kz) = one
-                else
-                    skz(kz) = zero
-                endif
-            enddo
-        endif
+        do kz = 0, nz
+            if (rkz(kz) <= cutoff * rkzmax) then
+                skz(kz) = one
+            else
+                skz(kz) = zero
+            endif
+        enddo
 
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)
@@ -521,19 +487,7 @@ contains
             this%filt(:, 0, 0) = one
         endif
 
-    end subroutine init_23rd_rule_filter
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    !Define no filter:
-    subroutine init_no_filter(this)
-        class(mss_layout_t), intent(inout) :: this
-
-        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-        this%filt = one
-
-    end subroutine init_no_filter
+    end subroutine init_cutoff_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

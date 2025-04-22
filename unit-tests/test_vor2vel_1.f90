@@ -62,7 +62,7 @@ contains
         l = two
         m = one
 
-        call create_model(grid_type, "Hou & Li")
+        call create_model(grid_type)
 
         alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)

@@ -57,7 +57,7 @@ contains
         double precision, allocatable :: z(:)
         integer                       :: iz
 
-        call create_model(grid_type, "Hou & Li")
+        call create_model(grid_type)
 
         allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
         allocate(z(0:nz))

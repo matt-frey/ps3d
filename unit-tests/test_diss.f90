@@ -62,7 +62,7 @@ contains
         double precision              :: alpha, fk2l2, k, l, m
         double precision              :: cosmz, sinmz, sinkxly, coskxly, te, en
 
-        call create_model(grid_type, "Hou & Li")
+        call create_model(grid_type)
 
         allocate(vd1(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
         allocate(vd2(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))

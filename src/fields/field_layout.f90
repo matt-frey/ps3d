@@ -6,7 +6,7 @@ module field_layout
     use sta3dfft, only : k2l2, k2l2i, initialise_fft, rkz
     use mpi_collectives, only : mpi_blocking_reduce
     use mpi_utils, only : mpi_check_for_error
-    use options, only : verbose
+    use options, only : verbose, filter_type
     use mpi_utils, only : mpi_print
     implicit none
 
@@ -27,13 +27,12 @@ module field_layout
         double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
 
     contains
-        procedure :: initialise => m_initialise
-        procedure :: finalise => m_finalise
-        procedure (m_finalise_filter), deferred :: finalise_filter
-
+        procedure (m_initialise), deferred :: initialise
+        procedure (m_finalise),   deferred :: finalise
 
         ! Internal routine allowed to be called in child classes
         procedure :: init_decomposition
+        procedure :: finalise_decomposition
 
         ! Axes
         procedure :: get_x_axis => m_get_x_axis
@@ -62,9 +61,11 @@ module field_layout
         procedure (m_adjust_decomposed_mean), deferred :: adjust_decomposed_mean
 
         ! Filters:
-        procedure (m_apply_filter),   deferred :: apply_filter
-        procedure (m_apply_hfilter),  deferred :: apply_hfilter
-        procedure (m_init_filter), deferred :: init_filter
+        procedure :: set_filter
+        procedure (m_init_exp_filter),    deferred :: init_exp_filter
+        procedure (m_init_cutoff_filter), deferred :: init_cutoff_filter
+        procedure (m_apply_filter),       deferred :: apply_filter
+        procedure (m_apply_hfilter),      deferred :: apply_hfilter
 
         ! Specific routines:
         procedure (m_vertvel), deferred :: vertvel
@@ -76,17 +77,22 @@ module field_layout
     end type layout_t
 
     interface
+        subroutine m_initialise(this)
+            import :: layout_t
+            class(layout_t),  intent(inout) :: this
+        end subroutine m_initialise
+
+        subroutine m_finalise(this)
+            import :: layout_t
+            class(layout_t),  intent(inout) :: this
+        end subroutine m_finalise
+
         function m_get_z_axis(this) result(get_z_axis)
             use parameters, only : nz
             import :: layout_t
             class (layout_t), intent(in) :: this
             double precision             :: get_z_axis(0:nz)
         end function
-
-        subroutine m_finalise_filter(this)
-            import :: layout_t
-            class (layout_t), intent(inout) :: this
-        end subroutine m_finalise_filter
 
         subroutine m_decompose_physical(this, fc, sf)
             use parameters, only : nz
@@ -164,6 +170,18 @@ module field_layout
             double precision, intent(in)    :: avg
         end subroutine
 
+        subroutine m_init_exp_filter(this, alpha, beta)
+            import :: layout_t
+            class(layout_t),  intent(inout) :: this
+            double precision, intent(in)    :: alpha, beta
+        end subroutine m_init_exp_filter
+
+        subroutine m_init_cutoff_filter(this, cutoff)
+            import :: layout_t
+            class(layout_t),  intent(inout) :: this
+            double precision, intent(in)    :: cutoff
+        end subroutine m_init_cutoff_filter
+
         subroutine m_apply_filter(this, fs)
             use mpi_layout, only : box
             import :: layout_t
@@ -181,12 +199,6 @@ module field_layout
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
         end subroutine m_apply_hfilter
-
-        subroutine m_init_filter(this, method)
-            import :: layout_t
-            class(layout_t), intent(inout) :: this
-            character(*),    intent(in)    :: method
-        end subroutine m_init_filter
 
         subroutine m_vertvel(this, ds, es)
             use mpi_layout, only : box
@@ -237,22 +249,6 @@ module field_layout
     end interface
 
 contains
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine m_initialise(this, filter_method)
-        class(layout_t),           intent(inout) :: this
-        character(*),    optional, intent(in)    :: filter_method
-
-        call this%init_decomposition
-
-        if (present(filter_method)) then
-            call this%init_filter(filter_method)
-        else
-            call this%init_filter("none")
-        endif
-
-    end subroutine m_initialise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -349,7 +345,7 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine m_finalise(this)
+    subroutine finalise_decomposition(this)
         class(layout_t), intent(inout) :: this
 
         deallocate(this%gamtop)
@@ -362,9 +358,7 @@ contains
         deallocate(this%thetap)
         deallocate(this%dthetam)
 
-        call this%finalise_filter
-
-    end subroutine m_finalise
+    end subroutine finalise_decomposition
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -556,5 +550,36 @@ contains
         endif
 
     end function get_field_absmax
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define de-aliasing filter:
+    subroutine set_filter(this, filter)
+        class (layout_t),            intent(inout) :: this
+        type(filter_type), optional, intent(in)    :: filter
+        character(len=6)                           :: family
+
+        if (.not. present(filter)) then
+            family = "no"
+        else
+            family = filter%family
+        endif
+
+        select case (family)
+            case ("exp")
+                call this%init_exp_filter(filter%alpha, filter%beta)
+            case ("cutoff")
+                call this%init_cutoff_filter(filter%cutoff)
+            case ("no")
+                ! do nothing
+            case default
+                ! do nothing
+        end select
+
+        if (verbose) then
+            call mpi_print("Using " // trim(family) // " de-aliasing filter.")
+        endif
+
+    end subroutine set_filter
 
 end module field_layout

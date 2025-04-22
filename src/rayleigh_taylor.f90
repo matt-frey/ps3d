@@ -23,7 +23,7 @@ program rayleigh_taylor
     use mpi_layout
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist &
-                      , write_physical_quantities
+                      , write_physical_quantities, bfsq
     use model, only : layout, create_model
     use mpi_utils, only : mpi_stop
     implicit none
@@ -72,8 +72,10 @@ program rayleigh_taylor
 
     call read_physical_quantities_from_namelist(trim(filename))
 
+    print *, "bfsq = ", bfsq
+
     ! Filter is being ignored here
-    call create_model(grid%layout, "Hou & Li")
+    call create_model(grid%layout)
 
     call generate_fields
 

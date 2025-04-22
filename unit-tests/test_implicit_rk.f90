@@ -65,7 +65,7 @@ contains
         integer                   :: iz, nc, n
         double precision          :: time, time_step
 
-        call create_model(grid_type, "Hou & Li")
+        call create_model(grid_type)
 
         allocate(ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
         allocate(src(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))

@@ -39,7 +39,6 @@ module cheby_layout
 
         procedure :: initialise
         procedure :: finalise
-        procedure :: finalise_filter
 
         procedure :: get_z_axis
 
@@ -63,12 +62,10 @@ module cheby_layout
         procedure :: zdiffNF
 
         ! Filters:
-        procedure :: init_filter
+        procedure :: init_exp_filter
+        procedure :: init_cutoff_filter
         procedure :: apply_filter
         procedure :: apply_hfilter
-        procedure, private :: init_hou_and_li_filter
-        procedure, private :: init_23rd_rule_filter
-        procedure, private :: init_no_filter
         procedure, private :: get_cheb_poly
         procedure, private :: cheb_eval
 
@@ -86,9 +83,8 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine initialise(this, filter_method)
+    subroutine initialise(this)
         class (cheby_layout_t), intent(inout) :: this
-        character(*), optional, intent(in)    :: filter_method
         double precision                      :: fdz1, fdz2!, rkmax
         double precision                      :: Am(0:nz, 0:nz)
         integer                               :: iz
@@ -154,13 +150,14 @@ contains
             this%eyeNF(iz, iz) = one
         enddo
 
-        if (present(filter_method)) then
-            call this%init_filter(filter_method)
-        else
-            call this%init_filter("none")
-        endif
+        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
-    end subroutine
+        !No filtering:
+        this%filt = one
+        this%zfilt = one
+
+    end subroutine initialise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -171,34 +168,21 @@ contains
             deallocate(this%d1z)
             deallocate(this%d2z)
             deallocate(this%zcheb)
-!             deallocate(this%zfilt)
             deallocate(this%D2)
             deallocate(this%eye)
+            deallocate(this%zfilt)
+            deallocate(this%filt)
             this%l_initialised = .false.
         endif
 
         call finalise_cheby
 
-        call this%finalise_filter
+        call this%finalise_decomposition
 
     end subroutine finalise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine finalise_filter(this)
-        class (cheby_layout_t), intent(inout) :: this
-
-        if (allocated(this%zfilt)) then
-            deallocate(this%zfilt)
-        endif
-
-        if (allocated(this%filt)) then
-            deallocate(this%filt)
-        endif
-
-    end subroutine finalise_filter
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     function get_z_axis(this)
         class (cheby_layout_t), intent(in) :: this
@@ -495,7 +479,6 @@ contains
         double precision                      :: Lm(0:nz, 0:nz)
         double precision                      :: Rm(0:nz, 0:nz)
         double precision                      :: rhs(0:nz)
-        double precision                      :: hfilt,alpha,beta,kmax
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
@@ -547,7 +530,6 @@ contains
         double precision                      :: Lm(1:nz-1, 1:nz-1)
         double precision                      :: Rm(1:nz-1, 1:nz-1)
         double precision                      :: rhs(1:nz-1)
-        double precision                      :: hfilt,alpha,beta,kmax
         integer                               :: ipiv(0:nz)
         integer                               :: kx, ky, info
 
@@ -555,9 +537,9 @@ contains
         Rm = this%eye + f12 * dt *  alpha_v * this%D2
 
         call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
-        alpha = 133.79d0
-        beta = 10.31d0
-        kmax = 1.0d0/sqrt(2.0*maxval(rkx))
+!         alpha = 133.79d0
+!         beta = 10.31d0
+!         kmax = 1.0d0/sqrt(2.0*maxval(rkx))
         !!! End Hack
 
 
@@ -636,44 +618,6 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine init_filter(this, method)
-        class (cheby_layout_t),  intent(inout) :: this
-        character(*),            intent(in)    :: method
-        character(len=64)                      :: used_method
-
-        !----------------------------------------------------------
-        !Define de-aliasing filter:
-        select case (method)
-            case ("Hou & Li")
-                used_method = method
-                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
-            case ("2/3-rule")
-                call this%init_23rd_rule_filter(l_disable_vertical=.false.)
-                used_method = method
-            case ("Hou & Li (no vertical)")
-                used_method = method
-                call this%init_hou_and_li_filter(l_disable_vertical=.true.)
-            case ("2/3-rule (no vertical)")
-                call this%init_23rd_rule_filter(l_disable_vertical=.true.)
-                used_method = method
-            case ("none")
-                call this%init_no_filter
-                used_method = "no"
-            case default
-                call this%init_hou_and_li_filter(l_disable_vertical=.false.)
-                used_method = "Hou & Li"
-        end select
-
-#ifdef ENABLE_VERBOSE
-        if (verbose) then
-            call mpi_print("Using " // trim(used_method) // " de-aliasing filter.")
-        endif
-#endif
-
-    end subroutine init_filter
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
     subroutine apply_filter(this, fs)
         class (cheby_layout_t), intent(in)    :: this
         double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
@@ -749,24 +693,19 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     !Define Hou and Li filter (2D and 3D):
-    subroutine init_hou_and_li_filter(this, l_disable_vertical)
+    subroutine init_exp_filter(this, alpha, beta)
         class(cheby_layout_t), intent(inout) :: this
-        logical,               intent(in)    :: l_disable_vertical
+        double precision,      intent(in)    :: alpha, beta
         integer                              :: kx, ky, kz
         double precision                     :: kxmaxi, kymaxi, kzmaxi
-        double precision                     :: alpha,beta, k2
-        double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2)) 
+        double precision                     :: k2
+        double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2))
         double precision                     :: skx(box%lo(1):box%hi(1)), &
                                                 sky(box%lo(2):box%hi(2)), &
                                                 skz(0:nz)
 
-        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-        alpha = 100d0
-        beta  = 12d0
         !kxmaxi = maxval(k2l2)
-        !kxmaxi = one/kxmaxi 
+        !kxmaxi = one/kxmaxi
 
         !kv = sqrt( k2l2(box%lo(2):box%hi(2),box%lo(1):box%hi(1)) )
         !kv = -alpha * (kxmaxi*kv) ** beta
@@ -780,11 +719,7 @@ contains
         !sky = rky(box%lo(2):box%hi(2))
 
         kzmaxi = one/(1.0d0*nz)
-        if (l_disable_vertical) then
-            skz = zero
-        else
-            skz = -alpha * (kzmaxi * rkz) ** beta
-        endif
+        skz = -alpha * (kzmaxi * rkz) ** beta
 
         kxmaxi = sqrt(2.0d0)*maxval(rkx)
         kxmaxi = one/kxmaxi
@@ -806,29 +741,26 @@ contains
             this%zfilt(:, 0, 0) = exp(skz)
         endif
 
-    end subroutine init_hou_and_li_filter
+    end subroutine init_exp_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     !Define de-aliasing filter (2/3 rule):
-    subroutine init_23rd_rule_filter(this, l_disable_vertical)
+    subroutine init_cutoff_filter(this, cutoff)
         class(cheby_layout_t), intent(inout) :: this
-        logical,               intent(in)    :: l_disable_vertical
+        double precision,      intent(in)    :: cutoff
         integer                              :: kx, ky, kz
         double precision                     :: rkxmax, rkymax, rkzmax
         double precision                     :: skx(box%lo(1):box%hi(1)), &
                                                 sky(box%lo(2):box%hi(2)), &
                                                 skz(0:nz)
 
-        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
         rkxmax = maxval(rkx)
         rkymax = maxval(rky)
         rkzmax = maxval(rkz)
 
         do kx = box%lo(1), box%hi(1)
-            if (rkx(kx) <= f23 * rkxmax) then
+            if (rkx(kx) <= cutoff * rkxmax) then
                 skx(kx) = one
             else
                 skx(kx) = zero
@@ -836,24 +768,20 @@ contains
         enddo
 
         do ky = box%lo(2), box%hi(2)
-            if (rky(ky) <= f23 * rkymax) then
+            if (rky(ky) <= cutoff * rkymax) then
                 sky(ky) = one
             else
                 sky(ky) = zero
             endif
         enddo
 
-        if (l_disable_vertical) then
-            skz = one
-        else
-            do kz = 0, nz
-                if (rkz(kz) <= f23 * rkzmax) then
-                    skz(kz) = one
-                else
-                    skz(kz) = zero
-                endif
-            enddo
-        endif
+        do kz = 0, nz
+            if (rkz(kz) <= cutoff * rkzmax) then
+                skz(kz) = one
+            else
+                skz(kz) = zero
+            endif
+        enddo
 
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)
@@ -871,27 +799,7 @@ contains
             this%zfilt(:, 0, 0) = skz
         endif
 
-    end subroutine init_23rd_rule_filter
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    !Define no filter:
-    subroutine init_no_filter(this)
-        class(cheby_layout_t), intent(inout) :: this
-        integer                              :: kx, ky, kz
-        double precision                     :: alpha,beta, k2, kmax
-        double precision                     :: skx(box%lo(1):box%hi(1)), &
-                                                sky(box%lo(2):box%hi(2)), &
-                                                skz(0:nz)
-
-        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-
-        this%filt = one
-        this%zfilt = one
-
-
-    end subroutine init_no_filter
+    end subroutine init_cutoff_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

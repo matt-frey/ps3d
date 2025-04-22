@@ -90,7 +90,7 @@ program beltrami
     call read_physical_quantities_from_namelist(trim(filename))
 
     ! Filter is being ignored here
-    call create_model(grid%layout, "Hou & Li")
+    call create_model(grid%layout)
 
     call generate_fields
 

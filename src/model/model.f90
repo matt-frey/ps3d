@@ -1,5 +1,5 @@
 module model
-    use options, only : verbose
+    use options, only : verbose, filter_type
     use field_layout, only : layout_t
     use cheby_layout, only : cheby_layout_t
     use mss_layout, only : mss_layout_t
@@ -15,9 +15,9 @@ module model
 
 contains
 
-    subroutine create_model(grid_type, filter_type)
-        character(len=*), intent(in) :: grid_type
-        character(len=*), intent(in) :: filter_type
+    subroutine create_model(grid_type, filter)
+        character(len=*),            intent(in) :: grid_type
+        type(filter_type), optional, intent(in) :: filter
 
         if (allocated(layout)) then
             call layout%finalise
@@ -40,7 +40,9 @@ contains
         endif
 #endif
 
-        call layout%initialise(filter_type)
+        call layout%initialise
+
+        call layout%set_filter(filter)
 
     end subroutine create_model
 

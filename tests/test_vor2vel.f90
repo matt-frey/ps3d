@@ -36,9 +36,9 @@ program test_vor2vel
     call update_parameters
 
     if (grid_type == 1) then
-        call create_model("uniform", "Hou & Li")
+        call create_model("uniform")
     else if (grid_type == 2) then
-        call create_model("chebyshev", "Hou & Li")
+        call create_model("chebyshev")
     else
         write(*, *) ' No such grid type. Exiting.'
         stop
