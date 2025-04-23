@@ -17,6 +17,7 @@ program test_filter
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s, fftxys2p
     implicit none
 
     character(len=9) :: grid_types(2)
@@ -110,9 +111,9 @@ contains
         enddo
 
 
-        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
         unfiltered = vor
 
@@ -120,9 +121,9 @@ contains
         call layout%apply_filter(svor(:, :, :, 2))
         call layout%apply_filter(svor(:, :, :, 3))
 
-        call layout%combine_physical(svor(:, :, :, 1), vor(:, :, :, 1))
-        call layout%combine_physical(svor(:, :, :, 2), vor(:, :, :, 2))
-        call layout%combine_physical(svor(:, :, :, 3), vor(:, :, :, 3))
+        call fftxys2p(svor(:, :, :, 1), vor(:, :, :, 1))
+        call fftxys2p(svor(:, :, :, 2), vor(:, :, :, 2))
+        call fftxys2p(svor(:, :, :, 3), vor(:, :, :, 3))
 
         if (verbose .and. (world%rank == world%root)) then
             print *, ""

@@ -15,18 +15,18 @@ module fields
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
     double precision, allocatable, dimension(:, :, :, :) :: &
-        svor,   &   ! full-spectral vorticity for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        svor,   &   ! vorticity in semi-spectral space
         vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         vel,    &   ! velocity vector field (u, v, w)
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
-        svorts, &   ! vorticity source in mixed spectral space
+        svorts, &   ! vorticity source in semi-spectral space
         vortsm      ! used for time stepping
 
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
-        sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
-        sbuoys, &   ! buoyancy source in mixed spectral space
+        sbuoy,  &   ! buoyancy in semi-spectral space
+        sbuoys, &   ! buoyancy source in semi-spectral space
         bsm         ! used for time stepping
 #endif
 

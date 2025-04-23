@@ -11,6 +11,7 @@ program test_vor2vel
     use mpi_environment
     use mpi_layout
     use mpi_utils, only : mpi_stop
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     double precision              :: emax, erms
@@ -226,9 +227,9 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     subroutine invert
-        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
         call vor2vel
     end subroutine invert

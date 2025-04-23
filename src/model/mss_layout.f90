@@ -33,8 +33,6 @@ module mss_layout
         procedure :: get_z_axis
 
         ! Field decompositions:
-        procedure :: decompose_physical
-        procedure :: combine_physical
         procedure :: decompose_semi_spectral
         procedure :: combine_semi_spectral
 
@@ -104,22 +102,6 @@ contains
 
     end function get_z_axis
 
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! fc  - complete field (physical space)
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! cfc - copy of complete field (physical space)
-    subroutine decompose_physical(this, fc, sf)
-        class (mss_layout_t), intent(in)  :: this
-        double precision,     intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,     intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        call fftxyp2s(fc, sf)
-
-        call this%decompose_semi_spectral(sf)
-
-    end subroutine decompose_physical
-
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! in : complete field (semi-spectral space)
@@ -156,26 +138,6 @@ contains
         !$omp end parallel workshare
 
     end subroutine decompose_semi_spectral
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! fc  - complete field (physical space)
-    ! sfc - complete field (semi-spectral space)
-    subroutine combine_physical(this, sf, fc)
-        class (mss_layout_t), intent(in)  :: this
-        double precision,     intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,     intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                  :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        sfc = sf
-
-        call this%combine_semi_spectral(sfc)
-
-        ! transform to physical space as fc:
-        call fftxys2p(sfc, fc)
-
-    end subroutine combine_physical
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -375,25 +337,35 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! @pre Expects a field in semi-spectral space!
     subroutine apply_filter(this, fs)
         class (mss_layout_t), intent(in)     :: this
         double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
 
+        call this%decompose_semi_spectral(fs)
+
         fs = this%filt * fs
+
+        call this%combine_semi_spectral(fs)
 
     end subroutine apply_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! @pre Expects a field in semi-spectral space!
     subroutine apply_hfilter(this, fs)
         class (mss_layout_t), intent(in)     :: this
         double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
 
+        call this%decompose_semi_spectral(fs)
+
         fs = this%filt * fs
+
+        call this%combine_semi_spectral(fs)
 
     end subroutine apply_hfilter
 
@@ -496,10 +468,26 @@ contains
         double precision,     intent(in)  :: f(0:nz)
         double precision,     intent(out) :: g(0:nz)
         logical,              intent(in)  :: noavg
+        integer                           :: iz
 
+        !--------------------------------------------------
+        ! Decompose to mixed-spectral:
+
+        ! subtract harmonic part
+        !$omp parallel do
+        do iz = 1, nz-1
+            g(iz) = f(iz) - (f(0)  * this%phim(iz, 0, 0) + &
+                             f(nz) * this%phip(iz, 0, 0))
+        enddo
+        !$omp end parallel do
+
+        ! transform interior to fully spectral
+        call dst(1, nz, g(1:nz), ztrig, zfactors)
+
+        !--------------------------------------------------
         !First integrate the sine series in f(1:nz-1):
         g(0) = zero
-        g(1:nz-1) = -rkzi * f(1:nz-1)
+        g(1:nz-1) = -rkzi * g(1:nz-1)
         g(nz) = zero
 
         !Transform to semi-spectral space as a cosine series:
@@ -554,6 +542,8 @@ contains
                                                   box%lo(1):box%hi(1))  ! semi-spectral
         integer                             :: iz, kx, ky, kz
 
+
+        call this%decompose_semi_spectral(ds)
 
         !Calculate the boundary contributions of the source to the vertical velocity (bs)
         !and its derivative (es) in semi-spectral space:

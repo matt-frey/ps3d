@@ -38,9 +38,7 @@ contains
         ds = as - bs                     ! ds = D
         cs = svor(:, :, :, 3)
         !$omp end parallel workshare
-        call layout%combine_semi_spectral(cs)
         call layout%diffz(cs, es, l_decomposed=.false.)    ! es = E
-        call layout%decompose_semi_spectral(es)
 
         ! ubar and vbar are used here to store the mean x and y components of the vorticity
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
@@ -73,7 +71,7 @@ contains
 
     end subroutine make_vorticity_solenoidal
 
-    ! Given the vorticity vector field (svor) in spectral space, this
+    ! Given the vorticity vector field (svor) in semi-spectral space, this
     ! returns the associated velocity field (vel) as well as vorticity
     ! in physical space (vor)
     subroutine vor2vel
@@ -94,7 +92,7 @@ contains
         !----------------------------------------------------------
         !Combine vorticity in physical space:
         do nc = 1, 3
-            call layout%combine_physical(svor(:, :, :, nc), vor(:, :, :, nc))
+            call fftxys2p(svor(:, :, :, nc), vor(:, :, :, nc))
         enddo
 
         !----------------------------------------------------------
@@ -111,7 +109,6 @@ contains
         !$omp parallel workshare
         cs = svor(:, :, :, 3)
         !$omp end parallel workshare
-        call layout%combine_semi_spectral(cs)
 
         !----------------------------------------------------------------------
         !Define horizontally-averaged flow by integrating the horizontal vorticity:
@@ -202,22 +199,22 @@ contains
         ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
         ! but u_x + v_y + w_z = 0 as we assume incompressibility.
 
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
 
         ! Define the x-component of the flux
         fp = vel(:, :, :, 1) * buoy
 
         ! Differentiate
-        call layout%decompose_physical(fp, fs)
+        call fftxyp2s(fp, fs)
         call diffx(fs, ds)
-        call layout%combine_physical(ds, btend)
+        call fftxys2p(ds, btend)
 
         ! Define the y-component of the flux
         fp = vel(:, :, :, 2) * buoy
 
-        call layout%decompose_physical(fp, fs)
+        call fftxyp2s(fp, fs)
         call diffy(fs, ds)
-        call layout%combine_physical(ds, fp)
+        call fftxys2p(ds, fp)
 
         btend = - btend - fp
 
@@ -225,9 +222,9 @@ contains
         fp = vel(:, :, :, 3) * buoy
 
         ! Differentiate
-        call layout%decompose_physical(fp, fs)
+        call fftxyp2s(fp, fs)
         call layout%diffz(fs, ds, l_decomposed=.true.)
-        call layout%combine_physical(ds, fp)
+        call fftxys2p(ds, fp)
 
         ! b = N^2 * z + b'
         ! db/dt = db/dz * dz/dt + db'/dt
@@ -251,8 +248,8 @@ contains
             btend = btend - fp
         endif
 
-        ! Convert to mixed-spectral space:
-        call layout%decompose_physical(btend, sbuoys)
+        ! Convert to semi-spectral space:
+        call fftxyp2s(btend, sbuoys)
 
     end subroutine buoyancy_tendency
 #endif
@@ -263,9 +260,9 @@ contains
     subroutine vorticity_tendency
         double precision :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
         double precision :: gp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))    ! physical space
-        double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-        double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
-        double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! mixed spectral space
+        double precision :: p(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! semi-spectral space
+        double precision :: q(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! semi-spectral space
+        double precision :: r(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))     ! semi-spectral space
         integer          :: nc
 
         call start_timer(vtend_timer)
@@ -279,7 +276,7 @@ contains
         enddo
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
 #endif
         !-------------------------------------------------------
         ! Tendency in flux form:
@@ -294,18 +291,18 @@ contains
         fp = fp + buoy
 #endif
         !$omp end parallel workshare
-        call layout%decompose_physical(fp, r)
+        call fftxyp2s(fp, r)
 
         ! q = w * xi - u * zeta
         !$omp parallel workshare
         fp = vel(:, :, :, 3) * vor(:, :, :, 1) - vel(:, :, :, 1) * vor(:, :, :, 3)
         !$omp end parallel workshare
-        call layout%decompose_physical(fp, q)
+        call fftxyp2s(fp, q)
 
         ! dxi/dt  = dr/dy - dq/dz
         call diffy(r, svorts(:, :, :, 1))
         call layout%diffz(fp, gp, l_decomposed=.false.)
-        call layout%decompose_physical(gp, p)
+        call fftxyp2s(gp, p)
         !$omp parallel workshare
         svorts(:, :, :, 1) = svorts(:, :, :, 1) - p     ! here: p = dq/dz
         !$omp end parallel workshare
@@ -314,12 +311,12 @@ contains
         !$omp parallel workshare
         fp = vel(:, :, :, 2) * vor(:, :, :, 3) - vel(:, :, :, 3) * vor(:, :, :, 2)
         !$omp end parallel workshare
-        call layout%decompose_physical(fp, p)
+        call fftxyp2s(fp, p)
 
         ! deta/dt = dp/dz - dr/dx
         call diffx(r, svorts(:, :, :, 2))
         call layout%diffz(fp, gp, l_decomposed=.false.)
-        call layout%decompose_physical(gp, r)
+        call fftxyp2s(gp, r)
         !$omp parallel workshare
         svorts(:, :, :, 2) = r - svorts(:, :, :, 2)     ! here: r = dp/dz
         !$omp end parallel workshare
@@ -337,7 +334,7 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    ! Gets the source terms for vorticity and buoyancy in mixed-spectral space.
+    ! Gets the source terms for vorticity and buoyancy in semi-spectral space.
     ! Note, vel obtained by vor2vel before calling this
     ! routine is spectrally truncated.
     subroutine source

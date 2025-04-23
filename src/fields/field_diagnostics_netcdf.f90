@@ -16,6 +16,7 @@ module field_diagnostics_netcdf
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
     use fields_derived, only : delta
+    use sta3dfft, only : fftxys2p
 #if defined(ENABLE_BALANCE) && defined(ENABLE_BUOYANCY)
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
@@ -273,7 +274,7 @@ contains
 #endif
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
 
 
         ! get total buoyancy:

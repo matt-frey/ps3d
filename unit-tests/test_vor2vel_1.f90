@@ -22,6 +22,7 @@ program test_vor2vel_1
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     call mpi_env_initialise
@@ -95,9 +96,9 @@ contains
             enddo
         enddo
 
-        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
         call vor2vel
 

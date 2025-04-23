@@ -11,6 +11,7 @@ program test_zeta
     use mpi_timer
     use mpi_environment
     use mpi_layout
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     double precision              :: error
@@ -54,8 +55,8 @@ program test_zeta
         enddo
     enddo
 
-    call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
+    call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+    call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
     vor(0, :, :, 3) = zeta(0, :, :)
     call surf_fftxyp2s(vor(0, :, :, 3), szeta(0, :, :))
 

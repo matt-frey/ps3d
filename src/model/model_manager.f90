@@ -65,6 +65,7 @@ module model_manager
                             , get_netcdf_box        &
                             , read_netcdf_attribute
     use drew_impl_rk4
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     private
@@ -233,7 +234,6 @@ contains
 #ifdef ENABLE_BUOYANCY
         !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
         !Obtain gradient of buoyancy in physical space -> xp, yp, zp
-        call layout%combine_semi_spectral(sbuoy)
         call diffx(sbuoy, xs)
         call fftxys2p(xs, xp)
 
@@ -242,7 +242,6 @@ contains
 
         call layout%diffz(sbuoy, xs, l_decomposed=.false.)
         call fftxys2p(xs, zp)
-        call layout%decompose_semi_spectral(sbuoy)
 
         !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
         !$omp parallel workshare
@@ -665,11 +664,11 @@ contains
             bbarz = zero
         endif
 
-        call layout%decompose_physical(buoy, sbuoy)
+        call fftxyp2s(buoy, sbuoy)
         call layout%apply_filter(sbuoy)
 #endif
         do nc = 1, 3
-            call layout%decompose_physical(vor(:, :, :, nc), svor(:, :, :, nc))
+            call fftxyp2s(vor(:, :, :, nc), svor(:, :, :, nc))
             call layout%apply_filter(svor(:, :, :, nc))
         enddo
 

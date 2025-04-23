@@ -40,10 +40,8 @@ module field_layout
         procedure (m_get_z_axis), deferred :: get_z_axis
 
         ! Field decompositions:
-        procedure (m_decompose_physical),      deferred :: decompose_physical
-        procedure (m_combine_physical),        deferred :: combine_physical
-        procedure (m_decompose_semi_spectral), deferred :: decompose_semi_spectral
-        procedure (m_combine_semi_spectral),   deferred :: combine_semi_spectral
+        procedure :: decompose_semi_spectral => m_decompose_semi_spectral
+        procedure :: combine_semi_spectral => m_combine_semi_spectral
 
         procedure, private :: set_hyperbolic_functions
 
@@ -93,40 +91,6 @@ module field_layout
             class (layout_t), intent(in) :: this
             double precision             :: get_z_axis(0:nz)
         end function
-
-        subroutine m_decompose_physical(this, fc, sf)
-            use parameters, only : nz
-            use mpi_layout, only : box
-            import :: layout_t
-            class (layout_t), intent(in)  :: this
-            double precision, intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision, intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        end subroutine
-
-        subroutine m_combine_physical(this, sf, fc)
-            use parameters, only : nz
-            use mpi_layout, only : box
-            import :: layout_t
-            class (layout_t), intent(in)  :: this
-            double precision, intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-            double precision, intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        end subroutine
-
-        subroutine m_decompose_semi_spectral(this, sfc)
-            use parameters, only : nz
-            use mpi_layout, only : box
-            import :: layout_t
-            class (layout_t), intent(in)    :: this
-            double precision, intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        end subroutine
-
-        subroutine m_combine_semi_spectral(this, sf)
-            use parameters, only : nz
-            use mpi_layout, only : box
-            import :: layout_t
-            class (layout_t), intent(in)    :: this
-            double precision, intent(inout) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        end subroutine
 
         function get_field_local_sum(this, ff) result(res)
             use mpi_layout, only : box
@@ -249,6 +213,26 @@ module field_layout
     end interface
 
 contains
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine m_decompose_semi_spectral(this, sfc)
+        class (layout_t), intent(in)    :: this
+        double precision, intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+        ! Do nothing!
+
+    end subroutine m_decompose_semi_spectral
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine m_combine_semi_spectral(this, sf)
+        class (layout_t), intent(in)    :: this
+        double precision, intent(inout) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+        ! Do nothing!
+
+    end subroutine m_combine_semi_spectral
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

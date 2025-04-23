@@ -106,7 +106,7 @@ contains
         !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
         call layout%diffz(buoy, dbdz, l_decomposed=.false.)
         pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 #endif
