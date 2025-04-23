@@ -47,8 +47,8 @@ module cheby_layout
 
         ! Field operations:
         procedure :: diffz
-        procedure :: calc_decomposed_mean
-        procedure :: adjust_decomposed_mean
+        procedure :: get_semi_spectral_mean
+        procedure :: adjust_semi_spectral_mean
 
         procedure :: vertvel
         procedure :: zinteg
@@ -212,7 +212,7 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    function calc_decomposed_mean(this, fs) result(savg)
+    function get_semi_spectral_mean(this, fs) result(savg)
         class (cheby_layout_t), intent(in) :: this
         double precision,       intent(in) :: fs(0:nz,                &
                                                  box%lo(2):box%hi(2), &
@@ -221,15 +221,12 @@ contains
         integer                            :: iz
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            savg = this%zccw(0) * fs(0, 0, 0)
-            do iz = 1, nz-1
-                ! add back the harmonic part
-                c = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
-                                 + fs(nz, 0, 0) * this%phip(iz, 0, 0)
 
-                savg = savg + this%zccw(iz) * c
+            savg = zero
+
+            do iz = 0, nz
+                savg = savg + this%zccw(iz) * fs(iz, 0, 0)
             enddo
-            savg = savg + this%zccw(nz) * fs(nz, 0, 0)
 
             ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
             ! where the Chebyshev points are given in [-1, 1]
@@ -239,12 +236,12 @@ contains
             savg = savg * f12
         endif
 
-    end function calc_decomposed_mean
+    end function get_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    subroutine adjust_decomposed_mean(this, fs, avg)
+    subroutine adjust_semi_spectral_mean(this, fs, avg)
         class (cheby_layout_t), intent(in)    :: this
         double precision,       intent(inout) :: fs(0:nz,                &
                                                     box%lo(2):box%hi(2), &
@@ -253,32 +250,15 @@ contains
         double precision                      :: savg, cor
         integer                               :: iz
 
-        savg = this%calc_decomposed_mean(fs)
+        savg = this%get_semi_spectral_mean(fs)
 
         cor = avg - savg
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            do iz = 1, nz-1
-                ! add back the harmonic part
-                fs(iz, 0, 0) = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
-                                            + fs(nz, 0, 0) * this%phip(iz, 0, 0)
-
-                ! adjust the mean
-                fs(iz, 0, 0) = fs(iz, 0, 0) + cor
-            enddo
-
-            ! adjust the mean at the surfaces
-            fs(0 , 0, 0) = fs(0,  0, 0) + cor
-            fs(nz, 0, 0) = fs(nz, 0, 0) + cor
-
-            do iz = 1, nz-1
-                ! remove the harmonic part
-                fs(iz, 0, 0) = fs(iz, 0, 0) - (fs(0,  0, 0) * this%phim(iz, 0, 0) + &
-                                               fs(nz, 0, 0) * this%phip(iz, 0, 0))
-            enddo
+            fs(:, 0, 0) = fs(:, 0, 0) + cor
         endif
 
-    end subroutine adjust_decomposed_mean
+    end subroutine adjust_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -343,7 +323,6 @@ contains
         integer                               :: kx, ky, info
 
 
-        call this%combine_semi_spectral(fs)
         !alpha = 133.79d0
         !beta = 10.31d0
         !kmax = 1.0d0/32.d0
@@ -372,8 +351,6 @@ contains
                 !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
             enddo
         enddo
-
-        call this%decompose_semi_spectral(fs)
 
     end subroutine zdiffNF
 
@@ -445,8 +422,6 @@ contains
         double precision                      :: dmat(nz-1, nz-1), sol(nz-1)
         integer                               :: ipiv(nz-1), info
         integer                               :: kx, ky, iz
-
-        call this%combine_semi_spectral(ds)
 
         !-----------------------------------------------------------------
         ! Loop over horizontal wavenumbers and solve linear system:

@@ -41,8 +41,8 @@ module mss_layout
 
         ! Field operations:
         procedure :: diffz
-        procedure :: calc_decomposed_mean
-        procedure :: adjust_decomposed_mean
+        procedure :: get_semi_spectral_mean
+        procedure :: adjust_semi_spectral_mean
 
         ! Filters:
         procedure :: init_exp_filter
@@ -388,28 +388,35 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    function calc_decomposed_mean(this, fs) result(savg)
+    function get_semi_spectral_mean(this, fs) result(savg)
         class (mss_layout_t), intent(in) :: this
         double precision,     intent(in) :: fs(0:nz,                &
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
         double precision                 :: wk(1:nz)
         double precision                 :: savg
+        integer                          :: iz
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             ! Cast fs_S = fs - fs_L onto the z grid as wk for kx = ky = 0:
-            wk(1:nz-1) = fs(1:nz-1, 0, 0)
+
+            ! Subtract harmonic part:
+            do iz = 1, nz-1
+                wk(iz) = fs(iz, 0, 0) - (fs(0, 0, 0)  * this%phim(iz, 0, 0) + &
+                                         fs(nz, 0, 0) * this%phip(iz, 0, 0))
+            enddo
             wk(nz) = zero
+
             call dst(1, nz, wk(1:nz), ztrig, zfactors)
             ! Compute average (first part is the part due to svor_L):
             savg = f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + fnzi * sum(wk(1:nz-1))
         endif
-    end function calc_decomposed_mean
+    end function get_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    subroutine adjust_decomposed_mean(this, fs, avg)
+    subroutine adjust_semi_spectral_mean(this, fs, avg)
         class (mss_layout_t), intent(in)    :: this
         double precision,     intent(inout) :: fs(0:nz,                &
                                                   box%lo(2):box%hi(2), &
@@ -417,7 +424,7 @@ contains
         double precision,     intent(in)    :: avg
         double precision                    :: savg
 
-        savg = this%calc_decomposed_mean(fs)
+        savg = this%get_semi_spectral_mean(fs)
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             ! Ensure zero global mean horizontal vorticity conservation:
@@ -426,7 +433,7 @@ contains
             fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
         endif
 
-    end subroutine adjust_decomposed_mean
+    end subroutine adjust_semi_spectral_mean
 
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

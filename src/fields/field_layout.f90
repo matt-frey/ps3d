@@ -49,8 +49,8 @@ module field_layout
 
         ! Field operations:
         procedure (m_diffz), deferred :: diffz
-        procedure (m_calc_decomposed_mean), deferred :: calc_decomposed_mean
-        procedure (m_adjust_decomposed_mean), deferred :: adjust_decomposed_mean
+        procedure (m_get_semi_spectral_mean), deferred :: get_semi_spectral_mean
+        procedure (m_adjust_semi_spectral_mean), deferred :: adjust_semi_spectral_mean
 
         ! Filters:
         procedure :: set_filter
@@ -106,7 +106,7 @@ module field_layout
             logical,          intent(in)  :: l_decomposed
         end subroutine
 
-        function m_calc_decomposed_mean(this, fs) result(savg)
+        function m_get_semi_spectral_mean(this, fs) result(savg)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: layout_t
@@ -117,7 +117,7 @@ module field_layout
             double precision             :: savg
         end function
 
-        subroutine m_adjust_decomposed_mean(this, fs, avg)
+        subroutine m_adjust_semi_spectral_mean(this, fs, avg)
             use parameters, only : nz
             use mpi_layout, only : box
             import :: layout_t
