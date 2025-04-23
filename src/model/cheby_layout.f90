@@ -68,9 +68,6 @@ module cheby_layout
         procedure :: zderiv
         procedure :: zzderiv
 
-        procedure :: decomposed_diffz
-        procedure :: semi_spectral_diffz
-
     end type cheby_layout_t
 
 contains
@@ -118,9 +115,6 @@ contains
 
         ! Get Clenshaw-Curtis weights:
         call clencurt(nz, this%zccw)
-
-        ! Call parent class initialise
-        call this%init_decomposition
 
         ! Initialise arrays for zdiffuse:
         allocate(this%D2(1:nz-1, 1:nz-1))
@@ -171,8 +165,6 @@ contains
 
         call finalise_cheby
 
-        call this%finalise_decomposition
-
     end subroutine finalise
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -213,61 +205,9 @@ contains
         double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         logical,                intent(in)  :: l_decomposed
 
-        if (l_decomposed) then
-            call this%decomposed_diffz(fs, ds)
-        else
-            call this%semi_spectral_diffz(fs, ds)
-        endif
+        call this%zderiv(fs, ds)
 
     end subroutine diffz
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine decomposed_diffz(this, fs, ds)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                             :: iz
-
-        ! Calculate the derivative in fully decomposed form:
-        !$omp parallel workshare
-        as(0,      :, :) = zero
-        as(1:nz-1, :, :) = fs(1:nz-1, :, :)
-        as(nz,     :, :) = zero
-        !$omp end parallel workshare
-
-        call this%zderiv(as, ds)
-
-        !Calculate the derivative of the linear part in semi-spectral space
-        !and add both contributions:
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            ds(iz, :, :) = ds(iz, :, :) + fs(0,  :, :) * this%dphim(iz, :, :)  &
-                                        + fs(nz, :, :) * this%dphip(iz, :, :)
-        enddo
-        !$omp end parallel do
-
-        call this%decompose_semi_spectral(ds)
-
-    end subroutine decomposed_diffz
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine semi_spectral_diffz(this, fs, ds)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: gs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        gs = fs
-        call this%decompose_semi_spectral(gs)
-
-        call this%decomposed_diffz(gs, ds)
-
-        call this%combine_semi_spectral(ds)
-
-    end subroutine semi_spectral_diffz
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -532,7 +472,7 @@ contains
         enddo
 
         ! Calculate z-derivative of vertical velocity:
-        call this%diffz(ds, es, l_decomposed=.false.)
+        call this%zderiv(ds, es)
 
     end subroutine vertvel
 
@@ -760,27 +700,6 @@ contains
         enddo
 
     end subroutine cheb_eval
-
-
-    !             !------------------------------------------------------------------
-!             ! Dembenek filter:
-!             rkmax = zfiltering%kmax * dble(nz)
-!             do iz = 0, nz
-!                 zfilt(iz) = dembenek_filter(iz,                 &
-!                                             rkmax,              &
-!                                             zfiltering%alpha,   &
-!                                             zfiltering%beta)
-!             enddo
-!     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!     function dembenek_filter(k, rkmax, alpha, beta) result(res)
-!         integer,          intent(in) :: k
-!         double precision, intent(in) :: alpha, beta, rkmax
-!         double precision             :: res, x
-!
-!         x = dble(k)/rkmax
-!         res = exp(-alpha*x**beta)
-!     end function dembenek_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

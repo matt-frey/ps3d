@@ -59,14 +59,100 @@ module mss_layout
         procedure :: central_diffz
         procedure :: decomposed_diffz
 
+        procedure, private :: set_hyperbolic_functions
+
     end type mss_layout_t
 
 contains
 
     subroutine initialise(this)
         class (mss_layout_t), intent(inout) :: this
+        double precision                    :: z(0:nz), zm(0:nz), zp(0:nz)
+        double precision                    :: phip00(0:nz)
+        integer                             :: kx, ky, iz
 
-        call this%init_decomposition
+        !------------------------------------------------------------------
+        ! Ensure FFT module is initialised:
+        ! (this call does nothing if already initialised)
+        call initialise_fft(extent)
+
+        !---------------------------------------------------------------------
+        !Define zm = zmax - z, zp = z - zmin
+        z = this%get_z_axis()
+        !$omp parallel do private(z)
+        do iz = 0, nz
+            zm(iz) = upper(3) - z(iz)
+            zp(iz) = z(iz) - lower(3)
+        enddo
+        !$omp end parallel do
+
+        !---------------------------------------------------------------------
+        !Hyperbolic functions used for solutions of Laplace's equation:
+        allocate(this%phim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%phip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dphim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dphip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%thetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%thetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dthetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dthetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = max(1, box%lo(2)), box%hi(2)
+                call this%set_hyperbolic_functions(kx, ky, zm, zp)
+            enddo
+        enddo
+
+        ! ky = 0
+        if (box%lo(2) == 0) then
+            do kx = max(1, box%lo(1)), box%hi(1)
+                call this%set_hyperbolic_functions(kx, 0, zm, zp)
+            enddo
+        endif
+
+        phip00 = zero
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            !$omp parallel workshare
+            ! kx = ky = 0
+            this%phim(:, 0, 0) = zm / extent(3)
+            this%phip(:, 0, 0) = zp / extent(3)
+
+            this%dphim(:, 0, 0) = - one / extent(3)
+            this%dphip(:, 0, 0) =   one / extent(3)
+
+            this%thetam(:, 0, 0) = zero
+            this%thetap(:, 0, 0) = zero
+
+            this%dthetam(:, 0, 0) = zero
+            this%dthetap(:, 0, 0) = zero
+
+            phip00 = this%phip(:, 0, 0)
+            !$omp end parallel workshare
+        endif
+
+        !---------------------------------------------------------------------
+        !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
+        allocate(this%gamtop(0:nz))
+        allocate(this%gambot(0:nz))
+
+        call MPI_Allreduce(MPI_IN_PLACE,            &
+                            phip00(0:nz),           &
+                            nz+1,                   &
+                            MPI_DOUBLE_PRECISION,   &
+                            MPI_SUM,                &
+                            world%comm,             &
+                            world%err)
+
+        !$omp parallel workshare
+        this%gamtop = f12 * extent(3) * (phip00 ** 2 - f13)
+        !$omp end parallel workshare
+
+        !$omp parallel do
+        do iz = 0, nz
+            this%gambot(iz) = this%gamtop(nz-iz)
+        enddo
+        !$omp end parallel do
+        !Here gambot is the complement of gamtop.
 
         allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
@@ -85,7 +171,15 @@ contains
             deallocate(this%filt)
         endif
 
-        call this%finalise_decomposition
+        deallocate(this%gamtop)
+        deallocate(this%gambot)
+        deallocate(this%phim)
+        deallocate(this%phip)
+        deallocate(this%dphim)
+        deallocate(this%dphip)
+        deallocate(this%thetam)
+        deallocate(this%thetap)
+        deallocate(this%dthetam)
 
     end subroutine finalise
 
@@ -598,5 +692,60 @@ contains
         !$omp end parallel workshare
 
     end subroutine vertvel
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! for kx > 0 and ky >= 0 or kx >= 0 and ky > 0
+    subroutine set_hyperbolic_functions(this, kx, ky, zm, zp)
+        class(mss_layout_t),  intent(inout) :: this
+        integer,              intent(in)    :: kx, ky
+        double precision,     intent(in)    :: zm(0:nz), zp(0:nz)
+        double precision                    :: R(0:nz), Q(0:nz), k2ifac
+        double precision                    :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
+        double precision                    :: fac, div, kl
+
+        kl = sqrt(k2l2(ky, kx))
+        fac = kl * extent(3)
+        ef = exp(- fac)
+#ifndef NDEBUG
+        ! To avoid "Floating-point exception - erroneous arithmetic operation"
+        ! when ef is really small.
+        ef = max(ef, sqrt(tiny(ef)))
+#endif
+        div = one / (one - ef**2)
+        k2ifac = f12 * k2l2i(ky, kx)
+
+        Lm = kl * zm
+        Lp = kl * zp
+
+        ep = exp(- Lp)
+        em = exp(- Lm)
+
+#ifndef NDEBUG
+        ! To avoid "Floating-point exception - erroneous arithmetic operation"
+        ! when ep and em are really small.
+        ep = max(ep, sqrt(tiny(ep)))
+        em = max(em, sqrt(tiny(em)))
+#endif
+
+        this%phim(:, ky, kx) = div * (ep - ef * em)
+        this%phip(:, ky, kx) = div * (em - ef * ep)
+
+        this%dphim(:, ky, kx) = - kl * div * (ep + ef * em)
+        this%dphip(:, ky, kx) =   kl * div * (em + ef * ep)
+
+        Q = div * (one + ef**2)
+        R = div * two * ef
+
+        this%thetam(:, ky, kx) = k2ifac * (R * Lm * this%phip(:, ky, kx) - &
+                                           Q * Lp * this%phim(:, ky, kx))
+        this%thetap(:, ky, kx) = k2ifac * (R * Lp * this%phim(:, ky, kx) - &
+                                           Q * Lm * this%phip(:, ky, kx))
+
+        this%dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * this%dphim(:, ky, kx) - &
+                                                      R * Lm * this%dphip(:, ky, kx))
+        this%dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * this%dphip(:, ky, kx) - &
+                                                      R * Lp * this%dphim(:, ky, kx))
+    end subroutine set_hyperbolic_functions
 
 end module mss_layout
