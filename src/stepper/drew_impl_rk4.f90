@@ -211,10 +211,10 @@ contains
 !          call layout%zdiffuse(svor(:,:,:,nc),dt,nu,nu)
         enddo
 
-        
+
         ! Ensure zero global mean horizontal vorticity conservation:
  !       do nc = 1, 2
- !          call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+ !          call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
  !      enddo
 
     end subroutine impl_rk4
@@ -233,7 +233,7 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-        integer                         :: iz
+!         integer                         :: iz
 
         qdi = q
         q = (qdi + dt2 * sqs)

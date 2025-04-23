@@ -674,7 +674,7 @@ contains
 
         ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
         do nc = 1, 2
-            ini_vor_mean(nc) = layout%calc_decomposed_mean(svor(:, :, :, nc))
+            ini_vor_mean(nc) = layout%get_semi_spectral_mean(svor(:, :, :, nc))
         enddo
 
         call vor2vel

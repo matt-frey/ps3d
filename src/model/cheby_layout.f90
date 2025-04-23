@@ -217,7 +217,7 @@ contains
         double precision,       intent(in) :: fs(0:nz,                &
                                                  box%lo(2):box%hi(2), &
                                                  box%lo(1):box%hi(1))
-        double precision                   :: savg, c
+        double precision                   :: savg
         integer                            :: iz
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
@@ -248,7 +248,6 @@ contains
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: avg
         double precision                      :: savg, cor
-        integer                               :: iz
 
         savg = this%get_semi_spectral_mean(fs)
 
@@ -274,16 +273,9 @@ contains
         double precision,       intent(out) :: g(0:nz)
         logical,                intent(in)  :: noavg
         double precision                    :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
-        integer                             :: ipiv(0:nz-1), info, iz
+        integer                             :: ipiv(0:nz-1), info
 
         g = f
-
-        !-----------------------------------------------------
-        ! Go to semi-spectral space, uses kx = ky = 0
-        do iz = 1, nz-1
-            g(iz) = g(iz) + g(0)  * this%phim(iz, 0, 0) &
-                          + g(nz) * this%phip(iz, 0, 0)
-        enddo
 
         !-----------------------------------------------------
         ! Integrate starting from g = 0 at z = zmin:
@@ -532,12 +524,12 @@ contains
         class(cheby_layout_t), intent(inout) :: this
         double precision,      intent(in)    :: alpha, beta
         integer                              :: kx, ky, kz
-        double precision                     :: kxmaxi, kymaxi, kzmaxi
+        double precision                     :: kxmaxi, kzmaxi!, kymaxi
         double precision                     :: k2
-        double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2))
-        double precision                     :: skx(box%lo(1):box%hi(1)), &
-                                                sky(box%lo(2):box%hi(2)), &
-                                                skz(0:nz)
+!         double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2))
+        double precision                     :: skz(0:nz) !skx(box%lo(1):box%hi(1)), &
+                                                !sky(box%lo(2):box%hi(2)), &
+
 
         !kxmaxi = maxval(k2l2)
         !kxmaxi = one/kxmaxi

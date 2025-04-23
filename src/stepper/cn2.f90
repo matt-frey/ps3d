@@ -133,7 +133,7 @@ contains
 
         ! Ensure zero global mean horizontal vorticity conservation:
         do nc = 1, 2
-            call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+            call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
         enddo
 
         !diss is related to the hyperdiffusive operator (see end of adapt)
@@ -170,7 +170,7 @@ contains
 
             ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
-                call layout%adjust_decomposed_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+                call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo
 
         enddo

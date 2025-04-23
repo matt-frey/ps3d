@@ -65,7 +65,7 @@ contains
 
         call create_model(grid_type)
 
-        alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
+        alpha = sqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)
 
         allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
