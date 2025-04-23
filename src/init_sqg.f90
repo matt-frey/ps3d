@@ -1,27 +1,29 @@
 ! ====================================================================================
-!               Initialize SQG Balanced Flow from given surface bouyancy field:
+!       Initializes SQG Balanced Flow from a given surface bouyancy field, b_0.
 !
-! In DGD formulation: Parameters are: N, f, H. K = sqrt(k^2 + ky^2)
+!       Parameters are: N, f, H and K = sqrt(k^2 + ky^2).  Also, sigma = N/f.
 !
-!       b(kx, ky, z) = sinh( sigma K (z + H))/sinh( sigma K H) b_0(kx,ky); K > 0
+!       In horizontal spectral space:
+
+!       b(kx, ky, z) = sinh(sigma K (z + H))/sinh(sigma K H) b_0(kx,ky); K > 0
 !       b(0 , 0 , z) = (z + H)/H b_0(0, 0);
 !
-!       psi(kx, ky, z) = (N K)^(-1) cosh( sigma K (z + H))/sinh( sigma K H) b_0(kx,ky); K >0
-!       psi( 0, 0 , z) = (1/f) z b_0(0, 0);
+!       psi(kx, ky, z) = (N K)^(-1) cosh(sigma K (z + H))/sinh(sigma K H) b_0(kx,ky); K >0
+!       psi( 0, 0 , z) = (z + H)^2/(2Hf) b_0(0, 0);
 !
-! in the domain (x,y) in (-pi,pi); z in (-H,0);
+!       in the domain (x,y) in (-pi,pi); z in (-H,0). Note, b = f dpsi/dz everywhere.
 !
-!       From this:
-!                  1) ox(kx,ky,z) = (-1/f) i kx b(kx, ky, z)    (2.3)
-!                  2) oy(kx,ky,z) = (-1/f) i ky b(kx, ky, z)    (2.3)
-!                  3) oz(kx,ky,z) = -K^2 psi(kx, ky, z)         (2.2)
+!       From thermal wind and geostrophic balance, the vorticity components are
+!                  1) ox(kx,ky,z) = -i kx b(kx, ky, z) / f
+!                  2) oy(kx,ky,z) = -i ky b(kx, ky, z) / f
+!                  3) oz(kx,ky,z) = -K^2 psi(kx, ky, z)
 !
-! Note:  use the following identities to compute hyperbolic functions:
+! Note:  we use the following identities to compute hyperbolic functions:
 !        sinh(a+b)/sinh(a) = exp(b) ( 1 - exp(-2(a+b)) )/(1 - exp(-2a))
 !        cosh(a+b)/sinh(a) = exp(b) ( 1 + exp(-2(a+b)) )/(1 - exp(-2a))
 ! ====================================================================================
 program init_sqg
-    use constants, only : zero, f12, fpi6, one, two, pi
+    use constants, only : zero, one, two, pi
     use parameters, only : nx, ny, nz, lower, extent    &
                          , write_netcdf_parameters      &
                          , update_parameters, grid_type
@@ -219,17 +221,14 @@ contains
             print *, "Domain origin:", grid%origin
             print *, "Domain extent:", grid%extent
         endif
-
-
-
+        
  !!!!!   What this should do:
- !!      either take in the surface field b0, or read it here
- !!      Given b0:  b0 -> fft2(b0)
-
+ !!      Read in the surface field b0;
+ !!      Given b0:  b0 -> fft2(b0);
  !!      Given H, N, f: sig = N/f;
  !!      Make 2D array: AK = sqrt(k2l2);
  !!      Make 2D array: SK = sig*sqrt(k2l2);
- !!!     Loop over z and get b',ox,oy,oz (x,y,z) as per initial comments
+ !!!     Loop over z and get b', ox, oy and oz as functions of (x,y,z) as per initial comments
 
         !Read dimensionless surface bouyancy, b0:
         ! (note: each MPI rank reads the whole field)
@@ -254,12 +253,10 @@ contains
                 if ((kx == 0) .and. (ky == 0)) then
                     do iz = 0, nz
                         sbuoy(iz, 0, 0) = (z(iz) + H) / H * sb0(0, 0)
-
-                        psi(iz, 0, 0) = (one / f) * z(iz) * sb0(0, 0)
+                        psi(iz, 0, 0) = (z(iz) + H)**2 / (two * H * f) * sb0(0, 0)
                     enddo
                 else
                     kl = sqrt(k2l2(ky, kx))
-
                     nkinv = one / (bf * kl)
 
                     a = sigma * kl * H
@@ -287,19 +284,19 @@ contains
             enddo
         enddo
 
-        ! ox(kx,ky,z) = (-1/f) i kx b(kx, ky, z)
+        ! ox(kx,ky,z) = -i kx b(kx, ky, z) / f
         call diffx(sbuoy, svor(:, :, :, 1))
 
-        svor(:, :, :, 1) = -one / f * svor(:, :, :, 1)
+        svor(:, :, :, 1) = -svor(:, :, :, 1) / f
 
-        ! oy(kx,ky,z) = (-1/f) i ky b(kx, ky, z)
+        ! oy(kx,ky,z) = -i ky b(kx, ky, z) / f
         call diffy(sbuoy, svor(:, :, :, 2))
 
-        svor(:, :, :, 2) = -one / f * svor(:, :, :, 2)
+        svor(:, :, :, 2) = -svor(:, :, :, 2) / f
 
         call fftxys2p(sbuoy, buoy)
 
-        ! Make total buoyancy
+        ! Make total buoyancy by adding N^2 z:
         do iz = 0, nz
             buoy(iz, :, :) = buoy(iz, :, :) + bfsq * z(iz)
         enddo
