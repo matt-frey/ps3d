@@ -1,6 +1,6 @@
 program turb
 !-----------------------------------------------------------------
-!    Generates a random phased buoyancy distribution with a 
+!    Generates a random phased buoyancy distribution with a
 !    spectrum Q(k) = c k^{2p-1} * exp[-(p-1)*(k/k_0)^2], p > 1.
 !-----------------------------------------------------------------
 
@@ -25,7 +25,7 @@ write(*,*)
 write(*,*) ' We take p = 3.  Enter k_0:'
 read(*,*) ak0
 
-write(*,*) ' Enter the maximum |b|/(f*N):'
+write(*,*) ' Enter the maximum |b|:'
 read(*,*) qeddy
 
 write(*,*) ' Enter an integer seed for the random number generator:'
