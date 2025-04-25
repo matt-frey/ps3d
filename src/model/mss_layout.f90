@@ -20,6 +20,20 @@ module mss_layout
     type, extends (layout_t) :: mss_layout_t
 
     private
+        double precision, allocatable :: gamtop(:), gambot(:)
+
+        ! See for definitions in
+        ! Dritschel D, Frey M. The stability of inviscid Beltrami flow between parallel free-slip impermeable
+        ! boundaries. Journal of Fluid Mechanics. 2023;954:A31. doi:10.1017/jfm.2022.1007
+        double precision, allocatable :: thetam(:, :, :)    ! theta_{-}         (eq. 3.10)
+        double precision, allocatable :: thetap(:, :, :)    ! theta_{+}         (eq. 3.11)
+        double precision, allocatable :: dthetam(:, :, :)   ! dtheta_{-}/dz
+        double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
+        double precision, allocatable :: phim(:, :, :)      ! phi_{-}           (eq. 3.4a)
+        double precision, allocatable :: phip(:, :, :)      ! phi_{+}           (eq. 3.4b)
+        double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
+        double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
+
         ! Spectral filter:
         double precision, allocatable :: filt(:, :, :)
 
