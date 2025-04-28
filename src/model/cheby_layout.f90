@@ -463,13 +463,6 @@ contains
         double precision                      :: fsbot(box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
 
-        ! Temporarily store the surfaces
-        fsbot = fs(0,  :, :)
-        fstop = fs(nz, :, :)
-
-        ! Ensure surface are zero before applying filter in Chebyshev space
-        fs(0,  :, :) = zero
-        fs(nz, :, :) = zero
 
         ! Get Chebyshev coefficients
         call this%get_cheb_poly(fs, coeffs)
@@ -477,28 +470,8 @@ contains
         ! Apply filter on coefficients
         coeffs = this%zfilt * coeffs
 
-        ! Boundary-Preserving Filter:
-        err_e = coeffs(0, :, :)
-        err_o = coeffs(1, :, :)
-
-        do iz = 1, nz/2
-            err_e  = err_e +  coeffs(2*iz, :, :)
-        enddo
-
-        do iz = 1, nz/2-1
-            err_o  = err_o +  coeffs(2*iz+1, :, :)
-        enddo
-
-        ! Adjust mean value and linear slope to insure 0 BC's
-        coeffs(0, :, :) = coeffs(0, :, :) - err_e
-        coeffs(1, :, :) = coeffs(1, :, :) - err_o
-
         ! Return filtered field with 0 bc's
         call this%cheb_eval(coeffs, fs)
-
-        ! Restore filtered surfaces
-        fs(0,  :, :) = this%filt * fsbot
-        fs(nz, :, :) = this%filt * fstop
 
     end subroutine apply_filter
 
@@ -512,7 +485,7 @@ contains
         integer                               :: kz
 
         do kz = 0, nz
-         fs(:,:,kz) = this%filt * fs(:,:,kz)
+            fs(:, :, kz) = this%filt * fs(:, :, kz)
         enddo
 
     end subroutine apply_hfilter
