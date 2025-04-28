@@ -1,4 +1,4 @@
-! =============================================================================
+&! =============================================================================
 !                               Test filter
 !
 !  This unit test checks the filter using the Beltrami vorticity field
@@ -17,18 +17,24 @@ program test_filter
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use model, only : layout, create_model
+    use options, only : filter_type
     implicit none
 
-    character(len=9) :: grid_types(2)
-    character(len=8) :: filter_types(2)
-    integer          :: i, j
+    character(len=9)  :: grid_types(2)
+    type(filter_type) :: filter_types(2)
+    integer           :: i, j
 
     call mpi_env_initialise
 
     call parse_command_line
 
     grid_types = (/"uniform  ", "chebyshev"/)
-    filter_types = (/"Hou & Li", "2/3-rule"/)
+    filter_types(1)%family = 'exp'
+    filter_types(1)%beta = 12
+    filter_types(1)%alpha = 100
+
+    filter_types(2)%family = 'cutoff'
+    filter_types(2)%cutoff = 2.0d0 / 3.0d0
 
     nx = 32
     ny = 32
@@ -53,9 +59,9 @@ program test_filter
 
 contains
 
-    subroutine run_test(grid_type, filter_type)
+    subroutine run_test(grid_type, filter)
         character(*), intent(in)      :: grid_type
-        character(*), intent(in)      :: filter_type
+        type(filter_type)             :: filter
         double precision              :: error
         integer                       :: ix, iy, iz
         double precision              :: alpha, fk2l2, k, l, m, u, v, w
@@ -75,7 +81,7 @@ contains
 
         allocate(unfiltered(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
-        call create_model(grid_type, filter_type)
+        call create_model(grid_type, filter)
 
         alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)
@@ -140,7 +146,8 @@ contains
         call mpi_blocking_reduce(error, MPI_MAX, world)
 
         if (world%rank == world%root) then
-            call print_result_logical('Test filter ' // filter_type // " and " // trim(grid_type), .true.)
+            call print_result_logical('Test filter ' // trim(filter%family) &
+                // " and " // trim(grid_type), .true.)
         endif
     end subroutine
 
