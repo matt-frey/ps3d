@@ -29,11 +29,7 @@ module cheby_layout
         double precision, allocatable ::  eye(:, :), D2(:, :)
         double precision, allocatable ::  eyeNF(:, :), D2NF(:, :)
 
-        ! Filter for the Chebyshev cofficients:
-        double precision, allocatable :: zfilt(:, :, :)
-
-        ! Filter for the surfaces:
-        double precision, allocatable :: filt(:, :)
+        double precision, allocatable :: filt(:, :, :)
 
     contains
 
@@ -138,12 +134,10 @@ contains
             this%eyeNF(iz, iz) = one
         enddo
 
-        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         !Default: No filtering
         this%filt = one
-        this%zfilt = one
 
     end subroutine initialise
 
@@ -158,7 +152,6 @@ contains
             deallocate(this%zcheb)
             deallocate(this%D2)
             deallocate(this%eye)
-            deallocate(this%zfilt)
             deallocate(this%filt)
             this%l_initialised = .false.
         endif
@@ -468,7 +461,7 @@ contains
         call this%get_cheb_poly(fs, coeffs)
 
         ! Apply filter on coefficients
-        coeffs = this%zfilt * coeffs
+        coeffs = this%filt * coeffs
 
         ! Return filtered field with 0 bc's
         call this%cheb_eval(coeffs, fs)
@@ -485,7 +478,7 @@ contains
         integer                               :: kz
 
         do kz = 0, nz
-            fs(:, :, kz) = this%filt * fs(:, :, kz)
+            fs(kz, :, :) = this%filt(0, :, :) * fs(kz, :, :)
         enddo
 
     end subroutine apply_hfilter
@@ -498,28 +491,15 @@ contains
         double precision,      intent(in)    :: alpha, beta
         integer                              :: kx, ky, kz
         double precision                     :: kxmaxi, kzmaxi!, kymaxi
-        double precision                     :: k2
-!         double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2))
-        double precision                     :: skz(0:nz) !skx(box%lo(1):box%hi(1)), &
-                                                !sky(box%lo(2):box%hi(2)), &
+        double precision                     :: k2, hfilt
+        double precision                     :: skz(0:nz)
 
-
-        !kxmaxi = maxval(k2l2)
-        !kxmaxi = one/kxmaxi
-
-        !kv = sqrt( k2l2(box%lo(2):box%hi(2),box%lo(1):box%hi(1)) )
-        !kv = -alpha * (kxmaxi*kv) ** beta
-        !this%filt = max( exp(kv), 1d-10 )
-
-        !kxmaxi = one/maxval(rkx)
-        !kymaxi = one/maxval(rky)
-        !skx = -alpha * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** beta
-        !sky = -alpha * (kymaxi * rky(box%lo(2):box%hi(2))) ** beta
-        !skx = rkx(box%lo(1):box%hi(1))
-        !sky = rky(box%lo(2):box%hi(2))
 
         kzmaxi = one/(1.0d0*nz)
-        skz = -alpha * (kzmaxi * rkz) ** beta
+
+        do kz = 0, nz
+            skz(kz) = -alpha * (kzmaxi * dble(kz)) ** beta
+        enddo
 
         kxmaxi = sqrt(2.0d0)*maxval(rkx)
         kxmaxi = one/kxmaxi
@@ -527,18 +507,14 @@ contains
             do ky = box%lo(2), box%hi(2)
                 k2 = sqrt( rkx(kx)**2 + rky(ky)**2)
                 k2 = -alpha * (kxmaxi * k2) ** beta
-                this%filt(ky, kx) = max(exp(k2),1d-10)
-                do kz = 0, nz
-                    k2 = -alpha * (kzmaxi * 1.0d0*kz) ** beta
-                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * exp(k2)
-                enddo
+                hfilt = max(exp(k2), 1.0d-10)
+                this%filt(:, ky, kx) = hfilt * exp(skz)
             enddo
         enddo
 
         !Ensure filter does not change domain mean:
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            this%filt(0, 0) = one
-            this%zfilt(:, 0, 0) = exp(skz)
+            this%filt(:, 0, 0) = exp(skz)
         endif
 
     end subroutine init_exp_filter
@@ -586,17 +562,15 @@ contains
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                this%filt(ky, kx) = skx(kx) * sky(ky)
                 do kz = 0, nz
-                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * skz(kz)
+                    this%filt(kz, ky, kx) = skx(kx) * sky(ky) * skz(kz)
                 enddo
             enddo
         enddo
 
         !Ensure filter does not change domain mean:
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            this%filt(0, 0) = one
-            this%zfilt(:, 0, 0) = skz
+            this%filt(:, 0, 0) = skz
         endif
 
     end subroutine init_cutoff_filter
