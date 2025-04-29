@@ -2,7 +2,6 @@ module model_manager
     use options, only : time                &
                       , viscosity_t         &
                       , vor_visc            &
-                      , time_stepper        &
                       , read_config_file    &
                       , output              &
                       , verbose             &
@@ -120,7 +119,7 @@ contains
 
         call setup_output_files
 
-!         stepper = create_stepper(time_stepper)
+!         stepper = create_stepper(time%stepper)
 
     end subroutine
 

@@ -20,8 +20,6 @@ module options
     ! configuration file
     character(len=512) :: filename = ''
 
-    ! time integrator
-    character(len=16) :: time_stepper = 'impl-diff-rk4' ! or 'cn2'
     !
     ! output options
     !
@@ -91,11 +89,12 @@ module options
 
     ! time limit
     type time_info_type
-        double precision :: initial     = zero       ! initial time
-        double precision :: limit       = zero       ! time limit
-        double precision :: alpha       = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
-                                                     ! gradient
-        logical          :: precise_stop = .false.   ! stop at the exact limit
+        double precision  :: initial = zero       ! initial time
+        double precision  :: limit   = zero       ! time limit
+        character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
+        double precision  :: alpha   = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
+                                                  ! gradient
+        logical           :: precise_stop = .false.   ! stop at the exact limit
     end type time_info_type
 
     type(time_info_type) :: time
@@ -112,7 +111,6 @@ contains
         ! namelist definitions
         namelist /PS3D/ field_file,          &
                         field_step,          &
-                        time_stepper,        &
                         vor_visc,            &
 #ifdef ENABLE_BUOYANCY
                         buoy_visc,           &
@@ -175,8 +173,6 @@ contains
         call write_netcdf_attribute(gid, "filter%alpha", filter%alpha)
         call write_netcdf_attribute(gid, "filter%beta", filter%beta)
 
-        call write_netcdf_attribute(gid, "time_stepper", time_stepper)
-
         call write_netcdf_attribute(gid, "field_freq", output%field_freq)
         call write_netcdf_attribute(gid, "write_fields", output%write_fields)
         call write_netcdf_attribute(gid, "field_stats_freq", output%field_stats_freq)
@@ -184,10 +180,12 @@ contains
         call write_netcdf_attribute(gid, "overwrite", output%overwrite)
         call write_netcdf_attribute(gid, "basename", trim(output%basename))
 
-        call write_netcdf_attribute(gid, "limit", time%limit)
-        call write_netcdf_attribute(gid, "initial", time%initial)
-        call write_netcdf_attribute(gid, "precise_stop", time%precise_stop)
-        call write_netcdf_attribute(gid, "alpha", time%alpha)
+
+        call write_netcdf_attribute(gid, "time%limit", time%limit)
+        call write_netcdf_attribute(gid, "time%stepper", time%stepper)
+        call write_netcdf_attribute(gid, "time%initial", time%initial)
+        call write_netcdf_attribute(gid, "time%precise_stop", time%precise_stop)
+        call write_netcdf_attribute(gid, "time%alpha", time%alpha)
 
     end subroutine write_netcdf_options
 
