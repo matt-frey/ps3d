@@ -348,7 +348,6 @@ contains
 
         !------------------------------------
         !Obtain magnitude of buoyancy gradient
-        call layout%combine_semi_spectral(sbuoy)
         call diffx(sbuoy, ds)
         call fftxys2p(ds, dbdx)
 
@@ -357,7 +356,6 @@ contains
 
         call layout%diffz(sbuoy, mag, l_decomposed=.false.)
         call fftxys2p(ds, mag)
-        call layout%decompose_semi_spectral(sbuoy)
 
         ! mag = |gradb|
         mag = sqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)
