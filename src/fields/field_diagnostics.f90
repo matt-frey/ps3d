@@ -31,7 +31,7 @@ contains
         logical,          intent(in)    :: l_global
         logical,          intent(in)    :: l_allreduce
         double precision                :: ape
-        integer                         :: i, j
+        integer                         :: iz, i, j
         double precision                :: z(0:nz)
         double precision                :: ad(0:nz,                &
                                               box%lo(2):box%hi(2), &
@@ -39,9 +39,18 @@ contains
 
         z = layout%get_z_axis()
 
+
+        if (l_buoyancy_anomaly) then
+            ad = bb
+        else
+            do iz = 0, nz
+                ad(iz, :, :) = bb(iz, :, :) -  bfsq * z(iz)
+            enddo
+        endif
+
         do i = box%lo(1), box%hi(1)
             do j = box%lo(2), box%hi(2)
-                ad(:, j, i) = ape_den(bb(:, j, i), z)
+                ad(:, j, i) = ape_den(ad(:, j, i), z)
             enddo
         enddo
 
@@ -239,7 +248,10 @@ contains
 
         ! As we use the pertubation mode, we only have b'_z, i.e. we must
         ! add N^2 because b_z = N^2 + b'_z
-        dbdz = (bfsq + dbdz) / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
+        if (l_buoyancy_anomaly) then
+                dbdz = dbdz + bfsq
+        endif
+        dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
 
         ri = minval(dbdz)
 
