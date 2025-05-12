@@ -410,21 +410,38 @@ contains
         double precision                 :: wk(1:nz)
         double precision                 :: savg
         integer                          :: iz
+        double precision                 :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
 
-        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            ! Cast fs_S = fs - fs_L onto the z grid as wk for kx = ky = 0:
+        call fftxys2p(fs, fp)
 
-            ! Subtract harmonic part:
-            do iz = 1, nz-1
-                wk(iz) = fs(iz, 0, 0) - (fs(0, 0, 0)  * this%phim(iz, 0, 0) + &
-                                         fs(nz, 0, 0) * this%phip(iz, 0, 0))
-            enddo
-            wk(nz) = zero
+        savg = this%get_local_mean(fp)
 
-            call dst(1, nz, wk(1:nz), ztrig, zfactors)
-            ! Compute average (first part is the part due to svor_L):
-            savg = f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + fnzi * sum(wk(1:nz-1))
-        endif
+        call MPI_Allreduce(MPI_IN_PLACE,            &
+                           savg,                    &
+                           1,                       &
+                           MPI_DOUBLE_PRECISION,    &
+                           MPI_SUM,                 &
+                           world%comm,              &
+                           world%err)
+
+
+
+
+!        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            !! Cast fs_S = fs - fs_L onto the z grid as wk for kx = ky = 0:
+            !
+            !! Subtract harmonic part:
+            !do iz = 1, nz-1
+            !    wk(iz) = fs(iz, 0, 0) - (fs(0, 0, 0)  * this%phim(iz, 0, 0) + &
+            !                             fs(nz, 0, 0) * this%phip(iz, 0, 0))
+            !enddo
+            !wk(nz) = zero
+            !
+            !call dst(1, nz, wk(1:nz), ztrig, zfactors)
+            !! Compute average (first part is the part due to svor_L):
+            !savg = f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + fnzi * sum(wk(1:nz-1))
+!            savg = sum(fs(:, 0, 0)) / dble(nz+1)
+!        endif
     end function get_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -437,15 +454,23 @@ contains
                                                   box%lo(1):box%hi(1))
         double precision,     intent(in)    :: avg
         double precision                    :: savg
+        double precision                 :: fp(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+
+        call fftxys2p(fs, fp)
 
         savg = this%get_semi_spectral_mean(fs)
 
-        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+        !if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             ! Ensure zero global mean horizontal vorticity conservation:
             ! Remove from boundary values (0 & nz):
-            fs(0 , 0, 0) = fs(0 , 0, 0) + avg - savg
-            fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
-        endif
+        !    fs(: , 0, 0) = fs(: , 0, 0) + avg - savg
+            !fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
+        !endif
+
+
+        fp = fp + avg - savg
+
+        call fftxyp2s(fp, fs)
 
     end subroutine adjust_semi_spectral_mean
 

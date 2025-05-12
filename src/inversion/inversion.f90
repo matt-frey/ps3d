@@ -92,6 +92,7 @@ contains
         !----------------------------------------------------------
         !Combine vorticity in physical space:
         do nc = 1, 3
+            call layout%apply_filter(svor(:, :, :, nc))
             call fftxys2p(svor(:, :, :, nc), vor(:, :, :, nc))
         enddo
 
@@ -144,7 +145,8 @@ contains
         !$omp end parallel workshare
 
         !Get "u" in physical space:
-        call fftxys2p(as, vel(:, :, :, 1))
+        !call layout%apply_filter(svel(:, :, :, 1))
+        call fftxys2p(svel(:, :, :, 1), vel(:, :, :, 1))
 
         !-------------------------------------------------------
         !Find y velocity component "v":
@@ -168,7 +170,8 @@ contains
         !$omp end parallel workshare
 
         !Get "v" in physical space:
-        call fftxys2p(as, vel(:, :, :, 2))
+        !call layout%apply_filter(svel(:, :, :, 2))
+        call fftxys2p(svel(:, :, :, 2), vel(:, :, :, 2))
 
         !-------------------------------------------------------
         !Store spectral form of "w":
@@ -177,7 +180,8 @@ contains
         !$omp end parallel workshare
 
         !Get "w" in physical space:
-        call fftxys2p(ds, vel(:, :, :, 3))
+        !call layout%apply_filter(svel(:, :, :, 3))
+        call fftxys2p(svel(:, :, :, 3), vel(:, :, :, 3))
 
         call stop_timer(vor2vel_timer)
 
@@ -199,6 +203,7 @@ contains
         ! hence div(F) = u*b_x + v*b_y + w*b_z + b * (u_x + v_y + w_z)
         ! but u_x + v_y + w_z = 0 as we assume incompressibility.
 
+        call layout%apply_filter(sbuoy)
         call fftxys2p(sbuoy, buoy)
 
         ! Define the x-component of the flux
@@ -223,7 +228,10 @@ contains
 
         ! Differentiate
         call fftxyp2s(fp, fs)
+        call layout%decompose_semi_spectral(fs)
         call layout%diffz(fs, ds, l_decomposed=.true.)
+        call layout%combine_semi_spectral(fs)
+        call layout%combine_semi_spectral(ds)
         call fftxys2p(ds, fp)
 
         ! b = N^2 * z + b'

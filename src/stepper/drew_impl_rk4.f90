@@ -85,11 +85,11 @@ contains
         dt6 = f16 * dt
 
         ! set integrating factors
-        epq = 1.d0  !!exp(vdiss)
+        epq = exp(vdiss)
         emq = 1.0d0 / epq
 
 #ifdef ENABLE_BUOYANCY
-        bpq = 1.0d0 !!exp(bdiss)
+        bpq = exp(bdiss)
         bmq = 1.0d0 / bpq
 #endif
 
@@ -111,6 +111,11 @@ contains
                                       mq=emq)
         enddo
 
+
+        !call layout%apply_filter(svor(:,:,:,1))
+        !call layout%apply_filter(svor(:,:,:,2))
+        !call layout%apply_filter(svor(:,:,:,3))
+        !call layout%apply_filter(sbuoy)
         !------------------------------------------------------------------
         ! Invert and get new sources:
         call vor2vel
@@ -138,6 +143,10 @@ contains
                                       pq=epq)
         enddo
 
+        !call layout%apply_filter(svor(:,:,:,1))
+        !call layout%apply_filter(svor(:,:,:,2))
+        !call layout%apply_filter(svor(:,:,:,3))
+        !call layout%apply_filter(sbuoy)
         !------------------------------------------------------------------
         ! Invert and get new sources:
         call vor2vel
@@ -173,6 +182,10 @@ contains
         enddo
 
 
+       ! call layout%apply_filter(svor(:,:,:,1))
+       ! call layout%apply_filter(svor(:,:,:,2))
+       ! call layout%apply_filter(svor(:,:,:,3))
+       ! call layout%apply_filter(sbuoy)
         !------------------------------------------------------------------
         ! Invert and get new sources:
         call vor2vel
@@ -202,20 +215,25 @@ contains
         enddo
         !!!!!   DONE ADVECTION STEP
 #ifdef ENABLE_BUOYANCY
-          call layout%apply_filter(sbuoy)
+!          call layout%apply_filter(sbuoy)
 !          call layout%zdiffNF(sbuoy,dt,kappa,kappa)
 !          call layout%zdiffuse(sbuoy,dt,kappa,kappa)
 #endif
-        do nc = 1, 3
-          call layout%apply_filter(svor(:,:,:,nc))
+!        do nc = 1, 3
+!          call layout%apply_filter(svor(:,:,:,nc))
 !          call layout%zdiffuse(svor(:,:,:,nc),dt,nu,nu)
-        enddo
+!        enddo
 
+
+      !  call layout%apply_filter(svor(:,:,:,1))
+      !  call layout%apply_filter(svor(:,:,:,2))
+      !  call layout%apply_filter(svor(:,:,:,3))
+      !  call layout%apply_filter(sbuoy)
 
         ! Ensure zero global mean horizontal vorticity conservation:
- !       do nc = 1, 2
- !          call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
- !      enddo
+       do nc = 1, 2
+           call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
+       enddo
 
     end subroutine impl_rk4
 
@@ -233,14 +251,14 @@ contains
                                                      box%lo(1):box%hi(1))
         double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
                                               box%lo(1):box%hi(1))
-!         integer                         :: iz
+        integer                         :: iz
 
         qdi = q
         q = (qdi + dt2 * sqs)
         !$omp parallel do private(iz)  default(shared)
-        !!do iz = 0, nz
-        !!    q(iz, :, :) = q(iz, :, :) * mq
-        !!enddo
+        do iz = 0, nz
+            q(iz, :, :) = q(iz, :, :) * mq
+        enddo
         !$omp end parallel do
 
         qdf = qdi + dt6 * sqs
