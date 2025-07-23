@@ -484,11 +484,11 @@ contains
                                               skz(0:nz)
 
         kxmaxi = one / maxval(rkx)
-        skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
+        skx = - alpha * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** beta
         kymaxi = one/maxval(rky)
-        sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
+        sky = - alpha * (kymaxi * rky(box%lo(2):box%hi(2))) ** beta
         kzmaxi = one/maxval(rkz)
-        skz = -36.d0 * (kzmaxi * rkz) ** 36
+        skz = - alpha * (kzmaxi * rkz) ** beta
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
