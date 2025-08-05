@@ -33,7 +33,7 @@ program init_sqg
     use mpi_layout
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist &
-                      , write_physical_quantities, f_cor, bfsq
+                      , write_physical_quantities, rossby, f_cor, bfsq
     use model, only : layout, create_model
     use mpi_utils, only : mpi_stop
     use sta3dfft, only : initialise_fft &
@@ -215,6 +215,7 @@ contains
         H = grid%extent(3)
 
         if (verbose .and. (world%rank == world%root)) then
+            print *, "Rossby number:", rossby
             print *, "Coriolis frequency:", f
             print *, "buoyancy frequency:", bf
             print *, "Domain depth:", H
@@ -230,7 +231,7 @@ contains
  !!      Make 2D array: SK = sig*sqrt(k2l2);
  !!!     Loop over z and get b', ox, oy and oz as functions of (x,y,z) as per initial comments
 
-        !Read dimensionless surface bouyancy, b0:
+        !Read scaled surface bouyancy, b0 (= actual buoyancy/ (Ro * N))
         ! (note: each MPI rank reads the whole field)
         nhbytes = 8*(nx*ny+1)
         open(11, file=trim(b0fname), form='unformatted', &
@@ -239,7 +240,8 @@ contains
         close(11)
 
         ! Undo scaling of b0:
-        b0 = 0.5d0*b0
+        b0 = rossby*bf*b0
+
         ! 2D FFT of b0 --> sb0
         wkc = b0
         call ptospc(nx, ny, wkc, sb0, xfactors, yfactors, xtrig, ytrig)
