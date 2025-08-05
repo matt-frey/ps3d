@@ -88,7 +88,10 @@ module physics
     double precision, protected :: f_cor(3)
 
     ! Rossby number
-    double precision, protected :: rossby = 1.0d0
+    ! The default value of 1/8 should be generally
+    ! set to another value consistent with the simulation setup.
+    ! Note: "rossby" is currently only used by "init_sqg.f90".
+    double precision, protected :: rossby = 0.125d0
 
 #ifdef ENABLE_BUOYANCY
     ! N**2
