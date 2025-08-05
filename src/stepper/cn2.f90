@@ -43,9 +43,6 @@ contains
         double precision, intent(in)    :: dt
         double precision, intent(in)    :: vorch, bf
         double precision                :: dfac
-#ifdef ENABLE_BUOYANCY
-        double precision                :: dbac
-#endif
 
         !---------------------------------------------------------------------
         if (vor_visc%nnu .eq. 1) then
@@ -54,25 +51,23 @@ contains
         else
             !Update hyperdiffusion operator used in time stepping:
             dfac = vorch * dt
-            endif
+        endif
 
         !$omp parallel workshare
-        vdiss = one / (one + dfac * vhdis)
+        vdop = one / (one + dfac * vdiss)
         !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-
         if (buoy_visc%nnu .eq. 1) then
             !Update diffusion operator used in time stepping:
-            dbac = dt
+            dfac = dt
         else
             !Update hyperdiffusion operator used in time stepping:
-            dbac = bf * dt
-            endif
-
+            dfac = bf * dt
+        endif
 
         !$omp parallel workshare
-        bdiss = one / (one + dbac * bhdis)
+        bdop = one / (one + dfac * bdiss)
         !$omp end parallel workshare
 #endif
         !(see inversion_utils.f90)
@@ -106,14 +101,10 @@ contains
 
         !Initialise iteration (dt = dt/2 below):
 #ifdef ENABLE_BUOYANCY
+        !$omp parallel workshare
         bsm = sbuoy + dt2 * sbuoys
-        sbuoy = bsm + dt2 * sbuoys
-
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
-        enddo
-        !$omp end parallel do
+        sbuoy = bdop * (bsm + dt2 * sbuoys)
+        !$omp end parallel workshare
 #endif
 
         ! Advance interior and boundary values of vorticity
@@ -121,22 +112,20 @@ contains
         vortsm = svor + dt2 * svorts
         !$omp end parallel workshare
 
+        !$omp parallel do private(nc)  default(shared)
         do nc = 1, 3
-            svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
-            enddo
-            !$omp end parallel do
+            svor(:, :, :, nc) = vdop * (vortsm(:, :, :, nc) + &
+                                  dt2 * svorts(:, :, :, nc))
         enddo
+        !$omp end parallel workshare
 
         ! Ensure zero global mean horizontal vorticity conservation:
         do nc = 1, 2
             call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
         enddo
 
-        !diss is related to the hyperdiffusive operator (see end of adapt)
+        !bdop and vdop are the full (3d) hyperdiffusive operators
+        !(see inversion/diffusion.f90)
 
         !------------------------------------------------------------------
         !Iterate to improve estimates of F^{n+1}:
@@ -149,29 +138,25 @@ contains
 
             !Update fields:
 #ifdef ENABLE_BUOYANCY
-            sbuoy = bsm + dt2 * sbuoys
-
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sbuoy(iz, :, :) = bdiss * sbuoy(iz, :, :)
-            enddo
-            !$omp end parallel do
+            !$omp parallel workshare
+            sbuoy = bdop * (bsm + dt2 * sbuoys)
+            !$omp end parallel workshare
 #endif
 
+            !$omp parallel do private(nc)  default(shared)
             do nc = 1, 3
-                svor(:, :, :, nc) = vortsm(:, :, :, nc) + dt2 * svorts(:, :, :, nc)
-
-                !$omp parallel do private(iz)  default(shared)
-                do iz = 0, nz
-                    svor(iz, :, :, nc) = vdiss * svor(iz, :, :, nc)
-                enddo
-                !$omp end parallel do
+                svor(:, :, :, nc) = vdop * (vortsm(:, :, :, nc) + &
+                                      dt2 * svorts(:, :, :, nc))
             enddo
+            !$omp end parallel workshare
 
             ! Ensure zero global mean horizontal vorticity conservation:
             do nc = 1, 2
                 call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), ini_vor_mean(nc))
             enddo
+
+            !bdop and vdop are the full (3d) hyperdiffusive operators
+            !(see inversion/diffusion.f90)
 
         enddo
 

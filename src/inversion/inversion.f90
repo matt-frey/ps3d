@@ -232,6 +232,7 @@ contains
         call layout%diffz(fs, ds, l_decomposed=.true.)
         call layout%combine_semi_spectral(fs)
         call layout%combine_semi_spectral(ds)
+        !call layout%diffz(fs, ds, l_decomposed=.false.)
         call fftxys2p(ds, fp)
 
         ! b = N^2 * z + b'

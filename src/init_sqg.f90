@@ -238,6 +238,8 @@ contains
         read(11, rec=1) t, b0
         close(11)
 
+        ! Undo scaling of b0:
+        b0 = 0.5d0*b0
         ! 2D FFT of b0 --> sb0
         wkc = b0
         call ptospc(nx, ny, wkc, sb0, xfactors, yfactors, xtrig, ytrig)

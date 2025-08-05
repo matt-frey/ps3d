@@ -58,6 +58,9 @@ module parameters
 
     double precision :: fnzi
 
+    ! L_z^2/(L_x*L_y):
+    double precision :: vhr2
+
 contains
 
     ! Update all parameters according to the
@@ -87,6 +90,9 @@ contains
         hli = one / hl
 
         fnzi = one / dble(nz)
+
+        ! Vertical to horizontal domain ratio "squared": L_z^2/(L_x*L_y)
+        vhr2 = extent(3)**2/(extent(1)*extent(2))
 
     end subroutine update_parameters
 

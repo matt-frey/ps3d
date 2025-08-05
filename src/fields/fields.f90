@@ -1,7 +1,7 @@
-! =============================================================================
-!     This module specifies all fields and implements specific subroutines
-!     and functions.
-! =============================================================================
+! ===========================================================================
+!    This module specifies all fields and implements specific subroutines
+!    and functions.
+! ===========================================================================
 module fields
     use parameters, only : nz
     use constants, only : zero
@@ -30,9 +30,9 @@ module fields
         bsm         ! used for time stepping
 #endif
 
-    double precision, allocatable, dimension(:, :) :: &
-        vdiss,  &   ! dissipation operator
-        bdiss
+    double precision, allocatable, dimension(:, :, :) :: &
+        vdop,   &   ! vorticity full (3d) dissipation operator
+        bdop        ! buoyancy  full (3d) dissipation operator
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
@@ -74,8 +74,8 @@ contains
         allocate(bbarz(0:nz))
 #endif
 
-        allocate(vdiss(lo(2):hi(2), lo(1):hi(1)))
-        allocate(bdiss(lo(2):hi(2), lo(1):hi(1)))
+        allocate(vdop(0:nz, lo(2):hi(2), lo(1):hi(1)))
+        allocate(bdop(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
         ! Spectral fields needed in time stepping:
         allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
@@ -101,8 +101,8 @@ contains
         sbuoys = zero
         bsm    = zero
 #endif
-        vdiss  = zero
-        bdiss  = zero
+        vdop = zero
+        bdop = zero
 
         ini_vor_mean = zero
     end subroutine field_default
