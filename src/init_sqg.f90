@@ -195,7 +195,7 @@ contains
         double precision              :: t, f, bf, sigma, nkinv, kl, a, b, expb, expm2a, expm2ab, ss, cs
         double precision              :: b0(0:ny-1, 0:nx-1)
         double precision              :: wkc(0:ny-1, 0:nx-1)
-        double precision              :: sb0(0:ny-1, 0:nx-1)
+        double precision              :: sb0(0:nx-1, 0:ny-1)
         integer                       :: nhbytes
         double precision              :: H
 
@@ -222,7 +222,7 @@ contains
             print *, "Domain origin:", grid%origin
             print *, "Domain extent:", grid%extent
         endif
-        
+
  !!!!!   What this should do:
  !!      Read in the surface field b0;
  !!      Given b0:  b0 -> fft2(b0);
@@ -278,8 +278,8 @@ contains
                         ! cosh(a+b)/sinh(a) = exp(b) ( 1 + exp(-2(a+b)) )/(1 - exp(-2a))
                         cs = expb * (one + expm2ab) * expm2a
 
-                        sbuoy(iz, ky, kx) = ss * sb0(ky, kx)
-                        psi(iz, ky, kx) = nkinv * cs * sb0(ky, kx)
+                        sbuoy(iz, ky, kx) = ss * sb0(kx, ky)
+                        psi(iz, ky, kx) = nkinv * cs * sb0(kx, ky)
 
                         svor(iz, ky, kx, 3) = - k2l2(ky, kx) * psi(iz, ky, kx)
 
