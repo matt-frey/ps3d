@@ -306,6 +306,22 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! Fr_max = sqrt{ max{xi^2 + eta^2} } / N (N is the Buoyancy frequency)
+    function get_max_froude_number(l_global) result(fr)
+        logical, intent(in) :: l_global
+        double precision    :: fr
+
+        fr = maxval(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
+        fr = sqrt(fr / bfsq) ! note: bfsq = N^2
+
+        if (l_global) then
+            call mpi_blocking_reduce(fr, MPI_MAX, world)
+        endif
+
+    end function get_max_froude_number
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 #ifdef ENABLE_BUOYANCY
     ! minimum static stability value, 1 + min(b'_z)/N^2 (if < 0 the flow is overturning)
     ! #pre Assumes we already have the buoyancy anomaly in physical space
