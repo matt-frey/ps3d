@@ -505,7 +505,7 @@ contains
                 val = usggmax
             case default
                 call mpi_stop(&
-                    "We only support 'constant', 'vorch', 'bfmax', " // &
+                    "We only support 'constant', 'vorch', 'vortmax', 'bfmax', " // &
                     "'roll-mean-max-strain', 'roll-mean-bfmax', " // &
                     "'max-strain' and us-max-strain")
         end select
