@@ -66,6 +66,7 @@ module options
         ! - constant: takes initial vorch or bfmax
         ! - us-max-strain: takes the maximum upper surface strain
         ! - max-strain: takes the maximum surface strain
+        ! - vortmax: maximum vorticity magnitude
         character(len=20) :: pretype = 'roll-mean-max-strain'
 
         ! Window size for the rolling mean approach

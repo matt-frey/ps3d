@@ -261,7 +261,7 @@ contains
         !$omp end parallel workshare
 
         !Maximum vorticity magnitude:
-        vortmax = sqrt(layout%get_absmax(xp, l_allreduce=.false.))
+        vortmax = sqrt(layout%get_absmax(xp, l_allreduce=.true.))
 
         !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
         vortrms = sqrt(layout%get_mean(xp, l_allreduce=.true.))
@@ -269,7 +269,7 @@ contains
         !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
         vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
 
-        vormean = get_mean_vorticity(l_allreduce=.false.)
+        vormean = get_mean_vorticity(l_allreduce=.true.)
 
         ! update diagnostics in netCDF data structure (avoids the re-evaluation)
         call set_netcdf_field_diagnostic(vortmax, NC_OMAX)
@@ -489,6 +489,8 @@ contains
                 val = one
             case ('vorch')
                 val = vorch
+            case ('vortmax')
+                val = vortmax
             case ('bfmax')
                 val = bfmax
             case ('roll-mean-max-strain')
