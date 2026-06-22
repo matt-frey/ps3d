@@ -1,6 +1,6 @@
-! =============================================================================
+! ===========================================================================
 ! This module contains global options that can be set at runtime by the user.
-! =============================================================================
+! ===========================================================================
 module options
     use constants, only : zero, one, two, pi, four, twopi
     use netcdf_writer
@@ -40,24 +40,33 @@ module options
     type viscosity_t
         integer :: nnu
         double precision :: prediss
+        double precision :: vweight
         ! If nnu = 1, this is the molecular viscosity case.  Then, we
         ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
         ! where k_{x_max} is the maximum x wavenumber.
         ! Note: prediss = 2 is recommended.
         ! ----------------------------------------------------------------
         ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
-        ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
-        ! where k_max is the maximum x or y wavenumber and zeta_char is
-        ! a characteristic vorticity (see subroutine adapt of strat.f90).
-        ! Note: nnu = 3 and prediss = 10 are recommended.
-
-        ! Prefactor type to use:
+        ! rate is prediss*prefactor*(kh/kh_max)^(2*nnu) on horizontal
+        ! wavenumber kh, where kh_max is the maximum x or y wavenumber
+        ! and prefactor is one of the types listed below.
+        ! Note: nnu = 3 and prediss >= 10 are recommended.
+        ! ----------------------------------------------------------------
+        ! vweight controls full 3D diffusion is used, we replace kh^2 above
+        ! by kh^2 + vweight*vhr2*kz^2 where vhr2 = L_z^2/(L_x*L_y) is a
+        ! "squared" vertical-horizontal domain size ratio. This ensures
+        ! that the maximum vertical damping is comparable to the maximum
+        ! horizontal damping. The parameter vhr2 is set in parameters.f90.
+        ! See the specific steppers for the use of 2d or 3d diffusion.
+        ! ----------------------------------------------------------------
+        ! Prefactor types available to use:
         ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
         ! - roll-mean-max-strain: rolling mean of gamma_max
         ! - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax)
         ! - constant: takes initial vorch or bfmax
         ! - us-max-strain: takes the maximum upper surface strain
         ! - max-strain: takes the maximum surface strain
+        ! - vortmax: maximum vorticity magnitude
         character(len=20) :: pretype = 'roll-mean-max-strain'
 
         ! Window size for the rolling mean approach

@@ -79,14 +79,14 @@ contains
             src = one
             svorts = src
 
-            vdiss = one
+            !!vhdop = one
 
-            ed = exp(-time_step * vdiss)
+            ed = exp(-time_step) !! * vhdop)
             do nc = 1, 3
                 call layout%combine_semi_spectral(ref(:, :, :, nc))
                 call layout%combine_semi_spectral(src(:, :, :, nc))
                 do iz = 0, nz
-                    ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / vdiss
+                    ref(iz, :, :, nc) = ed * ref(iz, :, :, nc) + (one - ed) * src(iz, :, :, nc) / one
                 enddo
                 call layout%decompose_semi_spectral(ref(:, :, :, nc))
                 call layout%decompose_semi_spectral(src(:, :, :, nc))
@@ -131,7 +131,7 @@ contains
         dt6 = dt / 6.0d0
 
         ! set integrating factors
-        emq = exp(- dt2 * vdiss)
+        emq = exp(- dt2 ) !!* vhdop)
         epq = 1.0d0 / emq
 
         qdi = svor

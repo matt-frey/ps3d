@@ -13,6 +13,7 @@ program test_zops
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use cheby_layout, only : cheby_layout_t
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     double precision, allocatable :: f(:, :, :), f1(:)
@@ -122,7 +123,7 @@ program test_zops
         enddo
     enddo
 
-    call layout%decompose_physical(g, f)
+    call fftxyp2s(g, f)
     g = f
 
     ! We must pass f as well, although it is not used here.

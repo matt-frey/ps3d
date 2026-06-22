@@ -106,7 +106,7 @@ contains
         !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
         call layout%diffz(buoy, dbdz, l_decomposed=.false.)
         pres = pres + dbdz + f_cor(3) * vor(:, :, :, 3)
 #endif
@@ -139,16 +139,17 @@ contains
         enddo
         !$omp end parallel do
 
-#ifdef ENABLE_BUOYANCY
-        ! now in semi-spectral space, note k2l2i(0, 0) = 0
-        do kx = box%lo(1), box%hi(1)
-            do ky = box%lo(2), box%hi(2)
-                rs(:, ky, kx) = rs(:, ky, kx) &
-                                + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * layout%dphip(:, ky, kx) &
-                                + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * layout%dphim(:, ky, kx)
-            enddo
-        enddo
-#endif
+!FIXME
+!#ifdef ENABLE_BUOYANCY
+!        ! now in semi-spectral space, note k2l2i(0, 0) = 0
+!        do kx = box%lo(1), box%hi(1)
+!            do ky = box%lo(2), box%hi(2)
+!                rs(:, ky, kx) = rs(:, ky, kx) &
+!                                + sbuoy(nz, ky, kx) * k2l2i(ky, kx) * layout%dphip(:, ky, kx) &
+!                                + sbuoy(0,  ky, kx) * k2l2i(ky, kx) * layout%dphim(:, ky, kx)
+!            enddo
+!        enddo
+!#endif
 
         call fftxys2p(rs, pres)
 

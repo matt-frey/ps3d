@@ -1,7 +1,7 @@
-! =============================================================================
-!     This module specifies all fields and implements specific subroutines
-!     and functions.
-! =============================================================================
+! ===========================================================================
+!    This module specifies all fields and implements specific subroutines
+!    and functions.
+! ===========================================================================
 module fields
     use parameters, only : nz
     use constants, only : zero
@@ -15,24 +15,24 @@ module fields
     ! Due to periodicity in x and y, the grid points in x go from 0 to nx-1
     ! and from 0 to ny-1 in y
     double precision, allocatable, dimension(:, :, :, :) :: &
-        svor,   &   ! full-spectral vorticity for 1:nz-1, semi-spectral for iz = 0 and iz = nz
+        svor,   &   ! vorticity in semi-spectral space
         vor,    &   ! vorticity vector field (\omegax, \omegay, \omegaz) in physical space
         vel,    &   ! velocity vector field (u, v, w)
         svel,   &   ! velocity vector field (u, v, w) (semi-spectral)
-        svorts, &   ! vorticity source in mixed spectral space
+        svorts, &   ! vorticity source in semi-spectral space
         vortsm      ! used for time stepping
 
 #ifdef ENABLE_BUOYANCY
     double precision, allocatable, dimension(:, :, :) :: &
         buoy,   &   ! buoyancy (physical)
-        sbuoy,  &   ! full-spectral buoyancy for 1:nz-1, semi-spectral for iz = 0 and iz = nz
-        sbuoys, &   ! buoyancy source in mixed spectral space
+        sbuoy,  &   ! buoyancy in semi-spectral space
+        sbuoys, &   ! buoyancy source in semi-spectral space
         bsm         ! used for time stepping
 #endif
 
-    double precision, allocatable, dimension(:, :) :: &
-        vdiss,  &   ! dissipation operator
-        bdiss
+    double precision, allocatable, dimension(:, :, :) :: &
+        vdop,   &   ! vorticity full (3d) dissipation operator
+        bdop        ! buoyancy  full (3d) dissipation operator
 
     ! initial \xi and \eta mean
     double precision :: ini_vor_mean(2)
@@ -74,8 +74,8 @@ contains
         allocate(bbarz(0:nz))
 #endif
 
-        allocate(vdiss(lo(2):hi(2), lo(1):hi(1)))
-        allocate(bdiss(lo(2):hi(2), lo(1):hi(1)))
+        allocate(vdop(0:nz, lo(2):hi(2), lo(1):hi(1)))
+        allocate(bdop(0:nz, lo(2):hi(2), lo(1):hi(1)))
 
         ! Spectral fields needed in time stepping:
         allocate(vortsm(0:nz, lo(2):hi(2), lo(1):hi(1), 3))
@@ -101,8 +101,8 @@ contains
         sbuoys = zero
         bsm    = zero
 #endif
-        vdiss  = zero
-        bdiss  = zero
+        vdop = zero
+        bdop = zero
 
         ini_vor_mean = zero
     end subroutine field_default

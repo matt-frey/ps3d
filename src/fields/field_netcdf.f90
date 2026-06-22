@@ -227,7 +227,7 @@ contains
         call write_field_double(NC_DELTA, delta, start, cnt)
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
 
         if (nc_dset(NC_BUOY_AN)%l_enabled) then
             call write_field_double(NC_BUOY_AN, buoy, start, cnt)

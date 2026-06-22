@@ -22,6 +22,7 @@ program test_vor2vel_1
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     call mpi_env_initialise
@@ -64,7 +65,7 @@ contains
 
         call create_model(grid_type)
 
-        alpha = dsqrt(k ** 2 + l ** 2 + m ** 2)
+        alpha = sqrt(k ** 2 + l ** 2 + m ** 2)
         fk2l2 = one / dble(k ** 2 + l ** 2)
 
         allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
@@ -95,9 +96,9 @@ contains
             enddo
         enddo
 
-        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
         call vor2vel
 

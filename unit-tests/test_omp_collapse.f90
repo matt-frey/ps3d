@@ -13,6 +13,7 @@ program test_omp_collapse
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     double precision              :: error
@@ -68,7 +69,7 @@ program test_omp_collapse
 
 
     do nc = 1, 3
-        call layout%decompose_physical(vel(:, :, :, nc), svel(:, :, :, nc))
+        call fftxyp2s(vel(:, :, :, nc), svel(:, :, :, nc))
     enddo
 
     svor = svel

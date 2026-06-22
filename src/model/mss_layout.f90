@@ -20,6 +20,20 @@ module mss_layout
     type, extends (layout_t) :: mss_layout_t
 
     private
+        double precision, allocatable :: gamtop(:), gambot(:)
+
+        ! See for definitions in
+        ! Dritschel D, Frey M. The stability of inviscid Beltrami flow between parallel free-slip impermeable
+        ! boundaries. Journal of Fluid Mechanics. 2023;954:A31. doi:10.1017/jfm.2022.1007
+        double precision, allocatable :: thetam(:, :, :)    ! theta_{-}         (eq. 3.10)
+        double precision, allocatable :: thetap(:, :, :)    ! theta_{+}         (eq. 3.11)
+        double precision, allocatable :: dthetam(:, :, :)   ! dtheta_{-}/dz
+        double precision, allocatable :: dthetap(:, :, :)   ! dtheta_{+}/dz
+        double precision, allocatable :: phim(:, :, :)      ! phi_{-}           (eq. 3.4a)
+        double precision, allocatable :: phip(:, :, :)      ! phi_{+}           (eq. 3.4b)
+        double precision, allocatable :: dphim(:, :, :)     ! dphi_{-}/dz
+        double precision, allocatable :: dphip(:, :, :)     ! dphi_{+}/dz
+
         ! Spectral filter:
         double precision, allocatable :: filt(:, :, :)
 
@@ -33,8 +47,6 @@ module mss_layout
         procedure :: get_z_axis
 
         ! Field decompositions:
-        procedure :: decompose_physical
-        procedure :: combine_physical
         procedure :: decompose_semi_spectral
         procedure :: combine_semi_spectral
 
@@ -43,8 +55,8 @@ module mss_layout
 
         ! Field operations:
         procedure :: diffz
-        procedure :: calc_decomposed_mean
-        procedure :: adjust_decomposed_mean
+        procedure :: get_semi_spectral_mean
+        procedure :: adjust_semi_spectral_mean
 
         ! Filters:
         procedure :: init_exp_filter
@@ -61,14 +73,100 @@ module mss_layout
         procedure :: central_diffz
         procedure :: decomposed_diffz
 
+        procedure, private :: set_hyperbolic_functions
+
     end type mss_layout_t
 
 contains
 
     subroutine initialise(this)
         class (mss_layout_t), intent(inout) :: this
+        double precision                    :: z(0:nz), zm(0:nz), zp(0:nz)
+        double precision                    :: phip00(0:nz)
+        integer                             :: kx, ky, iz
 
-        call this%init_decomposition
+        !------------------------------------------------------------------
+        ! Ensure FFT module is initialised:
+        ! (this call does nothing if already initialised)
+        call initialise_fft(extent)
+
+        !---------------------------------------------------------------------
+        !Define zm = zmax - z, zp = z - zmin
+        z = this%get_z_axis()
+        !$omp parallel do private(z)
+        do iz = 0, nz
+            zm(iz) = upper(3) - z(iz)
+            zp(iz) = z(iz) - lower(3)
+        enddo
+        !$omp end parallel do
+
+        !---------------------------------------------------------------------
+        !Hyperbolic functions used for solutions of Laplace's equation:
+        allocate(this%phim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%phip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dphim(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dphip(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%thetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%thetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dthetam(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%dthetap(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = max(1, box%lo(2)), box%hi(2)
+                call this%set_hyperbolic_functions(kx, ky, zm, zp)
+            enddo
+        enddo
+
+        ! ky = 0
+        if (box%lo(2) == 0) then
+            do kx = max(1, box%lo(1)), box%hi(1)
+                call this%set_hyperbolic_functions(kx, 0, zm, zp)
+            enddo
+        endif
+
+        phip00 = zero
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            !$omp parallel workshare
+            ! kx = ky = 0
+            this%phim(:, 0, 0) = zm / extent(3)
+            this%phip(:, 0, 0) = zp / extent(3)
+
+            this%dphim(:, 0, 0) = - one / extent(3)
+            this%dphip(:, 0, 0) =   one / extent(3)
+
+            this%thetam(:, 0, 0) = zero
+            this%thetap(:, 0, 0) = zero
+
+            this%dthetam(:, 0, 0) = zero
+            this%dthetap(:, 0, 0) = zero
+
+            phip00 = this%phip(:, 0, 0)
+            !$omp end parallel workshare
+        endif
+
+        !---------------------------------------------------------------------
+        !Define gamtop as the integral of phip(iz, 0, 0) with zero average:
+        allocate(this%gamtop(0:nz))
+        allocate(this%gambot(0:nz))
+
+        call MPI_Allreduce(MPI_IN_PLACE,            &
+                            phip00(0:nz),           &
+                            nz+1,                   &
+                            MPI_DOUBLE_PRECISION,   &
+                            MPI_SUM,                &
+                            world%comm,             &
+                            world%err)
+
+        !$omp parallel workshare
+        this%gamtop = f12 * extent(3) * (phip00 ** 2 - f13)
+        !$omp end parallel workshare
+
+        !$omp parallel do
+        do iz = 0, nz
+            this%gambot(iz) = this%gamtop(nz-iz)
+        enddo
+        !$omp end parallel do
+        !Here gambot is the complement of gamtop.
 
         allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
@@ -87,7 +185,15 @@ contains
             deallocate(this%filt)
         endif
 
-        call this%finalise_decomposition
+        deallocate(this%gamtop)
+        deallocate(this%gambot)
+        deallocate(this%phim)
+        deallocate(this%phip)
+        deallocate(this%dphim)
+        deallocate(this%dphip)
+        deallocate(this%thetam)
+        deallocate(this%thetap)
+        deallocate(this%dthetam)
 
     end subroutine finalise
 
@@ -103,22 +209,6 @@ contains
         enddo
 
     end function get_z_axis
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! fc  - complete field (physical space)
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! cfc - copy of complete field (physical space)
-    subroutine decompose_physical(this, fc, sf)
-        class (mss_layout_t), intent(in)  :: this
-        double precision,     intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,     intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        call fftxyp2s(fc, sf)
-
-        call this%decompose_semi_spectral(sf)
-
-    end subroutine decompose_physical
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -156,26 +246,6 @@ contains
         !$omp end parallel workshare
 
     end subroutine decompose_semi_spectral
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! fc  - complete field (physical space)
-    ! sfc - complete field (semi-spectral space)
-    subroutine combine_physical(this, sf, fc)
-        class (mss_layout_t), intent(in)  :: this
-        double precision,     intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,     intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                  :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        sfc = sf
-
-        call this%combine_semi_spectral(sfc)
-
-        ! transform to physical space as fc:
-        call fftxys2p(sfc, fc)
-
-    end subroutine combine_physical
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -332,68 +402,73 @@ contains
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    function calc_decomposed_mean(this, fs) result(savg)
+    function get_semi_spectral_mean(this, fs) result(savg)
         class (mss_layout_t), intent(in) :: this
         double precision,     intent(in) :: fs(0:nz,                &
                                                box%lo(2):box%hi(2), &
                                                box%lo(1):box%hi(1))
-        double precision                 :: wk(1:nz)
         double precision                 :: savg
+        integer                          :: iz
 
-        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            ! Cast fs_S = fs - fs_L onto the z grid as wk for kx = ky = 0:
-            wk(1:nz-1) = fs(1:nz-1, 0, 0)
-            wk(nz) = zero
-            call dst(1, nz, wk(1:nz), ztrig, zfactors)
-            ! Compute average (first part is the part due to svor_L):
-            savg = f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + fnzi * sum(wk(1:nz-1))
-        endif
-    end function calc_decomposed_mean
+       if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            savg = (f12 * (fs(0, 0, 0) + fs(nz, 0, 0)) + sum(fs(1:nz-1, 0, 0))) / dble(nz)
+       endif
+    end function get_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    subroutine adjust_decomposed_mean(this, fs, avg)
+    subroutine adjust_semi_spectral_mean(this, fs, avg)
         class (mss_layout_t), intent(in)    :: this
         double precision,     intent(inout) :: fs(0:nz,                &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
         double precision,     intent(in)    :: avg
-        double precision                    :: savg
+        double precision                    :: savg, cor
 
-        savg = this%calc_decomposed_mean(fs)
+        savg = this%get_semi_spectral_mean(fs)
+
+        cor = avg - savg
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
             ! Ensure zero global mean horizontal vorticity conservation:
-            ! Remove from boundary values (0 & nz):
-            fs(0 , 0, 0) = fs(0 , 0, 0) + avg - savg
-            fs(nz, 0, 0) = fs(nz, 0, 0) + avg - savg
+            fs(: , 0, 0) = fs(: , 0, 0) + cor
         endif
 
-    end subroutine adjust_decomposed_mean
+    end subroutine adjust_semi_spectral_mean
 
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! @pre Expects a field in semi-spectral space!
     subroutine apply_filter(this, fs)
         class (mss_layout_t), intent(in)     :: this
         double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
 
+        call this%decompose_semi_spectral(fs)
+
         fs = this%filt * fs
+
+        call this%combine_semi_spectral(fs)
 
     end subroutine apply_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! @pre Expects a field in semi-spectral space!
     subroutine apply_hfilter(this, fs)
         class (mss_layout_t), intent(in)     :: this
         double precision,     intent(inout) :: fs(box%lo(3):box%hi(3), &
                                                   box%lo(2):box%hi(2), &
                                                   box%lo(1):box%hi(1))
 
+        call this%decompose_semi_spectral(fs)
+
         fs = this%filt * fs
+
+        call this%combine_semi_spectral(fs)
 
     end subroutine apply_hfilter
 
@@ -409,11 +484,11 @@ contains
                                               skz(0:nz)
 
         kxmaxi = one / maxval(rkx)
-        skx = -36.d0 * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** 36
+        skx = - alpha * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** beta
         kymaxi = one/maxval(rky)
-        sky = -36.d0 * (kymaxi * rky(box%lo(2):box%hi(2))) ** 36
+        sky = - alpha * (kymaxi * rky(box%lo(2):box%hi(2))) ** beta
         kzmaxi = one/maxval(rkz)
-        skz = -36.d0 * (kzmaxi * rkz) ** 36
+        skz = - alpha * (kzmaxi * rkz) ** beta
 
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
@@ -496,10 +571,26 @@ contains
         double precision,     intent(in)  :: f(0:nz)
         double precision,     intent(out) :: g(0:nz)
         logical,              intent(in)  :: noavg
+        integer                           :: iz
 
+        !--------------------------------------------------
+        ! Decompose to mixed-spectral:
+
+        ! subtract harmonic part
+        !$omp parallel do
+        do iz = 1, nz-1
+            g(iz) = f(iz) - (f(0)  * this%phim(iz, 0, 0) + &
+                             f(nz) * this%phip(iz, 0, 0))
+        enddo
+        !$omp end parallel do
+
+        ! transform interior to fully spectral
+        call dst(1, nz, g(1:nz), ztrig, zfactors)
+
+        !--------------------------------------------------
         !First integrate the sine series in f(1:nz-1):
         g(0) = zero
-        g(1:nz-1) = -rkzi * f(1:nz-1)
+        g(1:nz-1) = -rkzi * g(1:nz-1)
         g(nz) = zero
 
         !Transform to semi-spectral space as a cosine series:
@@ -555,6 +646,8 @@ contains
         integer                             :: iz, kx, ky, kz
 
 
+        call this%decompose_semi_spectral(ds)
+
         !Calculate the boundary contributions of the source to the vertical velocity (bs)
         !and its derivative (es) in semi-spectral space:
         !$omp parallel do private(iz)  default(shared)
@@ -608,5 +701,60 @@ contains
         !$omp end parallel workshare
 
     end subroutine vertvel
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! for kx > 0 and ky >= 0 or kx >= 0 and ky > 0
+    subroutine set_hyperbolic_functions(this, kx, ky, zm, zp)
+        class(mss_layout_t),  intent(inout) :: this
+        integer,              intent(in)    :: kx, ky
+        double precision,     intent(in)    :: zm(0:nz), zp(0:nz)
+        double precision                    :: R(0:nz), Q(0:nz), k2ifac
+        double precision                    :: ef, em(0:nz), ep(0:nz), Lm(0:nz), Lp(0:nz)
+        double precision                    :: fac, div, kl
+
+        kl = sqrt(k2l2(ky, kx))
+        fac = kl * extent(3)
+        ef = exp(- fac)
+#ifndef NDEBUG
+        ! To avoid "Floating-point exception - erroneous arithmetic operation"
+        ! when ef is really small.
+        ef = max(ef, sqrt(tiny(ef)))
+#endif
+        div = one / (one - ef**2)
+        k2ifac = f12 * k2l2i(ky, kx)
+
+        Lm = kl * zm
+        Lp = kl * zp
+
+        ep = exp(- Lp)
+        em = exp(- Lm)
+
+#ifndef NDEBUG
+        ! To avoid "Floating-point exception - erroneous arithmetic operation"
+        ! when ep and em are really small.
+        ep = max(ep, sqrt(tiny(ep)))
+        em = max(em, sqrt(tiny(em)))
+#endif
+
+        this%phim(:, ky, kx) = div * (ep - ef * em)
+        this%phip(:, ky, kx) = div * (em - ef * ep)
+
+        this%dphim(:, ky, kx) = - kl * div * (ep + ef * em)
+        this%dphip(:, ky, kx) =   kl * div * (em + ef * ep)
+
+        Q = div * (one + ef**2)
+        R = div * two * ef
+
+        this%thetam(:, ky, kx) = k2ifac * (R * Lm * this%phip(:, ky, kx) - &
+                                           Q * Lp * this%phim(:, ky, kx))
+        this%thetap(:, ky, kx) = k2ifac * (R * Lp * this%phim(:, ky, kx) - &
+                                           Q * Lm * this%phip(:, ky, kx))
+
+        this%dthetam(:, ky, kx) = - k2ifac * ((Q * Lp - one) * this%dphim(:, ky, kx) - &
+                                                      R * Lm * this%dphip(:, ky, kx))
+        this%dthetap(:, ky, kx) = - k2ifac * ((Q * Lm - one) * this%dphip(:, ky, kx) - &
+                                                      R * Lp * this%dphim(:, ky, kx))
+    end subroutine set_hyperbolic_functions
 
 end module mss_layout

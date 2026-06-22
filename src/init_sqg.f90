@@ -33,7 +33,7 @@ program init_sqg
     use mpi_layout
     use config, only : package_version, cf_version
     use physics, only : read_physical_quantities_from_namelist &
-                      , write_physical_quantities, f_cor, bfsq
+                      , write_physical_quantities, rossby, f_cor, bfsq
     use model, only : layout, create_model
     use mpi_utils, only : mpi_stop
     use sta3dfft, only : initialise_fft &
@@ -195,7 +195,7 @@ contains
         double precision              :: t, f, bf, sigma, nkinv, kl, a, b, expb, expm2a, expm2ab, ss, cs
         double precision              :: b0(0:ny-1, 0:nx-1)
         double precision              :: wkc(0:ny-1, 0:nx-1)
-        double precision              :: sb0(0:ny-1, 0:nx-1)
+        double precision              :: sb0(0:nx-1, 0:ny-1)
         integer                       :: nhbytes
         double precision              :: H
 
@@ -215,13 +215,14 @@ contains
         H = grid%extent(3)
 
         if (verbose .and. (world%rank == world%root)) then
+            print *, "Rossby number:", rossby
             print *, "Coriolis frequency:", f
             print *, "buoyancy frequency:", bf
             print *, "Domain depth:", H
             print *, "Domain origin:", grid%origin
             print *, "Domain extent:", grid%extent
         endif
-        
+
  !!!!!   What this should do:
  !!      Read in the surface field b0;
  !!      Given b0:  b0 -> fft2(b0);
@@ -230,13 +231,16 @@ contains
  !!      Make 2D array: SK = sig*sqrt(k2l2);
  !!!     Loop over z and get b', ox, oy and oz as functions of (x,y,z) as per initial comments
 
-        !Read dimensionless surface bouyancy, b0:
+        !Read scaled surface bouyancy, b0 (= actual buoyancy/ (Ro * N))
         ! (note: each MPI rank reads the whole field)
         nhbytes = 8*(nx*ny+1)
         open(11, file=trim(b0fname), form='unformatted', &
              access='direct', status='old', recl=nhbytes)
         read(11, rec=1) t, b0
         close(11)
+
+        ! Undo scaling of b0:
+        b0 = rossby*bf*b0
 
         ! 2D FFT of b0 --> sb0
         wkc = b0
@@ -274,8 +278,8 @@ contains
                         ! cosh(a+b)/sinh(a) = exp(b) ( 1 + exp(-2(a+b)) )/(1 - exp(-2a))
                         cs = expb * (one + expm2ab) * expm2a
 
-                        sbuoy(iz, ky, kx) = ss * sb0(ky, kx)
-                        psi(iz, ky, kx) = nkinv * cs * sb0(ky, kx)
+                        sbuoy(iz, ky, kx) = ss * sb0(kx, ky)
+                        psi(iz, ky, kx) = nkinv * cs * sb0(kx, ky)
 
                         svor(iz, ky, kx, 3) = - k2l2(ky, kx) * psi(iz, ky, kx)
 

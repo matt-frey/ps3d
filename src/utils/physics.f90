@@ -87,6 +87,12 @@ module physics
     ! planetary vorticity (all three components)
     double precision, protected :: f_cor(3)
 
+    ! Rossby number
+    ! The default value of 1/8 should be generally
+    ! set to another value consistent with the simulation setup.
+    ! Note: "rossby" is currently only used by "init_sqg.f90".
+    double precision, protected :: rossby = 0.125d0
+
 #ifdef ENABLE_BUOYANCY
     ! N**2
     double precision, protected :: bfsq = zero
@@ -127,7 +133,8 @@ contains
 #ifdef ENABLE_BUOYANCY
                             bfsq,                   &
 #endif
-                            height_c
+                            height_c,               &
+                            rossby
 
         ! check whether file exists
         inquire(file=fname, exist=exists)
@@ -188,6 +195,7 @@ contains
             call read_netcdf_attribute_default(grp_ncid, 'l_planetary_vorticity', l_planetary_vorticity)
             call read_netcdf_attribute_default(grp_ncid, 'latitude_degrees', lat_degrees)
             call read_netcdf_attribute_default(grp_ncid, 'scale_height', height_c)
+            call read_netcdf_attribute_default(grp_ncid, 'rossby_number', rossby)
 #ifdef ENABLE_BUOYANCY
             l_bfsq = has_attribute(grp_ncid, 'squared_buoyancy_frequency')
             if (l_bfsq) then
@@ -223,6 +231,7 @@ contains
         call write_netcdf_attribute(grp_ncid, 'l_planetary_vorticity', l_planetary_vorticity)
         call write_netcdf_attribute(grp_ncid, 'latitude_degrees', lat_degrees)
         call write_netcdf_attribute(grp_ncid, 'scale_height', height_c)
+        call write_netcdf_attribute(grp_ncid, 'rossby_number', rossby)
 #ifdef ENABLE_BUOYANCY
         if (l_bfsq) then
             call write_netcdf_attribute(grp_ncid, 'squared_buoyancy_frequency', bfsq)
@@ -249,6 +258,7 @@ contains
         call print_physical_quantity('latitude degrees', lat_degrees, 'deg')
         call print_physical_quantity('scale height', height_c, 'm')
         call print_physical_quantity('inverse scale height', lambda_c, '1/m')
+        call print_physical_quantity('Rossby number', rossby)
 #ifdef ENABLE_BUOYANCY
         if (l_bfsq) then
             call print_physical_quantity('squared_buoyancy_frequency', bfsq, '1/s^2')

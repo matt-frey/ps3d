@@ -16,6 +16,7 @@ module field_diagnostics_netcdf
     use mpi_collectives, only : mpi_blocking_reduce
     use field_diagnostics
     use fields_derived, only : delta
+    use sta3dfft, only : fftxys2p
 #if defined(ENABLE_BALANCE) && defined(ENABLE_BUOYANCY)
     use field_balance, only : balance_fields      &
                             , kebal, keubal       &
@@ -72,27 +73,28 @@ module field_diagnostics_netcdf
                         , NC_RBFMAX   = 37  &
                         , NC_RIMIN    = 38  &
                         , NC_ROMIN    = 39  &
-                        , NC_ROMAX    = 40
+                        , NC_ROMAX    = 40  &
+                        , NC_FRMAX    = 41
 #ifdef ENABLE_BUOYANCY
-    integer, parameter :: NC_APE      = 41  &
-                        , NC_BMAX     = 42  &
-                        , NC_BMIN     = 43  &
-                        , NC_BUSMIN   = 44  &
-                        , NC_BUSMAX   = 45  &
-                        , NC_BLSMIN   = 46  &
-                        , NC_BLSMAX   = 47  &
-                        , NC_MSS      = 48     ! mss = minimum static stability
+    integer, parameter :: NC_APE      = 42  &
+                        , NC_BMAX     = 43  &
+                        , NC_BMIN     = 44  &
+                        , NC_BUSMIN   = 45  &
+                        , NC_BUSMAX   = 46  &
+                        , NC_BLSMIN   = 47  &
+                        , NC_BLSMAX   = 48  &
+                        , NC_MSS      = 49     ! mss = minimum static stability
 #ifdef ENABLE_BALANCE
-                        , NC_KEBAL    = 49  &
-                        , NC_KEUBAL   = 50  &
-                        , NC_APEBAL   = 51  &
-                        , NC_APEUBAL  = 52
+                        , NC_KEBAL    = 50  &
+                        , NC_KEUBAL   = 51  &
+                        , NC_APEBAL   = 52  &
+                        , NC_APEUBAL  = 53
     type(netcdf_stat_info) :: nc_dset(NC_APEUBAL)
 #else
     type(netcdf_stat_info) :: nc_dset(NC_MSS)
 #endif
 #else
-    type(netcdf_stat_info) :: nc_dset(NC_ROMAX)
+    type(netcdf_stat_info) :: nc_dset(NC_FRMAX)
 #endif
 
 
@@ -266,14 +268,14 @@ contains
 #ifdef ENABLE_BUOYANCY
         double precision :: bmin, bmax
         double precision :: busmin, busmax, blsmin, blsmax
-        double precision :: buf(15) = zero
+        double precision :: buf(16) = zero
         integer          :: iz
 #else
         double precision :: buf(13) = zero
 #endif
 
 #ifdef ENABLE_BUOYANCY
-        call layout%combine_physical(sbuoy, buoy)
+        call fftxys2p(sbuoy, buoy)
 
 
         ! get total buoyancy:
@@ -416,15 +418,16 @@ contains
                                 vel(nz, :, :, 2) ** 2))
 
         buf(12) = get_max_rossby_number(l_global=.false.)
+        buf(13) = get_max_froude_number(l_global=.false.)
 
 #ifdef ENABLE_BUOYANCY
-        buf(13) = bmax
-        buf(14) = busmax
-        buf(15) = blsmax
+        buf(14) = bmax
+        buf(15) = busmax
+        buf(16) = blsmax
 
-        call mpi_blocking_reduce(buf(1:15), MPI_MAX, world)
+        call mpi_blocking_reduce(buf(1:16), MPI_MAX, world)
 #else
-        call mpi_blocking_reduce(buf(1:12), MPI_MAX, world)
+        call mpi_blocking_reduce(buf(1:13), MPI_MAX, world)
 #endif
 
         nc_dset(NC_OXMAX)%val    = buf(1)
@@ -439,11 +442,12 @@ contains
         nc_dset(NC_LSOZMAX)%val  = buf(10)
         nc_dset(NC_USUHMAX)%val  = buf(11)
         nc_dset(NC_ROMAX)%val    = buf(12)
+        nc_dset(NC_FRMAX)%val    = buf(13)
 
 #ifdef ENABLE_BUOYANCY
-        nc_dset(NC_BMAX)%val   = buf(13)
-        nc_dset(NC_BUSMAX)%val = buf(14)
-        nc_dset(NC_BLSMAX)%val = buf(15)
+        nc_dset(NC_BMAX)%val   = buf(14)
+        nc_dset(NC_BUSMAX)%val = buf(15)
+        nc_dset(NC_BLSMAX)%val = buf(16)
 #endif
 
     end subroutine update_netcdf_field_diagnostics
@@ -713,6 +717,13 @@ contains
         call nc_dset(NC_ROMAX)%set_info(                            &
             name='ro_max',                                          &
             long_name='maximum Rossby number',                      &
+            std_name='',                                            &
+            unit='1',                                               &
+            dtype=NF90_DOUBLE)
+
+        call nc_dset(NC_FRMAX)%set_info(                            &
+            name='fr_max',                                          &
+            long_name='maximum Froude number',                      &
             std_name='',                                            &
             unit='1',                                               &
             dtype=NF90_DOUBLE)

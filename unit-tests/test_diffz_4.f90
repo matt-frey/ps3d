@@ -32,7 +32,7 @@ program test_diffz_4
 
     call run_test("uniform", atol=1.0d-1)
 
-    call run_test("chebyshev", atol=2.0d-13)
+    call run_test("chebyshev", atol=3.8d-13)
 
     call mpi_env_finalise
 

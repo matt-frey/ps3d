@@ -64,6 +64,7 @@ module model_manager
                             , get_netcdf_box        &
                             , read_netcdf_attribute
     use drew_impl_rk4
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     private
@@ -232,7 +233,6 @@ contains
 #ifdef ENABLE_BUOYANCY
         !Obtain x, y & z derivatives of buoyancy -> xs, ys, zs
         !Obtain gradient of buoyancy in physical space -> xp, yp, zp
-        call layout%combine_semi_spectral(sbuoy)
         call diffx(sbuoy, xs)
         call fftxys2p(xs, xp)
 
@@ -241,11 +241,13 @@ contains
 
         call layout%diffz(sbuoy, xs, l_decomposed=.false.)
         call fftxys2p(xs, zp)
-        call layout%decompose_semi_spectral(sbuoy)
 
         !Compute (db/dx)^2 + (db/dy)^2 + (db/dz)^2 -> xp in physical space:
+        if (l_buoyancy_anomaly) then
+            zp = zp + bfsq
+        endif
         !$omp parallel workshare
-        xp = xp ** 2 + yp ** 2 + (zp + bfsq) ** 2
+        xp = xp ** 2 + yp ** 2 + zp ** 2
         !$omp end parallel workshare
 
         !Maximum buoyancy frequency:
@@ -259,7 +261,7 @@ contains
         !$omp end parallel workshare
 
         !Maximum vorticity magnitude:
-        vortmax = sqrt(layout%get_absmax(xp, l_allreduce=.false.))
+        vortmax = sqrt(layout%get_absmax(xp, l_allreduce=.true.))
 
         !R.m.s. vorticity: (note that xp is already squared, hence, we only need get_mean)
         vortrms = sqrt(layout%get_mean(xp, l_allreduce=.true.))
@@ -267,7 +269,7 @@ contains
         !Characteristic vorticity,  <vor^2>/<|vor|> for |vor| > vor_rms:
         vorch = get_char_vorticity(vortrms, l_allreduce=.true.)
 
-        vormean = get_mean_vorticity(l_allreduce=.false.)
+        vormean = get_mean_vorticity(l_allreduce=.true.)
 
         ! update diagnostics in netCDF data structure (avoids the re-evaluation)
         call set_netcdf_field_diagnostic(vortmax, NC_OMAX)
@@ -487,6 +489,8 @@ contains
                 val = one
             case ('vorch')
                 val = vorch
+            case ('vortmax')
+                val = vortmax
             case ('bfmax')
                 val = bfmax
             case ('roll-mean-max-strain')
@@ -501,7 +505,7 @@ contains
                 val = usggmax
             case default
                 call mpi_stop(&
-                    "We only support 'constant', 'vorch', 'bfmax', " // &
+                    "We only support 'constant', 'vorch', 'vortmax', 'bfmax', " // &
                     "'roll-mean-max-strain', 'roll-mean-bfmax', " // &
                     "'max-strain' and us-max-strain")
         end select
@@ -664,17 +668,17 @@ contains
             bbarz = zero
         endif
 
-        call layout%decompose_physical(buoy, sbuoy)
+        call fftxyp2s(buoy, sbuoy)
         call layout%apply_filter(sbuoy)
 #endif
         do nc = 1, 3
-            call layout%decompose_physical(vor(:, :, :, nc), svor(:, :, :, nc))
+            call fftxyp2s(vor(:, :, :, nc), svor(:, :, :, nc))
             call layout%apply_filter(svor(:, :, :, nc))
         enddo
 
         ! calculate the initial \xi and \eta mean and save it in ini_vor_mean:
         do nc = 1, 2
-            ini_vor_mean(nc) = layout%calc_decomposed_mean(svor(:, :, :, nc))
+            ini_vor_mean(nc) = layout%get_semi_spectral_mean(svor(:, :, :, nc))
         enddo
 
         call vor2vel

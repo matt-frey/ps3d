@@ -29,11 +29,7 @@ module cheby_layout
         double precision, allocatable ::  eye(:, :), D2(:, :)
         double precision, allocatable ::  eyeNF(:, :), D2NF(:, :)
 
-        ! Filter for the Chebyshev cofficients:
-        double precision, allocatable :: zfilt(:, :, :)
-
-        ! Filter for the surfaces:
-        double precision, allocatable :: filt(:, :)
+        double precision, allocatable :: filt(:, :, :)
 
     contains
 
@@ -42,19 +38,13 @@ module cheby_layout
 
         procedure :: get_z_axis
 
-        ! Field decompositions:
-        procedure :: decompose_physical
-        procedure :: combine_physical
-        procedure :: decompose_semi_spectral
-        procedure :: combine_semi_spectral
-
         ! Field diagnostics:
         procedure :: get_local_sum
 
         ! Field operations:
         procedure :: diffz
-        procedure :: calc_decomposed_mean
-        procedure :: adjust_decomposed_mean
+        procedure :: get_semi_spectral_mean
+        procedure :: adjust_semi_spectral_mean
 
         procedure :: vertvel
         procedure :: zinteg
@@ -73,9 +63,6 @@ module cheby_layout
         ! Routines only available in this class
         procedure :: zderiv
         procedure :: zzderiv
-
-        procedure :: decomposed_diffz
-        procedure :: semi_spectral_diffz
 
     end type cheby_layout_t
 
@@ -125,9 +112,6 @@ contains
         ! Get Clenshaw-Curtis weights:
         call clencurt(nz, this%zccw)
 
-        ! Call parent class initialise
-        call this%init_decomposition
-
         ! Initialise arrays for zdiffuse:
         allocate(this%D2(1:nz-1, 1:nz-1))
         allocate(this%eye(1:nz-1, 1:nz-1))
@@ -150,12 +134,10 @@ contains
             this%eyeNF(iz, iz) = one
         enddo
 
-        allocate(this%zfilt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-        allocate(this%filt(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 
         !Default: No filtering
         this%filt = one
-        this%zfilt = one
 
     end subroutine initialise
 
@@ -170,14 +152,11 @@ contains
             deallocate(this%zcheb)
             deallocate(this%D2)
             deallocate(this%eye)
-            deallocate(this%zfilt)
             deallocate(this%filt)
             this%l_initialised = .false.
         endif
 
         call finalise_cheby
-
-        call this%finalise_decomposition
 
     end subroutine finalise
 
@@ -191,80 +170,6 @@ contains
         get_z_axis = center(3) - hl(3) * this%zcheb
 
     end function get_z_axis
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! fc  - complete field (physical space)
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! cfc - copy of complete field (physical space)
-    subroutine decompose_physical(this, fc, sf)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        call fftxyp2s(fc, sf)
-
-        call this%decompose_semi_spectral(sf)
-
-    end subroutine decompose_physical
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! in : complete field (semi-spectral space)
-    ! out: full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    subroutine decompose_semi_spectral(this, sfc)
-        class (cheby_layout_t), intent(in)    :: this
-        double precision,       intent(inout) :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                               :: iz
-
-        ! subtract harmonic part
-        !$omp parallel do
-        do iz = 1, nz-1
-            sfc(iz, :, :) = sfc(iz, :, :) - (sfc(0,  :, :) * this%phim(iz, :, :) + &
-                                             sfc(nz, :, :) * this%phip(iz, :, :))
-        enddo
-        !$omp end parallel do
-
-    end subroutine decompose_semi_spectral
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! sf  - full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! fc  - complete field (physical space)
-    ! sfc - complete field (semi-spectral space)
-    subroutine combine_physical(this, sf, fc)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: fc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: sfc(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        sfc = sf
-
-        call this%combine_semi_spectral(sfc)
-
-        ! transform to physical space as fc:
-        call fftxys2p(sfc, fc)
-
-    end subroutine combine_physical
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    ! in : full-spectral (1:nz-1), semi-spectral at iz = 0 and iz = nz
-    ! out: complete field (semi-spectral space)
-    subroutine combine_semi_spectral(this, sf)
-        class (cheby_layout_t), intent(in)    :: this
-        double precision,       intent(inout) :: sf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                               :: iz
-
-        ! add harmonic part to sfc:
-        !$omp parallel do
-        do iz = 1, nz-1
-            sf(iz, :, :) = sf(iz, :, :) + sf(0,  :, :) * this%phim(iz, :, :) &
-                                        + sf(nz, :, :) * this%phip(iz, :, :)
-        enddo
-        !$omp end parallel do
-
-    end subroutine combine_semi_spectral
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -293,83 +198,28 @@ contains
         double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
         logical,                intent(in)  :: l_decomposed
 
-        if (l_decomposed) then
-            call this%decomposed_diffz(fs, ds)
-        else
-            call this%semi_spectral_diffz(fs, ds)
-        endif
+        call this%zderiv(fs, ds)
 
     end subroutine diffz
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-    subroutine decomposed_diffz(this, fs, ds)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: as(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        integer                             :: iz
-
-        ! Calculate the derivative in fully decomposed form:
-        !$omp parallel workshare
-        as(0,      :, :) = zero
-        as(1:nz-1, :, :) = fs(1:nz-1, :, :)
-        as(nz,     :, :) = zero
-        !$omp end parallel workshare
-
-        call this%zderiv(as, ds)
-
-        !Calculate the derivative of the linear part in semi-spectral space
-        !and add both contributions:
-        !$omp parallel do private(iz)  default(shared)
-        do iz = 0, nz
-            ds(iz, :, :) = ds(iz, :, :) + fs(0,  :, :) * this%dphim(iz, :, :)  &
-                                        + fs(nz, :, :) * this%dphip(iz, :, :)
-        enddo
-        !$omp end parallel do
-
-        call this%decompose_semi_spectral(ds)
-
-    end subroutine decomposed_diffz
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-    subroutine semi_spectral_diffz(this, fs, ds)
-        class (cheby_layout_t), intent(in)  :: this
-        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-        double precision                    :: gs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
-
-        gs = fs
-        call this%decompose_semi_spectral(gs)
-
-        call this%decomposed_diffz(gs, ds)
-
-        call this%combine_semi_spectral(ds)
-
-    end subroutine semi_spectral_diffz
-
-    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
     ! This is only calculated on the MPI rank having kx = ky = 0
-    function calc_decomposed_mean(this, fs) result(savg)
+    function get_semi_spectral_mean(this, fs) result(savg)
         class (cheby_layout_t), intent(in) :: this
         double precision,       intent(in) :: fs(0:nz,                &
                                                  box%lo(2):box%hi(2), &
                                                  box%lo(1):box%hi(1))
-        double precision                   :: savg, c
+        double precision                   :: savg
         integer                            :: iz
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            savg = this%zccw(0) * fs(0, 0, 0)
-            do iz = 1, nz-1
-                ! add back the harmonic part
-                c = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
-                                 + fs(nz, 0, 0) * this%phip(iz, 0, 0)
 
-                savg = savg + this%zccw(iz) * c
+            savg = zero
+
+            do iz = 0, nz
+                savg = savg + this%zccw(iz) * fs(iz, 0, 0)
             enddo
-            savg = savg + this%zccw(nz) * fs(nz, 0, 0)
 
             ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
             ! where the Chebyshev points are given in [-1, 1]
@@ -379,46 +229,28 @@ contains
             savg = savg * f12
         endif
 
-    end function calc_decomposed_mean
+    end function get_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     ! This is only calculated on the MPI rank having kx = ky = 0
-    subroutine adjust_decomposed_mean(this, fs, avg)
+    subroutine adjust_semi_spectral_mean(this, fs, avg)
         class (cheby_layout_t), intent(in)    :: this
         double precision,       intent(inout) :: fs(0:nz,                &
                                                     box%lo(2):box%hi(2), &
                                                     box%lo(1):box%hi(1))
         double precision,       intent(in)    :: avg
         double precision                      :: savg, cor
-        integer                               :: iz
 
-        savg = this%calc_decomposed_mean(fs)
+        savg = this%get_semi_spectral_mean(fs)
 
         cor = avg - savg
 
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            do iz = 1, nz-1
-                ! add back the harmonic part
-                fs(iz, 0, 0) = fs(iz, 0, 0) + fs(0,  0, 0) * this%phim(iz, 0, 0) &
-                                            + fs(nz, 0, 0) * this%phip(iz, 0, 0)
-
-                ! adjust the mean
-                fs(iz, 0, 0) = fs(iz, 0, 0) + cor
-            enddo
-
-            ! adjust the mean at the surfaces
-            fs(0 , 0, 0) = fs(0,  0, 0) + cor
-            fs(nz, 0, 0) = fs(nz, 0, 0) + cor
-
-            do iz = 1, nz-1
-                ! remove the harmonic part
-                fs(iz, 0, 0) = fs(iz, 0, 0) - (fs(0,  0, 0) * this%phim(iz, 0, 0) + &
-                                               fs(nz, 0, 0) * this%phip(iz, 0, 0))
-            enddo
+            fs(:, 0, 0) = fs(:, 0, 0) + cor
         endif
 
-    end subroutine adjust_decomposed_mean
+    end subroutine adjust_semi_spectral_mean
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -434,16 +266,9 @@ contains
         double precision,       intent(out) :: g(0:nz)
         logical,                intent(in)  :: noavg
         double precision                    :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
-        integer                             :: ipiv(0:nz-1), info, iz
+        integer                             :: ipiv(0:nz-1), info
 
         g = f
-
-        !-----------------------------------------------------
-        ! Go to semi-spectral space, uses kx = ky = 0
-        do iz = 1, nz-1
-            g(iz) = g(iz) + g(0)  * this%phim(iz, 0, 0) &
-                          + g(nz) * this%phip(iz, 0, 0)
-        enddo
 
         !-----------------------------------------------------
         ! Integrate starting from g = 0 at z = zmin:
@@ -483,7 +308,6 @@ contains
         integer                               :: kx, ky, info
 
 
-        call this%combine_semi_spectral(fs)
         !alpha = 133.79d0
         !beta = 10.31d0
         !kmax = 1.0d0/32.d0
@@ -512,8 +336,6 @@ contains
                 !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
             enddo
         enddo
-
-        call this%decompose_semi_spectral(fs)
 
     end subroutine zdiffNF
 
@@ -586,8 +408,6 @@ contains
         integer                               :: ipiv(nz-1), info
         integer                               :: kx, ky, iz
 
-        call this%combine_semi_spectral(ds)
-
         !-----------------------------------------------------------------
         ! Loop over horizontal wavenumbers and solve linear system:
         do kx = box%lo(1), box%hi(1)
@@ -612,7 +432,7 @@ contains
         enddo
 
         ! Calculate z-derivative of vertical velocity:
-        call this%diffz(ds, es, l_decomposed=.false.)
+        call this%zderiv(ds, es)
 
     end subroutine vertvel
 
@@ -636,42 +456,15 @@ contains
         double precision                      :: fsbot(box%lo(2):box%hi(2), &
                                                        box%lo(1):box%hi(1))
 
-        ! Temporarily store the surfaces
-        fsbot = fs(0,  :, :)
-        fstop = fs(nz, :, :)
-
-        ! Ensure surface are zero before applying filter in Chebyshev space
-        fs(0,  :, :) = zero
-        fs(nz, :, :) = zero
 
         ! Get Chebyshev coefficients
         call this%get_cheb_poly(fs, coeffs)
 
         ! Apply filter on coefficients
-        coeffs = this%zfilt * coeffs
-
-        ! Boundary-Preserving Filter:
-        err_e = coeffs(0, :, :)
-        err_o = coeffs(1, :, :)
-
-        do iz = 1, nz/2
-            err_e  = err_e +  coeffs(2*iz, :, :)
-        enddo
-
-        do iz = 1, nz/2-1
-            err_o  = err_o +  coeffs(2*iz+1, :, :)
-        enddo
-
-        ! Adjust mean value and linear slope to insure 0 BC's
-        coeffs(0, :, :) = coeffs(0, :, :) - err_e
-        coeffs(1, :, :) = coeffs(1, :, :) - err_o
+        coeffs = this%filt * coeffs
 
         ! Return filtered field with 0 bc's
         call this%cheb_eval(coeffs, fs)
-
-        ! Restore filtered surfaces
-        fs(0,  :, :) = this%filt * fsbot
-        fs(nz, :, :) = this%filt * fstop
 
     end subroutine apply_filter
 
@@ -685,7 +478,7 @@ contains
         integer                               :: kz
 
         do kz = 0, nz
-         fs(:,:,kz) = this%filt * fs(:,:,kz)
+            fs(kz, :, :) = this%filt(0, :, :) * fs(kz, :, :)
         enddo
 
     end subroutine apply_hfilter
@@ -697,29 +490,16 @@ contains
         class(cheby_layout_t), intent(inout) :: this
         double precision,      intent(in)    :: alpha, beta
         integer                              :: kx, ky, kz
-        double precision                     :: kxmaxi, kymaxi, kzmaxi
-        double precision                     :: k2
-        double precision                     :: kv(box%lo(1):box%hi(1),box%lo(2):box%hi(2))
-        double precision                     :: skx(box%lo(1):box%hi(1)), &
-                                                sky(box%lo(2):box%hi(2)), &
-                                                skz(0:nz)
+        double precision                     :: kxmaxi, kzmaxi!, kymaxi
+        double precision                     :: k2, hfilt
+        double precision                     :: skz(0:nz)
 
-        !kxmaxi = maxval(k2l2)
-        !kxmaxi = one/kxmaxi
-
-        !kv = sqrt( k2l2(box%lo(2):box%hi(2),box%lo(1):box%hi(1)) )
-        !kv = -alpha * (kxmaxi*kv) ** beta
-        !this%filt = max( exp(kv), 1d-10 )
-
-        !kxmaxi = one/maxval(rkx)
-        !kymaxi = one/maxval(rky)
-        !skx = -alpha * (kxmaxi * rkx(box%lo(1):box%hi(1))) ** beta
-        !sky = -alpha * (kymaxi * rky(box%lo(2):box%hi(2))) ** beta
-        !skx = rkx(box%lo(1):box%hi(1))
-        !sky = rky(box%lo(2):box%hi(2))
 
         kzmaxi = one/(1.0d0*nz)
-        skz = -alpha * (kzmaxi * rkz) ** beta
+
+        do kz = 0, nz
+            skz(kz) = -alpha * (kzmaxi * dble(kz)) ** beta
+        enddo
 
         kxmaxi = sqrt(2.0d0)*maxval(rkx)
         kxmaxi = one/kxmaxi
@@ -727,18 +507,14 @@ contains
             do ky = box%lo(2), box%hi(2)
                 k2 = sqrt( rkx(kx)**2 + rky(ky)**2)
                 k2 = -alpha * (kxmaxi * k2) ** beta
-                this%filt(ky, kx) = max(exp(k2),1d-10)
-                do kz = 0, nz
-                    k2 = -alpha * (kzmaxi * 1.0d0*kz) ** beta
-                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * exp(k2)
-                enddo
+                hfilt = max(exp(k2), 1.0d-10)
+                this%filt(:, ky, kx) = hfilt * exp(skz)
             enddo
         enddo
 
         !Ensure filter does not change domain mean:
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            this%filt(0, 0) = one
-            this%zfilt(:, 0, 0) = exp(skz)
+            this%filt(:, 0, 0) = exp(skz)
         endif
 
     end subroutine init_exp_filter
@@ -786,17 +562,15 @@ contains
         ! Take product of 1d filters:
         do kx = box%lo(1), box%hi(1)
             do ky = box%lo(2), box%hi(2)
-                this%filt(ky, kx) = skx(kx) * sky(ky)
                 do kz = 0, nz
-                    this%zfilt(kz, ky, kx) = this%filt(ky, kx) * skz(kz)
+                    this%filt(kz, ky, kx) = skx(kx) * sky(ky) * skz(kz)
                 enddo
             enddo
         enddo
 
         !Ensure filter does not change domain mean:
         if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
-            this%filt(0, 0) = one
-            this%zfilt(:, 0, 0) = skz
+            this%filt(:, 0, 0) = skz
         endif
 
     end subroutine init_cutoff_filter
@@ -840,27 +614,6 @@ contains
         enddo
 
     end subroutine cheb_eval
-
-
-    !             !------------------------------------------------------------------
-!             ! Dembenek filter:
-!             rkmax = zfiltering%kmax * dble(nz)
-!             do iz = 0, nz
-!                 zfilt(iz) = dembenek_filter(iz,                 &
-!                                             rkmax,              &
-!                                             zfiltering%alpha,   &
-!                                             zfiltering%beta)
-!             enddo
-!     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-!
-!     function dembenek_filter(k, rkmax, alpha, beta) result(res)
-!         integer,          intent(in) :: k
-!         double precision, intent(in) :: alpha, beta, rkmax
-!         double precision             :: res, x
-!
-!         x = dble(k)/rkmax
-!         res = exp(-alpha*x**beta)
-!     end function dembenek_filter
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

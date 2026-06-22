@@ -9,7 +9,7 @@ module field_diagnostics
     use mpi_environment
     use mpi_layout, only : box
     use mpi_collectives, only : mpi_blocking_reduce
-    use fields, only : vor, vel, svor, svel, ini_vor_mean
+    use fields, only : vor, vel, svor, svel
     use physics, only : f_cor
 #ifdef ENABLE_BUOYANCY
     use ape_density, only : ape_den
@@ -31,7 +31,7 @@ contains
         logical,          intent(in)    :: l_global
         logical,          intent(in)    :: l_allreduce
         double precision                :: ape
-        integer                         :: i, j
+        integer                         :: iz, i, j
         double precision                :: z(0:nz)
         double precision                :: ad(0:nz,                &
                                               box%lo(2):box%hi(2), &
@@ -39,9 +39,18 @@ contains
 
         z = layout%get_z_axis()
 
+
+        if (l_buoyancy_anomaly) then
+            ad = bb
+        else
+            do iz = 0, nz
+                ad(iz, :, :) = bb(iz, :, :) -  bfsq * z(iz)
+            enddo
+        endif
+
         do i = box%lo(1), box%hi(1)
             do j = box%lo(2), box%hi(2)
-                ad(:, j, i) = ape_den(bb(:, j, i), z)
+                ad(:, j, i) = ape_den(ad(:, j, i), z)
             enddo
         enddo
 
@@ -239,7 +248,10 @@ contains
 
         ! As we use the pertubation mode, we only have b'_z, i.e. we must
         ! add N^2 because b_z = N^2 + b'_z
-        dbdz = (bfsq + dbdz) / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
+        if (l_buoyancy_anomaly) then
+                dbdz = dbdz + bfsq
+        endif
+        dbdz = dbdz / (vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
 
         ri = minval(dbdz)
 
@@ -294,6 +306,22 @@ contains
 
     !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+    ! Fr_max = sqrt{ max{xi^2 + eta^2} } / N (N is the Buoyancy frequency)
+    function get_max_froude_number(l_global) result(fr)
+        logical, intent(in) :: l_global
+        double precision    :: fr
+
+        fr = maxval(vor(:, :, :, 1) ** 2 + vor(:, :, :, 2) ** 2)
+        fr = sqrt(fr / bfsq) ! note: bfsq = N^2
+
+        if (l_global) then
+            call mpi_blocking_reduce(fr, MPI_MAX, world)
+        endif
+
+    end function get_max_froude_number
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 #ifdef ENABLE_BUOYANCY
     ! minimum static stability value, 1 + min(b'_z)/N^2 (if < 0 the flow is overturning)
     ! #pre Assumes we already have the buoyancy anomaly in physical space
@@ -336,7 +364,6 @@ contains
 
         !------------------------------------
         !Obtain magnitude of buoyancy gradient
-        call layout%combine_semi_spectral(sbuoy)
         call diffx(sbuoy, ds)
         call fftxys2p(ds, dbdx)
 
@@ -345,7 +372,6 @@ contains
 
         call layout%diffz(sbuoy, mag, l_decomposed=.false.)
         call fftxys2p(ds, mag)
-        call layout%decompose_semi_spectral(sbuoy)
 
         ! mag = |gradb|
         mag = sqrt(dbdx ** 2 + dbdy ** 2 + mag ** 2)

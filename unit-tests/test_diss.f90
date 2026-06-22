@@ -23,6 +23,7 @@ program test_diffusion
     use mpi_collectives, only : mpi_blocking_reduce
     use options, only : vor_visc
     use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s
     implicit none
 
     call mpi_env_initialise
@@ -101,19 +102,17 @@ contains
             enddo
         enddo
 
-        call layout%decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-        call layout%decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-        call layout%decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
 
         vd1 = svor
         vd2 = svor
 
         do nc = 1, 3
             call layout%combine_semi_spectral(vd1(:, :, :, nc))
-            do iz = 0, nz
-                vd1(iz, :, :, nc) = vhdis * vd1(iz, :, :, nc)
-                vd2(iz, :, :, nc) = vhdis * vd2(iz, :, :, nc)
-            enddo
+            vd1(:, :, :, nc) = vdiss * vd1(:, :, :, nc)
+            vd2(:, :, :, nc) = vdiss * vd2(:, :, :, nc)
             call layout%decompose_semi_spectral(vd1(:, :, :, nc))
         enddo
 

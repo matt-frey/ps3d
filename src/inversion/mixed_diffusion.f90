@@ -168,7 +168,7 @@ contains
 
         else
            !Hyperviscosity:
-
+           
            if (world%rank == world%root) then
               write(*,'(a,1p,e14.7)') label // &
                    ' horizontal hyperviscosity nu_h = ', hvisc
