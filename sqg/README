@@ -1,0 +1,37 @@
+        Instructions for setting up and running the code
+        ================================================
+
+-----------------------------------------------------------------------
+@@@          The grid resolution is 1024 x 1024 X 128,             @@@
+@@@  f = 1, N = 8 and D = pi/4 so that D/(2*pi) = 128/1024 = 1/8.  @@@
+-----------------------------------------------------------------------
+
+To compile all codes needed, go to the src subdirectory (cd src) and type:
+
+make all clean install
+
+Then return to the main directory (cd ..) and set up the initial data with
+
+turb < input_for_turb
+
+then compute the QG balanced flow with
+
+balance
+
+This produces all unscaled fields of interest for Quasi-Geostrophic balance
+in the subdirectory qgbal (they can be used as input for PS3D).
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
+There are various (python) plotting scripts.  To plot y = 0 cross sections
+of the fields, type
+
+pcross
+
+To plot the surface fields of b, xi, eta and zeta, type
+
+psurf
+
+-------------------------------------------------------------------------
+
+Cambridge, 20 May 2024                                  David G Dritschel

@@ -63,7 +63,7 @@ program genspec
     do kx = box%lo(1), box%hi(1)
         do ky = box%lo(2), box%hi(2)
             do kz = 0, nz
-                kmag(kz, ky, kx) = nint(dsqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
+                kmag(kz, ky, kx) = nint(sqrt(rkx(kx) ** 2 + rky(ky) ** 2 + rkz(kz) ** 2))
             enddo
         enddo
      enddo
@@ -82,7 +82,7 @@ program genspec
     allocate(num(0:kmax))
 
     ! spacing of the shells
-    dk = dble(kmax) / dsqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
+    dk = dble(kmax) / sqrt((f12 * dble(nx)) ** 2 + (f12 * dble(ny)) ** 2 + dble(nz) ** 2)
     dki = one / dk
 
     ! (3) accumulate spectrum

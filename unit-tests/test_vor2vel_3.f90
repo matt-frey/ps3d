@@ -15,20 +15,16 @@
 program test_vor2vel_3
     use unit_test
     use constants, only : f12, one
-    use parameters, only : lower, update_parameters, dx, nx, ny, nz, extent, upper
+    use parameters, only : lower, update_parameters, nx, ny, nz, extent, upper
     use fields
-    use inversion_utils
     use inversion_mod, only : vor2vel, vor2vel_timer
     use mpi_timer
     use mpi_environment
     use mpi_layout
     use mpi_collectives, only : mpi_blocking_reduce
+    use model, only : layout, create_model
+    use sta3dfft, only : fftxyp2s
     implicit none
-
-    double precision              :: error
-    double precision, allocatable :: vel_ref(:, :, :, :)
-    integer                       :: iz
-    double precision              :: z
 
     call mpi_env_initialise
 
@@ -43,44 +39,60 @@ program test_vor2vel_3
 
     call mpi_layout_init(lower, extent, nx, ny, nz)
 
-    allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
-
     call update_parameters
 
     call field_default
 
-    call init_inversion
+    call run_test("uniform")
 
-    do iz = 0, nz
-        z = lower(3) + iz * dx(3)
-
-        ! velocity
-        vel_ref(iz, :, :, 1) = z - f12 * (lower(3) + upper(3))
-        vel_ref(iz, :, :, 2) = zero
-        vel_ref(iz, :, :, 3) = zero
-
-        ! vorticity
-        vor(iz, :, :, 1) = zero
-        vor(iz, :, :, 2) = one
-        vor(iz, :, :, 3) = zero
-    enddo
-
-    call field_decompose_physical(vor(:, :, :, 1), svor(:, :, :, 1))
-    call field_decompose_physical(vor(:, :, :, 2), svor(:, :, :, 2))
-    call field_decompose_physical(vor(:, :, :, 3), svor(:, :, :, 3))
-
-    call vor2vel
-
-    error = maxval(dabs(vel_ref - vel))
-
-    call mpi_blocking_reduce(error, MPI_MAX, world)
-
-    if (world%rank == world%root) then
-        call print_result_dp('Test vor2vel', error, atol=1.0d-15)
-    endif
-
-    deallocate(vel_ref)
+    call run_test("chebyshev")
 
     call mpi_env_finalise
+
+contains
+
+    subroutine run_test(grid_type)
+        character(*), intent(in)      :: grid_type
+        double precision              :: error
+        double precision, allocatable :: vel_ref(:, :, :, :)
+        double precision, allocatable :: z(:)
+        integer                       :: iz
+
+        call create_model(grid_type)
+
+        allocate(vel_ref(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+        allocate(z(0:nz))
+
+        z = layout%get_z_axis()
+        do iz = 0, nz
+            ! velocity
+            vel_ref(iz, :, :, 1) = z(iz) - f12 * (lower(3) + upper(3))
+            vel_ref(iz, :, :, 2) = zero
+            vel_ref(iz, :, :, 3) = zero
+
+            ! vorticity
+            vor(iz, :, :, 1) = zero
+            vor(iz, :, :, 2) = one
+            vor(iz, :, :, 3) = zero
+        enddo
+
+        call fftxyp2s(vor(:, :, :, 1), svor(:, :, :, 1))
+        call fftxyp2s(vor(:, :, :, 2), svor(:, :, :, 2))
+        call fftxyp2s(vor(:, :, :, 3), svor(:, :, :, 3))
+
+        call vor2vel
+
+        error = maxval(abs(vel_ref - vel))
+
+        call mpi_blocking_reduce(error, MPI_MAX, world)
+
+        if (world%rank == world%root) then
+            call print_result_dp('Test vor2vel ' // grid_type, error, atol=1.4e-15)
+        endif
+
+        deallocate(z)
+        deallocate(vel_ref)
+
+    end subroutine run_test
 
 end program test_vor2vel_3

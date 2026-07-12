@@ -18,158 +18,158 @@ module merge_sort
         module procedure :: imsort
     end interface
 
-    contains
+contains
 
-        ! a  : value array to sort
-        ! ai : index array
-        subroutine dmsort(a, ai)
-            double precision, intent(inout) :: a(:)
-            integer, intent(out)            :: ai(:)
-            integer                         :: n, m
+    ! a  : value array to sort
+    ! ai : index array
+    subroutine dmsort(a, ai)
+        double precision, intent(inout) :: a(:)
+        integer, intent(out)            :: ai(:)
+        integer                         :: n, m
 
-            m = size(a)
+        m = size(a)
 
-            do n = 1, m
-                ai(n) = n
-            enddo
+        do n = 1, m
+            ai(n) = n
+        enddo
 
-            call mergesort(a, ai, 1, m)
+        call mergesort(a, ai, 1, m)
 
-        end subroutine dmsort
+    end subroutine dmsort
 
-        recursive subroutine mergesort(a, ai, l, r)
-            double precision, intent(inout) :: a(:)
-            integer,          intent(inout) :: ai(:)
-            integer,          intent(in)    :: l, r
-            integer                         :: m
+    recursive subroutine mergesort(a, ai, l, r)
+        double precision, intent(inout) :: a(:)
+        integer,          intent(inout) :: ai(:)
+        integer,          intent(in)    :: l, r
+        integer                         :: m
 
-            if (l < r) then
-                m = (l + r) / 2
+        if (l < r) then
+            m = (l + r) / 2
 
-                call mergesort(a, ai, l, m)
-                call mergesort(a, ai, m + 1, r)
+            call mergesort(a, ai, l, m)
+            call mergesort(a, ai, m + 1, r)
 
-                call merging(a, ai, l, m, r)
-            endif
-        end subroutine mergesort
+            call merging(a, ai, l, m, r)
+        endif
+    end subroutine mergesort
 
-        subroutine merging(a, ai, l, m, r)
-            double precision, intent(inout) :: a(:)
-            integer,          intent(inout) :: ai(:)
-            integer,          intent(in)    :: l, m, r
-            double precision                :: b(r)
-            integer                         :: bi(r)
-            integer                         :: i, j, k, h
+    subroutine merging(a, ai, l, m, r)
+        double precision, intent(inout) :: a(:)
+        integer,          intent(inout) :: ai(:)
+        integer,          intent(in)    :: l, m, r
+        double precision                :: b(r)
+        integer                         :: bi(r)
+        integer                         :: i, j, k, h
 
-            i = l
-            j = m + 1
-            k = l
+        i = l
+        j = m + 1
+        k = l
 
-            do while ((i <= m) .and. (j <= r))
-                if (a(i) <= a(j)) then
-                    b(k) = a(i)
-                    bi(k) = ai(i)
-                    i = i + 1
-                else
-                    b(k) = a(j)
-                    bi(k) = ai(j)
-                    j = j + 1
-                endif
-                k = k + 1
-            enddo
-
-            if (i > m) then
-                do h = j, r
-                    b(k + h - j) = a(h)
-                    bi(k + h - j) = ai(h)
-                enddo
+        do while ((i <= m) .and. (j <= r))
+            if (a(i) <= a(j)) then
+                b(k) = a(i)
+                bi(k) = ai(i)
+                i = i + 1
             else
-                do h = i, m
-                    b(k + h - i) = a(h)
-                    bi(k + h - i) = ai(h)
-                enddo
+                b(k) = a(j)
+                bi(k) = ai(j)
+                j = j + 1
             endif
+            k = k + 1
+        enddo
 
-            do h = l, r
-                a(h) = b(h)
-                ai(h) = bi(h)
+        if (i > m) then
+            do h = j, r
+                b(k + h - j) = a(h)
+                bi(k + h - j) = ai(h)
             enddo
-        end subroutine merging
-
-        ! a  : value array to sort
-        ! ai : index array
-        subroutine imsort(a, ai)
-            integer, intent(inout) :: a(:)
-            integer, intent(out)            :: ai(:)
-            integer                         :: n, m
-
-            m = size(a)
-
-            do n = 1, m
-                ai(n) = n
+        else
+            do h = i, m
+                b(k + h - i) = a(h)
+                bi(k + h - i) = ai(h)
             enddo
+        endif
 
-            call imergesort(a, ai, 1, m)
+        do h = l, r
+            a(h) = b(h)
+            ai(h) = bi(h)
+        enddo
+    end subroutine merging
 
-        end subroutine imsort
+    ! a  : value array to sort
+    ! ai : index array
+    subroutine imsort(a, ai)
+        integer, intent(inout) :: a(:)
+        integer, intent(out)            :: ai(:)
+        integer                         :: n, m
 
-        recursive subroutine imergesort(a, ai, l, r)
-            integer, intent(inout) :: a(:)
-            integer, intent(inout) :: ai(:)
-            integer, intent(in)    :: l, r
-            integer                :: m
+        m = size(a)
 
-            if (l < r) then
-                m = (l + r) / 2
+        do n = 1, m
+            ai(n) = n
+        enddo
 
-                call imergesort(a, ai, l, m)
-                call imergesort(a, ai, m + 1, r)
+        call imergesort(a, ai, 1, m)
 
-                call imerging(a, ai, l, m, r)
-            endif
-        end subroutine imergesort
+    end subroutine imsort
 
-        subroutine imerging(a, ai, l, m, r)
-            integer, intent(inout) :: a(:)
-            integer, intent(inout) :: ai(:)
-            integer, intent(in)    :: l, m, r
-            integer                :: b(r)
-            integer                :: bi(r)
-            integer                :: i, j, k, h
+    recursive subroutine imergesort(a, ai, l, r)
+        integer, intent(inout) :: a(:)
+        integer, intent(inout) :: ai(:)
+        integer, intent(in)    :: l, r
+        integer                :: m
 
-            i = l
-            j = m + 1
-            k = l
+        if (l < r) then
+            m = (l + r) / 2
 
-            do while ((i <= m) .and. (j <= r))
-                if (a(i) <= a(j)) then
-                    b(k) = a(i)
-                    bi(k) = ai(i)
-                    i = i + 1
-                else
-                    b(k) = a(j)
-                    bi(k) = ai(j)
-                    j = j + 1
-                endif
-                k = k + 1
-            enddo
+            call imergesort(a, ai, l, m)
+            call imergesort(a, ai, m + 1, r)
 
-            if (i > m) then
-                do h = j, r
-                    b(k + h - j) = a(h)
-                    bi(k + h - j) = ai(h)
-                enddo
+            call imerging(a, ai, l, m, r)
+        endif
+    end subroutine imergesort
+
+    subroutine imerging(a, ai, l, m, r)
+        integer, intent(inout) :: a(:)
+        integer, intent(inout) :: ai(:)
+        integer, intent(in)    :: l, m, r
+        integer                :: b(r)
+        integer                :: bi(r)
+        integer                :: i, j, k, h
+
+        i = l
+        j = m + 1
+        k = l
+
+        do while ((i <= m) .and. (j <= r))
+            if (a(i) <= a(j)) then
+                b(k) = a(i)
+                bi(k) = ai(i)
+                i = i + 1
             else
-                do h = i, m
-                    b(k + h - i) = a(h)
-                    bi(k + h - i) = ai(h)
-                enddo
+                b(k) = a(j)
+                bi(k) = ai(j)
+                j = j + 1
             endif
+            k = k + 1
+        enddo
 
-            do h = l, r
-                a(h) = b(h)
-                ai(h) = bi(h)
+        if (i > m) then
+            do h = j, r
+                b(k + h - j) = a(h)
+                bi(k + h - j) = ai(h)
             enddo
-        end subroutine imerging
+        else
+            do h = i, m
+                b(k + h - i) = a(h)
+                bi(k + h - i) = ai(h)
+            enddo
+        endif
+
+        do h = l, r
+            a(h) = b(h)
+            ai(h) = bi(h)
+        enddo
+    end subroutine imerging
 
 end module merge_sort

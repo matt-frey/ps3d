@@ -9,6 +9,8 @@ AM_FCFLAGS =                            \
         -I $(top_builddir)/src/netcdf
 
 AM_LDFLAGS =                                   	\
+	$(top_builddir)/src/stepper/*.o		\
+	$(top_builddir)/src/model/*.o     	\
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fft/*.o          	\
         $(top_builddir)/src/fields/*.o          \
@@ -37,7 +39,22 @@ unittests_PROGRAMS =   		\
         test_diffx		\
         test_diffy		\
         test_omp_collapse	\
-	test_implicit_rk
+	test_implicit_rk	\
+	test_diss		\
+	test_zops		\
+        test_clenshaw		\
+        test_clenshaw_1		\
+        test_clenshaw_2		\
+        test_clenshaw_3		\
+        test_integrate		\
+        test_cheb_poly		\
+        test_cheb_fun		\
+        test_crank_nicolson	\
+        test_crank_nicolson_1	\
+        test_crank_nicolson_2	\
+        test_crank_nicolson_3
+#         test_filter
+# 	test_diagnostics
 
 test_vor2vel_1_SOURCES = unit_test.f90 test_vor2vel_1.f90
 test_vor2vel_1_LDADD = libcombi.la
@@ -80,3 +97,48 @@ test_omp_collapse_LDADD = libcombi.la
 
 test_implicit_rk_SOURCES = unit_test.f90 test_implicit_rk.f90
 test_implicit_rk_LDADD = libcombi.la
+
+test_diss_SOURCES = unit_test.f90 test_diss.f90
+test_diss_LDADD = libcombi.la
+
+test_zops_SOURCES = unit_test.f90 test_zops.f90
+test_zops_LDADD = libcombi.la
+
+test_clenshaw_SOURCES = unit_test.f90 test_clenshaw.f90
+test_clenshaw_LDADD = libcombi.la
+
+test_clenshaw_1_SOURCES = unit_test.f90 test_clenshaw_1.f90
+test_clenshaw_1_LDADD = libcombi.la
+
+test_clenshaw_2_SOURCES = unit_test.f90 test_clenshaw_2.f90
+test_clenshaw_2_LDADD = libcombi.la
+
+test_clenshaw_3_SOURCES = unit_test.f90 test_clenshaw_3.f90
+test_clenshaw_3_LDADD = libcombi.la
+
+test_integrate_SOURCES = unit_test.f90 test_integrate.f90
+test_integrate_LDADD = libcombi.la
+
+test_cheb_poly_SOURCES = unit_test.f90 test_cheb_poly.f90
+test_cheb_poly_LDADD = libcombi.la
+
+test_cheb_fun_SOURCES = unit_test.f90 test_cheb_fun.f90
+test_cheb_fun_LDADD = libcombi.la
+
+test_crank_nicolson_SOURCES = unit_test.f90 test_crank_nicolson.f90
+test_crank_nicolson_LDADD = libcombi.la
+
+test_crank_nicolson_1_SOURCES = unit_test.f90 test_crank_nicolson_1.f90
+test_crank_nicolson_1_LDADD = libcombi.la
+
+test_crank_nicolson_2_SOURCES = unit_test.f90 test_crank_nicolson_2.f90
+test_crank_nicolson_2_LDADD = libcombi.la
+
+test_crank_nicolson_3_SOURCES = unit_test.f90 test_crank_nicolson_3.f90
+test_crank_nicolson_3_LDADD = libcombi.la
+
+# test_filter_SOURCES = unit_test.f90 test_filter.f90
+# test_filter_LDADD = libcombi.la
+
+# test_diagnostics_SOURCES = unit_test.f90 test_diagnostics.f90
+# test_diagnostics_LDADD = libcombi.la

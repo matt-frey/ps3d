@@ -1,22 +1,23 @@
 module impl_rk4_mod
-    use advance_mod, only : base_stepper
+    use model, only : layout
+    use stepper_mod, only : stepper_t
     use constants, only : f12, f13, f16
     use parameters, only : nz
     use fields
-    use inversion_utils
+    use diffusion
     use inversion_mod, only : vor2vel, source
     use field_diagnostics
     implicit none
 
     double precision :: dt2, dt3, dt6
 
-    type, extends(base_stepper) :: impl_rk4
-        ! epq = exp( D * (t-t0))
-        ! emq = exp(-D * (t-t0))
-        double precision, allocatable :: epq(:, :), emq(:, :)
+    type, extends(stepper_t) :: impl_rk4
+        ! vep = exp( D * (t-t0))
+        ! vem = exp(-D * (t-t0))
+        double precision, allocatable :: vep(:, :, :), vem(:, :, :)
         double precision, allocatable :: svorf(:, :, :, :), svori(:, :, :, :)
 #ifdef ENABLE_BUOYANCY
-        double precision, allocatable :: bpq(:, :), bmq(:, :)
+        double precision, allocatable :: bep(:, :, :), bem(:, :, :)
         double precision, allocatable :: sbuoyf(:, :, :), sbuoyi(:, :, :)
 #endif
 
@@ -32,335 +33,318 @@ module impl_rk4_mod
     end type
 
 
-    contains
+contains
 
-        subroutine impl_rk4_set_diffusion(self, dt, vorch, bf)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(in)    :: dt
-            double precision, intent(in)    :: vorch, bf
-            double precision                :: dfac, dbac
+    subroutine impl_rk4_set_diffusion(self, dt, vorch, bf)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(in)    :: dt
+        double precision, intent(in)    :: vorch, bf
+        double precision                :: dfac
 
-            dfac = f12 * vorch * dt
-            dbac = f12 * bf * dt
+        dfac = f12 * vorch * dt
 
-            !$omp parallel workshare
-            vdiss = dfac * vhdis
-#ifdef ENABLE_BUOYANCY
-            bdiss = dbac * bhdis
-#endif
-            !$omp end parallel workshare
-
-        end subroutine impl_rk4_set_diffusion
-
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-        subroutine impl_rk4_setup(self)
-            class(impl_rk4), intent(inout) :: self
-
-            allocate(self%epq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%emq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
-            allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+        !$omp parallel workshare
+        vdop = dfac * vdiss
+        !$omp end parallel workshare
 
 #ifdef ENABLE_BUOYANCY
-            allocate(self%bpq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%bmq(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%sbuoyf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
-            allocate(self%sbuoyi(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        dfac = f12 * bf * dt
+
+        !$omp parallel workshare
+        bdop = dfac * bdiss
+        !$omp end parallel workshare
 #endif
 
-        end subroutine impl_rk4_setup
+    end subroutine impl_rk4_set_diffusion
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine impl_rk4_step(self, t, dt)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: t
-            double precision, intent(in)    :: dt
-            integer                         :: nc
+    subroutine impl_rk4_setup(self)
+        class(impl_rk4), intent(inout) :: self
 
-            dt2 = f12 * dt
-            dt3 = f13 * dt
-            dt6 = f16 * dt
-
-            ! set integrating factors
-            self%epq = dexp(vdiss)
-            self%emq = 1.0d0 / self%epq
-            self%epq = self%epq * filt(0, :, :)
+        allocate(self%vep(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%vem(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%svorf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
+        allocate(self%svori(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1), 3))
 
 #ifdef ENABLE_BUOYANCY
-            self%bpq = dexp(bdiss)
-            self%bmq = 1.0d0 / self%bpq
-            self%bpq = self%bpq * filt(0, :, :)
+        allocate(self%bep(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%bem(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%sbuoyf(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(self%sbuoyi(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
 #endif
 
-            !------------------------------------------------------------------
-            ! RK4 predictor step at time t0 + dt/2:
+    end subroutine impl_rk4_setup
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine impl_rk4_step(self, t, dt)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(inout) :: t
+        double precision, intent(in)    :: dt
+        integer                         :: nc
+
+        dt2 = f12 * dt
+        dt3 = f13 * dt
+        dt6 = f16 * dt
+
+        !Define integrating factors
+        self%vep = exp(vdop)
+        self%vem = 1.0d0 / self%vep
+
 #ifdef ENABLE_BUOYANCY
-            call self%impl_rk4_substep_one(q=sbuoy,          &
-                                           sqs=sbuoys,       &
-                                           qdi=self%sbuoyi,  &
-                                           qdf=self%sbuoyf,  &
-                                           mq=self%bmq)
+        self%bep = exp(bdop)
+        self%bem = 1.0d0 / self%bep
 #endif
 
-            do nc = 1, 3
-                call self%impl_rk4_substep_one(q=svor(:, :, :, nc),          &
-                                               sqs=svorts(:, :, :, nc),      &
-                                               qdi=self%svori(:, :, :, nc),  &
-                                               qdf=self%svorf(:, :, :, nc),  &
-                                               mq=self%emq)
-            enddo
-
-            !------------------------------------------------------------------
-            ! Invert and get new sources:
-            call vor2vel
-            call source
-
-            !------------------------------------------------------------------
-            !RK4 corrector step at time t0 + dt/2:
-            t = t + dt2
-
+        !------------------------------------------------------------------
+        ! RK4 predictor step at time t0 + dt/2:
 #ifdef ENABLE_BUOYANCY
-            call self%impl_rk4_substep_two(q=sbuoy,          &
-                                           sqs=sbuoys,       &
-                                           qdi=self%sbuoyi,  &
-                                           qdf=self%sbuoyf,  &
-                                           mq=self%bmq,      &
-                                           pq=self%bpq)
+        call self%impl_rk4_substep_one(q=sbuoy,          &
+                                       sqs=sbuoys,       &
+                                       qdi=self%sbuoyi,  &
+                                       qdf=self%sbuoyf,  &
+                                       mq=self%bem)
 #endif
 
-            do nc = 1, 3
-                call self%impl_rk4_substep_two(q=svor(:, :, :, nc),          &
-                                               sqs=svorts(:, :, :, nc),      &
-                                               qdi=self%svori(:, :, :, nc),  &
-                                               qdf=self%svorf(:, :, :, nc),  &
-                                               mq=self%emq,                  &
-                                               pq=self%epq)
-            enddo
+        do nc = 1, 3
+            call self%impl_rk4_substep_one(q=svor(:, :, :, nc),          &
+                                           sqs=svorts(:, :, :, nc),      &
+                                           qdi=self%svori(:, :, :, nc),  &
+                                           qdf=self%svorf(:, :, :, nc),  &
+                                           mq=self%vem)
+        enddo
 
-            !------------------------------------------------------------------
-            ! Invert and get new sources:
-            call vor2vel
-            call source
+        !------------------------------------------------------------------
+        ! Invert and get new sources:
+        call vor2vel
+        call source
 
-            !------------------------------------------------------------------
-            !RK4 predictor step at time t0 + dt:
-            t = t + dt2
-
-            self%emq = self%emq ** 2
-
+        !------------------------------------------------------------------
+        !RK4 corrector step at time t0 + dt/2:
+        t = t + dt2
 
 #ifdef ENABLE_BUOYANCY
-            self%bmq = self%bmq ** 2
+        call self%impl_rk4_substep_two(q=sbuoy,          &
+                                       sqs=sbuoys,       &
+                                       qdi=self%sbuoyi,  &
+                                       qdf=self%sbuoyf,  &
+                                       mq=self%bem,      &
+                                       pq=self%bep)
+#endif
 
-            call self%impl_rk4_substep_three(q=sbuoy,          &
-                                             sqs=sbuoys,       &
-                                             qdi=self%sbuoyi,  &
-                                             qdf=self%sbuoyf,  &
-                                             mq=self%bmq,      &
-                                             pq=self%bpq,      &
+        do nc = 1, 3
+            call self%impl_rk4_substep_two(q=svor(:, :, :, nc),          &
+                                           sqs=svorts(:, :, :, nc),      &
+                                           qdi=self%svori(:, :, :, nc),  &
+                                           qdf=self%svorf(:, :, :, nc),  &
+                                           mq=self%vem,                  &
+                                           pq=self%vep)
+        enddo
+
+        !------------------------------------------------------------------
+        ! Invert and get new sources:
+        call vor2vel
+        call source
+
+        !------------------------------------------------------------------
+        !RK4 predictor step at time t0 + dt:
+        t = t + dt2
+
+#ifdef ENABLE_BUOYANCY
+        self%bem = self%bem ** 2
+
+        call self%impl_rk4_substep_three(q=sbuoy,          &
+                                         sqs=sbuoys,       &
+                                         qdi=self%sbuoyi,  &
+                                         qdf=self%sbuoyf,  &
+                                         mq=self%bem,      &
+                                         pq=self%bep,      &
+                                         dt=dt)
+#endif
+
+        self%vem = self%vem ** 2
+
+        do nc = 1, 3
+            call self%impl_rk4_substep_three(q=svor(:, :, :, nc),          &
+                                             sqs=svorts(:, :, :, nc),      &
+                                             qdi=self%svori(:, :, :, nc),  &
+                                             qdf=self%svorf(:, :, :, nc),  &
+                                             mq=self%vem,                  &
+                                             pq=self%vep,                  &
                                              dt=dt)
-#endif
-
-            do nc = 1, 3
-                call self%impl_rk4_substep_three(q=svor(:, :, :, nc),          &
-                                                 sqs=svorts(:, :, :, nc),      &
-                                                 qdi=self%svori(:, :, :, nc),  &
-                                                 qdf=self%svorf(:, :, :, nc),  &
-                                                 mq=self%emq,                  &
-                                                 pq=self%epq,                  &
-                                                 dt=dt)
-            enddo
+        enddo
 
 
-            !------------------------------------------------------------------
-            ! Invert and get new sources:
-            call vor2vel
-            call source
+        !------------------------------------------------------------------
+        ! Invert and get new sources:
+        call vor2vel
+        call source
 
-            !------------------------------------------------------------------
-            !RK4 corrector step at time t0 + dt:
-
-            self%epq = self%epq ** 2
+        !------------------------------------------------------------------
+        !RK4 corrector step at time t0 + dt:
 
 #ifdef ENABLE_BUOYANCY
-            self%bpq = self%bpq ** 2
+        self%bep = self%bep ** 2
 
-            call self%impl_rk4_substep_four(q=sbuoy,          &
-                                            sqs=sbuoys,       &
-                                            qdf=self%sbuoyf,  &
-                                            mq=self%bmq,      &
-                                            pq=self%bpq)
+        call self%impl_rk4_substep_four(q=sbuoy,          &
+                                        sqs=sbuoys,       &
+                                        qdf=self%sbuoyf,  &
+                                        mq=self%bem,      &
+                                        pq=self%bep)
 #endif
 
-            do nc = 1, 3
-                call self%impl_rk4_substep_four(q=svor(:, :, :, nc),          &
-                                                sqs=svorts(:, :, :, nc),      &
-                                                qdf=self%svorf(:, :, :, nc),  &
-                                                mq=self%emq,                  &
-                                                pq=self%epq)
-            enddo
+        self%vep = self%vep ** 2
 
-            call adjust_vorticity_mean
+        do nc = 1, 3
+            call self%impl_rk4_substep_four(q=svor(:, :, :, nc),          &
+                                            sqs=svorts(:, :, :, nc),      &
+                                            qdf=self%svorf(:, :, :, nc),  &
+                                            mq=self%vem,                  &
+                                            pq=self%vep)
+        enddo
 
-        end subroutine impl_rk4_step
+        ! Ensure zero global mean horizontal vorticity conservation:
+        do nc = 1, 2
+           call layout%adjust_semi_spectral_mean(svor(:, :, :, nc), &
+                                                 ini_vor_mean(nc))
+        enddo
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    end subroutine impl_rk4_step
 
-        ! Initialisation step (t = t0) (predictor):
-        subroutine impl_rk4_substep_one(self, q, sqs, qdi, qdf, mq)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
-                                                       box%lo(1):box%hi(1))
-            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(inout) :: qdi(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            integer                         :: iz
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-            ! Filter source
-            do iz = 0, nz
-                sqs(iz, :, :) = filt(0, :, :) * sqs(iz, :, :)
-            enddo
-            qdi = q
-            q = (qdi + dt2 * sqs)
-            call field_combine_semi_spectral(q)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                q(iz, :, :) = q(iz, :, :) * mq
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(q)
+    ! Initialisation step (t = t0) (predictor):
+    subroutine impl_rk4_substep_one(self, q, sqs, qdi, qdf, mq)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2), &
+                                                   box%lo(1):box%hi(1))
+        double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(inout) :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  mq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
 
-            qdf = qdi + dt6 * sqs
+        !Use mixed-spectral space to apply 3d diffusion operator:
+        call layout%decompose_semi_spectral(q)
+        call layout%decompose_semi_spectral(sqs)
 
-        end subroutine impl_rk4_substep_one
+        qdi = q
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        !Apply integrating factor to source
+        q = (qdi + dt2 * sqs) * mq
+        !qdi & sqs are in mixed-spectral space, so q is automatically
 
-        ! First corrector step (t = t0 + dt/2):
-        subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf, mq, pq)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
-                                                       box%lo(1):box%hi(1))
-            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            integer                         :: iz
+        !Return field q to semi-spectral space for use in vor2vel & source:
+        call layout%combine_semi_spectral(q)
 
-            ! apply integrating factors to source
-            call field_combine_semi_spectral(sqs)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sqs(iz, :, :) = pq * sqs(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sqs)
+        qdf = qdi + dt6 * sqs
+        !qdf is in mixed-spectral space on exit
 
-            q = qdi + dt2 * sqs
+    end subroutine impl_rk4_substep_one
 
-            call field_combine_semi_spectral(q)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                q(iz, :, :) = mq * q(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(q)
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-            qdf = qdf + dt3 * sqs
+    ! First corrector step (t = t0 + dt/2):
+    subroutine impl_rk4_substep_two(self, q, sqs, qdi, qdf, mq, pq)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                   box%lo(1):box%hi(1))
+        double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  mq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  pq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
 
-        end subroutine impl_rk4_substep_two
+        !Use mixed-spectral space to apply 3d diffusion operator:
+        call layout%decompose_semi_spectral(sqs)
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+        !Apply integrating factor to source
+        sqs = pq * sqs
 
-        ! Second predictor step (t = t0 + dt):
-        subroutine impl_rk4_substep_three(self, q, sqs, qdi, qdf, mq, pq, dt)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
-                                                       box%lo(1):box%hi(1))
-            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            double precision, intent(in)    :: dt
-            integer                         :: iz
+        !qdi & sqs are in mixed-spectral space, so q is automatically
+        q = mq * (qdi + dt2 * sqs)
 
-            ! apply integrating factors to source
-            call field_combine_semi_spectral(sqs)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sqs(iz, :, :) = pq * sqs(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sqs)
+        !Return field q to semi-spectral space for use in vor2vel & source:
+        call layout%combine_semi_spectral(q)
 
-            q = qdi + dt * sqs
+        qdf = qdf + dt3 * sqs
+        !qdf is in mixed-spectral space on exit
 
-            call field_combine_semi_spectral(q)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                q(iz, :, :) = mq * q(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(q)
+    end subroutine impl_rk4_substep_two
 
-            qdf = qdf + dt3 * sqs
-        end subroutine impl_rk4_substep_three
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    ! Second predictor step (t = t0 + dt):
+    subroutine impl_rk4_substep_three(self, q, sqs, qdi, qdf, mq, pq, dt)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                   box%lo(1):box%hi(1))
+        double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    :: qdi(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(inout) :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  mq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  pq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    :: dt
 
-        ! Second corrector step (t = t0 + dt):
-        subroutine impl_rk4_substep_four(self, q, sqs, qdf, mq, pq)
-            class(impl_rk4),  intent(inout) :: self
-            double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
-                                                       box%lo(1):box%hi(1))
-            double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
-                                                         box%lo(1):box%hi(1))
-            double precision, intent(in)    :: mq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            double precision, intent(in)    :: pq(box%lo(2):box%hi(2), &
-                                                  box%lo(1):box%hi(1))
-            integer                         :: iz
+        !Use mixed-spectral space to apply 3d diffusion operator:
+        call layout%decompose_semi_spectral(sqs)
 
-            ! apply integrating factors to source
-            call field_combine_semi_spectral(sqs)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                sqs(iz, :, :) = pq * sqs(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(sqs)
+        !Apply integrating factor to source
+        sqs = pq * sqs
 
-            q = qdf + dt6 * sqs
+        !qdi & sqs are in mixed-spectral space, so q is automatically
+        q = mq * (qdi + dt * sqs)
 
-            call field_combine_semi_spectral(q)
-            !$omp parallel do private(iz)  default(shared)
-            do iz = 0, nz
-                q(iz, :, :) = mq * q(iz, :, :)
-            enddo
-            !$omp end parallel do
-            call field_decompose_semi_spectral(q)
+        !Return field q to semi-spectral space for use in vor2vel & source:
+        call layout%combine_semi_spectral(q)
 
-        end subroutine impl_rk4_substep_four
+        qdf = qdf + dt3 * sqs
+        !qdf is in mixed-spectral space on exit
+
+    end subroutine impl_rk4_substep_three
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Second corrector step (t = t0 + dt):
+    subroutine impl_rk4_substep_four(self, q, sqs, qdf, mq, pq)
+        class(impl_rk4),  intent(inout) :: self
+        double precision, intent(inout) :: q(0:nz, box%lo(2):box%hi(2),   &
+                                                   box%lo(1):box%hi(1))
+        double precision, intent(inout) :: sqs(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    :: qdf(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  mq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+        double precision, intent(in)    ::  pq(0:nz, box%lo(2):box%hi(2), &
+                                                     box%lo(1):box%hi(1))
+
+        !Use mixed-spectral space to apply 3d diffusion operator:
+        call layout%decompose_semi_spectral(sqs)
+
+        !Apply integrating factor to source
+        sqs = pq * sqs
+
+        !qdf & sqs are in mixed-spectral space, so q is automatically
+        q = mq * (qdf + dt6 * sqs)
+
+        !Return field q to semi-spectral space for use elsewhere:
+        call layout%combine_semi_spectral(q)
+
+    end subroutine impl_rk4_substep_four
 
 end module impl_rk4_mod

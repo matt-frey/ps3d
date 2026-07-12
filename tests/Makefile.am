@@ -8,6 +8,8 @@ AM_FCFLAGS =                            \
         -I $(top_builddir)/src/netcdf
 
 AM_LDFLAGS =                                   	\
+	$(top_builddir)/src/stepper/*.o		\
+	$(top_builddir)/src/model/*.o     	\
         $(top_builddir)/src/utils/*.o           \
         $(top_builddir)/src/fields/*.o          \
         $(top_builddir)/src/inversion/*.o
@@ -23,8 +25,8 @@ libcombi_la_LIBADD =                            	\
 
 tests_PROGRAMS =   		\
         test_vor2vel		\
-        test_filter		\
-        test_hyper
+        test_hyper		\
+        test_filter
 
 test_vor2vel_SOURCES = test_vor2vel.f90
 test_vor2vel_LDADD = libcombi.la

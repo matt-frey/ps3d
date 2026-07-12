@@ -1,6 +1,6 @@
-! =============================================================================
+! ===========================================================================
 ! This module contains global options that can be set at runtime by the user.
-! =============================================================================
+! ===========================================================================
 module options
     use constants, only : zero, one, two, pi, four, twopi
     use netcdf_writer
@@ -20,8 +20,6 @@ module options
     ! configuration file
     character(len=512) :: filename = ''
 
-    ! time integrator
-    character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
     !
     ! output options
     !
@@ -39,155 +37,186 @@ module options
     type(info) :: output
 
     !(Hyper)viscosity parameters:
-    type visc_type
+    type viscosity_t
         integer :: nnu
         double precision :: prediss
+        double precision :: vweight
         ! If nnu = 1, this is the molecular viscosity case.  Then, we
         ! choose the viscosity nu = prediss*((b_max-b_min)/k_{x,max}^3)
         ! where k_{x_max} is the maximum x wavenumber.
         ! Note: prediss = 2 is recommended.
         ! ----------------------------------------------------------------
         ! If nnu > 1, this is the hyperviscosity case.  Then, the damping
-        ! rate is prediss*zeta_char*(k/k_max)^(2*nnu) on wavenumber k
-        ! where k_max is the maximum x or y wavenumber and zeta_char is
-        ! a characteristic vorticity (see subroutine adapt of strat.f90).
-        ! Note: nnu = 3 and prediss = 10 are recommended.
-
-        ! Prefactor type to use:
+        ! rate is prediss*prefactor*(kh/kh_max)^(2*nnu) on horizontal
+        ! wavenumber kh, where kh_max is the maximum x or y wavenumber
+        ! and prefactor is one of the types listed below.
+        ! Note: nnu = 3 and prediss >= 10 are recommended.
+        ! ----------------------------------------------------------------
+        ! vweight controls full 3D diffusion is used, we replace kh^2 above
+        ! by kh^2 + vweight*vhr2*kz^2 where vhr2 = L_z^2/(L_x*L_y) is a
+        ! "squared" vertical-horizontal domain size ratio. This ensures
+        ! that the maximum vertical damping is comparable to the maximum
+        ! horizontal damping. The parameter vhr2 is set in parameters.f90.
+        ! See the specific steppers for the use of 2d or 3d diffusion.
+        ! ----------------------------------------------------------------
+        ! Prefactor types available to use:
         ! - vorch / bfmax: characteristic vorticity / buoyancy frequency
         ! - roll-mean-max-strain: rolling mean of gamma_max
         ! - roll-mean-bfmax: rolling mean of buoyancy frequency (bfmax)
         ! - constant: takes initial vorch or bfmax
         ! - us-max-strain: takes the maximum upper surface strain
         ! - max-strain: takes the maximum surface strain
+        ! - vortmax: maximum vorticity magnitude
         character(len=20) :: pretype = 'roll-mean-max-strain'
 
         ! Window size for the rolling mean approach
         integer :: roll_mean_win_size = 1000
 
-        ! "Kolmogorov or "geophysical"
+        ! "Kolmogorov", "geophysical" or "constant"
         character(len=11) :: length_scale = "Kolmogorov"
 
-    end type visc_type
+    end type viscosity_t
 
-    ! 'Hou & Li' or '2/3-rule'
-    character(len=8) :: filtering = "Hou & Li"
+    type filter_type
+        ! family: 'cutoff', 'none', 'exp'
+        character(len=6) :: family = "cutoff"
+        double precision :: cutoff = 2.0d0 / 3.0d0
+        double precision :: alpha = 36.0d0
+        double precision :: beta  = 36.0d0
+    end type filter_type
 
-    type(visc_type) :: vor_visc
+    type(filter_type) :: filter
+
+
+    logical :: l_ensure_solenoidal = .false.
+
+    type(viscosity_t) :: vor_visc
 
 #ifdef ENABLE_BUOYANCY
-    type(visc_type) :: buoy_visc
+    type(viscosity_t) :: buoy_visc
 #endif
 
     ! time limit
     type time_info_type
-        double precision :: initial     = zero       ! initial time
-        double precision :: limit       = zero       ! time limit
-        double precision :: alpha       = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
-                                                     ! gradient
-        logical          :: precise_stop = .false.   ! stop at the exact limit
+        double precision  :: initial = zero       ! initial time
+        double precision  :: limit   = zero       ! time limit
+        character(len=16) :: stepper = 'impl-diff-rk4' ! or 'cn2'
+        double precision  :: alpha   = 0.1d0      ! factor for adaptive time stepping with strain and buoyancy
+                                                  ! gradient
+        logical           :: precise_stop = .false.   ! stop at the exact limit
     end type time_info_type
 
     type(time_info_type) :: time
 
 
-    contains
-        ! parse configuration file
-        ! (see https://cyber.dabamos.de/programming/modernfortran/namelists.html [8 March 2021])
-        subroutine read_config_file
-            integer :: ios
-            integer :: fn = 1
-            logical :: exists = .false.
+contains
+    ! parse configuration file
+    ! (see https://cyber.dabamos.de/programming/modernfortran/namelists.html [8 March 2021])
+    subroutine read_config_file
+        integer :: ios
+        integer :: fn = 1
+        logical :: exists = .false.
 
-            ! namelist definitions
-            namelist /PS3D/ field_file,         &
-                            field_step,         &
-                            stepper,            &
-                            vor_visc,           &
+        ! namelist definitions
+        namelist /PS3D/ field_file,          &
+                        field_step,          &
+                        vor_visc,            &
 #ifdef ENABLE_BUOYANCY
-                            buoy_visc,          &
+                        buoy_visc,           &
 #endif
-                            filtering,          &
-                            output,             &
-                            time
+                        l_ensure_solenoidal, &
+                        filter,              &
+                        output,              &
+                        time
 
-            ! check whether file exists
-            inquire(file=filename, exist=exists)
+        ! check whether file exists
+        inquire(file=filename, exist=exists)
 
-            if (exists .eqv. .false.) then
-                call mpi_stop(&
-                    'Error: input file "' // trim(filename) // '" does not exist.')
-            endif
+        if (exists .eqv. .false.) then
+            call mpi_stop(&
+                'Error: input file "' // trim(filename) // '" does not exist.')
+        endif
 
-            ! open and read Namelist file.
-            open(action='read', file=filename, iostat=ios, newunit=fn)
+        ! open and read Namelist file.
+        open(action='read', file=filename, iostat=ios, newunit=fn)
 
-            read(nml=PS3D, iostat=ios, unit=fn)
+        read(nml=PS3D, iostat=ios, unit=fn)
 
-            if (ios /= 0) then
-                call mpi_stop('Error: invalid Namelist format.')
-            end if
+        if (ios /= 0) then
+            call mpi_stop('Error: invalid Namelist format.')
+        end if
 
-            close(fn)
+        close(fn)
 
-            ! check whether NetCDF files already exist
-            inquire(file=output%basename, exist=exists)
+        ! check whether NetCDF files already exist
+        inquire(file=output%basename, exist=exists)
 
-            if (exists) then
-                call mpi_stop(&
-                    'Error: output file "' // trim(output%basename) // '" already exists.')
-            endif
+        if (exists) then
+            call mpi_stop(&
+                'Error: output file "' // trim(output%basename) // '" already exists.')
+        endif
 
-        end subroutine read_config_file
+    end subroutine read_config_file
 
-        subroutine write_netcdf_options(ncid)
-            integer, intent(in) :: ncid
+    subroutine write_netcdf_options(ncid)
+        integer, intent(in) :: ncid
+        integer             :: gid
+
+        ncerr = nf90_inq_ncid(ncid, 'options', gid)
+        if (ncerr /= 0) then
+            ncerr = nf90_def_grp(ncid, 'options', gid)
+            call check_netcdf_error("Failed to define or group 'options'.")
+        endif
 
 #ifdef ENABLE_VERBOSE
-            call write_netcdf_attribute(ncid, "verbose", verbose)
+        call write_netcdf_attribute(gid, "verbose", verbose)
 #endif
 
-            call write_netcdf_viscosity(ncid, vor_visc, 'vor_visc')
+        call write_netcdf_viscosity(gid, vor_visc, 'vor_visc')
 #ifdef ENABLE_BUOYANCY
-            call write_netcdf_viscosity(ncid, buoy_visc, 'buoy_visc')
+        call write_netcdf_viscosity(gid, buoy_visc, 'buoy_visc')
 #endif
-            call write_netcdf_attribute(ncid, "filtering", filtering)
+        call write_netcdf_attribute(gid, "l_ensure_solenoidal", l_ensure_solenoidal)
+        call write_netcdf_attribute(gid, "filter%family", filter%family)
+        call write_netcdf_attribute(gid, "filter%cutoff", filter%cutoff)
+        call write_netcdf_attribute(gid, "filter%alpha", filter%alpha)
+        call write_netcdf_attribute(gid, "filter%beta", filter%beta)
 
-            call write_netcdf_attribute(ncid, "stepper", stepper)
+        call write_netcdf_attribute(gid, "field_freq", output%field_freq)
+        call write_netcdf_attribute(gid, "write_fields", output%write_fields)
+        call write_netcdf_attribute(gid, "field_stats_freq", output%field_stats_freq)
+        call write_netcdf_attribute(gid, "write_field_stats", output%write_field_stats)
+        call write_netcdf_attribute(gid, "overwrite", output%overwrite)
+        call write_netcdf_attribute(gid, "basename", trim(output%basename))
 
-            call write_netcdf_attribute(ncid, "field_freq", output%field_freq)
-            call write_netcdf_attribute(ncid, "write_fields", output%write_fields)
-            call write_netcdf_attribute(ncid, "field_stats_freq", output%field_stats_freq)
-            call write_netcdf_attribute(ncid, "write_field_stats", output%write_field_stats)
-            call write_netcdf_attribute(ncid, "overwrite", output%overwrite)
-            call write_netcdf_attribute(ncid, "basename", trim(output%basename))
 
-            call write_netcdf_attribute(ncid, "limit", time%limit)
-            call write_netcdf_attribute(ncid, "initial", time%initial)
-            call write_netcdf_attribute(ncid, "precise_stop", time%precise_stop)
-            call write_netcdf_attribute(ncid, "alpha", time%alpha)
+        call write_netcdf_attribute(gid, "time%limit", time%limit)
+        call write_netcdf_attribute(gid, "time%stepper", time%stepper)
+        call write_netcdf_attribute(gid, "time%initial", time%initial)
+        call write_netcdf_attribute(gid, "time%precise_stop", time%precise_stop)
+        call write_netcdf_attribute(gid, "time%alpha", time%alpha)
 
-        end subroutine write_netcdf_options
+    end subroutine write_netcdf_options
 
-        !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-        subroutine write_netcdf_viscosity(ncid, visc, label)
-            integer,          intent(in) :: ncid
-            type(visc_type),  intent(in) :: visc
-            character(len=*), intent(in) :: label
+    subroutine write_netcdf_viscosity(gid, visc, label)
+        integer,            intent(in) :: gid
+        type(viscosity_t),  intent(in) :: visc
+        character(len=*),   intent(in) :: label
 
-            if (visc%nnu == 1) then
-                call write_netcdf_attribute(ncid, label, "molecular")
-            else
-                call write_netcdf_attribute(ncid, label, "hyperviscosity")
-            endif
+        if (visc%nnu == 1) then
+            call write_netcdf_attribute(gid, label, "molecular")
+        else
+            call write_netcdf_attribute(gid, label, "hyperviscosity")
+        endif
 
-            call write_netcdf_attribute(ncid, label // "%nnu", visc%nnu)
-            call write_netcdf_attribute(ncid, label // "%prediss", visc%prediss)
-            call write_netcdf_attribute(ncid, label // "%pretype", visc%pretype)
-            call write_netcdf_attribute(ncid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
-            call write_netcdf_attribute(ncid, label // "%length_scale", visc%length_scale)
+        call write_netcdf_attribute(gid, label // "%nnu", visc%nnu)
+        call write_netcdf_attribute(gid, label // "%prediss", visc%prediss)
+        call write_netcdf_attribute(gid, label // "%pretype", visc%pretype)
+        call write_netcdf_attribute(gid, label // "%roll_mean_win_size", visc%roll_mean_win_size)
+        call write_netcdf_attribute(gid, label // "%length_scale", visc%length_scale)
 
-        end subroutine write_netcdf_viscosity
+    end subroutine write_netcdf_viscosity
 
 end module options

@@ -21,30 +21,42 @@ module sta3dfft
     double precision, protected, allocatable :: xtrig(:), ytrig(:), ztrig(:)
     integer,          protected              :: xfactors(5), yfactors(5), zfactors(5)
 
+    double precision, allocatable :: green(:, :, :)
+
+    ! Note k2l2i = 1/(k^2+l^2) (except k = l = 0, then k2l2i(0, 0) = 0)
+    double precision, allocatable :: k2l2i(:, :)
+
+    ! Note k2l2 = k^2+l^2
+    double precision, allocatable :: k2l2(:, :)
+
     integer :: nwx, nwy
 
     integer :: nx, ny, nz
 
-    logical :: is_fft_initialised = .false.
+    logical, protected :: is_fft_initialised = .false.
 
-    public :: initialise_fft &
-            , finalise_fft   &
-            , diffx          &
-            , diffy          &
-            , fftxyp2s       &
-            , fftxys2p       &
-            , fftsine        &
-            , fftcosine      &
-            , rkx            &
-            , rky            &
-            , rkz            &
-            , rkzi           &
-            , zfactors       &
-            , ztrig          &
-            , xfactors       &
-            , xtrig          &
-            , yfactors       &
-            , ytrig
+    public :: initialise_fft        &
+            , finalise_fft          &
+            , is_fft_initialised    &
+            , diffx                 &
+            , diffy                 &
+            , fftxyp2s              &
+            , fftxys2p              &
+            , fftsine               &
+            , fftcosine             &
+            , rkx                   &
+            , rky                   &
+            , rkz                   &
+            , rkzi                  &
+            , zfactors              &
+            , ztrig                 &
+            , xfactors              &
+            , xtrig                 &
+            , yfactors              &
+            , ytrig                 &
+            , green                 &
+            , k2l2                  &
+            , k2l2i
 
 contains
 
@@ -107,6 +119,39 @@ contains
         call init_deriv(nz, extent(3), rkz(1:nz))
         rkzi(1:nz-1) = one / rkz(1:nz-1)
 
+        !----------------------------------------------------------
+        !Squared wavenumber array:
+        allocate(k2l2i(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+        allocate(k2l2(box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                k2l2(ky, kx) = rkx(kx) ** 2 + rky(ky) ** 2
+            enddo
+        enddo
+
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            k2l2(0, 0) = one
+        endif
+
+        k2l2i = one / k2l2
+
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            k2l2(0, 0) = zero
+            k2l2i(0, 0) = zero
+        endif
+
+        !---------------------------------------------------------------------
+        !Define Green function:
+        allocate(green(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        !$omp parallel do
+        do kz = 1, nz
+            green(kz, :, :) = - one / (k2l2 + rkz(kz) ** 2)
+        enddo
+        !$omp end parallel do
+        green(0, :, :) = - k2l2i
+
     end subroutine initialise_fft
 
     subroutine finalise_fft
@@ -120,6 +165,9 @@ contains
             deallocate(xtrig)
             deallocate(ytrig)
             deallocate(ztrig)
+            deallocate(green)
+            deallocate(k2l2i)
+            deallocate(k2l2)
         endif
 
         call finalise_pencil_fft
@@ -165,11 +213,11 @@ contains
         enddo
 
         call transpose_to_pencil(x_from_y_transposition, &
-                                 (/2, 3, 1/),            &
-                                 fft_x_comm,             &
-                                 FORWARD,                &
-                                 fft_in_y_buffer,        &
-                                 fft_in_x_buffer)
+                                    (/2, 3, 1/),            &
+                                    fft_x_comm,             &
+                                    FORWARD,                &
+                                    fft_in_y_buffer,        &
+                                    fft_in_x_buffer)
 
         do i = 1, size(fft_in_x_buffer, 2)
             do j = 1, size(fft_in_x_buffer, 3)
@@ -178,18 +226,18 @@ contains
         enddo
 
         call transpose_to_pencil(y_from_x_transposition,    &
-                                 (/3, 1, 2/),               &
-                                 fft_x_comm,                &
-                                 BACKWARD,                  &
-                                 fft_in_x_buffer,           &
-                                 fft_in_y_buffer)
+                                    (/3, 1, 2/),               &
+                                    fft_x_comm,                &
+                                    BACKWARD,                  &
+                                    fft_in_x_buffer,           &
+                                    fft_in_y_buffer)
 
         call transpose_to_pencil(z_from_y_transposition,  &
-                                 (/2, 3, 1/),             &
-                                 fft_y_comm,              &
-                                 BACKWARD,                &
-                                 fft_in_y_buffer,         &
-                                 fs)
+                                    (/2, 3, 1/),             &
+                                    fft_y_comm,              &
+                                    BACKWARD,                &
+                                    fft_in_y_buffer,         &
+                                    fs)
 
     end subroutine fftxyp2s
 
@@ -216,18 +264,18 @@ contains
         ! 6. Transform from (y, x, z) to (z, y, x) pencil
 
         call transpose_to_pencil(y_from_z_transposition, &
-                                 (/1, 2, 3/),            &
-                                 fft_y_comm,             &
-                                 FORWARD,                &
-                                 fs,                     &
-                                 fft_in_y_buffer)
+                                    (/1, 2, 3/),            &
+                                    fft_y_comm,             &
+                                    FORWARD,                &
+                                    fs,                     &
+                                    fft_in_y_buffer)
 
         call transpose_to_pencil(x_from_y_transposition, &
-                                 (/2, 3, 1/),            &
-                                 fft_x_comm,             &
-                                 FORWARD,                &
-                                 fft_in_y_buffer,        &
-                                 fft_in_x_buffer)
+                                    (/2, 3, 1/),            &
+                                    fft_x_comm,             &
+                                    FORWARD,                &
+                                    fft_in_y_buffer,        &
+                                    fft_in_x_buffer)
 
         do i = 1, size(fft_in_x_buffer, 2)
             do j = 1, size(fft_in_x_buffer, 3)
@@ -236,11 +284,11 @@ contains
         enddo
 
         call transpose_to_pencil(y_from_x_transposition, &
-                                 (/3, 1, 2/),            &
-                                 fft_x_comm,             &
-                                 BACKWARD,               &
-                                 fft_in_x_buffer,        &
-                                 fft_in_y_buffer)
+                                    (/3, 1, 2/),            &
+                                    fft_x_comm,             &
+                                    BACKWARD,               &
+                                    fft_in_x_buffer,        &
+                                    fft_in_y_buffer)
 
         do i = 1, size(fft_in_y_buffer, 2)
             do j = 1, size(fft_in_y_buffer, 3)
@@ -249,11 +297,11 @@ contains
         enddo
 
         call transpose_to_pencil(z_from_y_transposition,  &
-                                 (/2, 3, 1/),             &
-                                 fft_y_comm,              &
-                                 BACKWARD,                &
-                                 fft_in_y_buffer,         &
-                                 fp(box%lo(3):box%hi(3),  &
+                                    (/2, 3, 1/),             &
+                                    fft_y_comm,              &
+                                    BACKWARD,                &
+                                    fft_in_y_buffer,         &
+                                    fp(box%lo(3):box%hi(3),  &
                                     box%lo(2):box%hi(2),  &
                                     box%lo(1):box%hi(1)))
 

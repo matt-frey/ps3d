@@ -199,8 +199,8 @@ contains
 
     subroutine copy_to_buffer_in_x(fs)
         double precision, intent(in) :: fs(box%lo(3):box%hi(3),   &
-                                           box%lo(2):box%hi(2),   &
-                                           box%hlo(1):box%hhi(1))
+                                            box%lo(2):box%hi(2),   &
+                                            box%hlo(1):box%hhi(1))
         integer                      :: ix, iy, iz, j
 
         j = 1
@@ -227,7 +227,6 @@ contains
         integer                       :: ix, iy, iz
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(2):box%hi(2))
-
 
         !--------------------------------------------------------------
         ! Revert array locally
@@ -265,8 +264,8 @@ contains
 
     subroutine copy_to_buffer_in_y(fs)
         double precision, intent(in) :: fs(box%lo(3):box%hi(3),   &
-                                           box%hlo(2):box%hhi(2), &
-                                           box%lo(1):box%hi(1))
+                                            box%hlo(2):box%hhi(2), &
+                                            box%lo(1):box%hi(1))
         integer                      :: ix, iy, iz, j
 
         j = 1
@@ -293,7 +292,6 @@ contains
         integer                       :: ix, iy, iz
         integer                       :: i, j, k, half_length, n_recvs
         double precision              :: buf(box%lo(3):box%hi(3), box%lo(1):box%hi(1))
-
 
         !--------------------------------------------------------------
         ! Revert array locally
@@ -346,15 +344,15 @@ contains
         recv_size = size(x_reo%recv_buffer)
 
         call MPI_Alltoallv(x_reo%send_buffer(1:send_size),          &
-                           x_reo%send_recv_count(1:x_comm%size),    &
-                           x_reo%send_offset(1:x_comm%size),        &
-                           MPI_DOUBLE_PRECISION,                    &
-                           x_reo%recv_buffer(1:recv_size),          &
-                           x_reo%send_recv_count(1:x_comm%size),    &
-                           x_reo%recv_offset(1:x_comm%size),        &
-                           MPI_DOUBLE_PRECISION,                    &
-                           x_comm%comm,                             &
-                           x_comm%err)
+                            x_reo%send_recv_count(1:x_comm%size),    &
+                            x_reo%send_offset(1:x_comm%size),        &
+                            MPI_DOUBLE_PRECISION,                    &
+                            x_reo%recv_buffer(1:recv_size),          &
+                            x_reo%send_recv_count(1:x_comm%size),    &
+                            x_reo%recv_offset(1:x_comm%size),        &
+                            MPI_DOUBLE_PRECISION,                    &
+                            x_comm%comm,                             &
+                            x_comm%err)
 
         call copy_from_buffer_in_x(gs)
 
@@ -381,15 +379,15 @@ contains
         recv_size = size(y_reo%recv_buffer)
 
         call MPI_Alltoallv(y_reo%send_buffer(1:send_size),          &
-                           y_reo%send_recv_count(1:y_comm%size),    &
-                           y_reo%send_offset(1:y_comm%size),        &
-                           MPI_DOUBLE_PRECISION,                    &
-                           y_reo%recv_buffer(1:recv_size),          &
-                           y_reo%send_recv_count(1:y_comm%size),    &
-                           y_reo%recv_offset(1:y_comm%size),        &
-                           MPI_DOUBLE_PRECISION,                    &
-                           y_comm%comm,                             &
-                           y_comm%err)
+                            y_reo%send_recv_count(1:y_comm%size),    &
+                            y_reo%send_offset(1:y_comm%size),        &
+                            MPI_DOUBLE_PRECISION,                    &
+                            y_reo%recv_buffer(1:recv_size),          &
+                            y_reo%send_recv_count(1:y_comm%size),    &
+                            y_reo%recv_offset(1:y_comm%size),        &
+                            MPI_DOUBLE_PRECISION,                    &
+                            y_comm%comm,                             &
+                            y_comm%err)
 
         call copy_from_buffer_in_y(gs)
 
@@ -401,8 +399,8 @@ contains
 
     subroutine halo_x_fill(gs)
         double precision, intent(inout) :: gs(box%lo(3):box%hi(3),   & ! 0:nz
-                                              box%lo(2):box%hi(2),   &
-                                              box%hlo(1):box%hhi(1))
+                                                box%lo(2):box%hi(2),   &
+                                                box%hlo(1):box%hhi(1))
 
         ! copy from interior to buffers
         x_reo%lo_buffer = gs(:, :, box%lo(1))
@@ -420,8 +418,8 @@ contains
 
     subroutine halo_y_fill(gs)
         double precision, intent(inout) :: gs(box%lo(3):box%hi(3),   & ! 0:nz
-                                              box%hlo(2):box%hhi(2), &
-                                              box%lo(1):box%hi(1))
+                                                box%hlo(2):box%hhi(2), &
+                                                box%lo(1):box%hi(1))
 
         ! copy from interior to buffers
         y_reo%lo_buffer = gs(:, box%lo(2), :)
@@ -449,13 +447,13 @@ contains
 
         ! send west buffer to east halo
         call MPI_Isend(reo%lo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                       size(reo%lo_buffer),                     &
-                       MPI_DOUBLE_PRECISION,                    &
-                       reo%lo_rank,                             &
-                       REVERSE_LO_TAG,                          &
-                       sub_comm%comm,                           &
-                       requests(1),                             &
-                       sub_comm%err)
+                        size(reo%lo_buffer),                     &
+                        MPI_DOUBLE_PRECISION,                    &
+                        reo%lo_rank,                             &
+                        REVERSE_LO_TAG,                          &
+                        sub_comm%comm,                           &
+                        requests(1),                             &
+                        sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Isend of mpi_reverse::communicate_halo.")
@@ -465,13 +463,13 @@ contains
 
         ! receive west buffer to east halo (left to right)
         call MPI_Recv(reo%hi_halo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                      size(reo%hi_halo_buffer),                     &
-                      MPI_DOUBLE_PRECISION,                         &
-                      reo%hi_rank,                                  &
-                      REVERSE_LO_TAG,                               &
-                      sub_comm%comm,                                &
-                      MPI_STATUS_IGNORE,                            &
-                      sub_comm%err)
+                        size(reo%hi_halo_buffer),                     &
+                        MPI_DOUBLE_PRECISION,                         &
+                        reo%hi_rank,                                  &
+                        REVERSE_LO_TAG,                               &
+                        sub_comm%comm,                                &
+                        MPI_STATUS_IGNORE,                            &
+                        sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Recv of mpi_reverse::communicate_halo.")
@@ -481,13 +479,13 @@ contains
 
         ! send east buffer to west halo
         call MPI_Isend(reo%hi_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                       size(reo%hi_buffer),                     &
-                       MPI_DOUBLE_PRECISION,                    &
-                       reo%hi_rank,                             &
-                       REVERSE_HI_TAG,                          &
-                       sub_comm%comm,                           &
-                       requests(2),                             &
-                       sub_comm%err)
+                        size(reo%hi_buffer),                     &
+                        MPI_DOUBLE_PRECISION,                    &
+                        reo%hi_rank,                             &
+                        REVERSE_HI_TAG,                          &
+                        sub_comm%comm,                           &
+                        requests(2),                             &
+                        sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Isend of mpi_reverse::communicate_halo.")
@@ -497,13 +495,13 @@ contains
 
         ! receive east buffer into west halo (right to left)
         call MPI_Recv(reo%lo_halo_buffer(lb(1):ub(1), lb(2):ub(2)), &
-                      size(reo%lo_halo_buffer),                     &
-                      MPI_DOUBLE_PRECISION,                         &
-                      reo%lo_rank,                                  &
-                      REVERSE_HI_TAG,                               &
-                      sub_comm%comm,                                &
-                      MPI_STATUS_IGNORE,                            &
-                      sub_comm%err)
+                        size(reo%lo_halo_buffer),                     &
+                        MPI_DOUBLE_PRECISION,                         &
+                        reo%lo_rank,                                  &
+                        REVERSE_HI_TAG,                               &
+                        sub_comm%comm,                                &
+                        MPI_STATUS_IGNORE,                            &
+                        sub_comm%err)
 
         call mpi_check_for_error(sub_comm, &
             "in MPI_Recv of mpi_reverse::communicate_halo.")

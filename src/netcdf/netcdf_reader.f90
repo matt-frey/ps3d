@@ -151,7 +151,7 @@ contains
         endif
 
         ncerr = nf90_get_att(ncid=ncid, varid=NF90_GLOBAL, &
-                             name='file_type', values=file_type)
+                                name='file_type', values=file_type)
         call check_netcdf_error("Reading file type failed.")
 
     end subroutine get_file_type
@@ -198,7 +198,7 @@ contains
         call check_netcdf_error("Reading dataset id failed.")
 
         ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
-                             start=start, count=cnt)
+                                start=start, count=cnt)
     end subroutine read_netcdf_dataset_1d_integer
 
     subroutine read_netcdf_dataset_1d(ncid, name, buffer, start, cnt)
@@ -213,7 +213,7 @@ contains
         call check_netcdf_error("Reading dataset id failed.")
 
         ncerr = nf90_get_var(ncid=ncid, varid=varid, values=buffer, &
-                             start=start, count=cnt)
+                                start=start, count=cnt)
     end subroutine read_netcdf_dataset_1d
 
     subroutine read_netcdf_dataset_2d(ncid, name, buffer, start, cnt)
@@ -233,7 +233,7 @@ contains
         call check_netcdf_error("Reading dataset id failed.")
 
         ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
-                             start=start, count=cnt)
+                                start=start, count=cnt)
 
         buffer = transpose(values)
 
@@ -257,7 +257,7 @@ contains
         call check_netcdf_error("Reading dataset id failed.")
 
         ncerr = nf90_get_var(ncid=ncid, varid=varid, values=values, &
-                             start=start, count=cnt)
+                                start=start, count=cnt)
 
         buffer = reshape(values, shape=(/map(1), map(2), map(3)/), order=(/3, 2, 1/))
         deallocate(values)
@@ -306,12 +306,16 @@ contains
 
     subroutine read_netcdf_domain(ncfname, origin, extent, ncells)
         character(*), intent(in)      :: ncfname
-        integer                       :: ncid
+        integer                       :: ncid, gid
         double precision, intent(out) :: extent(:), origin(:)
         integer,          intent(out) :: ncells(:)
 
         call open_netcdf_file(ncfname, NF90_NOWRITE, ncid)
-        call get_netcdf_box(ncid, origin, extent, ncells)
+
+        ncerr = nf90_inq_ncid(ncid, 'parameters', gid)
+        call check_netcdf_error("No group 'parameters'.")
+
+        call get_netcdf_box(gid, origin, extent, ncells)
         call close_netcdf_file(ncid)
 
     end subroutine read_netcdf_domain

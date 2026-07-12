@@ -1,4 +1,5 @@
 module unit_test
+    use options, only : verbose
     implicit none
 
     ! abolute tolerance
@@ -51,7 +52,6 @@ module unit_test
             integer           :: i
             character(len=32) :: arg
             character(len=32) :: testname
-            logical           :: verbose = .false.
 
             testname = ''
             i = 0

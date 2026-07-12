@@ -1,0 +1,642 @@
+module cheby_layout
+    use cheby ! Import Chebyshev module to set up various matrices needed below
+    use constants, only : zero, f12, f23, one
+    use parameters, only : nz       &
+                         , hl, hli  &
+                         , center   &
+                         , upper    &
+                         , lower    &
+                         , extent   &
+                         , dx
+    use field_layout
+    use mpi_layout, only : box
+    use sta3dfft, only : is_fft_initialised, fftxyp2s, fftxys2p
+    use mpi_collectives, only : mpi_blocking_reduce
+    use mpi_utils, only : mpi_stop
+    use sta3dfft, only : k2l2, rkx, rky, rkz
+    implicit none
+
+    type, extends (layout_t) :: cheby_layout_t
+
+        integer :: nxym1 = 0
+        logical :: l_initialised = .false.
+
+        double precision, allocatable :: d1z(:, :), d2z(:, :) &
+                                       , zcheb(:)             & ! Chebyshev grid points
+                                       , zccw(:)                ! Clenshaw-Curtis weights
+!                                        , zfilt(:)
+
+        double precision, allocatable ::  eye(:, :), D2(:, :)
+        double precision, allocatable ::  eyeNF(:, :), D2NF(:, :)
+
+        double precision, allocatable :: filt(:, :, :)
+
+    contains
+
+        procedure :: initialise
+        procedure :: finalise
+
+        procedure :: get_z_axis
+
+        ! Field diagnostics:
+        procedure :: get_local_sum
+
+        ! Field operations:
+        procedure :: diffz
+        procedure :: get_semi_spectral_mean
+        procedure :: adjust_semi_spectral_mean
+
+        procedure :: vertvel
+        procedure :: zinteg
+        procedure :: zdiffuse
+        procedure :: zdiffNF
+
+        ! Filters:
+        procedure :: init_exp_filter
+        procedure :: init_cutoff_filter
+        procedure :: apply_filter
+        procedure :: apply_hfilter
+        procedure, private :: get_cheb_poly
+        procedure, private :: cheb_eval
+
+
+        ! Routines only available in this class
+        procedure :: zderiv
+        procedure :: zzderiv
+
+    end type cheby_layout_t
+
+contains
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine initialise(this)
+        class (cheby_layout_t), intent(inout) :: this
+        double precision                      :: fdz1, fdz2!, rkmax
+        double precision                      :: Am(0:nz, 0:nz)
+        integer                               :: iz
+
+        if (this%l_initialised) then
+            return
+        endif
+
+        this%l_initialised = .true.
+
+        !------------------------------------------------------------------
+        ! Ensure FFT module is initialised:
+        ! (this call does nothing if already initialised)
+        call initialise_fft(extent)
+
+        !------------------------------------------------------------------
+        ! Allocate arrays:
+        allocate(this%d1z(0:nz, 0:nz))
+        allocate(this%d2z(0:nz, 0:nz))
+        allocate(this%zcheb(0:nz))
+        allocate(this%zccw(0:nz))
+!         allocate(this%zfilt(0:nz))
+
+        this%nxym1 = box%size(1) * box%size(2) - 1
+
+        ! Note: hli = two / extent
+        fdz1 = - hli(3)
+        fdz2 = fdz1 * fdz1
+
+        !-----------------------------------------------------------------
+        ! Get Chebyshev points & 1st & 2nd order differentiation matrices:
+        call init_cheby(nz, this%zcheb, this%d1z, this%d2z)
+
+        ! Scale d1z & d2z for the actual z limits:
+        this%d1z = fdz1 * this%d1z
+        this%d2z = fdz2 * this%d2z
+
+        ! Get Clenshaw-Curtis weights:
+        call clencurt(nz, this%zccw)
+
+        ! Initialise arrays for zdiffuse:
+        allocate(this%D2(1:nz-1, 1:nz-1))
+        allocate(this%eye(1:nz-1, 1:nz-1))
+
+        allocate(this%D2NF(0:nz, 0:nz))
+        allocate(this%eyeNF(0:nz, 0:nz))
+
+        this%eye = zero
+        Am = zero
+        do iz = 1, nz-1
+            this%eye(iz, iz) = one
+        enddo
+        Am = matmul(this%d1z, this%d1z)
+
+        this%D2   = Am(1:nz-1,1:nz-1)
+        this%D2NF = Am
+
+        this%eyeNF = zero
+        do iz = 0, nz
+            this%eyeNF(iz, iz) = one
+        enddo
+
+        allocate(this%filt(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1)))
+
+        !Default: No filtering
+        this%filt = one
+
+    end subroutine initialise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine finalise(this)
+        class (cheby_layout_t), intent(inout) :: this
+
+        if (this%l_initialised) then
+            deallocate(this%d1z)
+            deallocate(this%d2z)
+            deallocate(this%zcheb)
+            deallocate(this%D2)
+            deallocate(this%eye)
+            deallocate(this%filt)
+            this%l_initialised = .false.
+        endif
+
+        call finalise_cheby
+
+    end subroutine finalise
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+    function get_z_axis(this)
+        class (cheby_layout_t), intent(in) :: this
+        double precision                   :: get_z_axis(0:nz)
+
+        get_z_axis = center(3) - hl(3) * this%zcheb
+
+    end function get_z_axis
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    function get_local_sum(this, ff) result(res)
+        class (cheby_layout_t), intent(in) :: this
+        double precision,       intent(in) :: ff(box%lo(3):box%hi(3), &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+        double precision                   :: res
+        integer                            :: iz
+
+        res = zero
+        do iz = box%lo(3), box%hi(3)
+            res = res + this%zccw(iz) * sum(ff(iz, :, :))
+        enddo
+
+        res = res * f12 * dble(nz)
+
+    end function get_local_sum
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine diffz(this, fs, ds, l_decomposed)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        logical,                intent(in)  :: l_decomposed
+
+        call this%zderiv(fs, ds)
+
+    end subroutine diffz
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! This is only calculated on the MPI rank having kx = ky = 0
+    function get_semi_spectral_mean(this, fs) result(savg)
+        class (cheby_layout_t), intent(in) :: this
+        double precision,       intent(in) :: fs(0:nz,                &
+                                                 box%lo(2):box%hi(2), &
+                                                 box%lo(1):box%hi(1))
+        double precision                   :: savg
+        integer                            :: iz
+
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+
+            savg = zero
+
+            do iz = 0, nz
+                savg = savg + this%zccw(iz) * fs(iz, 0, 0)
+            enddo
+
+            ! The factor f12 * extent(3) comes from the mapping [-1, 1] to [a, b]
+            ! where the Chebyshev points are given in [-1, 1]
+            ! z = (b-a) / 2 * t + (a+b)/2 for [a, b] --> dz = (b-a) / 2 * dt
+            ! However, we must divide by extent(3) again in order to get the vertical domain-average.
+            ! Hence, we only scale by f12.
+            savg = savg * f12
+        endif
+
+    end function get_semi_spectral_mean
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! This is only calculated on the MPI rank having kx = ky = 0
+    subroutine adjust_semi_spectral_mean(this, fs, avg)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(0:nz,                &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+        double precision,       intent(in)    :: avg
+        double precision                      :: savg, cor
+
+        savg = this%get_semi_spectral_mean(fs)
+
+        cor = avg - savg
+
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            fs(:, 0, 0) = fs(:, 0, 0) + cor
+        endif
+
+    end subroutine adjust_semi_spectral_mean
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Solves dg/dz = f for g, either with g(0) at z = zmin when
+    ! noavg = .false. or with the average of g over z equal to 0
+    ! when noavg = .true.
+    ! f & g are 1D arrays over z
+    ! Note: Assumes input function for zeroth modes (kx = ky = 0).
+    ! *** Uses dgesv from LAPACK/BLAS ***
+    subroutine zinteg(this, f, g, noavg)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz)
+        double precision,       intent(out) :: g(0:nz)
+        logical,                intent(in)  :: noavg
+        double precision                    :: dmat(0:nz-1, 0:nz-1), h(0:nz), gavg
+        integer                             :: ipiv(0:nz-1), info
+
+        g = f
+
+        !-----------------------------------------------------
+        ! Integrate starting from g = 0 at z = zmin:
+        dmat = this%d1z(0:nz-1, 0:nz-1)
+        call dgesv(nz, 1, dmat, nz, ipiv, g(0:nz-1), nz, info)
+        g(nz) = zero
+
+        if (.not. noavg) then
+            return
+        endif
+
+        !-----------------------------------------------------
+        ! Remove average of g:
+        h = g
+        dmat = this%d1z(0:nz-1, 0:nz-1)
+        call dgesv(nz, 1, dmat, nz, ipiv, h(0:nz-1), nz, info)
+        gavg = h(0) / extent(3)
+
+        g = g + gavg
+
+    end subroutine zinteg
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine zdiffNF(this, fs, dt, alpha_h, alpha_v)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(0:nz,                 &
+                                                    box%lo(2):box%hi(2),  &
+                                                    box%lo(1):box%hi(1))
+        double precision,       intent(in)    :: dt
+        double precision,       intent(in)    :: alpha_h
+        double precision,       intent(in)    :: alpha_v
+        double precision                      :: Lm(0:nz, 0:nz)
+        double precision                      :: Rm(0:nz, 0:nz)
+        double precision                      :: rhs(0:nz)
+        integer                               :: ipiv(0:nz)
+        integer                               :: kx, ky, info
+
+
+        !alpha = 133.79d0
+        !beta = 10.31d0
+        !kmax = 1.0d0/32.d0
+
+        Lm = this%eyeNF -  dt *  alpha_v * this%D2NF
+        Lm(0,:)  = this%d1z(0,:)
+        Lm(nz,:) = this%d1z(nz,:)
+        Rm = this%eyeNF + f12 * dt *  alpha_v * this%D2NF
+
+        call dgetrf(nz+1, nz+1, Lm, nz+1, ipiv, info)
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+
+                rhs = fs(:, ky, kx)
+                !rhs = matmul(Rm, b)
+                rhs(0) = 0.0d0
+                rhs(nz) = 0.0d0
+                !! Linear Solve in z
+                call dgetrs('N', nz+1, 1, Lm, nz+1, ipiv, rhs, nz+1, info)
+                !! Diffuse in x-y
+                fs(:, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+                !!!!!!!fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * rhs
+                !hfilt = sqrt(rkx(kx)**2 + rky(ky)**2) * kmax
+                !hfilt = -alpha * hfilt ** beta
+                !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
+            enddo
+        enddo
+
+    end subroutine zdiffNF
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine zdiffuse(this, fs, dt, alpha_h, alpha_v)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(0:nz,                 &
+                                                    box%lo(2):box%hi(2),  &
+                                                    box%lo(1):box%hi(1))
+        double precision,       intent(in)    :: dt
+        double precision,       intent(in)    :: alpha_h
+        double precision,       intent(in)    :: alpha_v
+        double precision                      :: Lm(1:nz-1, 1:nz-1)
+        double precision                      :: Rm(1:nz-1, 1:nz-1)
+        double precision                      :: rhs(1:nz-1)
+        integer                               :: ipiv(0:nz)
+        integer                               :: kx, ky, info
+
+        Lm = this%eye - f12 * dt *  alpha_v * this%D2
+        Rm = this%eye + f12 * dt *  alpha_v * this%D2
+
+        call dgetrf(nz-1, nz-1, Lm, nz-1, ipiv, info)
+!         alpha = 133.79d0
+!         beta = 10.31d0
+!         kmax = 1.0d0/sqrt(2.0*maxval(rkx))
+        !!! End Hack
+
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                !fs(0,  ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(0,  ky, kx)
+                !fs(nz, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(nz, ky, kx)
+                !! Diffuse in Horizontal
+                fs(:, ky, kx) = exp(-alpha_h * k2l2(ky, kx) * dt) * fs(:, ky, kx)
+                !! Filter in Horizontal
+                !hfilt = sqrt(rkx(kx)**2 + rky(ky)**2) * kmax
+                !hfilt = -alpha * hfilt ** beta
+                !hfilt = 0.0d0
+                !fs(:, ky, kx) = exp(hfilt) * fs(:, ky, kx)
+            enddo
+        enddo
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                rhs = matmul(Rm, fs(1:nz-1, ky, kx))
+                !! Linear Solve in z
+                call dgetrs('N', nz-1, 1, Lm, nz-1, ipiv, rhs, nz-1, info)
+                fs(1:nz-1, kx,ky) = rhs
+                !! Diffuse in x-y
+                !! fs(1:nz-1, ky, kx) = rhs / (one + dt * alpha_h * k2l2(ky, kx))
+            enddo
+        enddo
+    end subroutine zdiffuse
+
+
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Solves (d^2/dz^2 - K^2)[ds] = S in semi-spectral space where
+    ! K^2 = k^2 + l^2 is the squared horizontal wavenumber and
+    ! where ds initially contains the source S (this is overwritten
+    ! by the solution).
+    ! *** Uses dgesv from LAPACK/BLAS ***
+    subroutine vertvel(this, ds, es)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: ds(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out)   :: es(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision                      :: dmat(nz-1, nz-1), sol(nz-1)
+        integer                               :: ipiv(nz-1), info
+        integer                               :: kx, ky, iz
+
+        !-----------------------------------------------------------------
+        ! Loop over horizontal wavenumbers and solve linear system:
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                ! Inner part of d^2/dz^2 matrix:
+                dmat = this%d2z(1:nz-1, 1:nz-1)
+
+                ! Remove K^2 down the diagonal:
+                do iz = 1, nz-1
+                    dmat(iz, iz) = dmat(iz, iz) - k2l2(ky, kx)
+                enddo
+
+                ! Linear solve with LAPACK:
+                sol = ds(1:nz-1, ky, kx)
+                call dgesv(nz-1, 1, dmat, nz-1, ipiv, sol, nz-1, info)
+                ds(1:nz-1, ky, kx) = sol
+
+                ! Add zero boundary values:
+                ds(0,  ky, kx) = zero
+                ds(nz, ky, kx) = zero
+            enddo
+        enddo
+
+        ! Calculate z-derivative of vertical velocity:
+        call this%zderiv(ds, es)
+
+    end subroutine vertvel
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply_filter(this, fs)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+        double precision                      :: coeffs(0:nz,                &
+                                                        box%lo(2):box%hi(2), &
+                                                        box%lo(1):box%hi(1))
+        double precision                      :: err_e(box%lo(2):box%hi(2),  &
+                                                       box%lo(1):box%hi(1))
+        double precision                      :: err_o(box%lo(2):box%hi(2),  &
+                                                       box%lo(1):box%hi(1))
+        integer                               :: iz
+        double precision                      :: fstop(box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+        double precision                      :: fsbot(box%lo(2):box%hi(2), &
+                                                       box%lo(1):box%hi(1))
+
+
+        ! Get Chebyshev coefficients
+        call this%get_cheb_poly(fs, coeffs)
+
+        ! Apply filter on coefficients
+        coeffs = this%filt * coeffs
+
+        ! Return filtered field with 0 bc's
+        call this%cheb_eval(coeffs, fs)
+
+    end subroutine apply_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    subroutine apply_hfilter(this, fs)
+        class (cheby_layout_t), intent(in)    :: this
+        double precision,       intent(inout) :: fs(box%lo(3):box%hi(3), &
+                                                    box%lo(2):box%hi(2), &
+                                                    box%lo(1):box%hi(1))
+        integer                               :: kz
+
+        do kz = 0, nz
+            fs(kz, :, :) = this%filt(0, :, :) * fs(kz, :, :)
+        enddo
+
+    end subroutine apply_hfilter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define Hou and Li filter (2D and 3D):
+    subroutine init_exp_filter(this, alpha, beta)
+        class(cheby_layout_t), intent(inout) :: this
+        double precision,      intent(in)    :: alpha, beta
+        integer                              :: kx, ky, kz
+        double precision                     :: kxmaxi, kzmaxi!, kymaxi
+        double precision                     :: k2, hfilt
+        double precision                     :: skz(0:nz)
+
+
+        kzmaxi = one/(1.0d0*nz)
+
+        do kz = 0, nz
+            skz(kz) = -alpha * (kzmaxi * dble(kz)) ** beta
+        enddo
+
+        kxmaxi = sqrt(2.0d0)*maxval(rkx)
+        kxmaxi = one/kxmaxi
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                k2 = sqrt( rkx(kx)**2 + rky(ky)**2)
+                k2 = -alpha * (kxmaxi * k2) ** beta
+                hfilt = max(exp(k2), 1.0d-10)
+                this%filt(:, ky, kx) = hfilt * exp(skz)
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = exp(skz)
+        endif
+
+    end subroutine init_exp_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    !Define de-aliasing filter (2/3 rule):
+    subroutine init_cutoff_filter(this, cutoff)
+        class(cheby_layout_t), intent(inout) :: this
+        double precision,      intent(in)    :: cutoff
+        integer                              :: kx, ky, kz
+        double precision                     :: rkxmax, rkymax, rkzmax
+        double precision                     :: skx(box%lo(1):box%hi(1)), &
+                                                sky(box%lo(2):box%hi(2)), &
+                                                skz(0:nz)
+
+        rkxmax = maxval(rkx)
+        rkymax = maxval(rky)
+        rkzmax = maxval(rkz)
+
+        do kx = box%lo(1), box%hi(1)
+            if (rkx(kx) <= cutoff * rkxmax) then
+                skx(kx) = one
+            else
+                skx(kx) = zero
+            endif
+        enddo
+
+        do ky = box%lo(2), box%hi(2)
+            if (rky(ky) <= cutoff * rkymax) then
+                sky(ky) = one
+            else
+                sky(ky) = zero
+            endif
+        enddo
+
+        do kz = 0, nz
+            if (rkz(kz) <= cutoff * rkzmax) then
+                skz(kz) = one
+            else
+                skz(kz) = zero
+            endif
+        enddo
+
+        ! Take product of 1d filters:
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                do kz = 0, nz
+                    this%filt(kz, ky, kx) = skx(kx) * sky(ky) * skz(kz)
+                enddo
+            enddo
+        enddo
+
+        !Ensure filter does not change domain mean:
+        if ((box%lo(1) == 0) .and. (box%lo(2) == 0)) then
+            this%filt(:, 0, 0) = skz
+        endif
+
+    end subroutine init_cutoff_filter
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Input:
+    ! fs - a vector of length N+1 containing function values at Chebyshev nodes in [-1, 1]
+    ! Output:
+    ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
+    subroutine get_cheb_poly(this, fs, c)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                             :: kx, ky
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                call cheb_poly(nz, fs(:, ky, kx), c(:, ky, kx))
+            enddo
+        enddo
+
+    end subroutine get_cheb_poly
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Input:
+    ! c - a vector of length N+1 containing the coefficients of the Chebyshev polynomials
+    ! Output:
+    ! fs - a vector of length N+1 containing the values of f(x) at the points in y
+    subroutine cheb_eval(this, c, fs)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: c(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        double precision,       intent(out) :: fs(0:nz, box%lo(2):box%hi(2), box%lo(1):box%hi(1))
+        integer                             :: kx, ky
+
+        do kx = box%lo(1), box%hi(1)
+            do ky = box%lo(2), box%hi(2)
+                call cheb_fun(nz, c(:, ky, kx), fs(:, ky, kx))
+            enddo
+        enddo
+
+    end subroutine cheb_eval
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Calculates g = df/dz
+    subroutine zderiv(this, f, g)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz, 0:this%nxym1)
+        double precision,       intent(out) :: g(0:nz, 0:this%nxym1)
+
+        g = matmul(this%d1z, f)
+
+    end subroutine zderiv
+
+    !::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+    ! Calculates g = d^2f/dz^2
+    subroutine zzderiv(this, f, g)
+        class (cheby_layout_t), intent(in)  :: this
+        double precision,       intent(in)  :: f(0:nz, 0:this%nxym1)
+        double precision,       intent(out) :: g(0:nz, 0:this%nxym1)
+
+        g = matmul(this%d2z, f)
+
+    end subroutine zzderiv
+
+end module cheby_layout

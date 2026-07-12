@@ -6,15 +6,18 @@ AM_FCFLAGS =				\
 	-I $(top_builddir)/src/fft	\
 	-I $(top_builddir)/src/netcdf
 
-bin_PROGRAMS = ps3d beltrami
+bin_PROGRAMS = ps3d beltrami rayleigh_taylor init_sqg
 #genspec genspec2d  production
 
 ps3d_SOURCES = 					\
-	utils/options.f90			\
-	utils/parameters.f90			\
-	utils/merge_sort.f90			\
-	inversion/inversion_utils.f90		\
+	fields/field_layout.f90			\
 	fields/fields.f90			\
+	model/mss_layout.f90			\
+	model/cheby.f90				\
+	model/cheby_layout.f90			\
+	inversion/diffusion.f90			\
+	model/model.f90				\
+	inversion/inversion.f90			\
 	fields/fields_derived.f90		\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
@@ -24,13 +27,13 @@ ps3d_SOURCES += fields/field_balance.f90
 endif
 
 ps3d_SOURCES +=					\
-	fields/field_diagnostics_netcdf.f90	\
-	inversion/inversion.f90			\
-	utils/utils.f90				\
-	utils/rolling_mean.f90			\
-	stepper/advance.f90			\
+	stepper/stepper.f90			\
 	stepper/cn2.f90				\
 	stepper/impl_rk4.f90			\
+	stepper/drew_impl_rk4.f90		\
+	stepper/stepper_factory.f90		\
+	fields/field_diagnostics_netcdf.f90	\
+	model/model_manager.f90			\
 	ps3d.f90
 
 ps3d_LDADD = 						\
@@ -40,15 +43,11 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec_SOURCES = 				\
-	utils/options.f90			\
-	utils/parameters.f90			\
-	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
-	utils/utils.f90				\
 	genspec.f90
 
 #genspec_LDADD = 					\
@@ -58,15 +57,11 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 #genspec2d_SOURCES = 				\
-	utils/options.f90			\
-	utils/parameters.f90			\
-	inversion/inversion_utils.f90		\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
 	inversion/inversion.f90			\
-	utils/utils.f90				\
 	genspec2d.f90
 
 #genspec2d_LDADD = 					\
@@ -76,10 +71,13 @@ ps3d_LDADD = 						\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
 beltrami_SOURCES = 				\
-	utils/options.f90			\
-	utils/parameters.f90			\
-	inversion/inversion_utils.f90   	\
+	fields/field_layout.f90			\
 	fields/fields.f90			\
+	model/mss_layout.f90			\
+	model/cheby.f90				\
+	model/cheby_layout.f90			\
+	inversion/diffusion.f90		   	\
+	model/model.f90				\
 	fields/fields_derived.f90		\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90
@@ -91,7 +89,6 @@ endif
 beltrami_SOURCES += 				\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
-	utils/utils.f90				\
 	beltrami.f90
 
 beltrami_LDADD = 					\
@@ -100,16 +97,55 @@ beltrami_LDADD = 					\
 	$(top_builddir)/src/mpi/libps_mpi.la		\
 	$(top_builddir)/src/netcdf/libps_netcdf.la
 
+
+rayleigh_taylor_SOURCES =			\
+	fields/field_layout.f90			\
+	fields/fields.f90			\
+	model/mss_layout.f90			\
+	model/cheby.f90				\
+	model/cheby_layout.f90			\
+	inversion/diffusion.f90		   	\
+	model/model.f90				\
+	fields/fields_derived.f90		\
+	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
+	fields/field_diagnostics_netcdf.f90	\
+        inversion/inversion.f90         	\
+	rayleigh_taylor.f90
+
+rayleigh_taylor_LDADD = 				\
+	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_mpi_fft.la        \
+	$(top_builddir)/src/mpi/libps_mpi.la		\
+	$(top_builddir)/src/netcdf/libps_netcdf.la
+
+init_sqg_SOURCES =				\
+	fields/field_layout.f90			\
+	fields/fields.f90			\
+	model/mss_layout.f90			\
+	model/cheby.f90				\
+	model/cheby_layout.f90			\
+	inversion/diffusion.f90		   	\
+	model/model.f90				\
+	fields/fields_derived.f90		\
+	fields/field_netcdf.f90			\
+	fields/field_diagnostics.f90		\
+	fields/field_diagnostics_netcdf.f90	\
+        inversion/inversion.f90         	\
+	init_sqg.f90
+
+init_sqg_LDADD = 					\
+	$(top_builddir)/src/utils/libps_utils.la 	\
+	$(top_builddir)/src/fft/libps_mpi_fft.la        \
+	$(top_builddir)/src/mpi/libps_mpi.la		\
+	$(top_builddir)/src/netcdf/libps_netcdf.la
+
 #production_SOURCES = 				\
-	utils/options.f90			\
-	utils/parameters.f90			\
-	inversion/inversion_utils.f90   	\
 	fields/fields.f90			\
 	fields/field_netcdf.f90			\
 	fields/field_diagnostics.f90		\
 	fields/field_diagnostics_netcdf.f90	\
         inversion/inversion.f90         	\
-	utils/utils.f90				\
 	production.f90
 
 #production_LDADD = 					\

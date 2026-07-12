@@ -3,10 +3,11 @@ module field_balance
     use parameters, only : nz, extent, dx, lower
     use physics, only : bfsq, f_cor
     use inversion_utils, only : k2l2                            &
-                              , field_decompose_semi_spectral   &
-                              , field_combine_semi_spectral
+                              , decompose_semi_spectral   &
+                              , combine_semi_spectral
     use sta3dfft, only : diffx, diffy, fftxys2p
     use fields, only : vel, sbuoy, buoy
+    use model, only : layout
     use mpi_layout
     use field_diagnostics, only : get_available_potential_energy    &
                                 , get_horizontal_kinetic_energy     &
@@ -44,15 +45,15 @@ module field_balance
     contains
 
         subroutine initialise_balance
-            integer          :: kx, ky, iz
-            double precision :: zz(0:nz), z
+            integer          :: kx, ky
+            double precision :: zz(0:nz), z(0:nz)
 
             if (allocated(pq)) then
                 return
             endif
 
             ! buoyancy frequency, N
-            bf = dsqrt(bfsq)
+            bf = sqrt(bfsq)
 
             ! D = N * H / f where H is the original depth of the domain
             depth = bf * extent(3) / f_cor(3)
@@ -62,10 +63,8 @@ module field_balance
 
             !------------------------------------------------------------------
             ! Define scaled height:
-            do iz = 0, nz
-                z = lower(3) + dble(iz) * dx(3)
-                zz(iz) = bf * z / f_cor(3)
-            enddo
+            z = layout%get_z_axis()
+            zz = bf * z / f_cor(3)
 
             !------------------------------------------------------------------
             ! Fill pq and bq:
@@ -118,23 +117,23 @@ module field_balance
             double precision             :: ep(0:nz), ed(0:nz)
             double precision             :: ef, kl
 
-            kl = dsqrt(k2l2(ky, kx))
+            kl = sqrt(k2l2(ky, kx))
 
-            ed = dexp(-two * kl * (zz + depth))  ! exp[-2DK - 2Kz]
-            ep = dexp(kl * zz)                   ! exp[Kz]
+            ed = exp(-two * kl * (zz + depth))  ! exp[-2DK - 2Kz]
+            ep = exp(kl * zz)                   ! exp[Kz]
 #ifndef NDEBUG
             ! To avoid "Floating-point exception - erroneous arithmetic operation"
             ! when ep and ed are really small.
-            ed = max(ed, dsqrt(tiny(ed)))
-            ep = max(ep, dsqrt(tiny(ep)))
+            ed = max(ed, sqrt(tiny(ed)))
+            ep = max(ep, sqrt(tiny(ep)))
 #endif
             ! ef = 1 / (1 - exp[-2DK])
-            ef = one / (one - dexp(- two * kl * depth))
+            ef = one / (one - exp(- two * kl * depth))
 
 #ifndef NDEBUG
             ! To avoid "Floating-point exception - erroneous arithmetic operation"
             ! when ef is really small.
-            ef = max(ef, dsqrt(tiny(ef)))
+            ef = max(ef, sqrt(tiny(ef)))
 #endif
 
             !pq = exp[Kz] * (1 + exp[-2DK-2Kz]) / (KN * (1 - exp[-2DK]))
@@ -159,12 +158,12 @@ module field_balance
 
             !------------------------------------------------------------------
             ! Define streamfunction and obtain balanced buoyancy anomaly:
-            call field_combine_semi_spectral(sbuoy)
+            call combine_semi_spectral(sbuoy)
             do iz = 0, nz
                 psi(iz, :, :) = pq(iz, :, :) * sbuoy(nz, :, :)
                 ds(iz, :, :)  = bq(iz, :, :) * sbuoy(nz, :, :)
             enddo
-            call field_decompose_semi_spectral(sbuoy)
+            call decompose_semi_spectral(sbuoy)
             call fftxys2p(ds, bbal)
 
             !------------------------------------------------------------------
