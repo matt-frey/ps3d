@@ -64,7 +64,7 @@ contains
 
     subroutine initialise_fft(extent)
         double precision, intent(in) :: extent(3)
-        integer                      :: kx, ky, kz
+        integer                      :: kx, ky!, kz
 
         if (is_fft_initialised) then
             return
@@ -198,10 +198,10 @@ contains
         ! 6. Transform from (y, x, z) to (z, y, x) pencil
 
         call transpose_to_pencil(y_from_z_transposition,  &
-                                    (/1, 2, 3/),             &
-                                    fft_y_comm,              &
-                                    FORWARD,                 &
-                                    fp(box%lo(3):box%hi(3),  &
+                                 (/1, 2, 3/),             &
+                                 fft_y_comm,              &
+                                 FORWARD,                 &
+                                 fp(box%lo(3):box%hi(3),  &
                                     box%lo(2):box%hi(2),  &
                                     box%lo(1):box%hi(1)), &
                                     fft_in_y_buffer)
@@ -311,8 +311,8 @@ contains
 
     subroutine fftsine(fs)
         double precision, intent(inout) :: fs(box%lo(3):box%hi(3), &  ! 0:nz
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
+                                              box%lo(2):box%hi(2), &
+                                              box%lo(1):box%hi(1))
         integer                         :: kx, ky
 
         !$omp parallel do collapse(2) private(kx, ky)
@@ -329,8 +329,8 @@ contains
 
     subroutine fftcosine(fs)
         double precision, intent(inout) :: fs(box%lo(3):box%hi(3), & ! 0:nz
-                                                box%lo(2):box%hi(2), &
-                                                box%lo(1):box%hi(1))
+                                              box%lo(2):box%hi(2), &
+                                              box%lo(1):box%hi(1))
         integer                         :: kx, ky
 
         !$omp parallel do collapse(2) private(kx, ky)

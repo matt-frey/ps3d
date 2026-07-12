@@ -67,9 +67,9 @@ contains
         dims = (/0, 0/)
         call MPI_Dims_create(world%size, 2, dims, world%err)
 
-        playout%size(1) = dims(1)
-        playout%size(2) = dims(2)
-        playout%size(3) = 1
+        layout%size(1) = dims(1)
+        layout%size(2) = dims(2)
+        layout%size(3) = 1
 
         periods = (/.true., .true./)
 
@@ -104,9 +104,9 @@ contains
         !   coords  -- containing the Cartesian coordinates of the specified process
         call MPI_Cart_coords(cart%comm, cart%rank, 2, coords)
 
-        playout%coords(1) = coords(1)
-        playout%coords(2) = coords(2)
-        playout%coords(3) = 0
+        layout%coords(1) = coords(1)
+        layout%coords(2) = coords(2)
+        layout%coords(3) = 0
 
         call get_local_bounds(nx, coords(1), dims(1), box%lo(1), box%hi(1))
         call get_local_bounds(ny, coords(2), dims(2), box%lo(2), box%hi(2))
@@ -120,7 +120,7 @@ contains
         box%hlo(3) = 0 !-1
         box%hhi(3) = nz! + 1
 
-        playout%l_parallel = (box%hi - box%lo < (/nx-1, ny-1, nz/))
+        layout%l_parallel = (box%hi - box%lo < (/nx-1, ny-1, nz/))
         box%size = box%hi - box%lo + 1
         box%halo_size = box%hhi - box%hlo + 1
         box%ncell = box%size(1) * box%size(2) * (box%size(3) - 1)
@@ -176,15 +176,15 @@ contains
         ! Obtain limits of neighbours:
         call MPI_Cart_coords(cart%comm, neighbours(MPI_WEST)%rank, 2, coords, cart%err)
         call get_local_bounds(nx, coords(1), dims(1),       &
-                                neighbours(MPI_WEST)%lo(1),   &
-                                neighbours(MPI_WEST)%hi(1))
+                              neighbours(MPI_WEST)%lo(1),   &
+                              neighbours(MPI_WEST)%hi(1))
         neighbours(MPI_WEST)%lo(2) = box%lo(2)
         neighbours(MPI_WEST)%hi(2) = box%hi(2)
 
         call MPI_Cart_coords(cart%comm, neighbours(MPI_EAST)%rank, 2, coords, cart%err)
         call get_local_bounds(nx, coords(1), dims(1),       &
-                                neighbours(MPI_EAST)%lo(1),   &
-                                neighbours(MPI_EAST)%hi(1))
+                              neighbours(MPI_EAST)%lo(1),   &
+                              neighbours(MPI_EAST)%hi(1))
         neighbours(MPI_EAST)%lo(2) = box%lo(2)
         neighbours(MPI_EAST)%hi(2) = box%hi(2)
 
@@ -192,15 +192,15 @@ contains
         neighbours(MPI_SOUTH)%hi(1) = box%hi(1)
         call MPI_Cart_coords(cart%comm, neighbours(MPI_SOUTH)%rank, 2, coords, cart%err)
         call get_local_bounds(ny, coords(2), dims(2),       &
-                                neighbours(MPI_SOUTH)%lo(2),  &
-                                neighbours(MPI_SOUTH)%hi(2))
+                              neighbours(MPI_SOUTH)%lo(2),  &
+                              neighbours(MPI_SOUTH)%hi(2))
 
         neighbours(MPI_NORTH)%lo(1) = box%lo(1)
         neighbours(MPI_NORTH)%hi(1) = box%hi(1)
         call MPI_Cart_coords(cart%comm, neighbours(MPI_NORTH)%rank, 2, coords, cart%err)
         call get_local_bounds(ny, coords(2), dims(2),       &
-                                neighbours(MPI_NORTH)%lo(2),  &
-                                neighbours(MPI_NORTH)%hi(2))
+                              neighbours(MPI_NORTH)%lo(2),  &
+                              neighbours(MPI_NORTH)%hi(2))
 
         neighbours(MPI_SOUTHWEST)%lo(1) = neighbours(MPI_WEST)%lo(1)
         neighbours(MPI_SOUTHWEST)%hi(1) = neighbours(MPI_WEST)%hi(1)

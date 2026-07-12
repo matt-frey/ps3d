@@ -203,16 +203,16 @@ contains
 
         if (l_parallel) then
             ncerr = nf90_open(path = ncfname,               &
-                                mode = access_flag,           &
-                                ncid = ncid,                  &
-                                comm = world%comm%MPI_VAL,    &
-                                info = MPI_INFO_NULL%MPI_VAL)
+                              mode = access_flag,           &
+                              ncid = ncid,                  &
+                              comm = world%comm%MPI_VAL,    &
+                              info = MPI_INFO_NULL%MPI_VAL)
         else
             ! in single execution world%root = world%rank = 0
             if (world%root == world%rank) then
                 ncerr = nf90_open(path = ncfname,     &
-                                mode = access_flag,   &
-                                ncid = ncid)
+                                  mode = access_flag, &
+                                  ncid = ncid)
             endif
         endif
 
