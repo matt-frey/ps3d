@@ -33,7 +33,7 @@ module mpi_layout
 
     type(box_type)        :: box
     type(neighbour_type)  :: neighbours(8)
-    type(parallel_layout) :: playout
+    type(parallel_layout) :: layout
 
     logical, protected :: l_mpi_layout_initialised = .false.
 
