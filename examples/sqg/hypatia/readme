@@ -1,0 +1,38 @@
+Hypatia is the high performance computing system at
+the University of St Andrews (https://www.st-andrews.ac.uk/high-performance-computing/)
+
+27 June 2026
+------------
+source setup.sh
+source build.sh > install.log
+
+
+mkdir /home/mf248/work/27-06-2026
+
+Pytools:
+
+git log | head
+commit fdff946a15edeeef2d87a5dd47869cee2c925c67
+Author: Matthias Frey <mf248@st-andrews.ac.uk>
+Date:   Tue Sep 2 16:52:11 2025 +0200
+
+    pass on **kwargs
+
+commit 150131c86d6d48ce93a51db88d5f10af7b785429
+Author: Matthias Frey <mf248@st-andrews.ac.uk>
+Date:   Fri May 23 16:01:01 2025 +0100
+
+export PYTHONPATH=$PYTHONPATH:/home/mf248/work/pytools
+python write_bolin_charney_fields.py
+
+
+(pytools) [mf248@login01(standrews) 27-06-2026]$ python write_bolin_charney_fields.py 
+Write buoyancy_anomaly min: -0.49481731749343827 max: 0.4909771790093169
+Write x_vorticity min: -1.548377279235749 max: 1.6905076199040352
+Write y_vorticity min: -1.4602857644321328 max: 1.572765651267182
+Write z_vorticity min: -0.24782008623154217 max: 0.24904921389879567
+
+cd /home/mf248/work/27-06-2026
+mkdir data
+(base) [mf248@login01(standrews) 27-06-2026]$ sbatch submit_job.sh 
+Submitted batch job 3826093

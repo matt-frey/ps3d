@@ -1,0 +1,4 @@
+In order to run this simulation you need to generate the NetCDF file first.
+This is accomplished by running the provided Python file. Note: The Python file
+requires input data from a different code. Please contact David Dritschel
+(david.dritschel@st-andrews.ac.uk) for further information.
